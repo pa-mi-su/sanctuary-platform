@@ -2,8 +2,7 @@
   "name": "sanctuary-platform",
   "private": true,
   "workspaces": [
-    "apps/*",
-    "packages/*"
+    "apps/*"
   ],
   "devDependencies": {
     "@angular/cli": "^21.2.7"
