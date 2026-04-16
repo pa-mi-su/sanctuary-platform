@@ -1,0 +1,591 @@
+:host {
+  --bg-top: #20384a;
+  --bg-bottom: #132331;
+  --glass-fill: rgba(23, 38, 54, 0.58);
+  --glass-stroke: rgba(255, 255, 255, 0.07);
+  --text-main: #f4f2ee;
+  --text-soft: rgba(244, 242, 238, 0.78);
+  --gold: #e2c16e;
+  --blue-pill: #5fa7d9;
+  --tab-fill: rgba(19, 28, 40, 0.82);
+  display: block;
+  min-height: 100vh;
+  color: var(--text-main);
+  font-family: "Avenir Next", "SF Pro Display", "Segoe UI", sans-serif;
+  position: relative;
+  overflow: hidden;
+}
+
+.page-bg {
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(circle at 30% 22%, rgba(161, 180, 111, 0.2), transparent 18%),
+    radial-gradient(circle at 74% 14%, rgba(93, 152, 204, 0.2), transparent 20%),
+    radial-gradient(circle at 68% 72%, rgba(95, 167, 217, 0.18), transparent 22%),
+    radial-gradient(circle at 20% 76%, rgba(88, 116, 139, 0.14), transparent 18%),
+    linear-gradient(180deg, var(--bg-top) 0%, var(--bg-bottom) 100%);
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(4, 11, 19, 0.48);
+  backdrop-filter: blur(8px);
+  z-index: 4;
+}
+
+.about-modal {
+  position: fixed;
+  z-index: 5;
+  left: 50%;
+  top: 50%;
+  width: min(90vw, 380px);
+  transform: translate(-50%, -50%);
+  border-radius: 28px;
+  padding: 22px 20px 20px;
+}
+
+.about-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.about-header h2 {
+  margin: 0;
+  font-size: 1.4rem;
+}
+
+.close-button {
+  width: 38px;
+  height: 38px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+  color: white;
+  font-size: 1.6rem;
+  line-height: 1;
+}
+
+.about-copy {
+  margin: 0 0 18px;
+  color: rgba(255, 255, 255, 0.78);
+  line-height: 1.55;
+}
+
+.about-links {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.about-links a {
+  color: #dff7ff;
+  text-decoration: none;
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.app-shell {
+  min-height: 100vh;
+  padding: 32px 20px 40px;
+  position: relative;
+  z-index: 1;
+}
+
+.phone-frame {
+  width: min(100%, 390px);
+  margin: 0 auto;
+}
+
+.glass-card {
+  background: linear-gradient(180deg, rgba(33, 52, 71, 0.66), rgba(22, 35, 49, 0.7));
+  border: 1px solid var(--glass-stroke);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 24px 50px rgba(3, 10, 18, 0.26);
+  backdrop-filter: blur(18px);
+}
+
+.top-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.pill-button {
+  height: 48px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 18px;
+  background: rgba(31, 45, 61, 0.56);
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px;
+  font-size: 0.92rem;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.pill-icon {
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 0.78rem;
+}
+
+.welcome-card {
+  border-radius: 28px;
+  padding: 28px 24px 22px;
+  text-align: center;
+}
+
+.logo-wrap {
+  width: 142px;
+  height: 142px;
+  margin: 6px auto 22px;
+  display: grid;
+  place-items: center;
+  border-radius: 32px;
+  background:
+    radial-gradient(circle at 50% 54%, rgba(245, 220, 138, 0.16), transparent 34%),
+    linear-gradient(180deg, #0d1f34 0%, #0b2436 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 20px 50px rgba(0, 0, 0, 0.28);
+}
+
+.logo-image {
+  width: 108px;
+  height: 108px;
+  object-fit: contain;
+  filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.28));
+}
+
+.welcome-card h1 {
+  margin: 0;
+  font-size: 3rem;
+  line-height: 0.98;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+}
+
+.welcome-question {
+  margin: 16px 0 10px;
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 1.05rem;
+  font-weight: 500;
+}
+
+.welcome-copy {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.96rem;
+  line-height: 1.55;
+}
+
+.quick-links {
+  margin-top: 16px;
+  display: grid;
+  gap: 14px;
+}
+
+.nav-card {
+  min-height: 78px;
+  border-radius: 24px;
+  padding: 0 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.nav-card__left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.nav-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  font-size: 1.2rem;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.nav-icon.saints {
+  color: var(--gold);
+}
+
+.nav-icon.novenas {
+  color: #8fc7ef;
+}
+
+.nav-icon.prayers {
+  color: #d49ace;
+}
+
+.nav-arrow {
+  color: rgba(255, 255, 255, 0.64);
+  font-size: 1rem;
+}
+
+.tab-bar {
+  margin-top: 18px;
+  padding: 8px 10px;
+  border-radius: 24px;
+  background: linear-gradient(180deg, rgba(27, 38, 54, 0.92), rgba(17, 25, 36, 0.92));
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.tab {
+  min-height: 58px;
+  border: 0;
+  background: transparent;
+  border-radius: 18px;
+  color: rgba(255, 255, 255, 0.82);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-size: 0.72rem;
+}
+
+.tab-icon {
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+.tab.active {
+  background: radial-gradient(circle at 50% 18%, rgba(129, 217, 255, 0.24), transparent 90%),
+    linear-gradient(180deg, rgba(87, 117, 137, 0.55), rgba(62, 86, 107, 0.5));
+  color: #dff7ff;
+}
+
+.action-card {
+  width: 100%;
+  border: 0;
+  text-align: left;
+}
+
+.screen-card {
+  border-radius: 28px;
+  padding: 18px 16px 18px;
+}
+
+.screen-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.screen-header.split {
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.screen-title {
+  text-align: center;
+  flex: 1;
+}
+
+.screen-title h2,
+.screen-header h2,
+.me-header h2 {
+  margin: 0;
+  font-size: 2.1rem;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+}
+
+.screen-title p,
+.me-header p,
+.meta-text {
+  margin: 6px 0 0;
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 0.92rem;
+}
+
+.circle-button {
+  width: 42px;
+  height: 42px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(31, 45, 61, 0.72);
+  color: var(--text-main);
+  font-size: 1.5rem;
+}
+
+.glass-subtle {
+  background: rgba(26, 40, 56, 0.64);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.search-bar {
+  margin-top: 8px;
+  min-height: 52px;
+  border-radius: 18px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 16px;
+  color: rgba(255, 255, 255, 0.54);
+}
+
+.list-stack {
+  display: grid;
+  gap: 14px;
+}
+
+.content-card {
+  border-radius: 24px;
+  padding: 16px 14px;
+  display: grid;
+  grid-template-columns: 42px 1fr 14px;
+  gap: 14px;
+  align-items: start;
+}
+
+.content-card__icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: rgba(74, 117, 150, 0.26);
+  color: #8fc7ef;
+}
+
+.content-card__body h3,
+.panel-card h3 {
+  margin: 0 0 8px;
+  font-size: 1.05rem;
+  line-height: 1.22;
+}
+
+.content-card__body p,
+.panel-card p,
+.calendar-day span,
+.saint-date span {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.74);
+  font-size: 0.9rem;
+  line-height: 1.42;
+}
+
+.content-tag {
+  display: inline-flex;
+  margin-top: 10px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.74rem;
+}
+
+.chip-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.chip {
+  min-height: 42px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(35, 48, 63, 0.8);
+  color: rgba(255, 255, 255, 0.88);
+  font-weight: 600;
+}
+
+.chip.selected {
+  justify-self: start;
+  padding: 0 14px;
+}
+
+.chip.active-blue,
+.search-cta {
+  background: linear-gradient(180deg, #6fc5f4, #4c9fd0);
+  color: white;
+}
+
+.saint-highlight {
+  min-height: 118px;
+  border-radius: 24px;
+  padding: 10px;
+  display: grid;
+  grid-template-columns: 90px 1fr 28px;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.saint-date {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+  padding-left: 6px;
+}
+
+.saint-date strong {
+  font-size: 2.2rem;
+  line-height: 1;
+}
+
+.saint-photo {
+  border-radius: 16px;
+  background:
+    linear-gradient(180deg, rgba(0, 0, 0, 0.15), rgba(0, 0, 0, 0.25)),
+    url('https://upload.wikimedia.org/wikipedia/commons/thumb/5/50/Martinus_I.jpg/320px-Martinus_I.jpg')
+      center / cover;
+}
+
+.saint-action {
+  display: grid;
+  place-items: start center;
+  padding-top: 8px;
+  color: rgba(255, 255, 255, 0.66);
+}
+
+.search-cta {
+  width: 100%;
+  min-height: 54px;
+  border: 0;
+  border-radius: 999px;
+  margin-top: 16px;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.calendar-headings {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+  margin: 2px 0 10px;
+  color: rgba(255, 255, 255, 0.64);
+  font-size: 0.72rem;
+  text-align: center;
+}
+
+.calendar-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.month-grid,
+.week-grid {
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.calendar-day {
+  min-height: 74px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(31, 45, 61, 0.46);
+  padding: 8px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.calendar-day strong {
+  font-size: 1rem;
+}
+
+.calendar-day span {
+  font-size: 0.6rem;
+  line-height: 1.15;
+}
+
+.week-grid .calendar-day {
+  min-height: 88px;
+}
+
+.calendar-day.accent-purple {
+  border-color: rgba(195, 151, 238, 0.62);
+}
+
+.calendar-day.active-gold {
+  border-color: rgba(226, 193, 110, 0.92);
+}
+
+.mode-panel {
+  border-radius: 22px;
+  padding: 20px 18px;
+  min-height: 140px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+}
+
+.mode-panel strong {
+  font-size: 1.2rem;
+}
+
+.mode-panel p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.me-screen {
+  min-height: 620px;
+}
+
+.me-header {
+  margin-bottom: 18px;
+}
+
+.panel-card {
+  border-radius: 24px;
+  padding: 18px 16px;
+}
+
+.divider {
+  height: 1px;
+  margin: 12px 0;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+@media (max-width: 480px) {
+  .app-shell {
+    padding: 16px 12px 28px;
+  }
+
+  .top-actions {
+    gap: 10px;
+  }
+
+  .pill-button {
+    height: 44px;
+    padding: 0 12px;
+    font-size: 0.82rem;
+  }
+
+  .welcome-card h1 {
+    font-size: 2.52rem;
+  }
+
+  .nav-card__left {
+    font-size: 1.06rem;
+  }
+
+  .screen-title h2,
+  .screen-header h2,
+  .me-header h2 {
+    font-size: 1.9rem;
+  }
+}

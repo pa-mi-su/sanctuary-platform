@@ -1,0 +1,9 @@
+{
+  "name": "@sanctuary/api",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node src/index.js",
+    "import:novenas": "node scripts/import-novenas.mjs"
+  }
+}
