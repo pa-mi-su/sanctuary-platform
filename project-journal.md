@@ -801,3 +801,29 @@ Logging expectations:
   - `mvn -q test` from `apps/api`
     - could not complete inside the sandbox because Maven resource output into `target/classes` hit a local permission restriction
     - practical verification was done instead by recompiling through `./scripts/run-local.sh` and hitting the new live endpoints successfully on the running API
+
+- Frontend consistency audit: Saints vs Novenas
+  - user flagged that the Saints page and Novenas page still did not share the same structure, even after earlier cleanup
+  - audited `apps/web/src/app/app.html` and found that Novenas titles mode still had leftover custom behavior:
+    - a titles-mode search bar
+    - a one-panel special case when the selected day matched today
+    - extra titles-mode result rendering below the preview area
+  - Saints already had the cleaner permanent pattern:
+    - date header
+    - view chips
+    - optional calendar grid
+    - featured highlight card
+    - two preview panels: `Today` and `Selected Day`
+  - fixed Novenas titles mode to match that Saints structure directly:
+    - removed the titles-mode search bar
+    - kept search only for `Intentions`, which remains its own search/list mode
+    - removed the one-panel special case when selected day equals today
+    - added a featured novena highlight card using the same layout as the saints highlight card
+    - kept the two preview panels and the `Selected day matches today.` copy, matching Saints behavior
+    - removed the extra titles-mode supplemental result stack so titles mode now behaves as a calendar-driven screen, not a hybrid search/list page
+  - files updated:
+    - `apps/web/src/app/app.html`
+    - `apps/web/src/app/app.scss`
+  - verification:
+    - `npm run build` from `apps/web`
+      - passed

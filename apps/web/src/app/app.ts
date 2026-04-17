@@ -26,6 +26,7 @@ type CalendarView = 'day' | 'week' | 'month';
 })
 export class App {
   private readonly api = inject(SanctuaryApiService);
+  private readonly todayDateValue = this.formatDateForApi(new Date());
 
   protected readonly currentTab = signal<AppTab>('home');
   protected readonly liturgicalView = signal<CalendarView>('month');
@@ -151,6 +152,35 @@ export class App {
     { initialValue: null },
   );
 
+  protected readonly todayLiturgicalDay = toSignal(
+    this.api.getLiturgicalDay(this.todayDateValue).pipe(catchError(() => of<LiturgicalDayResponse | null>(null))),
+    { initialValue: null },
+  );
+
+  protected readonly todaySaintGroup = toSignal(
+    toObservable(this.language).pipe(
+      switchMap((language) =>
+        this.api.getSaintsByDate(this.todayDateValue, this.apiLanguage(language)).pipe(
+          switchMap((saints) => of<SaintDateGroup | null>({ date: this.todayDateValue, saints })),
+          catchError(() => of<SaintDateGroup | null>(null)),
+        ),
+      ),
+    ),
+    { initialValue: null },
+  );
+
+  protected readonly todayNovenasGroup = toSignal(
+    toObservable(this.language).pipe(
+      switchMap((language) =>
+        this.api.getNovenasByRange(this.todayDateValue, this.todayDateValue, this.apiLanguage(language)).pipe(
+          switchMap((days) => of<NovenaCalendarDateResponse | null>(days[0] ?? { date: this.todayDateValue, novenas: [] })),
+          catchError(() => of<NovenaCalendarDateResponse | null>(null)),
+        ),
+      ),
+    ),
+    { initialValue: null },
+  );
+
   protected readonly selectedDateLabel = computed(() =>
     new Intl.DateTimeFormat(this.isEnglish() ? 'en-US' : 'es-ES', {
       month: 'long',
@@ -175,6 +205,7 @@ export class App {
   protected readonly selectedNovenas = computed(() => this.novenasByDate().get(this.selectedDate())?.novenas ?? []);
 
   protected readonly selectedSaintHeadline = computed(() => this.selectedSaintGroup()?.saints[0] ?? null);
+  protected readonly selectedNovenaHeadline = computed(() => this.selectedNovenas()[0] ?? null);
   protected readonly selectedNovenaDay = computed(() => {
     const detail = this.novenaDetail();
     if (!detail || detail.days.length === 0) {
@@ -258,8 +289,21 @@ export class App {
     return this.selectedDate() === this.formatDateForApi(new Date());
   }
 
+  protected todayDate(): string {
+    return this.todayDateValue;
+  }
+
   protected selectedSaintImageStyle(): string | null {
     const imageUrl = this.selectedSaintHeadline()?.imageUrl;
+    if (!imageUrl) {
+      return null;
+    }
+
+    return `linear-gradient(180deg, rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0.24)), url(${imageUrl})`;
+  }
+
+  protected selectedNovenaImageStyle(): string | null {
+    const imageUrl = this.selectedNovenaHeadline()?.imageUrl;
     if (!imageUrl) {
       return null;
     }
@@ -273,6 +317,14 @@ export class App {
     }
 
     return `linear-gradient(180deg, rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0.24)), url(${imageUrl})`;
+  }
+
+  protected cardImageStyle(imageUrl: string | null | undefined): string | null {
+    if (!imageUrl) {
+      return null;
+    }
+
+    return `linear-gradient(180deg, rgba(6, 12, 18, 0.05), rgba(6, 12, 18, 0.28)), url(${imageUrl})`;
   }
 
   protected updatePrayerQuery(value: string): void {
@@ -336,7 +388,14 @@ export class App {
 
   protected localizedSaintsCountLabel(): string {
     const count = this.selectedSaintGroup()?.saints.length ?? 0;
-    return this.isEnglish() ? `${count} saints` : `${count} santos`;
+    return this.isEnglish() ? `Selected day · ${count} saints` : `Día seleccionado · ${count} santos`;
+  }
+
+  protected localizedNovenasCountLabel(): string {
+    const count = this.selectedNovenas().length;
+    return this.isEnglish()
+      ? `Selected day · ${count} active novenas`
+      : `Día seleccionado · ${count} novenas activas`;
   }
 
   protected localizedNoSaintsCopy(): string {
@@ -371,10 +430,36 @@ export class App {
     return this.isEnglish() ? `${this.prayerResults().length} prayers` : `${this.prayerResults().length} oraciones`;
   }
 
+  protected localizedIntentionsResultsLabel(): string {
+    return this.isEnglish()
+      ? `${this.novenaSearchResults().length} novenas with intentions`
+      : `${this.novenaSearchResults().length} novenas con intenciones`;
+  }
+
+  protected localizedPreviewTitle(mode: 'today' | 'selected'): string {
+    if (mode === 'today') {
+      return this.isEnglish() ? 'Today' : 'Hoy';
+    }
+
+    return this.isEnglish() ? 'Selected Day' : 'Día seleccionado';
+  }
+
+  protected localizedNoLiturgicalCopy(): string {
+    return this.isEnglish()
+      ? 'No liturgical summary is available for this day.'
+      : 'No hay un resumen litúrgico disponible para este día.';
+  }
+
+  protected localizedSelectedSameAsTodayCopy(): string {
+    return this.isEnglish()
+      ? 'Selected day matches today.'
+      : 'El día seleccionado coincide con hoy.';
+  }
+
   protected localizedIntentionsEmptyCopy(): string {
     return this.isEnglish()
-      ? 'Search by intention to see matching novenas.'
-      : 'Busca por intención para ver novenas relacionadas.';
+      ? 'Browse the available intention novenas or search for a specific intention.'
+      : 'Revisa las novenas con intenciones disponibles o busca una intención específica.';
   }
 
   protected localizedApiErrorCopy(subject: 'saints' | 'liturgical' | 'novenas' | 'prayers'): string {
@@ -424,6 +509,38 @@ export class App {
 
   protected isDateToday(date: string): boolean {
     return date === this.formatDateForApi(new Date());
+  }
+
+  protected previewDateLabel(date: string): string {
+    return new Intl.DateTimeFormat(this.isEnglish() ? 'en-US' : 'es-ES', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    }).format(this.parseDate(date));
+  }
+
+  protected previewNovenas(date: string): NovenaSummary[] {
+    if (date === this.todayDateValue) {
+      return this.todayNovenasGroup()?.novenas ?? [];
+    }
+
+    return this.novenasByDate().get(date)?.novenas ?? [];
+  }
+
+  protected previewSaints(date: string): SaintSummary[] {
+    if (date === this.todayDateValue) {
+      return this.todaySaintGroup()?.saints ?? [];
+    }
+
+    return this.saintsByDate().get(date)?.saints ?? [];
+  }
+
+  protected previewLiturgical(date: string): LiturgicalDayResponse | null {
+    if (date === this.todayDateValue) {
+      return this.todayLiturgicalDay();
+    }
+
+    return this.liturgicalByDate().get(date) ?? null;
   }
 
   protected novenaDayCountLabel(novena: NovenaSummary): string {
@@ -510,10 +627,6 @@ export class App {
   protected readonly novenaSearchResults = toSignal(
     combineLatest([toObservable(this.novenaQuery), toObservable(this.language), toObservable(this.novenaSearchMode)]).pipe(
       switchMap(([query, language, mode]) => {
-        if (mode === 'intentions' && !query.trim()) {
-          return of<NovenaSummary[]>([]);
-        }
-
         const request = mode === 'intentions'
           ? this.api.listNovenaIntentions(this.apiLanguage(language), query)
           : this.api.listNovenas(this.apiLanguage(language), query);
