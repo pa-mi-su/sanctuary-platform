@@ -1,11 +1,10 @@
 package app.sanctuary.api.content;
 
 import java.time.LocalDate;
-import java.util.ArrayList;
 import java.util.List;
 
-import org.springframework.http.HttpStatus;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -15,27 +14,33 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 @RestController
-@RequestMapping("/content/saints")
-public class SaintContentController {
+@RequestMapping("/content/novenas")
+public class NovenaContentController {
 
-    private final SaintContentRepository saintContentRepository;
+    private final NovenaCalendarContentRepository novenaContentRepository;
 
-    public SaintContentController(SaintContentRepository saintContentRepository) {
-        this.saintContentRepository = saintContentRepository;
+    public NovenaContentController(NovenaCalendarContentRepository novenaContentRepository) {
+        this.novenaContentRepository = novenaContentRepository;
     }
 
     @GetMapping
-    public List<SaintSummaryResponse> getSaintsByFeastDay(
-        @RequestParam int month,
-        @RequestParam int day,
-        @RequestParam(defaultValue = "en") String lang
+    public List<NovenaSummaryResponse> listNovenas(
+        @RequestParam(defaultValue = "en") String lang,
+        @RequestParam(defaultValue = "") String query
     ) {
-        validateMonthDay(month, day);
-        return saintContentRepository.findByFeastDay(month, day, lang);
+        return novenaContentRepository.list(lang, query);
     }
 
-    @GetMapping("/range")
-    public List<SaintDateGroupResponse> getSaintsByDateRange(
+    @GetMapping("/intentions")
+    public List<NovenaSummaryResponse> searchNovenasByIntentions(
+        @RequestParam(defaultValue = "en") String lang,
+        @RequestParam(defaultValue = "") String query
+    ) {
+        return novenaContentRepository.listByIntentions(lang, query);
+    }
+
+    @GetMapping("/calendar")
+    public List<NovenaCalendarDateResponse> getNovenasByDateRange(
         @RequestParam
         @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
         LocalDate start,
@@ -45,35 +50,16 @@ public class SaintContentController {
         @RequestParam(defaultValue = "en") String lang
     ) {
         validateDateRange(start, end, 62);
-
-        List<SaintDateGroupResponse> response = new ArrayList<>();
-        LocalDate cursor = start;
-        while (!cursor.isAfter(end)) {
-            response.add(new SaintDateGroupResponse(
-                cursor,
-                saintContentRepository.findByFeastDay(cursor.getMonthValue(), cursor.getDayOfMonth(), lang)
-            ));
-            cursor = cursor.plusDays(1);
-        }
-        return response;
+        return novenaContentRepository.calendarRange(start, end, lang);
     }
 
     @GetMapping("/{slug}")
-    public SaintDetailResponse getSaintBySlug(
+    public NovenaDetailResponse getNovenaBySlug(
         @PathVariable String slug,
         @RequestParam(defaultValue = "en") String lang
     ) {
-        return saintContentRepository.findBySlug(slug, lang)
-            .orElseThrow(() -> new NotFoundException("No saint found for slug: " + slug));
-    }
-
-    private void validateMonthDay(int month, int day) {
-        if (month < 1 || month > 12) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "month must be between 1 and 12");
-        }
-        if (day < 1 || day > 31) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "day must be between 1 and 31");
-        }
+        return novenaContentRepository.findBySlug(slug, lang)
+            .orElseThrow(() -> new NotFoundException("No novena found for slug: " + slug));
     }
 
     private void validateDateRange(LocalDate start, LocalDate end, int maxDaysInclusive) {

@@ -19,6 +19,132 @@
   </section>
 }
 
+@if (saintDetail() || prayerDetail() || novenaDetail()) {
+  <div class="modal-backdrop" (click)="closeDetailModal()"></div>
+  <section class="detail-modal glass-card" aria-label="Content detail">
+    <div class="about-header">
+      <h2>
+        @if (saintDetail()) {
+          {{ saintDetail()!.name }}
+        } @else if (prayerDetail()) {
+          {{ prayerDetail()!.title }}
+        } @else if (novenaDetail()) {
+          {{ novenaDetail()!.title }}
+        }
+      </h2>
+      <button class="close-button" type="button" (click)="closeDetailModal()">×</button>
+    </div>
+
+    @if (saintDetail()) {
+      <div class="detail-stack">
+        <div class="detail-hero">
+          <div class="detail-image" [style.background-image]="detailImageStyle(saintDetail()!.imageUrl)"></div>
+          <div class="detail-meta">
+            <span class="content-tag">{{ saintDetail()!.feastLabel }}</span>
+            <p>{{ saintDetail()!.summary }}</p>
+          </div>
+        </div>
+        <section class="detail-section">
+          <h3>Biography</h3>
+          <p>{{ saintDetail()!.biography }}</p>
+        </section>
+        @if (saintDetail()!.sources.length) {
+          <section class="detail-section">
+            <h3>Sources</h3>
+            @for (source of saintDetail()!.sources; track source.text) {
+              <div class="detail-list-row">
+                <span>{{ source.text }}</span>
+                @if (source.url) {
+                  <a class="text-link" [href]="source.url" target="_blank" rel="noreferrer">Open</a>
+                }
+              </div>
+            }
+          </section>
+        }
+      </div>
+    }
+
+    @if (prayerDetail()) {
+      <div class="detail-stack">
+        <div class="detail-hero">
+          <div class="detail-image prayer-image" [style.background-image]="detailImageStyle(prayerDetail()!.imageUrl)"></div>
+          <div class="detail-meta">
+            <span class="content-tag">{{ prayerDetail()!.category }}</span>
+            <p>{{ prayerDetail()!.alternateTitle }}</p>
+          </div>
+        </div>
+        <section class="detail-section">
+          <h3>Prayer</h3>
+          <p class="detail-copy">{{ prayerDetail()!.body }}</p>
+        </section>
+        <section class="detail-section">
+          <h3>Note</h3>
+          <p>{{ prayerDetail()!.note }}</p>
+        </section>
+        @if (prayerDetail()!.tags.length) {
+          <section class="detail-chip-row">
+            @for (tag of prayerDetail()!.tags; track tag) {
+              <span class="content-tag">{{ tag }}</span>
+            }
+          </section>
+        }
+      </div>
+    }
+
+    @if (novenaDetail()) {
+      <div class="detail-stack">
+        <div class="detail-hero">
+          <div class="detail-image" [style.background-image]="detailImageStyle(novenaDetail()!.imageUrl)"></div>
+          <div class="detail-meta">
+            <span class="content-tag">{{ novenaDayCountLabel(novenaDetail()!) }}</span>
+            <p>{{ novenaDetail()!.description }}</p>
+          </div>
+        </div>
+        @if (novenaDetail()!.intentions.length) {
+          <section class="detail-section">
+            <h3>Intentions</h3>
+            @for (intention of novenaDetail()!.intentions; track intention) {
+              <div class="detail-list-row"><span>{{ intention }}</span></div>
+            }
+          </section>
+        }
+        @if (novenaDetail()!.days.length) {
+          <section class="detail-section">
+            <h3>Days</h3>
+            <div class="detail-chip-row">
+              @for (day of novenaDetail()!.days; track day.dayNumber) {
+                <button
+                  class="day-chip"
+                  type="button"
+                  [class.active-blue]="selectedNovenaDay()?.dayNumber === day.dayNumber"
+                  (click)="selectNovenaDay(day.dayNumber)"
+                >
+                  Day {{ day.dayNumber }}
+                </button>
+              }
+            </div>
+          </section>
+          @if (selectedNovenaDay()) {
+            <section class="detail-section">
+              <h3>{{ selectedNovenaDay()!.title }}</h3>
+              <p class="detail-copy">{{ selectedNovenaDay()!.body }}</p>
+              @if (selectedNovenaDay()!.scripture) {
+                <p><strong>Scripture:</strong> {{ selectedNovenaDay()!.scripture }}</p>
+              }
+              @if (selectedNovenaDay()!.reflection) {
+                <p><strong>Reflection:</strong> {{ selectedNovenaDay()!.reflection }}</p>
+              }
+              @if (selectedNovenaDay()!.prayer) {
+                <p class="detail-copy"><strong>Prayer:</strong> {{ selectedNovenaDay()!.prayer }}</p>
+              }
+            </section>
+          }
+        }
+      </div>
+    }
+  </section>
+}
+
 <div class="app-shell">
   <main class="phone-frame">
     @if (currentTab() === 'home') {
@@ -41,11 +167,11 @@
         @if (isEnglish()) {
           <h1>Welcome to<br />your sanctuary</h1>
           <p class="welcome-question">How do you want to connect with God?</p>
-          <p class="welcome-copy">Prayer, liturgy, and saints in one calm place.</p>
+          <p class="welcome-copy">Prayer, liturgy, saints, and novenas in one calm place.</p>
         } @else {
           <h1>Bienvenido a<br />tu santuario</h1>
           <p class="welcome-question">¿Cómo quieres conectarte con Dios?</p>
-          <p class="welcome-copy">Oración, liturgia y santos en un solo lugar de paz.</p>
+          <p class="welcome-copy">Oración, liturgia, santos y novenas en un solo lugar de paz.</p>
         }
       </section>
 
@@ -58,7 +184,7 @@
           <span class="nav-arrow">↗</span>
         </button>
 
-        <button class="nav-card glass-card action-card" type="button" (click)="setTab('novenas')">
+        <button class="nav-card glass-card action-card" type="button" (click)="browseNovenas()">
           <div class="nav-card__left">
             <span class="nav-icon novenas">📘</span>
             <span>{{ isEnglish() ? 'Novenas' : 'Novenas' }}</span>
@@ -66,53 +192,183 @@
           <span class="nav-arrow">↗</span>
         </button>
 
-        <button class="nav-card glass-card action-card" type="button" (click)="setTab('me')">
+        <button class="nav-card glass-card action-card" type="button" (click)="setTab('prayers')">
           <div class="nav-card__left">
             <span class="nav-icon prayers">🕯</span>
             <span>{{ isEnglish() ? 'Prayers' : 'Oraciones' }}</span>
           </div>
           <span class="nav-arrow">↗</span>
         </button>
+
+        <button class="nav-card glass-card action-card" type="button" (click)="showDailyTab()">
+          <div class="nav-card__left">
+            <span class="nav-icon daily">☼</span>
+            <span>{{ isEnglish() ? 'Daily' : 'Diario' }}</span>
+          </div>
+          <span class="nav-arrow">↗</span>
+        </button>
+
+        <button class="nav-card glass-card action-card" type="button" (click)="openIntentions()">
+          <div class="nav-card__left">
+            <span class="nav-icon intentions">♥</span>
+            <span>{{ isEnglish() ? 'Intentions' : 'Intenciones' }}</span>
+          </div>
+          <span class="nav-arrow">↗</span>
+        </button>
+      </section>
+    }
+
+    @if (currentTab() === 'prayers') {
+      <section class="screen-card glass-card">
+        <div class="screen-header">
+          <button class="circle-button" type="button" (click)="setTab('home')">‹</button>
+          <div>
+            <h2>{{ isEnglish() ? 'Prayers' : 'Oraciones' }}</h2>
+            <p class="meta-text">{{ localizedPrayerResultsLabel() }}</p>
+          </div>
+        </div>
+
+        <label class="search-bar glass-subtle">
+          <span>⌕</span>
+          <input
+            class="search-input"
+            type="text"
+            [value]="prayerQuery()"
+            (input)="updatePrayerQuery($any($event.target).value)"
+            [placeholder]="isEnglish() ? 'Search prayers' : 'Buscar oraciones'"
+          />
+        </label>
+
+        @if (prayersLoadFailed()) {
+          <div class="mode-panel glass-subtle">
+            <strong>{{ isEnglish() ? 'Prayers' : 'Oraciones' }}</strong>
+            <p>{{ localizedApiErrorCopy('prayers') }}</p>
+          </div>
+        } @else {
+          <section class="list-stack">
+            @for (prayer of prayerResults(); track prayer.slug) {
+              <button class="content-card glass-subtle content-button" type="button" (click)="openPrayerDetail(prayer)">
+                <div class="content-card__icon">🕯</div>
+                <div class="content-card__body">
+                  <h3>{{ prayer.title }}</h3>
+                  <p>{{ prayerPreviewLabel(prayer) }}</p>
+                  <span class="content-tag">{{ prayer.category }}</span>
+                </div>
+              </button>
+            }
+          </section>
+        }
       </section>
     }
 
     @if (currentTab() === 'novenas') {
       <section class="screen-card glass-card">
-        <div class="screen-header">
-          <button class="circle-button" type="button" (click)="setTab('home')">‹</button>
-          <div>
-            <h2>Search Novenas</h2>
+        <div class="screen-header split">
+          <button class="circle-button" type="button" (click)="shiftSelectedDate(-1)">‹</button>
+          <div class="screen-title">
+            <h2>{{ selectedDateLabel() }}</h2>
+            <p>{{ selectedNovenas().length }} {{ isEnglish() ? 'active novenas' : 'novenas activas' }}</p>
           </div>
+          <button class="circle-button" type="button" (click)="shiftSelectedDate(1)">›</button>
         </div>
 
-        <div class="search-bar glass-subtle">
+        <div class="chip-row">
+          <button class="chip selected" type="button" (click)="resetSelectedDate()">
+            {{ isSelectedDateToday() ? 'Today' : 'Jump to Today' }}
+          </button>
+          <button class="chip" [class.active-blue]="novenasView() === 'day'" type="button" (click)="setNovenasView('day')">Day</button>
+          <button class="chip" [class.active-blue]="novenasView() === 'week'" type="button" (click)="setNovenasView('week')">Week</button>
+          <button class="chip" [class.active-blue]="novenasView() === 'month'" type="button" (click)="setNovenasView('month')">Month</button>
+        </div>
+
+        <div class="chip-row secondary">
+          <button class="chip" [class.active-blue]="novenaSearchMode() === 'title'" type="button" (click)="setNovenaSearchMode('title')">
+            {{ isEnglish() ? 'Titles' : 'Títulos' }}
+          </button>
+          <button class="chip" [class.active-blue]="novenaSearchMode() === 'intentions'" type="button" (click)="setNovenaSearchMode('intentions')">
+            {{ isEnglish() ? 'Intentions' : 'Intenciones' }}
+          </button>
+        </div>
+
+        <label class="search-bar glass-subtle">
           <span>⌕</span>
-          <span>Search novenas</span>
-        </div>
+          <input
+            class="search-input"
+            type="text"
+            [value]="novenaQuery()"
+            (input)="updateNovenaQuery($any($event.target).value)"
+            [placeholder]="localizedNovenaSearchPlaceholder()"
+          />
+        </label>
 
-        <p class="meta-text">237 results</p>
+        @if (novenasView() !== 'day') {
+          <div class="calendar-headings">
+            @for (label of weekdayLabels; track label) {
+              <span>{{ label }}</span>
+            }
+          </div>
 
-        <section class="list-stack">
-          <article class="content-card glass-subtle">
-            <div class="content-card__icon">📘</div>
-            <div class="content-card__body">
-              <h3>30 Day Novena to St Joseph</h3>
-              <p>Seek St. Joseph's powerful intercession today.</p>
-              <span class="content-tag">30-day novena</span>
-            </div>
-            <span class="nav-arrow">›</span>
-          </article>
+          <div class="calendar-grid" [class.week-grid]="novenasView() === 'week'" [class.month-grid]="novenasView() === 'month'">
+            @for (day of novenaCalendarDays(); track day.date) {
+              <button
+                class="calendar-day calendar-button"
+                [class.selected]="isDateSelected(day.date)"
+                [class.today]="isDateToday(day.date)"
+                type="button"
+                (click)="selectDateFromGrid(day.date)"
+              >
+                <strong>{{ day.dayNumber }}</strong>
+                <span>{{ shortNovenaLabel(day.date) }}</span>
+              </button>
+            }
+          </div>
+        }
 
-          <article class="content-card glass-subtle">
-            <div class="content-card__icon">📘</div>
-            <div class="content-card__body">
-              <h3>All Saints Novena</h3>
-              <p>Unite with Heaven's greatest heroes and invoke their intercession.</p>
-              <span class="content-tag">9-day novena</span>
-            </div>
-            <span class="nav-arrow">›</span>
-          </article>
-        </section>
+        @if (novenasLoadFailed()) {
+          <div class="mode-panel glass-subtle">
+            <strong>{{ isEnglish() ? 'Novenas' : 'Novenas' }}</strong>
+            <p>{{ localizedApiErrorCopy('novenas') }}</p>
+          </div>
+        } @else if (selectedNovenas().length > 0) {
+          <section class="list-stack">
+            @for (novena of selectedNovenas(); track novena.slug) {
+              <button class="content-card glass-subtle content-button" type="button" (click)="openNovenaDetail(novena)">
+                <div class="content-card__icon">📘</div>
+                <div class="content-card__body">
+                  <h3>{{ novena.title }}</h3>
+                  <p>{{ novena.description }}</p>
+                  <span class="content-tag">{{ novenaDayCountLabel(novena) }}</span>
+                </div>
+              </button>
+            }
+          </section>
+        } @else {
+          <div class="mode-panel glass-subtle">
+            <strong>{{ isEnglish() ? 'Novenas' : 'Novenas' }}</strong>
+            <p>{{ localizedNoNovenasCopy() }}</p>
+          </div>
+        }
+
+        @if (novenaQuery().trim()) {
+          <h3 class="subsection-title">{{ localizedNovenaSearchHeading() }}</h3>
+          <section class="list-stack supplemental-stack">
+            @for (novena of novenaSearchResults(); track novena.slug) {
+              <button class="content-card glass-subtle content-button" type="button" (click)="openNovenaDetail(novena)">
+                <div class="content-card__icon">⌕</div>
+                <div class="content-card__body">
+                  <h3>{{ novena.title }}</h3>
+                  <p>{{ novena.description }}</p>
+                  <span class="content-tag">{{ novenaDayCountLabel(novena) }}</span>
+                </div>
+              </button>
+            }
+          </section>
+        } @else if (novenaSearchMode() === 'intentions') {
+          <div class="mode-panel glass-subtle compact">
+            <strong>{{ isEnglish() ? 'Intentions Search' : 'Búsqueda de intenciones' }}</strong>
+            <p>{{ localizedIntentionsEmptyCopy() }}</p>
+          </div>
+        }
       </section>
     }
 
@@ -131,19 +387,42 @@
           <button class="chip selected" type="button" (click)="resetSelectedDate()">
             {{ isSelectedDateToday() ? 'Today' : 'Jump to Today' }}
           </button>
-          <button class="chip active-blue" type="button">Day</button>
-          <button class="chip" type="button">{{ liturgicalDay()?.rankType ?? 'Rank' }}</button>
-          <button class="chip" type="button">{{ liturgicalMonthLabel() }}</button>
+          <button class="chip" [class.active-blue]="liturgicalView() === 'day'" type="button" (click)="setLiturgicalView('day')">Day</button>
+          <button class="chip" [class.active-blue]="liturgicalView() === 'week'" type="button" (click)="setLiturgicalView('week')">Week</button>
+          <button class="chip" [class.active-blue]="liturgicalView() === 'month'" type="button" (click)="setLiturgicalView('month')">Month</button>
         </div>
 
+        @if (liturgicalView() !== 'day') {
+          <div class="calendar-headings">
+            @for (label of weekdayLabels; track label) {
+              <span>{{ label }}</span>
+            }
+          </div>
+
+          <div class="calendar-grid" [class.week-grid]="liturgicalView() === 'week'" [class.month-grid]="liturgicalView() === 'month'">
+            @for (day of liturgicalCalendarDays(); track day.date) {
+              <button
+                class="calendar-day calendar-button"
+                [class.selected]="isDateSelected(day.date)"
+                [class.today]="isDateToday(day.date)"
+                type="button"
+                (click)="selectDateFromGrid(day.date)"
+              >
+                <strong>{{ day.dayNumber }}</strong>
+                <span>{{ shortLiturgicalLabel(day.date) }}</span>
+              </button>
+            }
+          </div>
+        }
+
         <div class="mode-panel glass-subtle">
-          @if (liturgicalDay()) {
-            <strong>{{ liturgicalDay()!.primaryRank }}</strong>
-            <p>{{ liturgicalDay()!.season.replaceAll('_', ' ') }} • {{ liturgicalDay()!.rankType }}</p>
-            <a class="text-link" [href]="liturgicalDay()!.readingsUrl" target="_blank" rel="noreferrer">
+          @if (selectedLiturgicalDay()) {
+            <strong>{{ selectedLiturgicalDay()!.primaryRank }}</strong>
+            <p>{{ selectedLiturgicalDay()!.season.replaceAll('_', ' ') }} • {{ selectedLiturgicalDay()!.rankType }}</p>
+            <a class="text-link" [href]="selectedLiturgicalDay()!.readingsUrl" target="_blank" rel="noreferrer">
               Open daily readings
             </a>
-          } @else if (liturgicalDayLoadFailed()) {
+          } @else if (liturgicalLoadFailed()) {
             <strong>Liturgical Day</strong>
             <p>{{ localizedApiErrorCopy('liturgical') }}</p>
           } @else {
@@ -169,34 +448,56 @@
           <button class="chip selected" type="button" (click)="resetSelectedDate()">
             {{ isSelectedDateToday() ? 'Today' : 'Jump to Today' }}
           </button>
-          <button class="chip active-blue" type="button">Day</button>
-          <button class="chip" type="button">{{ selectedDateDayNumber() }}</button>
-          <button class="chip" type="button">{{ liturgicalMonthLabel() }}</button>
+          <button class="chip" [class.active-blue]="saintsView() === 'day'" type="button" (click)="setSaintsView('day')">Day</button>
+          <button class="chip" [class.active-blue]="saintsView() === 'week'" type="button" (click)="setSaintsView('week')">Week</button>
+          <button class="chip" [class.active-blue]="saintsView() === 'month'" type="button" (click)="setSaintsView('month')">Month</button>
         </div>
 
+        @if (saintsView() !== 'day') {
+          <div class="calendar-headings">
+            @for (label of weekdayLabels; track label) {
+              <span>{{ label }}</span>
+            }
+          </div>
+
+          <div class="calendar-grid" [class.week-grid]="saintsView() === 'week'" [class.month-grid]="saintsView() === 'month'">
+            @for (day of saintsCalendarDays(); track day.date) {
+              <button
+                class="calendar-day calendar-button"
+                [class.selected]="isDateSelected(day.date)"
+                [class.today]="isDateToday(day.date)"
+                type="button"
+                (click)="selectDateFromGrid(day.date)"
+              >
+                <strong>{{ day.dayNumber }}</strong>
+                <span>{{ shortSaintLabel(day.date) }}</span>
+              </button>
+            }
+          </div>
+        }
+
         @if (selectedSaintHeadline()) {
-          <article class="saint-highlight glass-subtle">
+          <button class="saint-highlight glass-subtle content-button" type="button" (click)="openSaintDetail(selectedSaintHeadline()!)">
             <div class="saint-date">
               <strong>{{ selectedDateDayNumber() }}</strong>
               <span>{{ selectedSaintHeadline()!.name }}</span>
             </div>
             <div class="saint-photo" [style.background-image]="selectedSaintImageStyle()"></div>
             <div class="saint-action">↗</div>
-          </article>
+          </button>
         }
 
-        @if (saintsForSelectedDate().length > 0) {
+        @if (selectedSaintGroup()?.saints?.length) {
           <section class="list-stack">
-            @for (saint of saintsForSelectedDate(); track trackSaintBySlug($index, saint)) {
-              <article class="content-card glass-subtle">
+            @for (saint of selectedSaintGroup()!.saints; track saint.slug) {
+              <button class="content-card glass-subtle content-button" type="button" (click)="openSaintDetail(saint)">
                 <div class="content-card__icon">✧</div>
                 <div class="content-card__body">
                   <h3>{{ saint.name }}</h3>
                   <p>{{ saint.summary }}</p>
                   <span class="content-tag">{{ saint.feastLabel }}</span>
                 </div>
-                <span class="nav-arrow">›</span>
-              </article>
+              </button>
             }
           </section>
         } @else if (saintsLoadFailed()) {

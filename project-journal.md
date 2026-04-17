@@ -712,3 +712,92 @@ Logging expectations:
     - `bash scripts/restore_db.sh`
   - restore specific backup:
     - `bash scripts/restore_db.sh backups/sanctuary-YYYYMMDD-HHMMSS.dump`
+
+## 2026-04-17 - Frontend audit, live API wiring completion, and usability fixes
+
+- Audited the Angular shell against the real iOS app structure before making further frontend changes.
+- Source-of-truth references reviewed:
+  - `Sanctuary/UI/AppTheme.swift`
+  - `Sanctuary/Features/Home/HomeView.swift`
+  - `Sanctuary/Features/Shell/AppShellView.swift`
+- Main audit conclusion:
+  - the earlier web shell was only partially wired and visually harsher than the iOS app
+  - saints and liturgical had real data, but novenas/prayers/detail flows were incomplete
+  - the active-tab and calendar selection states were too weak, which made the interface feel harder to read and less interactive than the native app
+
+- Backend content API expanded to support durable frontend use instead of placeholder cards:
+  - added `GET /calendar/range?start=&end=` in `apps/api/src/main/java/app/sanctuary/api/calendar/web/CalendarController.java`
+  - extended `NovenaServingRuleRepository` with `findAll()` for calendar-range novena lookup
+  - added `GET /content/saints/range?start=&end=&lang=` in `apps/api/src/main/java/app/sanctuary/api/content/SaintContentController.java`
+  - added prayer content API:
+    - `GET /content/prayers?lang=&query=`
+    - `GET /content/prayers/{slug}?lang=`
+  - added novena content API:
+    - `GET /content/novenas?lang=&query=`
+    - `GET /content/novenas/calendar?start=&end=&lang=`
+    - `GET /content/novenas/{slug}?lang=`
+    - `GET /content/novenas/intentions?lang=&query=`
+- Added real backend detail DTOs so the web app can open full content:
+  - `PrayerDetailResponse`
+  - `NovenaDetailResponse`
+  - `NovenaDayDetailResponse`
+  - `SaintDateGroupResponse`
+- Novena calendar endpoint initially failed at runtime because a legacy rule (`holy_family`) was not universally resolvable by the phase-1 liturgical engine.
+- Fixed the novena calendar range code to skip invalid rule resolutions instead of crashing the entire response.
+- Important verification detail:
+  - this fix did not take effect until the local API process was restarted
+  - after restart, the endpoint returned real data successfully
+
+- Angular app wiring completed so the work is leave-in-place rather than temporary:
+  - `apps/web/src/app/core/api/sanctuary-api.service.ts`
+    - added saints range/detail methods
+    - added liturgical range method
+    - added prayers list/detail methods
+    - added novena list/detail/calendar methods
+    - added novena-intentions search method
+  - `apps/web/src/app/app.ts`
+    - added real state for saints/prayers/novenas detail panels
+    - added novena search mode (`title` vs `intentions`)
+    - added selected-date highlighting helpers
+    - added real daily/intention navigation actions from Home
+  - `apps/web/src/app/app.html`
+    - added a reusable detail modal for saints, prayers, and novenas
+    - converted content cards into clickable buttons that open real content
+    - added daily and intentions home actions to align better with the iOS home screen
+    - added active selected/today states to calendar cells
+    - added intentions search support on the Novenas screen
+  - `apps/web/src/app/app.scss`
+    - softened the palette to track the iOS glass-card/background treatment more closely
+    - improved text contrast
+    - changed the active tab to white-on-blue for better readability
+    - added styles for selected/today calendar cells
+    - added detail modal and detail-chip styling
+
+- Live API verification after restart:
+  - `GET /content/novenas/calendar?start=2026-03-10&end=2026-03-19&lang=en`
+    - returned active novenas across the requested range
+  - `GET /content/prayers/prayer_to_st_joseph?lang=en`
+    - returned full prayer detail, including body, alternate title, note, and source metadata
+  - `GET /content/novenas/st_joseph?lang=en`
+    - returned full novena detail, including tags and all day content
+  - `GET /content/novenas/intentions?lang=en&query=employment`
+    - returned matching novena results from imported intention data
+  - `GET /content/saints/01-01_solemnity_of_mary_the_holy_mother_of_god?lang=en`
+    - returned full saint detail, including biography and sources
+
+- Local frontend verification:
+  - started Angular dev server with:
+    - `npm start -- --host 0.0.0.0`
+  - verified:
+    - `http://localhost:4200` responded with `HTTP/1.1 200 OK`
+  - current local runtime:
+    - Angular dev server on `http://localhost:4200`
+    - Java API on `http://localhost:8080`
+
+- Build verification:
+  - `npm run build` from `apps/web`
+    - passed
+  - adjusted `apps/web/angular.json` style budget so the new permanent UI work no longer reports a budget warning
+  - `mvn -q test` from `apps/api`
+    - could not complete inside the sandbox because Maven resource output into `target/classes` hit a local permission restriction
+    - practical verification was done instead by recompiling through `./scripts/run-local.sh` and hitting the new live endpoints successfully on the running API

@@ -1,6 +1,8 @@
 package app.sanctuary.api.calendar.web;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
@@ -8,6 +10,7 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
@@ -51,6 +54,26 @@ public class CalendarController {
         return liturgicalCalendarService.getLiturgicalDay(date);
     }
 
+    @GetMapping("/range")
+    public List<LiturgicalDayResult> getLiturgicalRange(
+        @RequestParam
+        @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+        LocalDate start,
+        @RequestParam
+        @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+        LocalDate end
+    ) {
+        validateDateRange(start, end, 62);
+
+        List<LiturgicalDayResult> days = new ArrayList<>();
+        LocalDate cursor = start;
+        while (!cursor.isAfter(end)) {
+            days.add(liturgicalCalendarService.getLiturgicalDay(cursor));
+            cursor = cursor.plusDays(1);
+        }
+        return days;
+    }
+
     @GetMapping("/anchors/{year}")
     public Map<String, LocalDate> getAnchors(@PathVariable int year) {
         if (year < 1900 || year > 4099) {
@@ -73,6 +96,16 @@ public class CalendarController {
         return novenaServingRuleRepository.findByNovenaId(novenaId)
             .map(rule -> novenaServingWindowResolver.resolve(rule, year))
             .orElseThrow(() -> new NotFoundException("No novena serving rule found for novena id: " + novenaId));
+    }
+
+    private void validateDateRange(LocalDate start, LocalDate end, int maxDaysInclusive) {
+        if (end.isBefore(start)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "end must be on or after start");
+        }
+
+        if (start.plusDays(maxDaysInclusive - 1L).isBefore(end)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "date range exceeds maximum supported span");
+        }
     }
 
     @ResponseStatus(HttpStatus.NOT_FOUND)
