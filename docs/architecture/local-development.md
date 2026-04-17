@@ -89,3 +89,43 @@ Local infrastructure should be simple enough that:
 - a new machine can start the database in one command
 - the backend can connect without manual database setup
 - frontend and backend work can proceed independently
+## Database Persistence
+
+Local PostgreSQL data is stored in the named Docker volume `sanctuary_postgres_data`.
+
+Important behavior:
+
+- `docker compose stop` keeps the data
+- `docker compose down` keeps the data
+- `docker compose down -v` deletes the volume and removes the local database contents
+
+Because Sanctuary now contains imported legacy content, the local workflow should not rely on the Docker volume alone.
+
+## Database Backups
+
+Use the project backup scripts from the repo root:
+
+```bash
+bash scripts/export_db.sh
+```
+
+This creates:
+
+- `backups/sanctuary-YYYYMMDD-HHMMSS.dump`
+- `backups/sanctuary-YYYYMMDD-HHMMSS.sql`
+- `backups/sanctuary_latest.dump`
+- `backups/sanctuary_latest.sql`
+
+Restore the latest backup:
+
+```bash
+bash scripts/restore_db.sh
+```
+
+Restore a specific backup:
+
+```bash
+bash scripts/restore_db.sh backups/sanctuary-YYYYMMDD-HHMMSS.dump
+```
+
+The restore script resets the `public` schema before loading the backup, so treat it as a full local database replacement.

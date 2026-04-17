@@ -683,3 +683,32 @@ Logging expectations:
     - returned `primaryRank: Thursday of Easter`
     - returned the expected USCCB readings URL for `2026-04-16`
 - Stopped the local Spring Boot verification process afterward so port `8080` was not left occupied.
+- Added explicit local database backup/restore scripts:
+  - `scripts/export_db.sh`
+  - `scripts/restore_db.sh`
+- Documented the local data-persistence rule in `docs/architecture/local-development.md`:
+  - ordinary container stops and `docker compose down` keep the named volume data
+  - `docker compose down -v` destroys the local database volume
+- Chose backup/restore scripts over Flyway seed-data migrations for imported legacy content.
+- Reasoning:
+  - Flyway is still the right place for schema changes
+  - it is not the right place to embed the full imported saints/prayers/novenas dataset as giant versioned SQL seed files
+  - local backup/restore gives us a repeatable way to preserve and reload the imported content without turning one-time legacy content into permanent Flyway seed bloat
+- First export attempt failed with a real toolchain mismatch:
+  - server version: PostgreSQL `17.9`
+  - host `pg_dump` version: PostgreSQL `15.15`
+  - result: host-based `pg_dump` cannot be trusted on this machine for Sanctuary backups
+- Fixed the backup/restore scripts to use the PostgreSQL 17 client inside the running Docker container (`sanctuary-postgres`) via `docker exec` instead of the host Homebrew client.
+- Reran the export successfully with the container-matched Postgres 17 tooling.
+- Current backup files on disk:
+  - `/Users/pms/repos/sanctuary-platform/backups/sanctuary-20260417-081159.dump`
+  - `/Users/pms/repos/sanctuary-platform/backups/sanctuary-20260417-081159.sql`
+  - `/Users/pms/repos/sanctuary-platform/backups/sanctuary_latest.dump`
+  - `/Users/pms/repos/sanctuary-platform/backups/sanctuary_latest.sql`
+- Current recovery commands:
+  - create/export backup:
+    - `bash scripts/export_db.sh`
+  - restore latest backup:
+    - `bash scripts/restore_db.sh`
+  - restore specific backup:
+    - `bash scripts/restore_db.sh backups/sanctuary-YYYYMMDD-HHMMSS.dump`
