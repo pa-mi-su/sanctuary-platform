@@ -35,11 +35,7 @@
 
       <section class="welcome-card glass-card">
         <div class="logo-wrap">
-          <img
-            class="logo-image"
-            src="sanctuary-logo-source.png"
-            alt="Sanctuary logo"
-          />
+          <img class="logo-image" src="sanctuary-logo-source.png" alt="Sanctuary logo" />
         </div>
 
         @if (isEnglish()) {
@@ -123,127 +119,97 @@
     @if (currentTab() === 'liturgical') {
       <section class="screen-card glass-card">
         <div class="screen-header split">
-          <button class="circle-button" type="button" (click)="shiftLiturgicalMonth(-1)">‹</button>
+          <button class="circle-button" type="button" (click)="shiftSelectedDate(-1)">‹</button>
           <div class="screen-title">
-            <h2>{{ liturgicalMonthLabel() }}</h2>
-            <p>Liturgical • Tap to jump</p>
+            <h2>{{ selectedDateLabel() }}</h2>
+            <p>{{ selectedDateSeasonLabel() }}</p>
           </div>
-          <button class="circle-button" type="button" (click)="shiftLiturgicalMonth(1)">›</button>
+          <button class="circle-button" type="button" (click)="shiftSelectedDate(1)">›</button>
         </div>
 
         <div class="chip-row">
-          <button class="chip selected" type="button">Today</button>
-          <button class="chip" [class.active-blue]="liturgicalView() === 'day'" type="button" (click)="setLiturgicalView('day')">Day</button>
-          <button class="chip" [class.active-blue]="liturgicalView() === 'week'" type="button" (click)="setLiturgicalView('week')">Week</button>
-          <button class="chip" [class.active-blue]="liturgicalView() === 'month'" type="button" (click)="setLiturgicalView('month')">Month</button>
+          <button class="chip selected" type="button" (click)="resetSelectedDate()">
+            {{ isSelectedDateToday() ? 'Today' : 'Jump to Today' }}
+          </button>
+          <button class="chip active-blue" type="button">Day</button>
+          <button class="chip" type="button">{{ liturgicalDay()?.rankType ?? 'Rank' }}</button>
+          <button class="chip" type="button">{{ liturgicalMonthLabel() }}</button>
         </div>
 
-        @if (liturgicalView() === 'month') {
-          <div class="calendar-headings">
-            <span>Sun</span>
-            <span>Mon</span>
-            <span>Tue</span>
-            <span>Wed</span>
-            <span>Thu</span>
-            <span>Fri</span>
-            <span>Sat</span>
-          </div>
-
-          <div class="calendar-grid month-grid">
-            <div class="calendar-day accent-purple"><strong>1</strong><span>Wednes...</span></div>
-            <div class="calendar-day accent-purple"><strong>2</strong><span>Holy Th...</span></div>
-            <div class="calendar-day accent-purple"><strong>3</strong><span>Good Fr...</span></div>
-            <div class="calendar-day accent-purple"><strong>4</strong><span>Holy Sa...</span></div>
-            <div class="calendar-day"><strong>5</strong><span>Easter...</span></div>
-            <div class="calendar-day"><strong>6</strong><span>Easter...</span></div>
-            <div class="calendar-day"><strong>7</strong><span>Easter...</span></div>
-            <div class="calendar-day"><strong>8</strong><span>Easter...</span></div>
-            <div class="calendar-day"><strong>9</strong><span>Easter...</span></div>
-            <div class="calendar-day"><strong>10</strong><span>Easter...</span></div>
-            <div class="calendar-day"><strong>11</strong><span>Easter...</span></div>
-            <div class="calendar-day"><strong>12</strong><span>Second...</span></div>
-            <div class="calendar-day active-gold"><strong>13</strong><span>Monday...</span></div>
-            <div class="calendar-day"><strong>14</strong><span>Tuesday...</span></div>
-            <div class="calendar-day"><strong>15</strong><span>Wednes...</span></div>
-            <div class="calendar-day"><strong>16</strong><span>Thursday...</span></div>
-            <div class="calendar-day"><strong>17</strong><span>Friday...</span></div>
-            <div class="calendar-day"><strong>18</strong><span>Saturday...</span></div>
-            <div class="calendar-day"><strong>19</strong><span>Sunday...</span></div>
-            <div class="calendar-day"><strong>20</strong><span>Monday...</span></div>
-            <div class="calendar-day"><strong>21</strong><span>Tuesday...</span></div>
-            <div class="calendar-day"><strong>22</strong><span>Wednes...</span></div>
-            <div class="calendar-day"><strong>23</strong><span>Thursday...</span></div>
-            <div class="calendar-day"><strong>24</strong><span>Friday...</span></div>
-            <div class="calendar-day"><strong>25</strong><span>Saturday...</span></div>
-            <div class="calendar-day"><strong>26</strong><span>Sunday...</span></div>
-            <div class="calendar-day"><strong>27</strong><span>Monday...</span></div>
-            <div class="calendar-day"><strong>28</strong><span>Tuesday...</span></div>
-            <div class="calendar-day"><strong>29</strong><span>Wednes...</span></div>
-            <div class="calendar-day"><strong>30</strong><span>Thursday...</span></div>
-          </div>
-        }
-
-        @if (liturgicalView() === 'week') {
-          <div class="calendar-headings">
-            <span>Sun</span>
-            <span>Mon</span>
-            <span>Tue</span>
-            <span>Wed</span>
-            <span>Thu</span>
-            <span>Fri</span>
-            <span>Sat</span>
-          </div>
-
-          <div class="calendar-grid week-grid">
-            <div class="calendar-day"><strong>12</strong><span>Second...</span></div>
-            <div class="calendar-day active-gold"><strong>13</strong><span>Monday...</span></div>
-            <div class="calendar-day"><strong>14</strong><span>Tuesday...</span></div>
-            <div class="calendar-day"><strong>15</strong><span>Wednes...</span></div>
-            <div class="calendar-day"><strong>16</strong><span>Thursday...</span></div>
-            <div class="calendar-day"><strong>17</strong><span>Friday...</span></div>
-            <div class="calendar-day"><strong>18</strong><span>Saturday...</span></div>
-          </div>
-        }
-
-        @if (liturgicalView() === 'day') {
-          <div class="mode-panel glass-subtle">
-            <strong>Day View</strong>
-            <p>April 13, 2026 • Monday of Easter Week</p>
-          </div>
-        }
-
-        <button class="search-cta" type="button">Search</button>
+        <div class="mode-panel glass-subtle">
+          @if (liturgicalDay()) {
+            <strong>{{ liturgicalDay()!.primaryRank }}</strong>
+            <p>{{ liturgicalDay()!.season.replaceAll('_', ' ') }} • {{ liturgicalDay()!.rankType }}</p>
+            <a class="text-link" [href]="liturgicalDay()!.readingsUrl" target="_blank" rel="noreferrer">
+              Open daily readings
+            </a>
+          } @else if (liturgicalDayLoadFailed()) {
+            <strong>Liturgical Day</strong>
+            <p>{{ localizedApiErrorCopy('liturgical') }}</p>
+          } @else {
+            <strong>Liturgical Day</strong>
+            <p>Loading...</p>
+          }
+        </div>
       </section>
     }
 
     @if (currentTab() === 'saints') {
       <section class="screen-card glass-card">
         <div class="screen-header split">
-          <button class="circle-button" type="button">‹</button>
+          <button class="circle-button" type="button" (click)="shiftSelectedDate(-1)">‹</button>
           <div class="screen-title">
-            <h2>April 13, 2026</h2>
-            <p>Saints • Tap to jump</p>
+            <h2>{{ selectedDateLabel() }}</h2>
+            <p>{{ localizedSaintsCountLabel() }}</p>
           </div>
-          <button class="circle-button" type="button">›</button>
+          <button class="circle-button" type="button" (click)="shiftSelectedDate(1)">›</button>
         </div>
 
         <div class="chip-row">
-          <button class="chip selected" type="button">Today</button>
+          <button class="chip selected" type="button" (click)="resetSelectedDate()">
+            {{ isSelectedDateToday() ? 'Today' : 'Jump to Today' }}
+          </button>
           <button class="chip active-blue" type="button">Day</button>
-          <button class="chip" type="button">Week</button>
-          <button class="chip" type="button">Month</button>
+          <button class="chip" type="button">{{ selectedDateDayNumber() }}</button>
+          <button class="chip" type="button">{{ liturgicalMonthLabel() }}</button>
         </div>
 
-        <article class="saint-highlight glass-subtle">
-          <div class="saint-date">
-            <strong>13</strong>
-            <span>Saint Martin I</span>
-          </div>
-          <div class="saint-photo"></div>
-          <div class="saint-action">↗</div>
-        </article>
+        @if (selectedSaintHeadline()) {
+          <article class="saint-highlight glass-subtle">
+            <div class="saint-date">
+              <strong>{{ selectedDateDayNumber() }}</strong>
+              <span>{{ selectedSaintHeadline()!.name }}</span>
+            </div>
+            <div class="saint-photo" [style.background-image]="selectedSaintImageStyle()"></div>
+            <div class="saint-action">↗</div>
+          </article>
+        }
 
-        <button class="search-cta" type="button">Search Saints</button>
+        @if (saintsForSelectedDate().length > 0) {
+          <section class="list-stack">
+            @for (saint of saintsForSelectedDate(); track trackSaintBySlug($index, saint)) {
+              <article class="content-card glass-subtle">
+                <div class="content-card__icon">✧</div>
+                <div class="content-card__body">
+                  <h3>{{ saint.name }}</h3>
+                  <p>{{ saint.summary }}</p>
+                  <span class="content-tag">{{ saint.feastLabel }}</span>
+                </div>
+                <span class="nav-arrow">›</span>
+              </article>
+            }
+          </section>
+        } @else if (saintsLoadFailed()) {
+          <div class="mode-panel glass-subtle">
+            <strong>Saints</strong>
+            <p>{{ localizedApiErrorCopy('saints') }}</p>
+          </div>
+        } @else {
+          <div class="mode-panel glass-subtle">
+            <strong>Saints</strong>
+            <p>{{ localizedNoSaintsCopy() }}</p>
+          </div>
+        }
       </section>
     }
 

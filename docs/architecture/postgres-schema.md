@@ -166,22 +166,51 @@ Suggested columns:
 
 Purpose:
 
-- searchable intention records and future curated intention library
+- searchable intention rows tied to novenas
+- preserves the current novena intentions search experience
 
 Suggested columns:
 
 - `id`
 - `novena_id`
-- `slug`
-- `title_en`
-- `title_es`
-- `title_pl`
-- `summary_en`
-- `summary_es`
-- `summary_pl`
-- `body_en`
-- `body_es`
-- `body_pl`
+- `locale`
+- `intention_text`
+- `sort_order`
+- `created_at`
+
+### novena_serving_rules
+
+Purpose:
+
+- preserves app-used novena scheduling metadata from `novenas_index.json`
+- supports start date, end date, feast date, and calendar/day lookup behavior
+
+Suggested columns:
+
+- `novena_id`
+- `start_rule_type`
+- `start_rule_month`
+- `start_rule_day`
+- `start_rule_anchor`
+- `start_rule_offset_days`
+- `start_rule_weekday`
+- `start_rule_weekday_policy`
+- `start_rule_n`
+- `start_rule_days_before`
+- `feast_rule_type`
+- `feast_rule_month`
+- `feast_rule_day`
+- `feast_rule_anchor`
+- `feast_rule_offset_days`
+- `feast_rule_weekday`
+- `feast_rule_weekday_policy`
+- `feast_rule_n`
+- `feast_rule_days_before`
+- `entry_duration_days`
+- `category`
+- `notes`
+- `patronage`
+- `source`
 - `created_at`
 - `updated_at`
 
@@ -190,21 +219,28 @@ Suggested columns:
 Purpose:
 
 - standalone prayer library
+- supports both prayer list/search and prayer detail screens
 
 Suggested columns:
 
 - `id`
 - `slug`
+- `category`
 - `title_en`
 - `title_es`
 - `title_pl`
-- `summary_en`
-- `summary_es`
-- `summary_pl`
 - `body_en`
 - `body_es`
 - `body_pl`
+- `alternate_title_en`
+- `alternate_title_es`
+- `alternate_title_pl`
+- `note_en`
+- `note_es`
+- `note_pl`
 - `image_url`
+- `source_title`
+- `source_type`
 - `created_at`
 - `updated_at`
 
@@ -251,6 +287,42 @@ Suggested columns:
 
 - `calendar_month`
 - `calendar_day`
+
+## User State Tables
+
+### user_favorites
+
+Purpose:
+
+- stores favorited content items by user
+
+Suggested columns:
+
+- `user_id`
+- `item_type`
+- `item_id`
+- `created_at`
+
+### user_novena_commitments
+
+Purpose:
+
+- stores per-user novena progress and reminder configuration
+
+Suggested columns:
+
+- `user_id`
+- `novena_id`
+- `started_at`
+- `current_day`
+- `completed_days`
+- `reminder_enabled`
+- `reminder_morning_hour`
+- `reminder_evening_hour`
+- `reminder_time_zone_id`
+- `status`
+- `updated_at`
+- `created_at`
 - `saint_id`
 
 ## User and Auth-Linked Tables

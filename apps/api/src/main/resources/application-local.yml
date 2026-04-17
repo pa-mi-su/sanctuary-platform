@@ -1,0 +1,8 @@
+spring:
+  datasource:
+    url: ${SANCTUARY_DB_URL}
+    username: ${SANCTUARY_DB_USERNAME}
+    password: ${SANCTUARY_DB_PASSWORD}
+
+server:
+  port: ${SANCTUARY_API_PORT:8080}

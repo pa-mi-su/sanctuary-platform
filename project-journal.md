@@ -1,0 +1,685 @@
+# Project Journal
+
+This file is the running log for `sanctuary-platform`.
+
+Rule:
+
+- after every meaningful step, update this file
+- include Angular work, Java work, database work, infrastructure work, documentation work, and major commands/results
+- keep entries short, factual, and in chronological order
+- use this as the shared memory of what has been decided, changed, run, and verified
+- write entries so another engineer can understand what was changed, why it was changed, and what result was verified
+
+Logging expectations:
+
+- record important commands that change project state
+- record important outputs or verification results
+- record decisions, not just code changes
+- include enough context that a new engineer can pick up the thread without reading the full chat history
+- when in doubt, log it
+
+## 2026-04-16
+
+- Preserved the Angular frontend in `apps/web`.
+- Reset the platform direction away from the earlier DynamoDB/Node prototype.
+- Removed DynamoDB-specific and Node prototype backend files from the repo working direction.
+- Chose the long-term architecture:
+  - Angular frontend
+  - Java backend
+  - PostgreSQL primary database
+  - one new platform monorepo in `/Users/pms/repos/sanctuary-platform`
+  - legacy iOS app kept separate in `/Users/pms/repos/Sanctuary`
+- Added architecture reset documentation:
+  - `docs/architecture/platform-reset-architecture.md`
+  - `docs/architecture/postgres-schema.md`
+  - `docs/architecture/java-backend-plan.md`
+  - `docs/architecture/implementation-phases.md`
+- Committed the architecture reset checkpoint:
+  - commit `301a1f8`
+  - message `Reset platform architecture to Angular, Java, and Postgres`
+- Chose Maven as the Java build tool.
+- Chose Java 21 as the backend baseline.
+- Scaffolded a new Spring Boot backend in `apps/api` to establish the Phase 1 backend foundation. This created the first committed Java API structure and replaced the earlier deleted Node prototype with:
+  - `pom.xml`
+  - application entrypoint
+  - health controller
+  - Flyway migration setup
+  - PostgreSQL driver
+- Chose Docker for local infrastructure.
+- Chose not to use Kubernetes at this stage.
+- Added local infrastructure documentation:
+  - `docs/architecture/local-development.md`
+- Added `docker-compose.yml` for local PostgreSQL so the team can run the database in a repeatable Docker-based setup instead of relying on machine-specific local installs.
+- Ran `docker compose up -d postgres` and successfully pulled `postgres:17`, created the local Docker network and named volume, and started the `sanctuary-postgres` container.
+- Ran `docker compose ps` and verified the local PostgreSQL container is up and bound to `0.0.0.0:5432->5432/tcp`, confirming the database is reachable for the Java backend.
+- Moved local configuration toward environment-driven setup:
+  - added `.env.example`
+  - updated `.gitignore`
+  - updated Docker/Postgres config to use env vars
+  - updated Spring datasource config to read env vars
+- Clarified that this file should track all meaningful updates, commands, decisions, and verification results across the project.
+- Renamed the running log file from `progress.md` to `project-journal.md` to make its purpose clearer to future contributors.
+- Created local `.env` at the repo root so Docker Compose and the Java backend both read local development configuration from environment variables rather than committed defaults.
+- Recreated local PostgreSQL after moving config to env-based values so the running container matched the new configuration model.
+- Ran `mvn spring-boot:run` from `apps/api` and verified that the Spring Boot application starts successfully against the Dockerized PostgreSQL instance.
+- Verified that Flyway did not block startup. The backend reached a running state after migration processing, which confirms the datasource configuration is valid and the initial migration path is executable in the local environment.
+- Verified backend health endpoint at `http://localhost:8080/health`, confirming that the API process is reachable and serving requests locally.
+- Health check result:
+  - `status: ok`
+  - `service: sanctuary-api`
+- This gave us the first end-to-end local backend proof:
+  - Docker PostgreSQL running
+  - Spring Boot application starting
+  - Flyway migration path active
+  - HTTP health endpoint responding on port `8080`
+- Added Flyway migration `V2__create_saints_tables.sql` to create the first real content schema in PostgreSQL. Chose saints as the first domain because the legacy saints data is simpler than novenas and gives us a cleaner way to validate the relational model before importing more complex content.
+- Added the following tables in the migration:
+  - `saints`
+  - `saint_tags`
+  - `saint_patronages`
+  - `saint_sources`
+- Added indexes for saint slug lookups, feast-day lookups, tag lookups, patronage lookups, and ordered source retrieval so the schema already supports the main read patterns we expect for saint detail screens and feast-day browsing.
+- Restarted the backend after adding the saints migration and confirmed that Flyway log lines were missing from startup output. This showed that the application was not yet wiring a real JDBC datasource into startup, so the migration path had not actually been exercised even though the web server came up successfully.
+- Added `spring-boot-starter-jdbc` to `apps/api/pom.xml` so Spring Boot will create a datasource during startup and Flyway will participate in application boot the way we expect for a real database-backed service.
+- Retested backend startup and hit a datasource failure: `'url' must start with "jdbc"'`. This indicated the backend was picking up an unexpected value rather than the intended local PostgreSQL JDBC URL.
+- Retested after switching variable names and hit a second failure showing Flyway/Hikari still saw the literal placeholder `${SANCTUARY_DB_URL}`. This confirmed that Spring Boot was not actually loading the repo `.env` file, and the earlier config-import approach was not the right local development pattern.
+- Reworked local configuration to follow a clearer team workflow:
+  - keep the root `.env` for local machine-specific values
+  - keep Spring Boot config environment-driven
+  - add an explicit local runner script `apps/api/scripts/run-local.sh` that loads `.env` before invoking Maven
+- Marked `apps/api/scripts/run-local.sh` as executable so there is a single supported local startup command for the Java API instead of relying on ad hoc shell steps.
+- Kept Sanctuary-specific variable names to avoid collisions with generic shell variables:
+  - `SANCTUARY_DB_URL`
+  - `SANCTUARY_DB_USERNAME`
+  - `SANCTUARY_DB_PASSWORD`
+  - `SANCTUARY_API_PORT`
+- Added explicit PostgreSQL driver configuration in `application.yml` to make the datasource setup more explicit and easier for another engineer to reason about during startup debugging.
+- Added Maven Enforcer configuration to require Java 21 for local API work. This replaces guesswork around the local JDK and moves us closer to the way a production team standardizes the backend toolchain.
+- Verified that the backend now starts under Java 21, which means the JDK standardization step is working as intended.
+- Retested local startup through `apps/api/scripts/run-local.sh` and confirmed the remaining failure is configuration-related rather than Java-related: Spring still receives an unresolved `${SANCTUARY_DB_URL}` placeholder, which means the local `.env` contents still need to be updated to the new Sanctuary-specific variable names.
+- Updated `apps/api/scripts/run-local.sh` to fail fast if required environment variables are missing so local startup errors become explicit before Spring Boot begins.
+- Confirmed that the repo-local runner and Sanctuary-specific environment variables are now being used correctly. The `${SANCTUARY_DB_URL}` placeholder issue is resolved.
+- Confirmed that Java 21 is now active during backend startup. Maven Enforcer passed and Spring Boot reported `Java 21.0.10` in startup logs.
+- Retested startup and reached the first real database authentication attempt through Hikari and Flyway.
+- Current failure is now PostgreSQL authentication:
+  - `FATAL: password authentication failed for user "sanctuary"`
+- This indicates the backend configuration is finally correct enough to attempt a real database connection, and the remaining issue is that the running Docker PostgreSQL instance was likely initialized with older credentials before the `.env` changes.
+- Recreated the local PostgreSQL container and volume, then retested startup. This resolved the credential mismatch and proved that the backend can now open a real JDBC connection to the local database.
+- Retested again and reached a new failure inside Flyway:
+  - `Unsupported Database: PostgreSQL 17.9`
+- This showed the datasource layer is now healthy and the remaining blocker is Flyway PostgreSQL version support wiring, not application config or credentials.
+- Added the `flyway-database-postgresql` dependency to the Maven build so Flyway has explicit PostgreSQL database support during startup.
+- Restarted the backend after adding PostgreSQL-specific Flyway support and confirmed the application now runs successfully against the local Docker PostgreSQL instance.
+- This means the Phase 1 backend foundation is now operational end to end:
+  - Java 21 enforced
+  - local `.env`-driven configuration working
+  - Docker PostgreSQL reachable
+  - JDBC datasource connecting successfully
+  - Flyway participating in startup successfully
+  - Spring Boot API running locally
+- Verified the database state in DBeaver after startup.
+- Confirmed `flyway_schema_history` contains:
+  - `V1__create_platform_metadata.sql`
+  - `V2__create_saints_tables.sql`
+- Confirmed the expected public tables now exist in PostgreSQL:
+  - `platform_metadata`
+  - `saints`
+  - `saint_tags`
+  - `saint_patronages`
+  - `saint_sources`
+- This verifies that Flyway is not only present in startup but is actually applying and tracking schema changes in the local database.
+- Scaffolded the first real content import path in Java for saints.
+- Added a saints import service that:
+  - reads the legacy `saints.json`
+  - upserts rows into `saints`
+  - replaces related `saint_tags`
+  - replaces related `saint_patronages`
+  - replaces related `saint_sources`
+- Added a command-line runner for saints import that is disabled by default and only runs when explicitly enabled by environment variables. This keeps local startup safe while still giving us a real import path we can review and run intentionally.
+- Documented the import trigger in `apps/api/README.md`.
+- Refined the Spring configuration model so the property structure remains defined in committed config files rather than being implied only by environment variables.
+- Kept `application.yml` as the canonical property shape.
+- Added explicit Spring environment profile files:
+  - `application-local.yml`
+  - `application-dev.yml`
+  - `application-uat.yml`
+  - `application-prod.yml`
+- This gives the backend a clearer enterprise-style environment model and makes it obvious how local, development, UAT, and production settings should be organized over time.
+- Updated the local runner to start Spring with the `local` profile while still sourcing real secret values from the repo-root `.env`.
+- Clarified that importer toggles should live in profile config intentionally rather than being driven by ad hoc shell exports.
+- Hardened `apps/api/scripts/run-local.sh` so local API startup no longer depends on whatever JDK happens to be active in a developer terminal.
+- The runner now auto-selects Java 21 through `/usr/libexec/java_home -v 21` when available and fails with an explicit install message if Java 21 is missing.
+- This removes a repeated onboarding footgun: `./scripts/run-local.sh` is now the supported local API entrypoint and is responsible for enforcing both environment-variable presence and the correct JDK baseline before Maven starts.
+- Found a macOS-specific edge case during verification: `/usr/libexec/java_home -v 21` was returning the Java 24 home on this machine even though Homebrew Java 21 was installed, because Java 21 was not registered in the macOS JVM list.
+- Updated `apps/api/scripts/run-local.sh` again to verify the discovered Java major version instead of trusting `java_home`, and to prefer the Homebrew Java 21 path at `/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home` when it exists.
+- This makes the local runner resilient to machine-specific Java registry issues while still enforcing the team standard of Java 21 for backend work.
+- Retested `./scripts/run-local.sh` after the runner hardening and confirmed the intended local startup path now works correctly through every critical backend layer before web server bind:
+  - Java 21 selected automatically
+  - Maven Enforcer passed
+  - Spring Boot started with the `local` profile
+  - Hikari connected to PostgreSQL successfully
+  - Flyway validated migrations successfully
+  - schema version `2` confirmed current
+- The only remaining startup blocker in this run was environmental rather than application-related:
+  - port `8080` was already in use by another local process
+- This is an important checkpoint because it proves the Java/runtime/config/database setup is now healthy; the failure is strictly a port collision on the developer machine.
+- Confirmed `application-local.yml` already has saints import enabled and points to the legacy source file at `/Users/pms/repos/Sanctuary/Sanctuary/Resources/saints.json`.
+- Clarified the intent of this importer configuration:
+  - use it as a one-time migration step to load legacy JSON data into PostgreSQL
+  - verify the imported data
+  - then disable it again so ordinary local API startup does not keep re-running the import
+- Resolved the local port collision and reran `./scripts/run-local.sh`.
+- Verified a clean end-to-end startup and import run:
+  - Spring Boot started successfully on port `8080`
+  - Hikari connected successfully to local PostgreSQL
+  - Flyway validated migrations and confirmed schema version `2`
+  - `SaintsImportRunner` executed during startup
+  - `SaintsImportService` loaded `366` saints from `/Users/pms/repos/Sanctuary/Sanctuary/Resources/saints.json`
+  - import completed successfully with `Imported 366 saints into PostgreSQL`
+- This is the first successful legacy-content migration into the new PostgreSQL-backed platform.
+- Removed the saints startup import trigger after the one-time migration completed.
+- Deleted `SaintsImportRunner` so saint data is no longer imported as part of normal API boot.
+- Removed the leftover saints import configuration properties from `application.yml` and all environment-specific profile files instead of leaving dead `enabled: false` toggles behind.
+- Deleted `SaintsImportProperties` because the startup-trigger configuration model is no longer part of the application design.
+- Removed the remaining saints importer classes (`LegacySaintJson` and `SaintsImportService`) from the Spring Boot application after clarifying the architecture boundary.
+- Removed `@ConfigurationPropertiesScan` from `SanctuaryApiApplication` because the importer/property-based migration model is no longer part of the backend runtime.
+- Updated API documentation to reflect the new rule:
+  - ordinary application startup should never be used as the mechanism for legacy-data imports
+  - one-time legacy JSON imports should not live in application code at all
+  - future legacy imports should be executed by explicit external migration scripts or tools instead
+- Current next step:
+  - verify saint row counts and sample data in DBeaver
+  - define the external migration pattern for the next legacy JSON dataset
+- Verified saints migration results in DBeaver:
+  - `saints`: `366`
+  - `saint_tags`: `0`
+  - `saint_patronages`: `0`
+  - `saint_sources`: `718`
+- The zero counts for `saint_tags` and `saint_patronages` are consistent with the sampled legacy saints JSON reviewed earlier, where those arrays were empty for the inspected records.
+- The `saint_sources` count confirms source attribution rows were imported and attached to saints as expected.
+- This gives us a verified first production-style content migration checkpoint:
+  - base content rows present
+  - child attribution rows present
+  - optional child tables remain empty when the legacy source data is empty
+- Ran an ordered spot check in DBeaver:
+  - `select id, slug, name, feast_month, feast_day from saints order by feast_month, feast_day, slug limit 20;`
+- Verified that the first returned rows line up correctly with the expected January feast-day ordering and legacy slugs/names, confirming the imported saint records are not only present in bulk but also look structurally correct for real application reads.
+- Performed a deeper saints data audit against the legacy file instead of relying only on row counts and spot checks.
+- Audited the legacy source characteristics:
+  - `366` saints in the source JSON
+  - `0` saints with non-empty `tags`
+  - `0` saints with non-empty `patronages`
+  - `0` saints with non-empty `prayersByLocale` arrays in any locale
+  - `0` saints missing localized `name`, `summary`, or `biography` fields in the legacy data
+  - total legacy `sources` rows: `718`
+- Exported the imported PostgreSQL saint rows plus aggregated child rows and compared them programmatically against the legacy JSON across:
+  - `id`
+  - `slug`
+  - `name`
+  - localized names
+  - `feast_month`
+  - `feast_day`
+  - `image_url`
+  - localized feast labels
+  - localized summaries
+  - localized biographies
+  - `tags`
+  - `patronages`
+  - ordered source rows with `source_text`, derived `source_url`, and `sort_order`
+- Full comparison result:
+  - legacy count `366`
+  - database count `366`
+  - missing rows in DB: `0`
+  - extra rows in DB: `0`
+  - field-level mismatches found: `0`
+- Conclusion: the saints data that was migrated from the legacy app appears to be mapped correctly into PostgreSQL for all fields that were intentionally imported, and no meaningful saint prayer/tag/patronage data was dropped because those legacy arrays are empty in the source set.
+- Began auditing `prayers` against actual iOS usage before any database import work.
+- Confirmed the normalized `Prayer` domain model used by the app repository includes:
+  - `id`
+  - `slug`
+  - `category`
+  - `titleByLocale`
+  - `bodyByLocale`
+  - `tags`
+- Confirmed repository/search usage for prayers:
+  - prayer listing filters by `category`
+  - prayer search indexes `title`, `body`, `category`, `slug`, and `tags`
+  - prayer list cards display localized title plus the first line of localized body text
+- Found an important detail-screen nuance:
+  - `PrayerDetailView` still loads the legacy bundled prayer JSON directly and uses additional fields not present in the normalized `Prayer` entity:
+    - `alternateTitle`
+    - `note`
+    - `source.title`
+    - `photoUrl`
+- This means that for prayers, “import only what we use” is broader than the normalized list model. If we want the new platform to preserve the current prayer detail experience, the database/API model for prayers should likely include those extra detail fields too, or we must consciously redesign the frontend detail screen instead of accidentally dropping them.
+- Completed a full prayer-source inventory before schema design:
+  - normalized prayer count: `14`
+  - legacy prayer document count: `14`
+  - normalized and legacy prayer ids align one-to-one
+  - prayers with non-empty tags: `13`
+  - total prayer tag rows: `52`
+  - prayers with `alternateTitle`: `14`
+  - prayers with `note`: `14`
+  - prayers with `photoUrl`: `14`
+  - prayers with `source.title`: `14`
+  - observed `source.type` values: `user_provided` only
+- Added `docs/architecture/prayers-audit-and-schema.md` to capture the prayer audit and the recommended PostgreSQL shape based on actual iOS usage.
+- Updated `docs/architecture/postgres-schema.md` so the `prayers` table proposal now reflects the fields the current app really uses:
+  - `category`
+  - localized title/body
+  - localized alternate title
+  - localized note
+  - `image_url`
+  - `source_title`
+  - `source_type`
+  - plus normalized `prayer_tags`
+- Added Flyway migration `V3__create_prayers_tables.sql` to create the prayer schema that matches the audited legacy app usage.
+- The migration creates:
+  - `prayers`
+  - `prayer_tags`
+- The `prayers` table includes both list/search fields and detail-screen fields so the new platform can preserve the current prayer UX without depending on legacy bundled JSON:
+  - `category`
+  - localized title/body
+  - localized alternate title
+  - localized note
+  - `image_url`
+  - `source_title`
+  - `source_type`
+- The `prayer_tags` child table keeps search/discovery tags normalized and queryable.
+- Ran the backend again and verified in DBeaver that Flyway applied the prayer schema successfully.
+- Confirmed `flyway_schema_history` now includes:
+  - `V3__create_prayers_tables.sql`
+- This means the database is ready for an external one-time prayer import without adding any migration logic back into application runtime code.
+- Audited the completed prayer import against both legacy prayer sources:
+  - normalized source file: `/Users/pms/repos/Sanctuary/Sanctuary/Resources/prayers.json`
+  - legacy detail documents: `/Users/pms/repos/Sanctuary/Sanctuary/Resources/LegacyData/prayers/*.json`
+- Verified imported counts:
+  - `prayers`: `14`
+  - `prayer_tags`: `52`
+- Exported imported PostgreSQL prayer rows and compared them programmatically against the legacy sources across:
+  - `id`
+  - `slug`
+  - `category`
+  - localized titles
+  - localized body
+  - localized alternate title
+  - localized note
+  - `image_url`
+  - `source_title`
+  - `source_type`
+  - normalized sorted `tags`
+- Full comparison result:
+  - normalized count `14`
+  - database count `14`
+  - missing rows in DB: `0`
+  - extra rows in DB: `0`
+  - field-level mismatches found: `0`
+- Conclusion: the prayer import appears to be mapped correctly for all audited fields actually used by the current app.
+- Began auditing `liturgical_days` before any schema/import work.
+- Reviewed:
+  - `/Users/pms/repos/Sanctuary/Sanctuary/Resources/liturgical_days.json`
+  - `LiturgicalDay` in `Core/Domain/Entities.swift`
+  - `LocalContentRepository.fetchLiturgicalDay`
+  - `Features/Calendar/CalendarViews.swift`
+- Found that the bundled `liturgical_days.json` appears to contain only a minimal sample payload in the current legacy app state.
+- More importantly, the current legacy repository does **not** actually use the loaded `liturgical_days.json` map when serving liturgical-day reads:
+  - `fetchLiturgicalDay(for:)` returns `LiturgicalCalendarEngine.day(for:)`
+  - the calendar views also read season/day data from `LiturgicalLookup` and `LiturgicalCalendarEngine`
+- Conclusion: importing `liturgical_days.json` into PostgreSQL right now would not be migrating an actively used legacy content source. The current app behavior is driven primarily by computed liturgical calendar logic, not by the bundled JSON file.
+- Began the novena audit before any PostgreSQL schema work so we only migrate fields the current app actually uses.
+- Reviewed the active iOS novena usage path in:
+  - `/Users/pms/repos/Sanctuary/Sanctuary/Core/Domain/Entities.swift`
+  - `/Users/pms/repos/Sanctuary/Sanctuary/Core/Data/Local/LocalContentRepository.swift`
+  - `/Users/pms/repos/Sanctuary/Sanctuary/Core/Data/Local/ContentStore.swift`
+  - `/Users/pms/repos/Sanctuary/Sanctuary/Features/Novenas/NovenasListViewModel.swift`
+  - `/Users/pms/repos/Sanctuary/Sanctuary/Features/Novenas/NovenaDetailView.swift`
+  - `/Users/pms/repos/Sanctuary/Sanctuary/Features/Search/SearchViews.swift`
+- Confirmed the novena list and detail screens rely on the normalized `Novena` / `NovenaDay` shape for active rendering:
+  - novena title
+  - novena description
+  - duration days
+  - tags
+  - image URL
+  - ordered day list
+  - day title
+  - day scripture
+  - day prayer
+  - day reflection
+  - assembled `bodyByLocale` fallback
+- Confirmed the app's novena search also uses tags and slug for indexing in `NovenasListViewModel`.
+- Found an important additional product dependency in `SearchViews`: the intentions search experience does **not** come from the normalized `Novena` model. It loads `NovenaDocument` from `ContentStore.novena(id:)` and reads:
+  - `intentions`
+  - `intentions_es`
+  - `intentions_pl`
+- That means novena intentions are part of the real app surface and must be included in the migration plan if we want parity with the current app.
+- Audited the legacy novena sources:
+  - normalized file `/Users/pms/repos/Sanctuary/Sanctuary/Resources/novenas.json`
+  - legacy content docs `/Users/pms/repos/Sanctuary/Sanctuary/Resources/LegacyData/novenas/*.json`
+  - legacy serving/index rules `/Users/pms/repos/Sanctuary/Sanctuary/Resources/LegacyData/novenas_index.json`
+- Verified source counts:
+  - normalized novenas: `237`
+  - indexed novenas: `237`
+  - legacy novena docs on disk: `239`
+- Resolved the count discrepancy by comparing IDs. The two extra legacy docs are:
+  - `cardinal_burke_our_lady_of_guadalupe`
+  - `one_year_st_bridget_of_sweden`
+- Those two docs are not present in `novenas_index.json`, so they are not part of the currently active novena catalog served by the app.
+- Audited normalized novena content shape:
+  - every normalized novena includes tags (`237/237`)
+  - every normalized novena includes an image URL (`237/237`)
+  - total normalized novena days: `2595`
+  - no normalized novena day was missing `bodyByLocale` in all locales
+- Audited raw legacy novena intention coverage:
+  - English intentions present on `46` novenas
+  - Spanish intentions present on `0` novenas
+  - Polish intentions present on `0` novenas
+- This matches the current app behavior in `SearchViews`, where Spanish and Polish intention search currently fall back to English intentions and apply lightweight translation only when localized arrays are absent.
+- Audited novena duration/day-count shape:
+  - observed day counts / durations include: `9`, `20`, `25`, `30`, `46`, `54`, `275`, `365`
+- Confirmed another active dependency outside the normalized novena body content: start/end/feast date behavior is driven by `novenas_index.json` serving rules through `ContentStore.novenaServingWindow` and related lookup helpers.
+- `novenas_index.json` is therefore not just a legacy helper artifact. It contains real app-used scheduling metadata through:
+  - `startRule`
+  - `feastRule`
+  - `durationDays`
+- Conclusion of the novena audit:
+  - the app actively uses two novena data layers today:
+    1. normalized novena content for listing and detail rendering
+    2. legacy novena index/document metadata for intentions search and serving-window logic
+- Recommended PostgreSQL migration direction before implementation:
+  - `novenas`
+  - `novena_days`
+  - `novena_tags`
+  - `novena_intentions`
+  - `novena_serving_rules` (or equivalent rule-backed scheduling table)
+- Next step should be to write the novena schema proposal from this audited usage before any import work starts.
+- Converted the novena audit into concrete architecture documentation:
+  - added `/Users/pms/repos/sanctuary-platform/docs/architecture/novenas-audit-and-schema.md`
+  - updated `/Users/pms/repos/sanctuary-platform/docs/architecture/postgres-schema.md`
+- The novena schema proposal intentionally separates:
+  - normalized novena content
+  - day-level content
+  - searchable intention rows
+  - scheduling / serving-rule metadata
+- This keeps the PostgreSQL model aligned with the real product behavior we audited in the iOS app rather than flattening everything into a single content table and losing important app semantics.
+- Added Flyway migration `/Users/pms/repos/sanctuary-platform/apps/api/src/main/resources/db/migration/V4__create_novenas_tables.sql`.
+- `V4` creates:
+  - `novenas`
+  - `novena_tags`
+  - `novena_days`
+  - `novena_intentions`
+  - `novena_serving_rules`
+- The migration intentionally captures both novena content and scheduling metadata because the current app uses both:
+  - normalized novena content powers list/detail rendering
+  - intentions power the intentions search experience
+  - serving rules power novena start/end/feast date behavior
+- Added `/Users/pms/repos/sanctuary-platform/docs/architecture/novenas-import-plan.md` to define the one-time external import shape before any novena load runs.
+- The import plan makes the active-catalog boundary explicit:
+  - import the `237` indexed novenas
+  - do not import the two extra non-indexed legacy novena docs into the active catalog
+- The plan also defines:
+  - which source file owns each novena table
+  - the parent/child insert order
+  - the delete order for clean reloads
+  - the verification and parity-audit checklist we should use after import
+- Added the external one-time importer `/Users/pms/repos/sanctuary-platform/scripts/import_novenas.py`.
+- The importer is intentionally outside the Spring Boot app boundary and works by:
+  - reading normalized novenas from `novenas.json`
+  - reading active catalog and serving rules from `novenas_index.json`
+  - reading legacy novena docs for intentions
+  - filtering to the active indexed novena IDs only
+  - generating CSV payloads
+  - loading them transactionally into PostgreSQL through `psql`
+- This keeps legacy migration logic out of app runtime code while still giving us a repeatable, auditable one-time load path.
+- Updated `/Users/pms/repos/sanctuary-platform/apps/api/README.md` with the novena import script path and run command.
+- Ran a dry-run of the novena importer to validate the source joins and expected row counts before touching PostgreSQL.
+- Dry-run result:
+  - `active_novenas`: `237`
+  - `novena_tags`: `756`
+  - `novena_days`: `2595`
+  - `novena_intentions`: `115`
+  - `novena_serving_rules`: `237`
+- The dry-run completed successfully with no database changes, which means the importer is ready for the real one-time load.
+- First real novena import attempt failed before any data load because the script passed the Spring JDBC URL from `.env` directly to `psql`.
+- Root cause:
+  - Spring uses `jdbc:postgresql://...`
+  - `psql` expects `postgresql://...`
+- Updated `/Users/pms/repos/sanctuary-platform/scripts/import_novenas.py` so it now converts the repo's JDBC-style local config into a `psql`-compatible PostgreSQL URL automatically, using the same local username and password values from `.env`.
+- Second novena import attempt reached PostgreSQL and began loading rows, which confirmed the connection and transaction flow were correct.
+- That run failed on `novena_days` because PostgreSQL `COPY` interpreted unquoted empty CSV cells as `NULL`, while the schema correctly requires non-null localized text fields.
+- This was not bad novena source data. Some day-level title/scripture/reflection fields are intentionally blank in the legacy content and should be preserved as empty strings, not database `NULL`s.
+- Updated `/Users/pms/repos/sanctuary-platform/scripts/import_novenas.py` to write CSV files with quoted fields so empty localized strings are preserved correctly during `COPY`.
+- Third novena import attempt got through:
+  - `novenas`
+  - `novena_tags`
+  - `novena_days`
+  - `novena_intentions`
+  and then failed on `novena_serving_rules`.
+- Root cause:
+  - some optional numeric rule fields are truly missing in the source data
+  - PostgreSQL integer columns cannot accept quoted empty strings like `""`
+- Updated `/Users/pms/repos/sanctuary-platform/scripts/import_novenas.py` again so it now:
+  - preserves empty strings for text fields
+  - writes explicit null tokens for missing optional numeric fields
+  - configures every `COPY` statement to recognize that null token
+- This separates two important cases correctly:
+  - empty text content that should stay empty
+  - absent numeric rule metadata that should become SQL `NULL`
+- After inspecting the exact generated import path, replaced the `novena_serving_rules` load strategy entirely:
+  - kept `COPY` for the four content tables that were already loading successfully
+  - removed `COPY` for `novena_serving_rules`
+  - now generate explicit SQL `INSERT` values for `novena_serving_rules` so nullable integers and text are represented unambiguously
+- This is the correct fix because PostgreSQL CSV handling for sparse nullable integer fields is more error-prone than simply emitting SQL literals for a small table (`237` rows).
+- Ran the real novena import successfully end to end.
+- PostgreSQL load result:
+  - `COPY 237` into `novenas`
+  - `COPY 756` into `novena_tags`
+  - `COPY 2595` into `novena_days`
+  - `COPY 115` into `novena_intentions`
+  - `INSERT 0 237` into `novena_serving_rules`
+- Verified the imported counts in DBeaver and they matched the source-derived expectations exactly:
+  - `novenas = 237`
+  - `novena_tags = 756`
+  - `novena_days = 2595`
+  - `novena_intentions = 115`
+  - `novena_serving_rules = 237`
+- Conclusion: the one-time novena migration completed successfully and the imported row counts match the audited legacy source counts.
+- Performed a broader "everything in Postgres?" audit across the legacy app's real data usage.
+- Compared:
+  - legacy bundled resources under `/Users/pms/repos/Sanctuary/Sanctuary/Resources`
+  - active app read paths in repositories, `ContentStore`, search, detail screens, and user-progress code
+  - current PostgreSQL table inventory and row counts
+- Confirmed current PostgreSQL public content coverage:
+  - `saints = 366`
+  - `saint_sources = 718`
+  - `prayers = 14`
+  - `prayer_tags = 52`
+  - `novenas = 237`
+  - `novena_tags = 756`
+  - `novena_days = 2595`
+  - `novena_intentions = 115`
+  - `novena_serving_rules = 237`
+- Confirmed those counts line up with the active normalized legacy sources:
+  - `saints.json = 366`
+  - `prayers.json = 14`
+  - `novenas.json = 237`
+  - `novenas_index.json = 237`
+- Audit conclusion:
+  - the primary public content the current app actively uses is now in PostgreSQL for saints, prayers, and novenas
+  - but **not everything used by the overall app is in PostgreSQL yet**
+- Remaining gaps:
+  - user progress / favorites / novena commitments / reminder config are still local-only in `LocalUserProgressRepository` and are not yet modeled in PostgreSQL
+  - liturgical day data is not in PostgreSQL; current app behavior is compute-driven through `LiturgicalCalendarEngine`, not source-backed by a real bundled dataset
+  - saint/novena relationship data is not stored in PostgreSQL; current app computes it via `RelationResolver` from index files and manual links
+- Audited the remaining user-progress layer before adding new schema work.
+- Reviewed:
+  - `/Users/pms/repos/Sanctuary/Sanctuary/Core/Domain/Entities.swift`
+  - `/Users/pms/repos/Sanctuary/Sanctuary/Core/Domain/RepositoryProtocols.swift`
+  - `/Users/pms/repos/Sanctuary/Sanctuary/Core/Data/Local/LocalUserProgressRepository.swift`
+  - `/Users/pms/repos/Sanctuary/Sanctuary/Core/Application/UserProgressStore.swift`
+  - `/Users/pms/repos/Sanctuary/Sanctuary/Core/Application/NovenaReminderScheduler.swift`
+  - `/Users/pms/repos/Sanctuary/Sanctuary/Features/Me/MeView.swift`
+  - `/Users/pms/repos/Sanctuary/Sanctuary/Features/Novenas/NovenaDetailView.swift`
+- Confirmed the real user-state model the app uses today is:
+  - favorites
+  - novena commitments/progress
+  - reminder configuration embedded inside novena commitments
+- Added `/Users/pms/repos/sanctuary-platform/docs/architecture/user-progress-audit-and-schema.md`.
+- Updated `/Users/pms/repos/sanctuary-platform/docs/architecture/postgres-schema.md` with the new user-state tables.
+- Added Flyway migration `/Users/pms/repos/sanctuary-platform/apps/api/src/main/resources/db/migration/V5__create_user_progress_tables.sql`.
+- `V5` creates:
+  - `user_favorites`
+  - `user_novena_commitments`
+- Design decision:
+  - keep reminder fields on `user_novena_commitments`
+  - do not create a separate reminders table yet
+  - this matches the current domain model and avoids premature complexity
+- Audited the legacy liturgical backbone in the iOS app instead of assuming `liturgical_days.json` was the source of truth.
+- Verified that `liturgical_days.json` is only a tiny sample payload and is not the real active calendar authority.
+- Confirmed that the current app’s liturgical behavior is split across two Swift systems:
+  - `LiturgicalCalendarEngine` in `Entities.swift` for seasons, major observances, transferred Saint Joseph / Annunciation handling, and daily readings URLs
+  - `ContentStore` for novena anchor resolution and serving-window computation from `novenas_index.json`
+- Ran the validation script `swift /Users/pms/repos/Sanctuary/scripts/validate_liturgical_calendar.swift` and confirmed it passes across years `1900...4099`.
+- Documented the audit in `docs/liturgical-engine-audit.md` inside the legacy repo so the current rule set and responsibility split are explicit.
+- Added `docs/architecture/liturgical-engine-plan.md` in `sanctuary-platform` to define the new backend-owned Java liturgical engine.
+- Decided that the new platform should not import `liturgical_days.json` as canonical data and should not preserve the current split between calendar logic and novena timing logic.
+- Chose a single-engine backend design where Java becomes the canonical authority for:
+  - liturgical day answers
+  - season resolution
+  - transferred feast dates
+  - anchor dates used by novena rules
+  - novena serving-window computation
+  - daily readings URL generation
+- Recommended that liturgical engine implementation should take priority over auth/session work because liturgical correctness is core product behavior for Sanctuary.
+- Began scaffolding the Java liturgical engine inside `apps/api` under a dedicated `app.sanctuary.api.calendar` package structure.
+- Added first-pass backend calendar models:
+  - `LiturgicalSeason`
+  - `RankType`
+  - `LiturgicalDayResult`
+  - `LiturgicalAnchorKey`
+  - `TransferredFeastKey`
+  - `NovenaServingRule`
+  - `NovenaServingWindowResult`
+- Added first-pass rule and service classes:
+  - `GregorianComputus`
+  - `CalendarMath`
+  - `TransferredFeastResolver`
+  - `LiturgicalAnchorService`
+  - `SeasonResolver`
+  - `LiturgicalCalendarService`
+  - `NovenaServingWindowResolver`
+- This first scaffold intentionally focuses on parity-safe pure logic:
+  - Easter/date math
+  - season boundaries
+  - Saint Joseph / Annunciation transfer logic
+  - anchor-date generation
+  - novena serving-window resolution
+  - major-observance resolution for the current app’s hard-coded calendar model
+- Added first round of Java tests covering:
+  - known Easter dates
+  - season transitions
+  - Saint Joseph / Annunciation transfer years
+  - representative anchor dates
+  - representative novena serving windows
+- Ran the Java API test suite under Java 21 after scaffolding the first liturgical engine classes.
+- Initial test run surfaced one incorrect parity expectation in the test suite rather than a code defect:
+  - `2027-03-19` for Saint Joseph does not fall in Holy Week and correctly remains on March 19
+- Corrected the test expectation and reran the suite successfully.
+- Result:
+  - first-pass liturgical engine scaffold is green under test
+  - Easter computation, season boundaries, transfer logic, anchor resolution, and representative novena serving-window logic are now covered by automated tests
+- Current next step is to add the first public calendar endpoint on top of this tested engine rather than continuing to build unverified internal logic.
+- Extended the liturgical engine from internal scaffold to usable backend feature.
+- Added a Postgres-backed `NovenaServingRuleRepository` that reads `novena_serving_rules` joined with `novenas.duration_days` so the engine can resolve real novena windows from database data instead of only test fixtures.
+- Tightened novena window parity logic in `NovenaServingWindowResolver`:
+  - fixed March 19 / March 25 feast rules now resolve through transferred Saint Joseph / Annunciation dates
+  - effective duration now prefers normalized novena duration from `novenas.duration_days`
+  - legacy special-case start-date handling for `st_joseph` and `annunciation` is preserved
+- Added `CalendarController` with the first liturgical API surface:
+  - `GET /calendar/day/{yyyy-mm-dd}`
+  - `GET /calendar/anchors/{year}`
+  - `GET /calendar/novenas/{novenaId}/window/{year}`
+- Added additional parity coverage for transferred fixed March feast windows in the novena window tests.
+- Reran the Java API test suite under Java 21 after the controller/repository work.
+- Final result:
+  - liturgical engine tests are green
+  - the backend now has a tested Java liturgical core plus its first public calendar endpoints
+- Performed a fresh legacy-to-Postgres audit against the actual iOS app resource usage instead of assuming the migration state from memory.
+- Confirmed current public tables in Postgres are:
+  - `saints`
+  - `saint_sources`
+  - `saint_tags`
+  - `saint_patronages`
+  - `prayers`
+  - `prayer_tags`
+  - `novenas`
+  - `novena_tags`
+  - `novena_days`
+  - `novena_intentions`
+  - `novena_serving_rules`
+- Reconfirmed current content counts in Postgres:
+  - `saints = 366`
+  - `saint_sources = 718`
+  - `saint_tags = 0`
+  - `saint_patronages = 0`
+  - `prayers = 14`
+  - `prayer_tags = 52`
+  - `novenas = 237`
+  - `novena_tags = 756`
+  - `novena_days = 2595`
+  - `novena_intentions = 115`
+  - `novena_serving_rules = 237`
+- Audited the legacy app code paths and confirmed that the main bundled public content actively used by the app is now represented in Postgres for saints, prayers, and novenas.
+- Also confirmed that Postgres still does **not** contain some app-used data/behavior yet:
+  - `user_favorites`
+  - `user_novena_commitments`
+  - any migrated local user progress state from the current app
+  - persisted saint/novena relationship links now computed by `RelationResolver`
+  - canonical liturgical calendar data (the current app uses computed Swift engine logic instead)
+- Important nuance recorded from the audit:
+  - `liturgical_days.json` is not a real canonical dataset and should not be treated as a missing import target in the same way saints/prayers/novenas were
+  - liturgical behavior remains a backend-engine problem, not a straightforward JSON-to-Postgres migration problem
+- Net result of the audit:
+  - bundled public content: effectively migrated
+  - full legacy-app data model: not fully migrated to Postgres yet
+- Started the Spring Boot API under Java 21 to apply the pending user-progress migration.
+- Flyway validated migrations `V1` through `V5` and successfully applied `V5__create_user_progress_tables.sql`.
+- The app still hit the known local developer issue that port `8080` was already in use, but that happened after Flyway had already completed, so the migration result is valid.
+- Verified directly in PostgreSQL that the new user-progress tables now exist:
+  - `user_favorites`
+  - `user_novena_commitments`
+- Verified `flyway_schema_history` now contains `V5__create_user_progress_tables.sql`.
+- This closes the schema-side user-progress gap, but not the full migration gap yet:
+  - the tables now exist in Postgres
+  - the legacy app’s local-only user progress state has not been migrated into them
+  - relationship links and liturgical authority still remain outside Postgres
+- Started the first durable Angular-to-Java wiring pass with the explicit goal of keeping the work reusable rather than swapping one mock for another.
+- Added Spring Web CORS configuration in `apps/api/src/main/java/app/sanctuary/api/config/WebConfig.java` for local Angular development origins (`http://localhost:4200` and `http://127.0.0.1:4200`).
+- Added permanent saints content read endpoints backed by PostgreSQL:
+  - `GET /content/saints?month=&day=&lang=`
+  - `GET /content/saints/{slug}?lang=`
+- Added repository/query code under `apps/api/src/main/java/app/sanctuary/api/content/` so the backend now serves feast-day saints from Postgres instead of leaving the frontend to keep using hardcoded placeholders.
+- Added a reusable Angular API configuration layer in `apps/web/src/app/core/api/`:
+  - `SANCTUARY_API_BASE_URL` injection token
+  - base URL resolver that uses `localhost:8080` during local development
+  - `SanctuaryApiService` methods for liturgical-day and saints-by-date reads
+- Updated `apps/web/src/app/app.config.ts` to provide Angular `HttpClient` and the reusable API base-url token instead of hardcoding fetch logic inside the app shell.
+- Reworked the Angular root shell to use real backend data for the two most important verified domains first:
+  - liturgical day via `GET /calendar/day/{yyyy-mm-dd}`
+  - saints by feast day via `GET /content/saints`
+- Kept the existing visual shell and tab layout in place while replacing the hardcoded saints and liturgical displays with selected-date signals and API-backed state. This is intended to be leave-in-place work, not throwaway scaffolding.
+- Ran backend verification with Java 21:
+  - command: `mvn -q test` from `apps/api`
+  - result: passed
+- Ran Angular production build:
+  - command: `npm run build` from `apps/web`
+  - result: passed
+  - note: Angular reported a non-blocking stylesheet budget warning for `src/app/app.scss` (`7.96 kB` vs `4.00 kB` budget)
+- Started the local Spring Boot API with `./scripts/run-local.sh` to verify the new endpoints against a real Postgres-backed runtime.
+- Verified end-to-end API responses:
+  - `GET /content/saints?month=1&day=1&lang=en`
+    - returned the January 1 saint record for `01-01_solemnity_of_mary_the_holy_mother_of_god`
+  - `GET /calendar/day/2026-04-16`
+    - returned `season: EASTER`
+    - returned `primaryRank: Thursday of Easter`
+    - returned the expected USCCB readings URL for `2026-04-16`
+- Stopped the local Spring Boot verification process afterward so port `8080` was not left occupied.

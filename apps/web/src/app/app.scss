@@ -447,10 +447,9 @@
 
 .saint-photo {
   border-radius: 16px;
-  background:
-    linear-gradient(180deg, rgba(0, 0, 0, 0.15), rgba(0, 0, 0, 0.25)),
-    url('https://upload.wikimedia.org/wikipedia/commons/thumb/5/50/Martinus_I.jpg/320px-Martinus_I.jpg')
-      center / cover;
+  background: linear-gradient(180deg, rgba(111, 197, 244, 0.18), rgba(19, 32, 46, 0.7));
+  background-position: center;
+  background-size: cover;
 }
 
 .saint-action {
@@ -539,6 +538,16 @@
 .mode-panel p {
   margin: 0;
   color: rgba(255, 255, 255, 0.72);
+}
+
+.text-link {
+  color: #9ad8ff;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.text-link:hover {
+  text-decoration: underline;
 }
 
 .me-screen {

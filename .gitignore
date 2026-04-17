@@ -7,3 +7,6 @@ out
 .env
 .env.*
 .DS_Store
+apps/api/.env
+apps/api/target
+backups
