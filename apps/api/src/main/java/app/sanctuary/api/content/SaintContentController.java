@@ -24,6 +24,14 @@ public class SaintContentController {
         this.saintContentRepository = saintContentRepository;
     }
 
+    @GetMapping("/search")
+    public List<SaintSummaryResponse> listSaints(
+        @RequestParam(defaultValue = "en") String lang,
+        @RequestParam(defaultValue = "") String query
+    ) {
+        return saintContentRepository.list(lang, query);
+    }
+
     @GetMapping
     public List<SaintSummaryResponse> getSaintsByFeastDay(
         @RequestParam int month,

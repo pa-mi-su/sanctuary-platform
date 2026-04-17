@@ -1,4 +1,11 @@
 import { Component, computed, inject, signal } from '@angular/core';
+import { HomePageComponent } from './pages/home-page.component';
+import { AppHeaderComponent } from './pages/app-header.component';
+import { SaintsPageComponent } from './pages/saints-page.component';
+import { LiturgicalPageComponent } from './pages/liturgical-page.component';
+import { NovenasPageComponent } from './pages/novenas-page.component';
+import { PrayersPageComponent } from './pages/prayers-page.component';
+import { MePageComponent } from './pages/me-page.component';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { combineLatest, of, switchMap, catchError } from 'rxjs';
 
@@ -17,10 +24,14 @@ import {
 
 type AppTab = 'home' | 'novenas' | 'liturgical' | 'saints' | 'prayers' | 'me';
 type CalendarView = 'day' | 'week' | 'month';
+type CalendarCell = { date: string | null; dayNumber: number | null; label: string };
+type SaintsMode = 'calendar' | 'list';
+type NovenasMode = 'calendar' | 'list' | 'intentions';
 
 @Component({
   selector: 'app-root',
   standalone: true,
+  imports: [HomePageComponent, AppHeaderComponent, SaintsPageComponent, LiturgicalPageComponent, NovenasPageComponent, PrayersPageComponent, MePageComponent],
   templateUrl: './app.html',
   styleUrl: './app.scss',
 })
@@ -32,12 +43,14 @@ export class App {
   protected readonly liturgicalView = signal<CalendarView>('month');
   protected readonly saintsView = signal<CalendarView>('day');
   protected readonly novenasView = signal<CalendarView>('day');
+  protected readonly saintsMode = signal<SaintsMode>('calendar');
+  protected readonly novenasMode = signal<NovenasMode>('calendar');
   protected readonly showAbout = signal(false);
   protected readonly language = signal<'en' | 'es'>('en');
   protected readonly selectedDate = signal(this.formatDateForApi(new Date()));
+  protected readonly saintQuery = signal('');
   protected readonly prayerQuery = signal('');
   protected readonly novenaQuery = signal('');
-  protected readonly novenaSearchMode = signal<'title' | 'intentions'>('title');
   protected readonly selectedSaintSlug = signal<string | null>(null);
   protected readonly selectedPrayerSlug = signal<string | null>(null);
   protected readonly selectedNovenaSlug = signal<string | null>(null);
@@ -100,6 +113,20 @@ export class App {
           catchError(() => {
             this.prayersLoadFailed.set(true);
             return of<PrayerSummary[]>([]);
+          }),
+        ),
+      ),
+    ),
+    { initialValue: [] },
+  );
+
+  protected readonly saintResults = toSignal(
+    combineLatest([toObservable(this.saintQuery), toObservable(this.language)]).pipe(
+      switchMap(([query, language]) =>
+        this.api.listSaints(this.apiLanguage(language), query).pipe(
+          catchError(() => {
+            this.saintsLoadFailed.set(true);
+            return of<SaintSummary[]>([]);
           }),
         ),
       ),
@@ -205,7 +232,7 @@ export class App {
   protected readonly selectedNovenas = computed(() => this.novenasByDate().get(this.selectedDate())?.novenas ?? []);
 
   protected readonly selectedSaintHeadline = computed(() => this.selectedSaintGroup()?.saints[0] ?? null);
-  protected readonly selectedNovenaHeadline = computed(() => this.selectedNovenas()[0] ?? null);
+  protected readonly selectedNovenaHeadline = computed(() => this.novenasByDate().get(this.selectedDate())?.startingNovena ?? null);
   protected readonly selectedNovenaDay = computed(() => {
     const detail = this.novenaDetail();
     if (!detail || detail.days.length === 0) {
@@ -215,9 +242,9 @@ export class App {
     return detail.days.find((day) => day.dayNumber === this.selectedNovenaDayNumber()) ?? detail.days[0];
   });
 
-  protected readonly liturgicalCalendarDays = computed(() => this.toCalendarEntries(this.liturgicalRange()));
-  protected readonly saintsCalendarDays = computed(() => this.toCalendarEntries(this.saintsRange()));
-  protected readonly novenaCalendarDays = computed(() => this.toCalendarEntries(this.novenaCalendarRange()));
+  protected readonly liturgicalCalendarDays = computed(() => this.toCalendarEntries(this.selectedDate(), this.liturgicalView()));
+  protected readonly saintsCalendarDays = computed(() => this.toCalendarEntries(this.selectedDate(), this.saintsView()));
+  protected readonly novenaCalendarDays = computed(() => this.toCalendarEntries(this.selectedDate(), this.novenasView()));
 
   protected readonly selectedDateSeasonLabel = computed(() => {
     const liturgicalDay = this.selectedLiturgicalDay();
@@ -232,6 +259,20 @@ export class App {
 
   protected setTab(tab: AppTab): void {
     this.currentTab.set(tab);
+  }
+
+  protected handlePrimaryNavigate(tab: AppTab): void {
+    if (tab === 'novenas') {
+      this.browseNovenas();
+      return;
+    }
+
+    if (tab === 'saints') {
+      this.browseSaintsCalendar();
+      return;
+    }
+
+    this.setTab(tab);
   }
 
   protected openAbout(): void {
@@ -267,10 +308,19 @@ export class App {
   }
 
   protected shiftSelectedDate(direction: -1 | 1): void {
-    const date = this.parseSelectedDate();
-    date.setDate(date.getDate() + direction);
-    this.clearErrors();
-    this.selectedDate.set(this.formatDateForApi(date));
+    this.shiftDateByView(this.currentCalendarView(), direction);
+  }
+
+  protected shiftLiturgicalDate(direction: -1 | 1): void {
+    this.shiftDateByView(this.liturgicalView(), direction);
+  }
+
+  protected shiftSaintsDate(direction: -1 | 1): void {
+    this.shiftDateByView(this.saintsView(), direction);
+  }
+
+  protected shiftNovenasDate(direction: -1 | 1): void {
+    this.shiftDateByView(this.novenasView(), direction);
   }
 
   protected shiftSelectedMonth(direction: -1 | 1): void {
@@ -332,13 +382,18 @@ export class App {
     this.prayersLoadFailed.set(false);
   }
 
+  protected updateSaintQuery(value: string): void {
+    this.saintQuery.set(value);
+    this.saintsLoadFailed.set(false);
+  }
+
   protected updateNovenaQuery(value: string): void {
     this.novenaQuery.set(value);
     this.novenasLoadFailed.set(false);
   }
 
-  protected setNovenaSearchMode(mode: 'title' | 'intentions'): void {
-    this.novenaSearchMode.set(mode);
+  protected setNovenasMode(mode: NovenasMode): void {
+    this.novenasMode.set(mode);
     this.novenasLoadFailed.set(false);
   }
 
@@ -377,13 +432,30 @@ export class App {
 
   protected openIntentions(): void {
     this.setTab('novenas');
-    this.setNovenaSearchMode('intentions');
+    this.setNovenasMode('intentions');
     this.novenaQuery.set('');
   }
 
   protected browseNovenas(): void {
     this.setTab('novenas');
-    this.setNovenaSearchMode('title');
+    this.setNovenasMode('calendar');
+  }
+
+  protected openNovenasList(): void {
+    this.setTab('novenas');
+    this.setNovenasMode('list');
+    this.novenaQuery.set('');
+  }
+
+  protected browseSaintsCalendar(): void {
+    this.setTab('saints');
+    this.saintsMode.set('calendar');
+  }
+
+  protected openSaintsList(): void {
+    this.setTab('saints');
+    this.saintsMode.set('list');
+    this.saintQuery.set('');
   }
 
   protected localizedSaintsCountLabel(): string {
@@ -411,7 +483,7 @@ export class App {
   }
 
   protected localizedNovenaSearchPlaceholder(): string {
-    if (this.novenaSearchMode() === 'intentions') {
+    if (this.novenasMode() === 'intentions') {
       return this.isEnglish() ? 'Search intentions' : 'Buscar intenciones';
     }
 
@@ -419,11 +491,15 @@ export class App {
   }
 
   protected localizedNovenaSearchHeading(): string {
-    if (this.novenaSearchMode() === 'intentions') {
+    if (this.novenasMode() === 'intentions') {
       return this.isEnglish() ? 'Intentions' : 'Intenciones';
     }
 
-    return this.isEnglish() ? 'Search Results' : 'Resultados';
+    return this.isEnglish() ? 'Novenas' : 'Novenas';
+  }
+
+  protected localizedSaintResultsLabel(): string {
+    return this.isEnglish() ? `${this.saintResults().length} saints` : `${this.saintResults().length} santos`;
   }
 
   protected localizedPrayerResultsLabel(): string {
@@ -431,6 +507,12 @@ export class App {
   }
 
   protected localizedIntentionsResultsLabel(): string {
+    if (this.novenasMode() === 'list') {
+      return this.isEnglish()
+        ? `${this.novenaSearchResults().length} novenas`
+        : `${this.novenaSearchResults().length} novenas`;
+    }
+
     return this.isEnglish()
       ? `${this.novenaSearchResults().length} novenas with intentions`
       : `${this.novenaSearchResults().length} novenas con intenciones`;
@@ -457,6 +539,12 @@ export class App {
   }
 
   protected localizedIntentionsEmptyCopy(): string {
+    if (this.novenasMode() === 'list') {
+      return this.isEnglish()
+        ? 'Browse the novena library or search for a specific novena.'
+        : 'Explora la biblioteca de novenas o busca una novena específica.';
+    }
+
     return this.isEnglish()
       ? 'Browse the available intention novenas or search for a specific intention.'
       : 'Revisa las novenas con intenciones disponibles o busca una intención específica.';
@@ -499,7 +587,7 @@ export class App {
   }
 
   protected shortNovenaLabel(date: string): string {
-    const novena = this.novenasByDate().get(date)?.novenas[0];
+    const novena = this.novenasByDate().get(date)?.startingNovena ?? null;
     return novena ? this.truncateLabel(novena.title, 16) : '—';
   }
 
@@ -545,6 +633,20 @@ export class App {
 
   protected novenaDayCountLabel(novena: NovenaSummary): string {
     return this.isEnglish() ? `${novena.durationDays}-day novena` : `Novena de ${novena.durationDays} días`;
+  }
+
+  protected featuredNovena(novenas: NovenaSummary[]): NovenaSummary | null {
+    if (!novenas.length) {
+      return null;
+    }
+
+    return [...novenas].sort((left, right) => {
+      if (left.durationDays !== right.durationDays) {
+        return left.durationDays - right.durationDays;
+      }
+
+      return left.title.localeCompare(right.title);
+    })[0];
   }
 
   protected prayerPreviewLabel(prayer: PrayerSummary): string {
@@ -614,18 +716,99 @@ export class App {
     return new Map(items.map((item) => [keyFn(item), item]));
   }
 
-  private toCalendarEntries<T extends { date: string }>(items: T[]) {
-    return items.map((item) => {
-      const date = this.parseDate(item.date);
-      return {
-        date: item.date,
-        dayNumber: date.getDate(),
-      };
+  private toCalendarEntries(selectedDate: string, view: CalendarView): CalendarCell[] {
+    const base = this.parseDate(selectedDate);
+
+    if (view === 'day') {
+      return [this.toCalendarCell(base)];
+    }
+
+    if (view === 'week') {
+      return this.buildWeekCalendarEntries(base);
+    }
+
+    return this.buildMonthCalendarEntries(base);
+  }
+
+  private buildMonthCalendarEntries(base: Date): CalendarCell[] {
+    const year = base.getFullYear();
+    const month = base.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const leadingEmptyCells = firstDay.getDay();
+    const cells: CalendarCell[] = Array.from({ length: leadingEmptyCells }, () => this.emptyCalendarCell());
+
+    for (let day = 1; day <= daysInMonth; day += 1) {
+      cells.push(this.toCalendarCell(new Date(year, month, day)));
+    }
+
+    return cells;
+  }
+
+  private buildWeekCalendarEntries(base: Date): CalendarCell[] {
+    const year = base.getFullYear();
+    const month = base.getMonth();
+    const weekStart = new Date(base);
+    weekStart.setDate(base.getDate() - base.getDay());
+
+    return Array.from({ length: 7 }, (_, offset) => {
+      const date = new Date(weekStart);
+      date.setDate(weekStart.getDate() + offset);
+
+      if (date.getFullYear() !== year || date.getMonth() !== month) {
+        return this.emptyCalendarCell();
+      }
+
+      return this.toCalendarCell(date);
     });
   }
 
+  private toCalendarCell(date: Date): CalendarCell {
+    return {
+      date: this.formatDateForApi(date),
+      dayNumber: date.getDate(),
+      label: '',
+    };
+  }
+
+  private emptyCalendarCell(): CalendarCell {
+    return { date: null, dayNumber: null, label: '' };
+  }
+
+  private currentCalendarView(): CalendarView {
+    switch (this.currentTab()) {
+      case 'liturgical':
+        return this.liturgicalView();
+      case 'saints':
+        return this.saintsView();
+      case 'novenas':
+        return this.novenasView();
+      default:
+        return 'day';
+    }
+  }
+
+  private shiftDateByView(view: CalendarView, direction: -1 | 1): void {
+    const date = this.parseSelectedDate();
+
+    if (view === 'day') {
+      date.setDate(date.getDate() + direction);
+    } else if (view === 'week') {
+      date.setDate(date.getDate() + (direction * 7));
+    } else {
+      const originalDay = date.getDate();
+      date.setDate(1);
+      date.setMonth(date.getMonth() + direction);
+      const daysInTargetMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+      date.setDate(Math.min(originalDay, daysInTargetMonth));
+    }
+
+    this.clearErrors();
+    this.selectedDate.set(this.formatDateForApi(date));
+  }
+
   protected readonly novenaSearchResults = toSignal(
-    combineLatest([toObservable(this.novenaQuery), toObservable(this.language), toObservable(this.novenaSearchMode)]).pipe(
+    combineLatest([toObservable(this.novenaQuery), toObservable(this.language), toObservable(this.novenasMode)]).pipe(
       switchMap(([query, language, mode]) => {
         const request = mode === 'intentions'
           ? this.api.listNovenaIntentions(this.apiLanguage(language), query)

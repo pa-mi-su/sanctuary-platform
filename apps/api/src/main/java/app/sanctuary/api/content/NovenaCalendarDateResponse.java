@@ -5,6 +5,7 @@ import java.util.List;
 
 public record NovenaCalendarDateResponse(
     LocalDate date,
-    List<NovenaSummaryResponse> novenas
+    List<NovenaSummaryResponse> novenas,
+    NovenaSummaryResponse startingNovena
 ) {
 }

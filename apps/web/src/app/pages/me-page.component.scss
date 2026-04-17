@@ -1,0 +1,76 @@
+:host {
+  display: block;
+  width: 100%;
+  color: #ffffff;
+}
+
+.glass-card {
+  background: linear-gradient(180deg, rgba(16, 39, 56, 0.82), rgba(11, 28, 40, 0.88));
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 18px 36px rgba(3, 10, 18, 0.24);
+  backdrop-filter: blur(18px);
+}
+
+.glass-subtle {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.screen-card {
+  border-radius: 28px;
+  padding: 24px;
+}
+
+.me-screen {
+  min-height: 620px;
+}
+
+.me-header {
+  margin-bottom: 18px;
+}
+
+.me-header h2 {
+  margin: 0;
+  font-size: 2.1rem;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+}
+
+.me-header p,
+.panel-card p {
+  margin: 6px 0 0;
+  color: rgba(255, 255, 255, 0.74);
+  font-size: 0.92rem;
+  line-height: 1.42;
+}
+
+.list-stack {
+  display: grid;
+  gap: 14px;
+}
+
+.panel-card {
+  border-radius: 24px;
+  padding: 18px 16px;
+}
+
+.panel-card h3 {
+  margin: 0 0 8px;
+  font-size: 1.05rem;
+  line-height: 1.22;
+}
+
+.divider {
+  height: 1px;
+  margin: 12px 0;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+@media (min-width: 900px) {
+  .list-stack {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

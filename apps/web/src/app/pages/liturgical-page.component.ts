@@ -1,64 +1,141 @@
-import { Component } from '@angular/core';
+import { Component, input, output } from '@angular/core';
+import { LiturgicalDayResponse } from '../core/api/sanctuary-api.service';
+
+type CalendarView = 'day' | 'week' | 'month';
 
 @Component({
   selector: 'app-liturgical-page',
   standalone: true,
+  styleUrl: './liturgical-page.component.scss',
   template: `
     <section class="screen-card glass-card">
       <div class="screen-header split">
-        <button class="circle-button" type="button">‹</button>
+        <button class="circle-button" type="button" (click)="shiftDate.emit(-1)">‹</button>
         <div class="screen-title">
-          <h1>April 2026</h1>
-          <p>Liturgical • Tap to jump</p>
+          <h2>{{ selectedDateLabel() }}</h2>
+          <p>{{ selectedDateSeasonLabel() }}</p>
         </div>
-        <button class="circle-button" type="button">›</button>
+        <button class="circle-button" type="button" (click)="shiftDate.emit(1)">›</button>
       </div>
 
       <div class="chip-row">
-        <button class="chip selected" type="button">Today</button>
-        <button class="chip" type="button">Day</button>
-        <button class="chip" type="button">Week</button>
-        <button class="chip active-blue" type="button">Month</button>
+        <button class="chip selected" type="button" (click)="resetDate.emit()">
+          {{ isSelectedDateToday() ? 'Today' : 'Jump to Today' }}
+        </button>
+        <button class="chip" [class.active-blue]="liturgicalView() === 'day'" type="button" (click)="changeView.emit('day')">Day</button>
+        <button class="chip" [class.active-blue]="liturgicalView() === 'week'" type="button" (click)="changeView.emit('week')">Week</button>
+        <button class="chip" [class.active-blue]="liturgicalView() === 'month'" type="button" (click)="changeView.emit('month')">Month</button>
       </div>
 
-      <div class="calendar-headings">
-        <span>Sun</span>
-        <span>Mon</span>
-        <span>Tue</span>
-        <span>Wed</span>
-        <span>Thu</span>
-        <span>Fri</span>
-        <span>Sat</span>
-      </div>
+      @if (liturgicalView() !== 'day') {
+        <div class="calendar-headings">
+          @for (label of weekdayLabels(); track label) {
+            <span>{{ label }}</span>
+          }
+        </div>
 
-      <div class="calendar-grid">
-        <div class="calendar-day accent-purple"><strong>1</strong><span>Wednesday...</span></div>
-        <div class="calendar-day accent-purple"><strong>2</strong><span>Holy Thur...</span></div>
-        <div class="calendar-day accent-purple"><strong>3</strong><span>Good Fri...</span></div>
-        <div class="calendar-day accent-purple"><strong>4</strong><span>Holy Satur...</span></div>
-        <div class="calendar-day"><strong>5</strong><span>Easter Sun...</span></div>
-        <div class="calendar-day"><strong>6</strong><span>Easter Octa...</span></div>
-        <div class="calendar-day"><strong>7</strong><span>Easter Octa...</span></div>
-        <div class="calendar-day"><strong>8</strong><span>Easter Octa...</span></div>
-        <div class="calendar-day"><strong>9</strong><span>Easter Octa...</span></div>
-        <div class="calendar-day"><strong>10</strong><span>Easter Octa...</span></div>
-        <div class="calendar-day"><strong>11</strong><span>Easter Octa...</span></div>
-        <div class="calendar-day"><strong>12</strong><span>Second Su...</span></div>
-        <div class="calendar-day active-gold"><strong>13</strong><span>Monday of...</span></div>
-        <div class="calendar-day"><strong>14</strong><span>Tuesday of...</span></div>
-        <div class="calendar-day"><strong>15</strong><span>Wednesday...</span></div>
-      </div>
+        <div class="calendar-grid" [class.week-grid]="liturgicalView() === 'week'" [class.month-grid]="liturgicalView() === 'month'">
+          @for (day of calendarDays(); track day.date ?? $index) {
+            <button
+              class="calendar-day calendar-button"
+              [class.empty]="!day.date"
+              [class.selected]="day.date === selectedDate()"
+              [class.today]="day.date === todayDate()"
+              type="button"
+              [disabled]="!day.date"
+              (click)="day.date && pickDate.emit(day.date)"
+            >
+              <strong>{{ day.dayNumber ?? '' }}</strong>
+              <span>{{ day.label }}</span>
+            </button>
+          }
+        </div>
+      }
 
-      <button class="search-cta" type="button">Search</button>
+      @if (liturgicalLoadFailed()) {
+        <div class="mode-panel glass-subtle">
+          <strong>Liturgical Day</strong>
+          <p>{{ apiErrorCopy() }}</p>
+        </div>
+      } @else {
+        <section class="preview-grid">
+          <article class="preview-panel glass-subtle">
+            <div class="preview-header">
+              <div>
+                <h3>{{ previewTodayTitle() }}</h3>
+                <p>{{ todayPreviewLabel() }}</p>
+              </div>
+            </div>
 
-      <div class="season-row">
-        <span>Advent</span>
-        <span>Christmas</span>
-        <span>Lent</span>
-        <span>Easter</span>
-        <span>Ordinary Time</span>
-      </div>
+            @if (todayLiturgical()) {
+              <div class="preview-copy">
+                <strong>{{ todayLiturgical()!.primaryRank }}</strong>
+                <p>{{ liturgicalSubtitle(todayLiturgical()!) }}</p>
+                <a class="text-link" [href]="todayLiturgical()!.readingsUrl" target="_blank" rel="noreferrer">
+                  Open daily readings
+                </a>
+              </div>
+            } @else {
+              <p class="preview-empty">{{ noLiturgicalCopy() }}</p>
+            }
+          </article>
+
+          <article class="preview-panel glass-subtle">
+            <div class="preview-header">
+              <div>
+                <h3>{{ previewSelectedTitle() }}</h3>
+                <p>{{ selectedPreviewLabel() }}</p>
+              </div>
+            </div>
+
+            @if (isSelectedDateToday()) {
+              <p class="preview-empty">{{ selectedSameAsTodayCopy() }}</p>
+            } @else if (selectedLiturgical()) {
+              <div class="preview-copy">
+                <strong>{{ selectedLiturgical()!.primaryRank }}</strong>
+                <p>{{ liturgicalSubtitle(selectedLiturgical()!) }}</p>
+                <a class="text-link" [href]="selectedLiturgical()!.readingsUrl" target="_blank" rel="noreferrer">
+                  Open daily readings
+                </a>
+              </div>
+            } @else {
+              <p class="preview-empty">{{ noLiturgicalCopy() }}</p>
+            }
+          </article>
+        </section>
+      }
     </section>
   `,
 })
-export class LiturgicalPageComponent {}
+export class LiturgicalPageComponent {
+  readonly selectedDate = input.required<string>();
+  readonly todayDate = input.required<string>();
+  readonly selectedDateLabel = input.required<string>();
+  readonly selectedDateSeasonLabel = input.required<string>();
+  readonly liturgicalView = input.required<CalendarView>();
+  readonly weekdayLabels = input.required<string[]>();
+  readonly calendarDays = input.required<Array<{ date: string | null; dayNumber: number | null; label: string }>>();
+  readonly liturgicalLoadFailed = input<boolean>(false);
+  readonly apiErrorCopy = input.required<string>();
+  readonly todayLiturgical = input<LiturgicalDayResponse | null>(null);
+  readonly selectedLiturgical = input<LiturgicalDayResponse | null>(null);
+  readonly todayPreviewLabel = input.required<string>();
+  readonly selectedPreviewLabel = input.required<string>();
+  readonly previewTodayTitle = input.required<string>();
+  readonly previewSelectedTitle = input.required<string>();
+  readonly noLiturgicalCopy = input.required<string>();
+  readonly selectedSameAsTodayCopy = input.required<string>();
+
+  readonly shiftDate = output<-1 | 1>();
+  readonly resetDate = output<void>();
+  readonly changeView = output<CalendarView>();
+  readonly pickDate = output<string>();
+
+  protected isSelectedDateToday(): boolean {
+    return this.selectedDate() === this.todayDate();
+  }
+
+  protected liturgicalSubtitle(day: LiturgicalDayResponse): string {
+    return `${day.season.replaceAll('_', ' ')} • ${day.rankType}`;
+  }
+}

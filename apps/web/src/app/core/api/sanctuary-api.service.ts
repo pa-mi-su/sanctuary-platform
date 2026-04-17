@@ -89,6 +89,7 @@ export interface NovenaDetail extends NovenaSummary {
 export interface NovenaCalendarDateResponse {
   date: string;
   novenas: NovenaSummary[];
+  startingNovena: NovenaSummary | null;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -117,6 +118,12 @@ export class SanctuaryApiService {
   getSaintsByRange(start: string, end: string, language: 'en' | 'es' | 'pl'): Observable<SaintDateGroup[]> {
     return this.http.get<SaintDateGroup[]>(`${this.apiBaseUrl}/content/saints/range`, {
       params: this.rangeParams(start, end).set('lang', language),
+    });
+  }
+
+  listSaints(language: 'en' | 'es' | 'pl', query: string): Observable<SaintSummary[]> {
+    return this.http.get<SaintSummary[]>(`${this.apiBaseUrl}/content/saints/search`, {
+      params: new HttpParams().set('lang', language).set('query', query),
     });
   }
 

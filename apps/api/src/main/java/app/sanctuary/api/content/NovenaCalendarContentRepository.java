@@ -112,6 +112,7 @@ public class NovenaCalendarContentRepository {
     public List<NovenaCalendarDateResponse> calendarRange(LocalDate start, LocalDate end, String language) {
         String locale = normalizeLanguage(language);
         Map<LocalDate, Map<String, NovenaSummaryResponse>> byDate = new LinkedHashMap<>();
+        Map<LocalDate, NovenaSummaryResponse> startingByDate = new LinkedHashMap<>();
         LocalDate cursor = start;
         while (!cursor.isAfter(end)) {
             byDate.put(cursor, new LinkedHashMap<>());
@@ -139,6 +140,10 @@ public class NovenaCalendarContentRepository {
                     continue;
                 }
 
+                if (!window.startDate().isBefore(start) && !window.startDate().isAfter(end)) {
+                    startingByDate.putIfAbsent(window.startDate(), summary);
+                }
+
                 LocalDate day = intersectionStart;
                 while (!day.isAfter(intersectionEnd)) {
                     byDate.get(day).putIfAbsent(summary.id(), summary);
@@ -149,7 +154,11 @@ public class NovenaCalendarContentRepository {
 
         List<NovenaCalendarDateResponse> response = new ArrayList<>();
         for (Map.Entry<LocalDate, Map<String, NovenaSummaryResponse>> entry : byDate.entrySet()) {
-            response.add(new NovenaCalendarDateResponse(entry.getKey(), new ArrayList<>(entry.getValue().values())));
+            response.add(new NovenaCalendarDateResponse(
+                entry.getKey(),
+                new ArrayList<>(entry.getValue().values()),
+                startingByDate.get(entry.getKey())
+            ));
         }
         return response;
     }

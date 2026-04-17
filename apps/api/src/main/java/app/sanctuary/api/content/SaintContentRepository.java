@@ -37,6 +37,30 @@ public class SaintContentRepository {
         return jdbcTemplate.query(sql, saintSummaryMapper(), month, day);
     }
 
+    public List<SaintSummaryResponse> list(String language, String query) {
+        String locale = normalizeLanguage(language);
+        String filter = query == null ? "" : query.trim();
+        String likeQuery = "%" + filter.toLowerCase(Locale.US) + "%";
+        String sql = """
+            SELECT
+                id,
+                slug,
+                name,
+                image_url,
+                feast_month,
+                feast_day,
+                feast_label_%s AS feast_label,
+                summary_%s AS summary
+            FROM saints
+            WHERE (? = ''
+                OR LOWER(name) LIKE ?
+                OR LOWER(summary_%s) LIKE ?)
+            ORDER BY feast_month, feast_day, name
+            """.formatted(locale, locale, locale);
+
+        return jdbcTemplate.query(sql, saintSummaryMapper(), filter, likeQuery, likeQuery);
+    }
+
     public Optional<SaintDetailResponse> findBySlug(String slug, String language) {
         String locale = normalizeLanguage(language);
         String sql = """

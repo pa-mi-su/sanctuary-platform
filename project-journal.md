@@ -827,3 +827,99 @@ Logging expectations:
   - verification:
     - `npm run build` from `apps/web`
       - passed
+
+- Angular page refactor: Liturgical first
+  - user requested a safe structural cleanup of the Angular app:
+    - small `app.html`
+    - each tab moved into its own component
+    - no fake UI
+    - no delete-first rewrites
+    - build after each page migration
+  - started with the Liturgical page exactly as requested
+  - reused the existing `pages/` structure instead of inventing a second page system
+  - replaced the placeholder `apps/web/src/app/pages/liturgical-page.component.ts` with the real Liturgical page template from `app.html`
+  - added `apps/web/src/app/pages/liturgical-page.component.scss` so the moved page keeps its working styling under Angular component style encapsulation
+  - wired the real component into `apps/web/src/app/app.ts`
+  - replaced the old inline Liturgical block in `apps/web/src/app/app.html` with `<app-liturgical-page ... />`
+  - removed the duplicate old Liturgical markup from `app.html` only after the replacement component was wired
+  - verification:
+    - `npm run build` from `apps/web`
+      - passed
+
+- Angular page refactor: Novenas second
+  - continued the one-page-at-a-time refactor after Liturgical
+  - replaced the placeholder `apps/web/src/app/pages/novenas-page.component.ts` with the real working Novenas page template from `app.html`
+  - added `apps/web/src/app/pages/novenas-page.component.scss` so the moved page keeps its own scoped styles under Angular component encapsulation
+  - wired the real page component into `apps/web/src/app/app.ts`
+  - replaced the old inline Novenas block in `apps/web/src/app/app.html` with `<app-novenas-page ... />`
+  - removed the duplicate old Novenas markup from `app.html` only after the replacement was wired and built
+  - preserved both working Novenas modes during the refactor:
+    - titles/calendar mode
+    - intentions search/list mode
+  - verification:
+    - `npm run build` from `apps/web`
+      - passed
+
+- Angular page refactor: Prayers third
+  - continued the safe one-page-at-a-time extraction
+  - created a real `apps/web/src/app/pages/prayers-page.component.ts`
+  - added `apps/web/src/app/pages/prayers-page.component.scss` so the moved page keeps scoped styling under Angular component encapsulation
+  - wired the page component into `apps/web/src/app/app.ts`
+  - replaced the old inline Prayers block in `apps/web/src/app/app.html` with `<app-prayers-page ... />`
+  - removed the duplicate old Prayers markup only after the replacement was wired
+  - verification:
+    - `npm run build` from `apps/web`
+      - passed
+
+- Angular page refactor: Me fourth
+  - completed the last page in the requested sequence
+  - replaced the placeholder `apps/web/src/app/pages/me-page.component.ts` with the real current `Me` page markup from `app.html`
+  - added `apps/web/src/app/pages/me-page.component.scss` for scoped component styling
+  - wired the page component into `apps/web/src/app/app.ts`
+  - replaced the old inline `Me` block in `apps/web/src/app/app.html` with `<app-me-page />`
+  - removed the duplicate old `Me` markup only after the replacement was wired
+  - verification:
+    - `npm run build` from `apps/web`
+      - passed
+
+- Frontend consistency cleanup: Novenas titles page aligned to Saints
+  - user flagged that the normal Novenas page still did not match the Saints page structure even after extraction into its own component
+  - audited `apps/web/src/app/pages/novenas-page.component.ts` against `apps/web/src/app/pages/saints-page.component.ts`
+  - found the main mismatch:
+    - Novenas titles mode still carried an extra `Titles / Intentions` control row that Saints does not have
+    - this made the page feel like a hybrid screen instead of the same pattern as Saints
+  - simplified Novenas so the normal titles page now uses the same primary layout rhythm as Saints:
+    - header
+    - Today / Day / Week / Month row
+    - optional calendar
+    - featured highlight card
+    - Today / Selected Day preview panels
+  - kept `Intentions` as its own separate search/list mode with no calendar
+  - also updated top-level navigation behavior so clicking the main `Novenas` nav item always opens the standard Novenas titles page instead of preserving an old `Intentions` state
+  - files updated:
+    - `apps/web/src/app/pages/novenas-page.component.ts`
+    - `apps/web/src/app/app.ts`
+    - `apps/web/src/app/app.html`
+  - verification:
+    - `npm run build` from `apps/web`
+      - passed
+## 2026-04-17 - Calendar audit and root-cause fix
+
+- Audited the April 2026 calendar mismatch across web Novenas, Saints, and Liturgical after the user reported that weekday placement and date labels were wrong.
+- Confirmed the liturgical API data itself was date-correct by checking `/calendar/range?start=2026-04-01&end=2026-04-30`; the visible mismatch was in web rendering, not in the Java liturgical engine output for those dates.
+- Found the web month/week grids were deriving cells from API list order instead of generating the exact date scaffold first. Replaced that with iOS-matching grid generation:
+  - month view now creates leading blank cells from the first weekday of the month
+  - week view now creates a 7-cell week anchored to the selected date and blanks out cells outside the current month
+  - all three pages now use the same scaffold logic
+- Found a second correctness bug: the page arrows were always shifting by one day even in week/month view. Added view-aware shifting so:
+  - day shifts by 1 day
+  - week shifts by 7 days
+  - month shifts by 1 calendar month with day clamping
+- Audited legacy iOS novena behavior in `ContentStore.firstNovenaIDForCalendarDay(...)` and confirmed the old app’s calendar labels/hero use the first novena **starting on that date**, not the first active novena.
+- Found the Java novena calendar endpoint only exposed active novenas for each date, which caused the web app to guess a representative novena. Added `startingNovena` to `NovenaCalendarDateResponse` and populated it from the resolved serving-window start dates in `NovenaCalendarContentRepository`.
+- Live verification after restarting the API:
+  - `GET /content/novenas/calendar?start=2026-04-17&end=2026-04-17&lang=en` now returns `startingNovena = Our Lady of Good Counsel Novena`
+  - `GET /content/novenas/calendar?start=2026-04-01&end=2026-04-05&lang=en` now returns varying start-date novenas instead of the Rosary for every day
+- Verification:
+  - `npm run build` passed in `apps/web`
+  - `JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home mvn -q test` passed in `apps/api`
