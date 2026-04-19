@@ -3,6 +3,7 @@ import { SaintSummary } from '../core/api/sanctuary-api.service';
 
 type CalendarView = 'day' | 'week' | 'month';
 type SaintsMode = 'calendar' | 'list';
+type SeasonKey = 'ADVENT' | 'CHRISTMAS' | 'LENT' | 'EASTER' | 'ORDINARY';
 
 @Component({
   selector: 'app-saints-page',
@@ -72,6 +73,12 @@ type SaintsMode = 'calendar' | 'list';
           <button class="chip" [class.active-blue]="saintsView() === 'month'" type="button" (click)="changeView.emit('month')">Month</button>
         </div>
 
+        <div class="season-legend">
+          @for (item of seasonLegend(); track item.key) {
+            <span class="season-pill" [attr.data-season]="item.key">{{ item.label }}</span>
+          }
+        </div>
+
         @if (saintsView() !== 'day') {
           <div class="calendar-headings">
             @for (label of weekdayLabels(); track label) {
@@ -83,6 +90,7 @@ type SaintsMode = 'calendar' | 'list';
             @for (day of calendarDays(); track day.date ?? $index) {
               <button
                 class="calendar-day calendar-button"
+                [attr.data-season]="day.seasonKey"
                 [class.empty]="!day.date"
                 [class.selected]="day.date === selectedDate()"
                 [class.today]="day.date === todayDate()"
@@ -98,7 +106,7 @@ type SaintsMode = 'calendar' | 'list';
         }
 
         @if (selectedSaintHeadline()) {
-          <button class="saint-highlight glass-subtle content-button" type="button" (click)="openSaint.emit(selectedSaintHeadline()!)">
+          <button class="saint-highlight glass-subtle content-button" type="button" [attr.data-season]="selectedSeasonKey()" (click)="openSaint.emit(selectedSaintHeadline()!)">
             <div class="saint-date">
               <strong>{{ selectedDateDayNumber() }}</strong>
               <span>{{ selectedSaintHeadline()!.name }}</span>
@@ -196,9 +204,11 @@ export class SaintsPageComponent {
   readonly saintsCountLabel = input.required<string>();
   readonly saintsView = input.required<CalendarView>();
   readonly weekdayLabels = input.required<string[]>();
-  readonly calendarDays = input.required<Array<{ date: string | null; dayNumber: number | null; label: string }>>();
+  readonly calendarDays = input.required<Array<{ date: string | null; dayNumber: number | null; label: string; seasonKey?: SeasonKey | null }>>();
+  readonly seasonLegend = input.required<Array<{ key: SeasonKey; label: string }>>();
   readonly selectedSaintHeadline = input<SaintSummary | null>(null);
   readonly selectedSaintImageStyle = input<string | null>(null);
+  readonly selectedSeasonKey = input<SeasonKey | null>(null);
   readonly saintsLoadFailed = input<boolean>(false);
   readonly apiErrorCopy = input.required<string>();
   readonly todaySaints = input.required<SaintSummary[]>();

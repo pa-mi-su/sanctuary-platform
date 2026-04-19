@@ -185,6 +185,32 @@
   color: white;
 }
 
+.season-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 0 0 14px;
+}
+
+.season-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 0.76rem;
+}
+
+.season-pill::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--season-color, rgba(255, 255, 255, 0.35));
+}
+
 .calendar-headings {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
@@ -206,6 +232,7 @@
 }
 
 .calendar-day {
+  --season-color: transparent;
   min-height: 74px;
   border-radius: 18px;
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -215,15 +242,17 @@
   flex-direction: column;
   gap: 6px;
   color: #ffffff;
+  box-shadow: inset 0 0 0 1px var(--season-color);
 }
 
 .calendar-day.selected {
   background: linear-gradient(180deg, rgba(76, 182, 216, 0.28), rgba(17, 52, 70, 0.9));
   border-color: rgba(142, 224, 242, 0.86);
+  box-shadow: inset 0 0 0 1px var(--season-color), 0 0 0 1px rgba(142, 224, 242, 0.5);
 }
 
 .calendar-day.today {
-  box-shadow: inset 0 0 0 1px rgba(229, 198, 106, 0.75);
+  box-shadow: inset 0 0 0 1px var(--season-color), inset 0 0 0 2px rgba(229, 198, 106, 0.75);
 }
 
 .calendar-day.empty {
@@ -248,14 +277,21 @@
 }
 
 .saint-highlight {
-  min-height: 118px;
+  min-height: 220px;
   border-radius: 24px;
-  padding: 10px;
+  padding: 14px;
   display: grid;
-  grid-template-columns: 90px 1fr 28px;
-  gap: 10px;
-  align-items: stretch;
+  grid-template-columns: 140px minmax(180px, 240px) minmax(0, 1fr) 28px;
+  gap: 14px;
+  align-items: center;
   margin-top: 14px;
+}
+
+.saint-highlight[data-season] {
+  border-color: var(--season-color, rgba(255, 255, 255, 0.1));
+  box-shadow:
+    inset 0 0 0 1px var(--season-color, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 .content-button {
@@ -268,6 +304,7 @@
 .saint-date {
   display: flex;
   flex-direction: column;
+  align-self: stretch;
   justify-content: center;
   gap: 6px;
   padding-left: 6px;
@@ -286,16 +323,19 @@
 }
 
 .saint-photo {
+  width: min(240px, 100%);
+  aspect-ratio: 1 / 1;
   border-radius: 16px;
   background: linear-gradient(180deg, rgba(111, 197, 244, 0.18), rgba(19, 32, 46, 0.7));
   background-position: center;
-  background-size: cover;
+  background-repeat: no-repeat;
+  background-size: contain;
+  justify-self: center;
 }
 
 .saint-action {
   display: grid;
-  place-items: start center;
-  padding-top: 8px;
+  place-items: center;
   color: rgba(255, 255, 255, 0.66);
 }
 
@@ -447,5 +487,35 @@
 
   .saint-highlight {
     grid-template-columns: 1fr;
+    min-height: auto;
   }
+
+  .saint-date {
+    padding-left: 0;
+  }
+
+  .saint-photo {
+    width: 100%;
+    max-width: 280px;
+  }
+}
+
+[data-season='ADVENT'] {
+  --season-color: #9b6cf1;
+}
+
+[data-season='CHRISTMAS'] {
+  --season-color: #d9ba58;
+}
+
+[data-season='LENT'] {
+  --season-color: #cf6ea2;
+}
+
+[data-season='EASTER'] {
+  --season-color: #f1f4f7;
+}
+
+[data-season='ORDINARY'] {
+  --season-color: #5ab970;
 }

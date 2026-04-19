@@ -24,7 +24,8 @@ import {
 
 type AppTab = 'home' | 'novenas' | 'liturgical' | 'saints' | 'prayers' | 'me';
 type CalendarView = 'day' | 'week' | 'month';
-type CalendarCell = { date: string | null; dayNumber: number | null; label: string };
+type SeasonKey = 'ADVENT' | 'CHRISTMAS' | 'LENT' | 'EASTER' | 'ORDINARY';
+type CalendarCell = { date: string | null; dayNumber: number | null; label: string; seasonKey?: SeasonKey | null };
 type SaintsMode = 'calendar' | 'list';
 type NovenasMode = 'calendar' | 'list' | 'intentions';
 
@@ -62,8 +63,22 @@ export class App {
   protected readonly prayersLoadFailed = signal(false);
 
   protected readonly liturgicalRange = toSignal(
-    combineLatest([toObservable(this.selectedDate), toObservable(this.liturgicalView)]).pipe(
-      switchMap(([date, view]) => {
+    combineLatest([
+      toObservable(this.selectedDate),
+      toObservable(this.currentTab),
+      toObservable(this.liturgicalView),
+      toObservable(this.saintsView),
+      toObservable(this.novenasView),
+    ]).pipe(
+      switchMap(([date, currentTab, liturgicalView, saintsView, novenasView]) => {
+        const view =
+          currentTab === 'liturgical'
+            ? liturgicalView
+            : currentTab === 'saints'
+              ? saintsView
+              : currentTab === 'novenas'
+                ? novenasView
+                : 'day';
         const range = this.getDateRange(date, view);
         return this.api.getLiturgicalRange(range.start, range.end).pipe(
           catchError(() => {
@@ -233,6 +248,7 @@ export class App {
 
   protected readonly selectedSaintHeadline = computed(() => this.selectedSaintGroup()?.saints[0] ?? null);
   protected readonly selectedNovenaHeadline = computed(() => this.novenasByDate().get(this.selectedDate())?.startingNovena ?? null);
+  protected readonly todayNovenaHeadline = computed(() => this.todayNovenasGroup()?.startingNovena ?? null);
   protected readonly selectedNovenaDay = computed(() => {
     const detail = this.novenaDetail();
     if (!detail || detail.days.length === 0) {
@@ -245,6 +261,13 @@ export class App {
   protected readonly liturgicalCalendarDays = computed(() => this.toCalendarEntries(this.selectedDate(), this.liturgicalView()));
   protected readonly saintsCalendarDays = computed(() => this.toCalendarEntries(this.selectedDate(), this.saintsView()));
   protected readonly novenaCalendarDays = computed(() => this.toCalendarEntries(this.selectedDate(), this.novenasView()));
+  protected readonly seasonLegend = computed(() => [
+    { key: 'ADVENT' as const, label: this.isEnglish() ? 'Advent' : 'Adviento' },
+    { key: 'CHRISTMAS' as const, label: this.isEnglish() ? 'Christmas' : 'Navidad' },
+    { key: 'LENT' as const, label: this.isEnglish() ? 'Lent' : 'Cuaresma' },
+    { key: 'EASTER' as const, label: this.isEnglish() ? 'Easter' : 'Pascua' },
+    { key: 'ORDINARY' as const, label: this.isEnglish() ? 'Ordinary Time' : 'Tiempo Ordinario' },
+  ]);
 
   protected readonly selectedDateSeasonLabel = computed(() => {
     const liturgicalDay = this.selectedLiturgicalDay();
@@ -615,6 +638,15 @@ export class App {
     return this.novenasByDate().get(date)?.novenas ?? [];
   }
 
+  protected previewPrimaryNovena(date: string): NovenaSummary | null {
+    if (date === this.todayDateValue) {
+      return this.todayNovenasGroup()?.startingNovena ?? this.featuredNovena(this.todayNovenasGroup()?.novenas ?? []);
+    }
+
+    const day = this.novenasByDate().get(date);
+    return day?.startingNovena ?? this.featuredNovena(day?.novenas ?? []);
+  }
+
   protected previewSaints(date: string): SaintSummary[] {
     if (date === this.todayDateValue) {
       return this.todaySaintGroup()?.saints ?? [];
@@ -654,6 +686,29 @@ export class App {
   }
 
   protected readonly weekdayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  protected seasonKeyForDate(date: string | null): SeasonKey | null {
+    if (!date) {
+      return null;
+    }
+
+    if (date === this.todayDateValue && this.todayLiturgicalDay()) {
+      return this.normalizeSeasonKey(this.todayLiturgicalDay()!.season);
+    }
+
+    return this.normalizeSeasonKey(this.liturgicalByDate().get(date)?.season ?? null);
+  }
+
+  protected calendarDaysWithLabels(
+    cells: CalendarCell[],
+    labelForDate: (date: string) => string,
+  ): CalendarCell[] {
+    return cells.map((day) => ({
+      ...day,
+      label: day.date ? labelForDate(day.date) : '',
+      seasonKey: this.seasonKeyForDate(day.date),
+    }));
+  }
 
   private clearErrors(): void {
     this.liturgicalLoadFailed.set(false);
@@ -710,6 +765,19 @@ export class App {
 
   private apiLanguage(language: 'en' | 'es'): 'en' | 'es' | 'pl' {
     return language;
+  }
+
+  private normalizeSeasonKey(value: string | null | undefined): SeasonKey | null {
+    switch (value) {
+      case 'ADVENT':
+      case 'CHRISTMAS':
+      case 'LENT':
+      case 'EASTER':
+      case 'ORDINARY':
+        return value;
+      default:
+        return null;
+    }
   }
 
   private toMap<T>(items: T[], keyFn: (item: T) => string): Map<string, T> {

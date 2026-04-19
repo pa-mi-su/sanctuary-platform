@@ -72,6 +72,32 @@
   margin-bottom: 14px;
 }
 
+.season-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 0 0 14px;
+}
+
+.season-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 0.76rem;
+}
+
+.season-pill::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--season-color, rgba(255, 255, 255, 0.35));
+}
+
 .chip {
   min-height: 42px;
   border: 0;
@@ -113,6 +139,7 @@
 }
 
 .calendar-day {
+  --season-color: transparent;
   min-height: 74px;
   border-radius: 18px;
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -122,15 +149,17 @@
   flex-direction: column;
   gap: 6px;
   color: #ffffff;
+  box-shadow: inset 0 0 0 1px var(--season-color);
 }
 
 .calendar-day.selected {
   background: linear-gradient(180deg, rgba(76, 182, 216, 0.28), rgba(17, 52, 70, 0.9));
   border-color: rgba(142, 224, 242, 0.86);
+  box-shadow: inset 0 0 0 1px var(--season-color), 0 0 0 1px rgba(142, 224, 242, 0.5);
 }
 
 .calendar-day.today {
-  box-shadow: inset 0 0 0 1px rgba(229, 198, 106, 0.75);
+  box-shadow: inset 0 0 0 1px var(--season-color), inset 0 0 0 2px rgba(229, 198, 106, 0.75);
 }
 
 .calendar-day.empty {
@@ -187,6 +216,13 @@
   gap: 12px;
 }
 
+.preview-panel[data-season] {
+  border-color: var(--season-color, rgba(255, 255, 255, 0.1));
+  box-shadow:
+    inset 0 0 0 1px var(--season-color, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
 .preview-header {
   display: flex;
   justify-content: space-between;
@@ -230,6 +266,26 @@
 
 .text-link:hover {
   text-decoration: underline;
+}
+
+[data-season='ADVENT'] {
+  --season-color: #9b6cf1;
+}
+
+[data-season='CHRISTMAS'] {
+  --season-color: #d9ba58;
+}
+
+[data-season='LENT'] {
+  --season-color: #cf6ea2;
+}
+
+[data-season='EASTER'] {
+  --season-color: #f1f4f7;
+}
+
+[data-season='ORDINARY'] {
+  --season-color: #5ab970;
 }
 
 @media (min-width: 900px) {

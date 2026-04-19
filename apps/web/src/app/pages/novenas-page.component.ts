@@ -3,6 +3,7 @@ import { NovenaSummary } from '../core/api/sanctuary-api.service';
 
 type CalendarView = 'day' | 'week' | 'month';
 type NovenasMode = 'calendar' | 'list' | 'intentions';
+type SeasonKey = 'ADVENT' | 'CHRISTMAS' | 'LENT' | 'EASTER' | 'ORDINARY';
 
 @Component({
   selector: 'app-novenas-page',
@@ -48,6 +49,12 @@ type NovenasMode = 'calendar' | 'list' | 'intentions';
           <button class="chip" [class.active-blue]="novenasView() === 'month'" type="button" (click)="changeView.emit('month')">Month</button>
         </div>
 
+        <div class="season-legend">
+          @for (item of seasonLegend(); track item.key) {
+            <span class="season-pill" [attr.data-season]="item.key">{{ item.label }}</span>
+          }
+        </div>
+
         @if (novenasView() !== 'day') {
           <div class="calendar-headings">
             @for (label of weekdayLabels(); track label) {
@@ -59,6 +66,7 @@ type NovenasMode = 'calendar' | 'list' | 'intentions';
           @for (day of calendarDays(); track day.date ?? $index) {
             <button
               class="calendar-day calendar-button"
+              [attr.data-season]="day.seasonKey"
               [class.empty]="!day.date"
               [class.selected]="day.date === selectedDate()"
               [class.today]="day.date === todayDate()"
@@ -107,7 +115,7 @@ type NovenasMode = 'calendar' | 'list' | 'intentions';
         }
       } @else {
         @if (selectedNovenaHeadline()) {
-          <button class="saint-highlight novena-highlight glass-subtle content-button" type="button" (click)="openNovena.emit(selectedNovenaHeadline()!)">
+          <button class="saint-highlight novena-highlight glass-subtle content-button" type="button" [attr.data-season]="selectedSeasonKey()" (click)="openNovena.emit(selectedNovenaHeadline()!)">
             <div class="saint-date">
               <strong>{{ selectedDateDayNumber() }}</strong>
               <span>{{ selectedNovenaHeadline()!.title }}</span>
@@ -199,7 +207,8 @@ export class NovenasPageComponent {
   readonly novenasCountLabel = input.required<string>();
   readonly novenasView = input.required<CalendarView>();
   readonly weekdayLabels = input.required<string[]>();
-  readonly calendarDays = input.required<Array<{ date: string | null; dayNumber: number | null; label: string }>>();
+  readonly calendarDays = input.required<Array<{ date: string | null; dayNumber: number | null; label: string; seasonKey?: SeasonKey | null }>>();
+  readonly seasonLegend = input.required<Array<{ key: SeasonKey; label: string }>>();
   readonly novenasLoadFailed = input<boolean>(false);
   readonly apiErrorCopy = input.required<string>();
   readonly intentionsResultsLabel = input.required<string>();
@@ -214,8 +223,11 @@ export class NovenasPageComponent {
   readonly searchResults = input.required<NovenaSummary[]>();
   readonly todayNovenas = input.required<NovenaSummary[]>();
   readonly selectedNovenas = input.required<NovenaSummary[]>();
+  readonly todayPrimaryNovenaInput = input<NovenaSummary | null>(null, { alias: 'todayPrimaryNovena' });
+  readonly selectedPrimaryNovenaInput = input<NovenaSummary | null>(null, { alias: 'selectedPrimaryNovena' });
   readonly selectedNovenaHeadline = input<NovenaSummary | null>(null);
   readonly selectedNovenaImageStyle = input<string | null>(null);
+  readonly selectedSeasonKey = input<SeasonKey | null>(null);
 
   readonly goHome = output<void>();
   readonly shiftDate = output<-1 | 1>();
@@ -234,11 +246,11 @@ export class NovenasPageComponent {
   }
 
   protected todayPrimaryNovena(): NovenaSummary | null {
-    return this.featuredNovena(this.todayNovenas());
+    return this.todayPrimaryNovenaInput() ?? this.featuredNovena(this.todayNovenas());
   }
 
   protected selectedPrimaryNovena(): NovenaSummary | null {
-    return this.featuredNovena(this.selectedNovenas());
+    return this.selectedPrimaryNovenaInput() ?? this.featuredNovena(this.selectedNovenas());
   }
 
   protected todayAdditionalCount(): number {

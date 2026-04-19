@@ -2,6 +2,7 @@ import { Component, input, output } from '@angular/core';
 import { LiturgicalDayResponse } from '../core/api/sanctuary-api.service';
 
 type CalendarView = 'day' | 'week' | 'month';
+type SeasonKey = 'ADVENT' | 'CHRISTMAS' | 'LENT' | 'EASTER' | 'ORDINARY';
 
 @Component({
   selector: 'app-liturgical-page',
@@ -27,6 +28,12 @@ type CalendarView = 'day' | 'week' | 'month';
         <button class="chip" [class.active-blue]="liturgicalView() === 'month'" type="button" (click)="changeView.emit('month')">Month</button>
       </div>
 
+      <div class="season-legend">
+        @for (item of seasonLegend(); track item.key) {
+          <span class="season-pill" [attr.data-season]="item.key">{{ item.label }}</span>
+        }
+      </div>
+
       @if (liturgicalView() !== 'day') {
         <div class="calendar-headings">
           @for (label of weekdayLabels(); track label) {
@@ -38,6 +45,7 @@ type CalendarView = 'day' | 'week' | 'month';
           @for (day of calendarDays(); track day.date ?? $index) {
             <button
               class="calendar-day calendar-button"
+              [attr.data-season]="day.seasonKey"
               [class.empty]="!day.date"
               [class.selected]="day.date === selectedDate()"
               [class.today]="day.date === todayDate()"
@@ -59,7 +67,7 @@ type CalendarView = 'day' | 'week' | 'month';
         </div>
       } @else {
         <section class="preview-grid">
-          <article class="preview-panel glass-subtle">
+          <article class="preview-panel glass-subtle" [attr.data-season]="todaySeasonKey()">
             <div class="preview-header">
               <div>
                 <h3>{{ previewTodayTitle() }}</h3>
@@ -80,7 +88,7 @@ type CalendarView = 'day' | 'week' | 'month';
             }
           </article>
 
-          <article class="preview-panel glass-subtle">
+          <article class="preview-panel glass-subtle" [attr.data-season]="selectedSeasonKey()">
             <div class="preview-header">
               <div>
                 <h3>{{ previewSelectedTitle() }}</h3>
@@ -114,11 +122,14 @@ export class LiturgicalPageComponent {
   readonly selectedDateSeasonLabel = input.required<string>();
   readonly liturgicalView = input.required<CalendarView>();
   readonly weekdayLabels = input.required<string[]>();
-  readonly calendarDays = input.required<Array<{ date: string | null; dayNumber: number | null; label: string }>>();
+  readonly calendarDays = input.required<Array<{ date: string | null; dayNumber: number | null; label: string; seasonKey?: SeasonKey | null }>>();
+  readonly seasonLegend = input.required<Array<{ key: SeasonKey; label: string }>>();
   readonly liturgicalLoadFailed = input<boolean>(false);
   readonly apiErrorCopy = input.required<string>();
   readonly todayLiturgical = input<LiturgicalDayResponse | null>(null);
   readonly selectedLiturgical = input<LiturgicalDayResponse | null>(null);
+  readonly todaySeasonKey = input<SeasonKey | null>(null);
+  readonly selectedSeasonKey = input<SeasonKey | null>(null);
   readonly todayPreviewLabel = input.required<string>();
   readonly selectedPreviewLabel = input.required<string>();
   readonly previewTodayTitle = input.required<string>();
