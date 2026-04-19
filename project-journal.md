@@ -923,3 +923,34 @@ Logging expectations:
 - Verification:
   - `npm run build` passed in `apps/web`
   - `JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home mvn -q test` passed in `apps/api`
+## 2026-04-19 - Angular shell/facade cleanup
+
+- Performed a full structural cleanup pass on the Angular web shell to make it behave like a proper Angular app instead of a root component with too much rendering responsibility.
+- Confirmed the page/component split is now in place:
+  - `home-page.component`
+  - `liturgical-page.component`
+  - `novenas-page.component`
+  - `prayers-page.component`
+  - `saints-page.component`
+  - `me-page.component`
+- Extracted remaining shared shell concerns out of the root template into dedicated standalone components:
+  - `about-modal.component`
+  - `content-detail-modal.component`
+  - `mobile-nav.component`
+- Added `core/state/app-shell.facade.ts` as the main orchestration layer for:
+  - Angular signals/computed state
+  - API-backed data loading
+  - cross-page navigation behavior
+  - calendar/view/language/query state
+- Reduced the root component to a thin shell:
+  - `apps/web/src/app/app.ts` now only imports page/shared components and injects `AppShellFacade`
+  - `apps/web/src/app/app.html` now serves as composition markup instead of owning app logic
+  - `apps/web/src/app/app.scss` now contains shell-only styling
+- Verified the root template now talks to the facade consistently instead of referencing the old giant component API directly.
+- Current shell sizing after cleanup:
+  - `apps/web/src/app/app.html`: 170 lines
+  - `apps/web/src/app/app.scss`: 49 lines
+- Quality gate:
+  - `npm run build` passed in `apps/web`
+- Note:
+  - there is no dedicated `lint` script in `apps/web/package.json`, so the production build remains the current enforced verification step for this refactor pass.
