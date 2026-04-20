@@ -6,10 +6,10 @@ import java.util.List;
 
 import org.springframework.stereotype.Service;
 
-import app.sanctuary.api.content.SaintContentRepository;
-import app.sanctuary.api.content.SaintDateGroupResponse;
-import app.sanctuary.api.content.SaintDetailResponse;
-import app.sanctuary.api.content.SaintSummaryResponse;
+import app.sanctuary.api.content.dto.SaintDateGroupDto;
+import app.sanctuary.api.content.dto.SaintDetailDto;
+import app.sanctuary.api.content.dto.SaintSummaryDto;
+import app.sanctuary.api.content.repository.SaintContentRepository;
 import app.sanctuary.api.content.support.ContentNotFoundException;
 import app.sanctuary.api.content.support.ContentRequestValidator;
 import app.sanctuary.api.content.support.SupportedLanguage;
@@ -27,23 +27,23 @@ public class SaintContentService {
         this.validator = validator;
     }
 
-    public List<SaintSummaryResponse> list(String language, String query) {
+    public List<SaintSummaryDto> list(String language, String query) {
         return repository.list(SupportedLanguage.from(language), query);
     }
 
-    public List<SaintSummaryResponse> getByFeastDay(int month, int day, String language) {
+    public List<SaintSummaryDto> getByFeastDay(int month, int day, String language) {
         validator.validateMonthDay(month, day);
         return repository.findByFeastDay(month, day, SupportedLanguage.from(language));
     }
 
-    public List<SaintDateGroupResponse> getByDateRange(LocalDate start, LocalDate end, String language) {
+    public List<SaintDateGroupDto> getByDateRange(LocalDate start, LocalDate end, String language) {
         validator.validateDateRange(start, end, MAX_DATE_RANGE_DAYS);
         SupportedLanguage supportedLanguage = SupportedLanguage.from(language);
 
-        List<SaintDateGroupResponse> response = new ArrayList<>();
+        List<SaintDateGroupDto> response = new ArrayList<>();
         LocalDate cursor = start;
         while (!cursor.isAfter(end)) {
-            response.add(new SaintDateGroupResponse(
+            response.add(new SaintDateGroupDto(
                 cursor,
                 repository.findByFeastDay(cursor.getMonthValue(), cursor.getDayOfMonth(), supportedLanguage)
             ));
@@ -52,7 +52,7 @@ public class SaintContentService {
         return response;
     }
 
-    public SaintDetailResponse getBySlug(String slug, String language) {
+    public SaintDetailDto getBySlug(String slug, String language) {
         return repository.findBySlug(slug, SupportedLanguage.from(language))
             .orElseThrow(() -> new ContentNotFoundException("No saint found for slug: " + slug));
     }

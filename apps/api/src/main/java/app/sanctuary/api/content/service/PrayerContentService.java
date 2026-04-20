@@ -4,9 +4,9 @@ import java.util.List;
 
 import org.springframework.stereotype.Service;
 
-import app.sanctuary.api.content.PrayerContentRepository;
-import app.sanctuary.api.content.PrayerDetailResponse;
-import app.sanctuary.api.content.PrayerSummaryResponse;
+import app.sanctuary.api.content.dto.PrayerDetailDto;
+import app.sanctuary.api.content.dto.PrayerSummaryDto;
+import app.sanctuary.api.content.repository.PrayerContentRepository;
 import app.sanctuary.api.content.support.ContentNotFoundException;
 import app.sanctuary.api.content.support.SupportedLanguage;
 
@@ -19,11 +19,11 @@ public class PrayerContentService {
         this.repository = repository;
     }
 
-    public List<PrayerSummaryResponse> list(String language, String query) {
+    public List<PrayerSummaryDto> list(String language, String query) {
         return repository.list(SupportedLanguage.from(language), query);
     }
 
-    public PrayerDetailResponse getBySlug(String slug, String language) {
+    public PrayerDetailDto getBySlug(String slug, String language) {
         return repository.findBySlug(slug, SupportedLanguage.from(language))
             .orElseThrow(() -> new ContentNotFoundException("No prayer found for slug: " + slug));
     }

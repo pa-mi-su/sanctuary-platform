@@ -1,4 +1,4 @@
-package app.sanctuary.api.content;
+package app.sanctuary.api.content.repository;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -12,8 +12,12 @@ import org.springframework.stereotype.Repository;
 
 import app.sanctuary.api.calendar.model.NovenaServingRule;
 import app.sanctuary.api.calendar.model.NovenaServingWindowResult;
-import app.sanctuary.api.calendar.service.NovenaServingRuleRepository;
+import app.sanctuary.api.calendar.repository.NovenaServingRuleRepository;
 import app.sanctuary.api.calendar.service.NovenaServingWindowResolver;
+import app.sanctuary.api.content.dto.NovenaCalendarDateDto;
+import app.sanctuary.api.content.dto.NovenaDayDetailDto;
+import app.sanctuary.api.content.dto.NovenaDetailDto;
+import app.sanctuary.api.content.dto.NovenaSummaryDto;
 import app.sanctuary.api.content.support.SupportedLanguage;
 
 @Repository
@@ -33,7 +37,7 @@ public class NovenaCalendarContentRepository {
         this.novenaServingWindowResolver = novenaServingWindowResolver;
     }
 
-    public List<NovenaSummaryResponse> list(SupportedLanguage language, String query) {
+    public List<NovenaSummaryDto> list(SupportedLanguage language, String query) {
         String locale = language.code();
         String filter = query == null ? "" : query.trim();
         String likeQuery = "%" + filter + "%";
@@ -56,7 +60,7 @@ public class NovenaCalendarContentRepository {
 
         return jdbcTemplate.query(
             sql,
-            (rs, rowNum) -> new NovenaSummaryResponse(
+            (rs, rowNum) -> new NovenaSummaryDto(
                 rs.getString("id"),
                 rs.getString("slug"),
                 rs.getString("title"),
@@ -71,7 +75,7 @@ public class NovenaCalendarContentRepository {
         );
     }
 
-    public List<NovenaSummaryResponse> listByIntentions(SupportedLanguage language, String query) {
+    public List<NovenaSummaryDto> listByIntentions(SupportedLanguage language, String query) {
         String locale = language.code();
         String filter = query == null ? "" : query.trim();
         String likeQuery = "%" + filter + "%";
@@ -93,7 +97,7 @@ public class NovenaCalendarContentRepository {
 
         return jdbcTemplate.query(
             sql,
-            (rs, rowNum) -> new NovenaSummaryResponse(
+            (rs, rowNum) -> new NovenaSummaryDto(
                 rs.getString("id"),
                 rs.getString("slug"),
                 rs.getString("title"),
@@ -109,10 +113,10 @@ public class NovenaCalendarContentRepository {
         );
     }
 
-    public List<NovenaCalendarDateResponse> calendarRange(LocalDate start, LocalDate end, SupportedLanguage language) {
+    public List<NovenaCalendarDateDto> calendarRange(LocalDate start, LocalDate end, SupportedLanguage language) {
         String locale = language.code();
-        Map<LocalDate, Map<String, NovenaSummaryResponse>> byDate = new LinkedHashMap<>();
-        Map<LocalDate, NovenaSummaryResponse> startingByDate = new LinkedHashMap<>();
+        Map<LocalDate, Map<String, NovenaSummaryDto>> byDate = new LinkedHashMap<>();
+        Map<LocalDate, NovenaSummaryDto> startingByDate = new LinkedHashMap<>();
         LocalDate cursor = start;
         while (!cursor.isAfter(end)) {
             byDate.put(cursor, new LinkedHashMap<>());
@@ -135,7 +139,7 @@ public class NovenaCalendarContentRepository {
                     continue;
                 }
 
-                NovenaSummaryResponse summary = fetchNovenaSummary(rule.novenaId(), locale);
+                NovenaSummaryDto summary = fetchNovenaSummary(rule.novenaId(), locale);
                 if (summary == null) {
                     continue;
                 }
@@ -152,9 +156,9 @@ public class NovenaCalendarContentRepository {
             }
         }
 
-        List<NovenaCalendarDateResponse> response = new ArrayList<>();
-        for (Map.Entry<LocalDate, Map<String, NovenaSummaryResponse>> entry : byDate.entrySet()) {
-            response.add(new NovenaCalendarDateResponse(
+        List<NovenaCalendarDateDto> response = new ArrayList<>();
+        for (Map.Entry<LocalDate, Map<String, NovenaSummaryDto>> entry : byDate.entrySet()) {
+            response.add(new NovenaCalendarDateDto(
                 entry.getKey(),
                 new ArrayList<>(entry.getValue().values()),
                 startingByDate.get(entry.getKey())
@@ -163,7 +167,7 @@ public class NovenaCalendarContentRepository {
         return response;
     }
 
-    public Optional<NovenaDetailResponse> findBySlug(String slug, SupportedLanguage language) {
+    public Optional<NovenaDetailDto> findBySlug(String slug, SupportedLanguage language) {
         String locale = language.code();
         String sql = """
             SELECT
@@ -177,9 +181,9 @@ public class NovenaCalendarContentRepository {
             WHERE slug = ?
             """.formatted(locale, locale);
 
-        List<NovenaDetailResponse> novenas = jdbcTemplate.query(
+        List<NovenaDetailDto> novenas = jdbcTemplate.query(
             sql,
-            (rs, rowNum) -> new NovenaDetailResponse(
+            (rs, rowNum) -> new NovenaDetailDto(
                 rs.getString("id"),
                 rs.getString("slug"),
                 rs.getString("title"),
@@ -197,7 +201,7 @@ public class NovenaCalendarContentRepository {
             return Optional.empty();
         }
 
-        NovenaDetailResponse novena = novenas.getFirst();
+        NovenaDetailDto novena = novenas.getFirst();
         List<String> tags = jdbcTemplate.query(
             """
                 SELECT tag
@@ -219,7 +223,7 @@ public class NovenaCalendarContentRepository {
             novena.id(),
             locale
         );
-        List<NovenaDayDetailResponse> days = jdbcTemplate.query(
+        List<NovenaDayDetailDto> days = jdbcTemplate.query(
             """
                 SELECT
                     day_number,
@@ -232,7 +236,7 @@ public class NovenaCalendarContentRepository {
                 WHERE novena_id = ?
                 ORDER BY day_number
                 """.formatted(locale, locale, locale, locale, locale),
-            (rs, rowNum) -> new NovenaDayDetailResponse(
+            (rs, rowNum) -> new NovenaDayDetailDto(
                 rs.getInt("day_number"),
                 rs.getString("title"),
                 rs.getString("scripture"),
@@ -246,7 +250,7 @@ public class NovenaCalendarContentRepository {
         return Optional.of(novena.withTags(tags).withIntentions(intentions).withDays(days));
     }
 
-    private NovenaSummaryResponse fetchNovenaSummary(String novenaId, String locale) {
+    private NovenaSummaryDto fetchNovenaSummary(String novenaId, String locale) {
         String sql = """
             SELECT
                 id,
@@ -259,9 +263,9 @@ public class NovenaCalendarContentRepository {
             WHERE id = ?
             """.formatted(locale, locale);
 
-        List<NovenaSummaryResponse> results = jdbcTemplate.query(
+        List<NovenaSummaryDto> results = jdbcTemplate.query(
             sql,
-            (rs, rowNum) -> new NovenaSummaryResponse(
+            (rs, rowNum) -> new NovenaSummaryDto(
                 rs.getString("id"),
                 rs.getString("slug"),
                 rs.getString("title"),

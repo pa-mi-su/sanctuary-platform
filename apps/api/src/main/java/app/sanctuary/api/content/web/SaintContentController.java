@@ -1,4 +1,4 @@
-package app.sanctuary.api.content;
+package app.sanctuary.api.content.web;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -10,6 +10,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import app.sanctuary.api.content.dto.SaintDateGroupDto;
+import app.sanctuary.api.content.dto.SaintDetailDto;
+import app.sanctuary.api.content.dto.SaintSummaryDto;
 import app.sanctuary.api.content.service.SaintContentService;
 
 @RestController
@@ -23,7 +26,7 @@ public class SaintContentController {
     }
 
     @GetMapping("/search")
-    public List<SaintSummaryResponse> listSaints(
+    public List<SaintSummaryDto> listSaints(
         @RequestParam(defaultValue = "en") String lang,
         @RequestParam(defaultValue = "") String query
     ) {
@@ -31,7 +34,7 @@ public class SaintContentController {
     }
 
     @GetMapping
-    public List<SaintSummaryResponse> getSaintsByFeastDay(
+    public List<SaintSummaryDto> getSaintsByFeastDay(
         @RequestParam int month,
         @RequestParam int day,
         @RequestParam(defaultValue = "en") String lang
@@ -40,7 +43,7 @@ public class SaintContentController {
     }
 
     @GetMapping("/range")
-    public List<SaintDateGroupResponse> getSaintsByDateRange(
+    public List<SaintDateGroupDto> getSaintsByDateRange(
         @RequestParam
         @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
         LocalDate start,
@@ -53,7 +56,7 @@ public class SaintContentController {
     }
 
     @GetMapping("/{slug}")
-    public SaintDetailResponse getSaintBySlug(
+    public SaintDetailDto getSaintBySlug(
         @PathVariable String slug,
         @RequestParam(defaultValue = "en") String lang
     ) {

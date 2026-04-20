@@ -1,4 +1,4 @@
-package app.sanctuary.api.content;
+package app.sanctuary.api.content.web;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -10,6 +10,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import app.sanctuary.api.content.dto.NovenaCalendarDateDto;
+import app.sanctuary.api.content.dto.NovenaDetailDto;
+import app.sanctuary.api.content.dto.NovenaSummaryDto;
 import app.sanctuary.api.content.service.NovenaContentService;
 
 @RestController
@@ -23,7 +26,7 @@ public class NovenaContentController {
     }
 
     @GetMapping
-    public List<NovenaSummaryResponse> listNovenas(
+    public List<NovenaSummaryDto> listNovenas(
         @RequestParam(defaultValue = "en") String lang,
         @RequestParam(defaultValue = "") String query
     ) {
@@ -31,7 +34,7 @@ public class NovenaContentController {
     }
 
     @GetMapping("/intentions")
-    public List<NovenaSummaryResponse> searchNovenasByIntentions(
+    public List<NovenaSummaryDto> searchNovenasByIntentions(
         @RequestParam(defaultValue = "en") String lang,
         @RequestParam(defaultValue = "") String query
     ) {
@@ -39,7 +42,7 @@ public class NovenaContentController {
     }
 
     @GetMapping("/calendar")
-    public List<NovenaCalendarDateResponse> getNovenasByDateRange(
+    public List<NovenaCalendarDateDto> getNovenasByDateRange(
         @RequestParam
         @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
         LocalDate start,
@@ -52,7 +55,7 @@ public class NovenaContentController {
     }
 
     @GetMapping("/{slug}")
-    public NovenaDetailResponse getNovenaBySlug(
+    public NovenaDetailDto getNovenaBySlug(
         @PathVariable String slug,
         @RequestParam(defaultValue = "en") String lang
     ) {

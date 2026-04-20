@@ -1,6 +1,6 @@
-package app.sanctuary.api.content;
+package app.sanctuary.api.content.dto;
 
-public record PrayerSummaryResponse(
+public record PrayerSummaryDto(
     String id,
     String slug,
     String title,

@@ -1,4 +1,4 @@
-package app.sanctuary.api.content;
+package app.sanctuary.api.content.repository;
 
 import java.util.List;
 import java.util.Optional;
@@ -6,6 +6,8 @@ import java.util.Optional;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
+import app.sanctuary.api.content.dto.PrayerDetailDto;
+import app.sanctuary.api.content.dto.PrayerSummaryDto;
 import app.sanctuary.api.content.support.SupportedLanguage;
 
 @Repository
@@ -17,7 +19,7 @@ public class PrayerContentRepository {
         this.jdbcTemplate = jdbcTemplate;
     }
 
-    public List<PrayerSummaryResponse> list(SupportedLanguage language, String query) {
+    public List<PrayerSummaryDto> list(SupportedLanguage language, String query) {
         String locale = language.code();
         String filter = query == null ? "" : query.trim();
         String likeQuery = "%" + filter + "%";
@@ -41,7 +43,7 @@ public class PrayerContentRepository {
 
         return jdbcTemplate.query(
             sql,
-            (rs, rowNum) -> new PrayerSummaryResponse(
+            (rs, rowNum) -> new PrayerSummaryDto(
                 rs.getString("id"),
                 rs.getString("slug"),
                 rs.getString("title"),
@@ -57,7 +59,7 @@ public class PrayerContentRepository {
         );
     }
 
-    public Optional<PrayerDetailResponse> findBySlug(String slug, SupportedLanguage language) {
+    public Optional<PrayerDetailDto> findBySlug(String slug, SupportedLanguage language) {
         String locale = language.code();
         String sql = """
             SELECT
@@ -75,9 +77,9 @@ public class PrayerContentRepository {
             WHERE slug = ?
             """.formatted(locale, locale, locale, locale);
 
-        List<PrayerDetailResponse> prayers = jdbcTemplate.query(
+        List<PrayerDetailDto> prayers = jdbcTemplate.query(
             sql,
-            (rs, rowNum) -> new PrayerDetailResponse(
+            (rs, rowNum) -> new PrayerDetailDto(
                 rs.getString("id"),
                 rs.getString("slug"),
                 rs.getString("title"),
@@ -97,7 +99,7 @@ public class PrayerContentRepository {
             return Optional.empty();
         }
 
-        PrayerDetailResponse prayer = prayers.getFirst();
+        PrayerDetailDto prayer = prayers.getFirst();
         List<String> tags = jdbcTemplate.query(
             """
                 SELECT tag

@@ -1,6 +1,6 @@
-package app.sanctuary.api.content;
+package app.sanctuary.api.content.dto;
 
-public record NovenaDayDetailResponse(
+public record NovenaDayDetailDto(
     int dayNumber,
     String title,
     String scripture,

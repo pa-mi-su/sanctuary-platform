@@ -1,4 +1,4 @@
-package app.sanctuary.api.calendar.service;
+package app.sanctuary.api.calendar.repository;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;

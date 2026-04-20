@@ -1,4 +1,4 @@
-package app.sanctuary.api.content;
+package app.sanctuary.api.content.repository;
 
 import java.util.List;
 import java.util.Optional;
@@ -7,6 +7,9 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
 
+import app.sanctuary.api.content.dto.SaintDetailDto;
+import app.sanctuary.api.content.dto.SaintSourceDto;
+import app.sanctuary.api.content.dto.SaintSummaryDto;
 import app.sanctuary.api.content.support.SupportedLanguage;
 
 @Repository
@@ -18,7 +21,7 @@ public class SaintContentRepository {
         this.jdbcTemplate = jdbcTemplate;
     }
 
-    public List<SaintSummaryResponse> findByFeastDay(int month, int day, SupportedLanguage language) {
+    public List<SaintSummaryDto> findByFeastDay(int month, int day, SupportedLanguage language) {
         String locale = language.code();
         String sql = """
             SELECT
@@ -38,7 +41,7 @@ public class SaintContentRepository {
         return jdbcTemplate.query(sql, saintSummaryMapper(), month, day);
     }
 
-    public List<SaintSummaryResponse> list(SupportedLanguage language, String query) {
+    public List<SaintSummaryDto> list(SupportedLanguage language, String query) {
         String locale = language.code();
         String filter = query == null ? "" : query.trim();
         String likeQuery = "%" + filter.toLowerCase() + "%";
@@ -62,7 +65,7 @@ public class SaintContentRepository {
         return jdbcTemplate.query(sql, saintSummaryMapper(), filter, likeQuery, likeQuery);
     }
 
-    public Optional<SaintDetailResponse> findBySlug(String slug, SupportedLanguage language) {
+    public Optional<SaintDetailDto> findBySlug(String slug, SupportedLanguage language) {
         String locale = language.code();
         String sql = """
             SELECT
@@ -79,20 +82,20 @@ public class SaintContentRepository {
             WHERE slug = ?
             """.formatted(locale, locale, locale);
 
-        List<SaintDetailResponse> saints = jdbcTemplate.query(sql, saintDetailMapper(), slug);
+        List<SaintDetailDto> saints = jdbcTemplate.query(sql, saintDetailMapper(), slug);
         if (saints.isEmpty()) {
             return Optional.empty();
         }
 
-        SaintDetailResponse saint = saints.getFirst();
-        List<SaintSourceResponse> sources = jdbcTemplate.query(
+        SaintDetailDto saint = saints.getFirst();
+        List<SaintSourceDto> sources = jdbcTemplate.query(
             """
                 SELECT source_text, source_url
                 FROM saint_sources
                 WHERE saint_id = ?
                 ORDER BY sort_order, id
                 """,
-            (rs, rowNum) -> new SaintSourceResponse(
+            (rs, rowNum) -> new SaintSourceDto(
                 rs.getString("source_text"),
                 rs.getString("source_url")
             ),
@@ -102,8 +105,8 @@ public class SaintContentRepository {
         return Optional.of(saint.withSources(sources));
     }
 
-    private RowMapper<SaintSummaryResponse> saintSummaryMapper() {
-        return (rs, rowNum) -> new SaintSummaryResponse(
+    private RowMapper<SaintSummaryDto> saintSummaryMapper() {
+        return (rs, rowNum) -> new SaintSummaryDto(
             rs.getString("id"),
             rs.getString("slug"),
             rs.getString("name"),
@@ -115,8 +118,8 @@ public class SaintContentRepository {
         );
     }
 
-    private RowMapper<SaintDetailResponse> saintDetailMapper() {
-        return (rs, rowNum) -> new SaintDetailResponse(
+    private RowMapper<SaintDetailDto> saintDetailMapper() {
+        return (rs, rowNum) -> new SaintDetailDto(
             rs.getString("id"),
             rs.getString("slug"),
             rs.getString("name"),

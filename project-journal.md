@@ -1008,3 +1008,41 @@ Logging expectations:
   - `npm run build` passed in `apps/web`
   - live API check returned Polish saint content:
     - `curl -s 'http://localhost:8080/content/saints?month=4&day=17&lang=pl'`
+
+## 2026-04-20 - Java API package and DTO cleanup
+
+- Did a second backend structure pass after the initial content service split because the API still felt half-refactored:
+  - transport records were still named `*Response`
+  - `NovenaServingRuleRepository` was still conceptually a repository but living under `calendar/service`
+  - health transport types were not following the same package conventions
+- Cleaned up the content module so it now reads as a proper feature slice:
+  - `content/web`
+  - `content/service`
+  - `content/repository`
+  - `content/dto`
+  - `content/support`
+- Renamed content transport records from `*Response` to `*Dto` and moved them under `content/dto`:
+  - `SaintSummaryDto`
+  - `SaintDetailDto`
+  - `SaintDateGroupDto`
+  - `SaintSourceDto`
+  - `PrayerSummaryDto`
+  - `PrayerDetailDto`
+  - `NovenaSummaryDto`
+  - `NovenaDetailDto`
+  - `NovenaDayDetailDto`
+  - `NovenaCalendarDateDto`
+- Moved the calendar repository into a more honest package:
+  - `calendar/repository/NovenaServingRuleRepository`
+- Moved health transport/web classes into aligned packages:
+  - `health/dto/HealthStatusDto`
+  - `health/web/HealthController`
+- Updated all controllers, services, repositories, and calendar wiring to use the new DTO and repository package names.
+- Result:
+  - controllers are transport-only
+  - services handle use-case orchestration
+  - repositories are clearly separated from service classes
+  - transport records now have DTO naming that matches their role
+  - health and content modules follow the same structural conventions
+- Verification:
+  - `JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home PATH=/opt/homebrew/opt/openjdk@21/bin:$PATH mvn -q test` passed in `apps/api`

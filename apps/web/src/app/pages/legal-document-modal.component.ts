@@ -41,9 +41,9 @@ type AppLanguage = 'en' | 'es' | 'pl';
             <p>
               {{
                 t(
-                  'Please include your device model, iOS version, and a short description of the issue so we can help as quickly as possible.',
-                  'Incluye el modelo de tu dispositivo, la versión de iOS y una breve descripción del problema para que podamos ayudarte lo antes posible.',
-                  'Podaj model urzadzenia, wersje iOS oraz krotki opis problemu, abyśmy mogli pomoc tak szybko, jak to mozliwe.'
+                  'Please include your device type, browser or platform, and a short description of the issue so we can help as quickly as possible.',
+                  'Incluye el tipo de dispositivo, el navegador o la plataforma y una breve descripción del problema para que podamos ayudarte lo antes posible.',
+                  'Podaj typ urządzenia, przeglądarkę lub platformę oraz krótki opis problemu, abyśmy mogli pomóc tak szybko, jak to możliwe.'
                 )
               }}
             </p>

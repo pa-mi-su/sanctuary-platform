@@ -1,4 +1,4 @@
-package app.sanctuary.api.content;
+package app.sanctuary.api.content.web;
 
 import java.util.List;
 
@@ -8,6 +8,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import app.sanctuary.api.content.dto.PrayerDetailDto;
+import app.sanctuary.api.content.dto.PrayerSummaryDto;
 import app.sanctuary.api.content.service.PrayerContentService;
 
 @RestController
@@ -21,7 +23,7 @@ public class PrayerContentController {
     }
 
     @GetMapping
-    public List<PrayerSummaryResponse> listPrayers(
+    public List<PrayerSummaryDto> listPrayers(
         @RequestParam(defaultValue = "en") String lang,
         @RequestParam(defaultValue = "") String query
     ) {
@@ -29,7 +31,7 @@ public class PrayerContentController {
     }
 
     @GetMapping("/{slug}")
-    public PrayerDetailResponse getPrayerBySlug(
+    public PrayerDetailDto getPrayerBySlug(
         @PathVariable String slug,
         @RequestParam(defaultValue = "en") String lang
     ) {

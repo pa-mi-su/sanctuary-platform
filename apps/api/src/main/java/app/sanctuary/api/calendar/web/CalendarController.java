@@ -21,7 +21,7 @@ import app.sanctuary.api.calendar.model.LiturgicalDayResult;
 import app.sanctuary.api.calendar.model.NovenaServingWindowResult;
 import app.sanctuary.api.calendar.service.LiturgicalAnchorService;
 import app.sanctuary.api.calendar.service.LiturgicalCalendarService;
-import app.sanctuary.api.calendar.service.NovenaServingRuleRepository;
+import app.sanctuary.api.calendar.repository.NovenaServingRuleRepository;
 import app.sanctuary.api.calendar.service.NovenaServingWindowResolver;
 
 @RestController

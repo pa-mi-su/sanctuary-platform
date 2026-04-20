@@ -1,8 +1,8 @@
-package app.sanctuary.api.content;
+package app.sanctuary.api.content.dto;
 
 import java.util.List;
 
-public record PrayerDetailResponse(
+public record PrayerDetailDto(
     String id,
     String slug,
     String title,
@@ -15,8 +15,8 @@ public record PrayerDetailResponse(
     String sourceType,
     List<String> tags
 ) {
-    public PrayerDetailResponse withTags(List<String> tags) {
-        return new PrayerDetailResponse(
+    public PrayerDetailDto withTags(List<String> tags) {
+        return new PrayerDetailDto(
             id,
             slug,
             title,
