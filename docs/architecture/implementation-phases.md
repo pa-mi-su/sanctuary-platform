@@ -174,6 +174,27 @@ Exit criteria:
 
 - one backend serves all clients
 
+## Phase 8: Deployment And Release Pipeline
+
+Goal:
+
+- launch Sanctuary in AWS with repeatable, environment-specific delivery pipelines
+
+Planned work:
+
+- define `dev`, `uat`, and `prod` environments
+- deploy Angular to `S3 + CloudFront`
+- deploy Java API to a managed container runtime
+- provision PostgreSQL in `RDS`
+- run Flyway in each environment
+- run one-time production content bootstrap
+- add approval gates for production
+
+Exit criteria:
+
+- web, API, and database all deploy repeatably through documented pipelines
+- production deploy no longer depends on manual local steps
+
 ## Working Rules
 
 - document first

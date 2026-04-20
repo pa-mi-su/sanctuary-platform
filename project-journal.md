@@ -1046,3 +1046,70 @@ Logging expectations:
   - health and content modules follow the same structural conventions
 - Verification:
   - `JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home PATH=/opt/homebrew/opt/openjdk@21/bin:$PATH mvn -q test` passed in `apps/api`
+
+## 2026-04-20 - Deployment and pipeline planning
+
+- Captured the high-level launch strategy in a new architecture document:
+  - `docs/architecture/deployment-and-pipelines.md`
+- Documented the intended production shape:
+  - Angular web app deployed as static assets to `S3 + CloudFront`
+  - Java API deployed as a container image from `ECR` to a managed AWS runtime
+  - PostgreSQL hosted in `RDS`
+  - separate `dev`, `uat`, and `prod` environments
+- Explicitly documented the database deployment rule:
+  - Flyway is for schema only
+  - initial content load is a separate controlled bootstrap step
+  - app startup must never be responsible for legacy content import
+- Documented the rollout order so the team can move slowly and safely:
+  - Angular pipeline first
+  - API pipeline second
+  - database workflow third
+  - environment promotion after that
+- Extended `implementation-phases.md` with a dedicated deployment/release phase so launch work is part of the official execution plan rather than scattered across chat decisions.
+
+## 2026-04-20 - First Angular pipeline scaffold
+
+- Added the first CI/CD workflow for the Angular web app:
+  - `.github/workflows/web-prod-deploy.yml`
+- Scope of this workflow is intentionally narrow:
+  - web only
+  - initial production target only
+  - Angular web app only
+  - manual trigger also enabled
+- Workflow stages:
+  - checkout
+  - setup Node.js
+  - `npm ci`
+  - `npm run build --workspace web`
+  - assume AWS role via GitHub OIDC
+  - sync `apps/web/dist/web/browser` to the production S3 bucket
+  - invalidate the production CloudFront distribution
+- Chose OIDC role assumption as the recommended AWS auth model for GitHub Actions instead of long-lived AWS keys.
+- Updated `deployment-and-pipelines.md` with the concrete GitHub configuration needed for this first web pipeline:
+  - `AWS_REGION`
+  - `WEB_PROD_S3_BUCKET`
+  - `WEB_PROD_CLOUDFRONT_DISTRIBUTION_ID`
+  - `AWS_DEPLOY_ROLE_ARN`
+- Confirmed an infrastructure decision after review of the existing AWS setup:
+  - the current `mydailysanctuary.com` S3 bucket and CloudFront distribution will be reused as the Angular production target
+  - this means Angular deployment will intentionally replace the current static site content rather than using a separate app subdomain
+- This is still only the first implementation slice; no API or database pipeline changes were mixed into this step.
+
+## 2026-04-20 - GitHub Actions web production setup guide
+
+- Added a concrete setup guide for wiring GitHub Actions to the existing Sanctuary production web infrastructure:
+  - `docs/deployment/github-actions-web-prod-setup.md`
+- Added the exact IAM trust policy template for GitHub OIDC:
+  - `docs/deployment/aws-github-oidc-trust-policy.json`
+- Added the exact IAM permissions policy template for Angular production deploys:
+  - `docs/deployment/aws-web-prod-deploy-permissions-policy.json`
+- Locked the trust policy to:
+  - repo `pa-mi-su/sanctuary-platform`
+  - GitHub Actions environment `prod`
+- Documented the exact GitHub environment values required:
+  - `AWS_REGION=us-east-1`
+  - `WEB_PROD_S3_BUCKET=mydailysanctuary.com`
+  - `WEB_PROD_CLOUDFRONT_DISTRIBUTION_ID=E34NUCAHSMCJFM`
+  - secret `AWS_DEPLOY_ROLE_ARN`
+- Purpose of this step:
+  - make the first production web deploy setup explicit and repeatable before moving on to the API or database pipeline.
