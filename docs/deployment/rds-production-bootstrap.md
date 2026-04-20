@@ -42,7 +42,7 @@ Recommended storage:
 - AWS Secrets Manager
 - or SSM Parameter Store
 
-## Step 4: Point App Runner To RDS
+## Step 4: Point ECS To RDS
 
 The API service will need:
 

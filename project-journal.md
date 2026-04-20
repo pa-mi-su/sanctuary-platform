@@ -18,6 +18,22 @@ Logging expectations:
 - include enough context that a new engineer can pick up the thread without reading the full chat history
 - when in doubt, log it
 
+## 2026-04-20
+
+- Created the production API container repository in ECR:
+  - `sanctuary-api-prod`
+  - URI: `160885294528.dkr.ecr.us-east-1.amazonaws.com/sanctuary-api-prod`
+- Expanded the GitHub OIDC deploy role `github-actions-sanctuary-web-prod-deploy` to include:
+  - ECR image push permissions for `sanctuary-api-prod`
+  - backend deployment permissions needed for the production API workflow
+- Re-evaluated the original App Runner deployment target after the AWS console warning that App Runner is no longer the forward-looking path for new customers after April 30, 2026.
+- Formally pivoted the backend deployment target from App Runner to `Amazon ECS Express Mode`.
+- Confirmed the API workflow and deployment docs are now aligned to:
+  - Docker image in `ECR`
+  - runtime in `Amazon ECS Express Mode`
+  - production database in `RDS PostgreSQL`
+- Cleaned the remaining documentation language so backend and database setup consistently refer to `ECS Express Mode` instead of the older App Runner plan.
+
 ## 2026-04-16
 
 - Preserved the Angular frontend in `apps/web`.
@@ -1128,7 +1144,7 @@ Logging expectations:
   - assume AWS role via GitHub OIDC
   - log in to ECR
   - build and push the API Docker image
-  - trigger App Runner deployment
+  - trigger backend deployment
 - Added a deployment guide for the API:
   - `docs/deployment/api-prod-deploy-setup.md`
 - Added a first production database/bootstrap guide:
@@ -1136,3 +1152,24 @@ Logging expectations:
 - Updated `deployment-and-pipelines.md` so the API and RDS paths are now concrete enough to execute one step at a time rather than staying abstract.
 - Kept the same temporary production branch rule as the web pipeline:
   - `prod-ready-web-shell` is still the live launch branch until branch alignment is done
+
+## 2026-04-20 - Backend deploy target pivot to ECS Express Mode
+
+- Revisited the backend runtime decision after checking current official AWS guidance.
+- Confirmed from AWS documentation that:
+  - App Runner is no longer the recommended forward-looking path for new customers
+  - AWS recommends `Amazon ECS Express Mode` as the replacement path for App Runner-style containerized application deployment
+- Updated the API production deploy workflow to target ECS Express Mode instead of App Runner:
+  - `.github/workflows/api-prod-deploy.yml`
+- Updated the deployment documents to reflect the new official runtime target:
+  - `docs/deployment/api-prod-deploy-setup.md`
+  - `docs/architecture/deployment-and-pipelines.md`
+- New API workflow now expects:
+  - `AWS_ACCOUNT_ID`
+  - `API_PROD_ECR_REPOSITORY`
+  - `API_PROD_ECS_SERVICE_NAME`
+  - `API_PROD_ECS_CLUSTER`
+  - `API_PROD_ECS_EXECUTION_ROLE_ARN`
+  - `API_PROD_ECS_INFRA_ROLE_ARN`
+  - `API_PROD_ECS_TASK_ROLE_ARN`
+- This keeps the existing Docker + ECR investment intact while aligning the actual production runtime with the modern AWS container path.

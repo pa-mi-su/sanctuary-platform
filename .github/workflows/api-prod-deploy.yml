@@ -23,8 +23,13 @@ jobs:
     environment: prod
     env:
       AWS_REGION: ${{ vars.AWS_REGION }}
+      AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
       API_ECR_REPOSITORY: ${{ vars.API_PROD_ECR_REPOSITORY }}
-      API_APP_RUNNER_SERVICE_ARN: ${{ vars.API_PROD_APP_RUNNER_SERVICE_ARN }}
+      API_ECS_SERVICE_NAME: ${{ vars.API_PROD_ECS_SERVICE_NAME }}
+      API_ECS_CLUSTER: ${{ vars.API_PROD_ECS_CLUSTER }}
+      API_ECS_EXECUTION_ROLE_ARN: ${{ vars.API_PROD_ECS_EXECUTION_ROLE_ARN }}
+      API_ECS_INFRA_ROLE_ARN: ${{ vars.API_PROD_ECS_INFRA_ROLE_ARN }}
+      API_ECS_TASK_ROLE_ARN: ${{ vars.API_PROD_ECS_TASK_ROLE_ARN }}
       IMAGE_TAG: ${{ github.sha }}
 
     steps:
@@ -50,8 +55,13 @@ jobs:
 
       - name: Normalize deploy variables
         run: |
+          echo "AWS_ACCOUNT_ID=$(echo -n "${AWS_ACCOUNT_ID}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
           echo "API_ECR_REPOSITORY=$(echo -n "${API_ECR_REPOSITORY}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
-          echo "API_APP_RUNNER_SERVICE_ARN=$(echo -n "${API_APP_RUNNER_SERVICE_ARN}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
+          echo "API_ECS_SERVICE_NAME=$(echo -n "${API_ECS_SERVICE_NAME}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
+          echo "API_ECS_CLUSTER=$(echo -n "${API_ECS_CLUSTER}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
+          echo "API_ECS_EXECUTION_ROLE_ARN=$(echo -n "${API_ECS_EXECUTION_ROLE_ARN}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
+          echo "API_ECS_INFRA_ROLE_ARN=$(echo -n "${API_ECS_INFRA_ROLE_ARN}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
+          echo "API_ECS_TASK_ROLE_ARN=$(echo -n "${API_ECS_TASK_ROLE_ARN}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
 
       - name: Login to Amazon ECR
         id: login-ecr
@@ -64,5 +74,15 @@ jobs:
           docker build -t "${ECR_REGISTRY}/${API_ECR_REPOSITORY}:${IMAGE_TAG}" -f apps/api/Dockerfile apps/api
           docker push "${ECR_REGISTRY}/${API_ECR_REPOSITORY}:${IMAGE_TAG}"
 
-      - name: Trigger App Runner deployment
-        run: aws apprunner start-deployment --service-arn "${API_APP_RUNNER_SERVICE_ARN}"
+      - name: Deploy to ECS Express Mode
+        uses: aws-actions/amazon-ecs-deploy-express-service@v1
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        with:
+          service-name: ${{ env.API_ECS_SERVICE_NAME }}
+          image: ${{ env.ECR_REGISTRY }}/${{ env.API_ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
+          execution-role-arn: ${{ env.API_ECS_EXECUTION_ROLE_ARN }}
+          infrastructure-role-arn: ${{ env.API_ECS_INFRA_ROLE_ARN }}
+          task-role-arn: ${{ env.API_ECS_TASK_ROLE_ARN }}
+          container-port: 8080
+          cluster: ${{ env.API_ECS_CLUSTER }}

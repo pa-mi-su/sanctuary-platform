@@ -7,7 +7,7 @@ This guide defines the first production deployment path for the Sanctuary Java A
 - source: `apps/api`
 - build: Maven + Docker
 - image registry: `ECR`
-- runtime: `AWS App Runner`
+- runtime: `Amazon ECS Express Mode`
 - database: production `RDS PostgreSQL`
 
 ## Workflow
@@ -30,13 +30,18 @@ This mirrors the temporary production workflow choice already used for the Angul
 5. log in to ECR
 6. build the API Docker image
 7. push the image to ECR
-8. trigger an App Runner deployment
+8. deploy or update the API service through ECS Express Mode
 
 ## Required GitHub `prod` Environment Variables
 
 - `AWS_REGION`
+- `AWS_ACCOUNT_ID`
 - `API_PROD_ECR_REPOSITORY`
-- `API_PROD_APP_RUNNER_SERVICE_ARN`
+- `API_PROD_ECS_SERVICE_NAME`
+- `API_PROD_ECS_CLUSTER`
+- `API_PROD_ECS_EXECUTION_ROLE_ARN`
+- `API_PROD_ECS_INFRA_ROLE_ARN`
+- `API_PROD_ECS_TASK_ROLE_ARN`
 
 ## Required GitHub `prod` Environment Secret
 
@@ -45,7 +50,7 @@ This mirrors the temporary production workflow choice already used for the Angul
 The same deploy role can be reused if it is granted:
 
 - ECR push permissions
-- App Runner deployment permissions
+- ECS deployment permissions
 
 If you prefer tighter separation, create a second API-specific deploy role later.
 
@@ -57,14 +62,23 @@ Create an ECR repository for the API image, for example:
 
 - `sanctuary-api-prod`
 
-### App Runner
+### ECS Express Mode
 
-Create an App Runner service that uses:
+Create an ECS Express Mode service that uses:
 
 - the ECR image repository above
 - container port `8080`
 
-Recommended App Runner environment variables:
+You will also need these IAM roles available in AWS:
+
+- execution role:
+  - typically `ecsTaskExecutionRole`
+- infrastructure role:
+  - typically `ecsInfrastructureRoleForExpressServices`
+- task role:
+  - can be a dedicated app task role, or initially reuse the execution role if you keep the permissions minimal
+
+Recommended ECS Express Mode environment variables:
 
 - `SPRING_PROFILES_ACTIVE=prod`
 - `SANCTUARY_API_PORT=8080`
@@ -72,15 +86,15 @@ Recommended App Runner environment variables:
 - `SANCTUARY_DB_USERNAME`
 - `SANCTUARY_DB_PASSWORD`
 
-Use App Runner secrets integration or Secrets Manager/SSM wherever possible for database credentials.
+Use ECS/Secrets Manager integration or SSM wherever possible for database credentials.
 
-## Important App Runner Behavior
+## Important ECS Express Mode Behavior
 
-The workflow triggers:
+The workflow uses:
 
-- `aws apprunner start-deployment`
+- `aws-actions/amazon-ecs-deploy-express-service@v1`
 
-That means the App Runner service should already exist and already be configured to pull from the correct ECR repository.
+That action will deploy the image to the named ECS Express service and cluster.
 
 ## Verification Checklist
 

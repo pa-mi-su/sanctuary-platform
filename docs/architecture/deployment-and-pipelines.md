@@ -42,13 +42,13 @@ Why:
 
 Recommended first target:
 
-- `AWS App Runner`
+- `Amazon ECS Express Mode`
 
 Why:
 
-- simpler than `ECS` for first launch
-- enough for the current product stage
-- easy HTTPS endpoint and autoscaling baseline
+- officially recommended by AWS as the forward-looking replacement path for new App Runner-style containerized applications
+- preserves a simpler deployment model while still using modern ECS/Fargate infrastructure
+- better long-term story than starting on a service AWS has moved to maintenance for new customers
 
 Possible later target:
 
@@ -179,7 +179,7 @@ Build, test, package, and deploy the Spring Boot API safely.
 - build Docker image
 - tag image per environment/revision
 - push image to `ECR`
-- deploy to App Runner
+- deploy to ECS Express Mode
 - run smoke checks after deploy
 
 ### First implementation
@@ -192,7 +192,7 @@ The first concrete API pipeline is:
   - pushes to `prod-ready-web-shell`
   - manual `workflow_dispatch`
 - current runtime target:
-  - `AWS App Runner`
+  - `Amazon ECS Express Mode`
 - current registry target:
   - `Amazon ECR`
 
@@ -204,15 +204,20 @@ The temporary branch decision matches the current web pipeline:
 ### Environment needs
 
 - ECR repository
-- App Runner service per environment
+- ECS Express Mode service per environment
 - Secrets Manager or Parameter Store config
 - CORS origin configured to the matching web domain
 
 ### Required GitHub configuration
 
 - `AWS_REGION`
+- `AWS_ACCOUNT_ID`
 - `API_PROD_ECR_REPOSITORY`
-- `API_PROD_APP_RUNNER_SERVICE_ARN`
+- `API_PROD_ECS_SERVICE_NAME`
+- `API_PROD_ECS_CLUSTER`
+- `API_PROD_ECS_EXECUTION_ROLE_ARN`
+- `API_PROD_ECS_INFRA_ROLE_ARN`
+- `API_PROD_ECS_TASK_ROLE_ARN`
 - secret:
   - `AWS_DEPLOY_ROLE_ARN`
 
