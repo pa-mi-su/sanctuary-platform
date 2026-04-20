@@ -1,9 +1,8 @@
-name: API Prod Deploy
-
+name: API Build
 on:
-  push:
+  pull_request:
     branches:
-      - prod-ready-web-shell
+      - main
     paths:
       - "apps/api/**"
       - ".github/workflows/api-prod-deploy.yml"
@@ -14,22 +13,12 @@ permissions:
   id-token: write
 
 concurrency:
-  group: api-prod-deploy
+  group: api-build
   cancel-in-progress: true
 
 jobs:
-  build-and-deploy:
+  build:
     runs-on: ubuntu-latest
-    environment: prod
-    env:
-      AWS_REGION: ${{ vars.AWS_REGION }}
-      AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
-      API_ECR_REPOSITORY: ${{ vars.API_PROD_ECR_REPOSITORY }}
-      API_ECS_SERVICE_NAME: ${{ vars.API_PROD_ECS_SERVICE_NAME }}
-      API_ECS_CLUSTER: ${{ vars.API_PROD_ECS_CLUSTER }}
-      SANCTUARY_DB_URL: ${{ vars.API_PROD_DB_URL }}
-      SANCTUARY_DB_USERNAME: ${{ vars.API_PROD_DB_USERNAME }}
-      IMAGE_TAG: ${{ github.sha }}
 
     steps:
       - name: Checkout repository
@@ -45,62 +34,3 @@ jobs:
       - name: Run API tests
         run: mvn -q test
         working-directory: apps/api
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v5
-        with:
-          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Normalize deploy variables
-        run: |
-          echo "AWS_ACCOUNT_ID=$(echo -n "${AWS_ACCOUNT_ID}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
-          echo "API_ECR_REPOSITORY=$(echo -n "${API_ECR_REPOSITORY}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
-          echo "API_ECS_SERVICE_NAME=$(echo -n "${API_ECS_SERVICE_NAME}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
-          echo "API_ECS_CLUSTER=$(echo -n "${API_ECS_CLUSTER}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
-          echo "SANCTUARY_DB_URL=$(echo -n "${SANCTUARY_DB_URL}" | tr -d '\r\n')" >> "$GITHUB_ENV"
-          echo "SANCTUARY_DB_USERNAME=$(echo -n "${SANCTUARY_DB_USERNAME}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
-
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
-
-      - name: Build and push API image
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        run: |
-          docker build -t "${ECR_REGISTRY}/${API_ECR_REPOSITORY}:${IMAGE_TAG}" -f apps/api/Dockerfile apps/api
-          docker tag "${ECR_REGISTRY}/${API_ECR_REPOSITORY}:${IMAGE_TAG}" "${ECR_REGISTRY}/${API_ECR_REPOSITORY}:latest"
-          docker push "${ECR_REGISTRY}/${API_ECR_REPOSITORY}:${IMAGE_TAG}"
-          docker push "${ECR_REGISTRY}/${API_ECR_REPOSITORY}:latest"
-
-      - name: Deploy to ECS Express Mode
-        uses: aws-actions/amazon-ecs-deploy-express-service@v1
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        with:
-          service-name: ${{ env.API_ECS_SERVICE_NAME }}
-          image: ${{ env.ECR_REGISTRY }}/${{ env.API_ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
-          execution-role-arn: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/ecsTaskExecutionRole
-          infrastructure-role-arn: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/ecsInfrastructureRoleForExpressServices
-          task-role-arn: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/ecsTaskExecutionRole
-          container-port: 8080
-          cluster: ${{ env.API_ECS_CLUSTER }}
-          environment-variables: |
-            [
-              {"name": "SPRING_PROFILES_ACTIVE", "value": "prod"},
-              {"name": "SANCTUARY_API_PORT", "value": "8080"},
-              {"name": "SANCTUARY_DB_URL", "value": "${{ env.SANCTUARY_DB_URL }}"},
-              {"name": "SANCTUARY_DB_USERNAME", "value": "${{ env.SANCTUARY_DB_USERNAME }}"}
-            ]
-          secrets: |
-            [
-              {"name": "SANCTUARY_DB_PASSWORD", "valueFrom": "/sanctuary/prod/db/password"}
-            ]
-          health-check-path: /health
-          cpu: "512"
-          memory: "1024"
-          min-task-count: 1
-          max-task-count: 1
-          subnets: subnet-0141079721351edf8,subnet-0dffd2400e13f49e4,subnet-02b055fa01680e51e,subnet-0fff729ae97ed1f58,subnet-0ffe1c33e4e0b665d,subnet-0cebbe66387ecc218
-          security-groups: sg-000f4021f05813471
