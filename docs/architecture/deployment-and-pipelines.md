@@ -121,7 +121,7 @@ The first concrete pipeline is:
 - GitHub Actions workflow:
   - `.github/workflows/web-prod-deploy.yml`
 - trigger on:
-  - pushes to `main`
+  - pushes to `prod-ready-web-shell` for the first live deployment phase
   - manual `workflow_dispatch`
 - current build/deploy path:
   - `npm ci`
@@ -133,6 +133,8 @@ Current decision:
 
 - the existing `mydailysanctuary.com` static site bucket and CloudFront distribution will become the Angular production deploy target
 - this intentionally replaces the current static content instead of creating a separate app subdomain first
+- because the real launch-ready app currently lives on `prod-ready-web-shell`, the first production web deploy path is temporarily tied to that branch rather than `main`
+- after branch alignment is complete, production deploy triggering should move back to `main`
 
 ### Required GitHub configuration
 

@@ -3,7 +3,7 @@ name: Web Prod Deploy
 on:
   push:
     branches:
-      - main
+      - prod-ready-web-shell
     paths:
       - "apps/web/**"
       - "package-lock.json"

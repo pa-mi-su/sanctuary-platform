@@ -1093,6 +1093,9 @@ Logging expectations:
 - Confirmed an infrastructure decision after review of the existing AWS setup:
   - the current `mydailysanctuary.com` S3 bucket and CloudFront distribution will be reused as the Angular production target
   - this means Angular deployment will intentionally replace the current static site content rather than using a separate app subdomain
+- Confirmed that `main` is materially behind the current working product branch.
+- Adjusted the first web production workflow to trigger from `prod-ready-web-shell` instead of `main` so the first live deployment test builds the actual current Angular app rather than an outdated branch snapshot.
+- Left this as an explicit temporary decision to support safe launch testing while branch alignment is still pending.
 - This is still only the first implementation slice; no API or database pipeline changes were mixed into this step.
 
 ## 2026-04-20 - GitHub Actions web production setup guide
