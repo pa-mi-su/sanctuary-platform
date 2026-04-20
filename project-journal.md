@@ -1116,3 +1116,23 @@ Logging expectations:
   - secret `AWS_DEPLOY_ROLE_ARN`
 - Purpose of this step:
   - make the first production web deploy setup explicit and repeatable before moving on to the API or database pipeline.
+
+## 2026-04-20 - Backend deploy and RDS bootstrap scaffold
+
+- Added a production Dockerfile for the Java API:
+  - `apps/api/Dockerfile`
+- Added an API production deploy workflow:
+  - `.github/workflows/api-prod-deploy.yml`
+- First API workflow shape:
+  - run `mvn -q test`
+  - assume AWS role via GitHub OIDC
+  - log in to ECR
+  - build and push the API Docker image
+  - trigger App Runner deployment
+- Added a deployment guide for the API:
+  - `docs/deployment/api-prod-deploy-setup.md`
+- Added a first production database/bootstrap guide:
+  - `docs/deployment/rds-production-bootstrap.md`
+- Updated `deployment-and-pipelines.md` so the API and RDS paths are now concrete enough to execute one step at a time rather than staying abstract.
+- Kept the same temporary production branch rule as the web pipeline:
+  - `prod-ready-web-shell` is still the live launch branch until branch alignment is done

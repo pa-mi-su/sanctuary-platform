@@ -182,12 +182,39 @@ Build, test, package, and deploy the Spring Boot API safely.
 - deploy to App Runner
 - run smoke checks after deploy
 
+### First implementation
+
+The first concrete API pipeline is:
+
+- GitHub Actions workflow:
+  - `.github/workflows/api-prod-deploy.yml`
+- current trigger:
+  - pushes to `prod-ready-web-shell`
+  - manual `workflow_dispatch`
+- current runtime target:
+  - `AWS App Runner`
+- current registry target:
+  - `Amazon ECR`
+
+The temporary branch decision matches the current web pipeline:
+
+- the launch-ready app currently lives on `prod-ready-web-shell`
+- after branch alignment, the production trigger should move back to `main`
+
 ### Environment needs
 
 - ECR repository
 - App Runner service per environment
 - Secrets Manager or Parameter Store config
 - CORS origin configured to the matching web domain
+
+### Required GitHub configuration
+
+- `AWS_REGION`
+- `API_PROD_ECR_REPOSITORY`
+- `API_PROD_APP_RUNNER_SERVICE_ARN`
+- secret:
+  - `AWS_DEPLOY_ROLE_ARN`
 
 ### Success criteria
 
@@ -266,6 +293,12 @@ Important rule:
 4. run initial content bootstrap
 5. verify row counts and sample records
 6. take a backup/snapshot
+
+### First implementation document
+
+The concrete first production database guide is:
+
+- `docs/deployment/rds-production-bootstrap.md`
 
 ## Secrets And Config
 
