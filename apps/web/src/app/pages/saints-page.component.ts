@@ -117,78 +117,75 @@ type AppLanguage = 'en' | 'es' | 'pl';
           </button>
         }
 
-        @if (saintsLoadFailed()) {
-          <div class="mode-panel glass-subtle">
-            <strong>Saints</strong>
-            <p>{{ apiErrorCopy() }}</p>
-          </div>
-        } @else {
-          <section class="preview-grid">
-            <article class="preview-panel glass-subtle">
-              <div class="preview-header">
-                <div>
-                  <h3>{{ previewTodayTitle() }}</h3>
-                  <p>{{ todayPreviewLabel() }}</p>
-                </div>
-                <span class="content-tag">{{ todaySaints().length }} {{ t('saints', 'santos', 'swietych') }}</span>
+        <section class="preview-grid">
+          <article class="preview-panel glass-subtle">
+            <div class="preview-header">
+              <div>
+                <h3>{{ previewTodayTitle() }}</h3>
+                <p>{{ todayPreviewLabel() }}</p>
               </div>
+              <span class="content-tag">{{ todaySaints().length }} {{ t('saints', 'santos', 'swietych') }}</span>
+            </div>
 
-              @if (todaySaints().length) {
-                <div class="preview-list">
-                  @for (saint of todaySaints(); track saint.slug) {
-                    <button class="preview-item" type="button" (click)="openSaint.emit(saint)">
-                      <div class="preview-item__media" [style.background-image]="cardImageStyle(saint.imageUrl)">
-                        @if (!saint.imageUrl) {
-                          <span class="content-card__fallback">✧</span>
-                        }
-                      </div>
-                      <div class="preview-item__body">
-                        <strong>{{ saint.name }}</strong>
-                        <span>{{ saint.feastLabel }}</span>
-                      </div>
-                    </button>
-                  }
-                </div>
-              } @else {
-                <p class="preview-empty">{{ noSaintsCopy() }}</p>
-              }
-            </article>
-
-            <article class="preview-panel glass-subtle">
-              <div class="preview-header">
-                <div>
-                  <h3>{{ previewSelectedTitle() }}</h3>
-                  <p>{{ selectedPreviewLabel() }}</p>
-                </div>
-                @if (!isSelectedDateToday()) {
-                  <span class="content-tag">{{ selectedSaints().length }} {{ t('saints', 'santos', 'swietych') }}</span>
+            @if (saintsLoadFailed()) {
+              <p class="preview-empty">{{ apiErrorCopy() }}</p>
+            } @else if (todaySaints().length) {
+              <div class="preview-list">
+                @for (saint of todaySaints(); track saint.slug) {
+                  <button class="preview-item" type="button" (click)="openSaint.emit(saint)">
+                    <div class="preview-item__media" [style.background-image]="cardImageStyle(saint.imageUrl)">
+                      @if (!saint.imageUrl) {
+                        <span class="content-card__fallback">✧</span>
+                      }
+                    </div>
+                    <div class="preview-item__body">
+                      <strong>{{ saint.name }}</strong>
+                      <span>{{ saint.feastLabel }}</span>
+                    </div>
+                  </button>
                 }
               </div>
+            } @else {
+              <p class="preview-empty">{{ noSaintsCopy() }}</p>
+            }
+          </article>
 
-              @if (isSelectedDateToday()) {
-                <p class="preview-empty">{{ selectedSameAsTodayCopy() }}</p>
-              } @else if (selectedSaints().length) {
-                <div class="preview-list">
-                  @for (saint of selectedSaints(); track saint.slug) {
-                    <button class="preview-item" type="button" (click)="openSaint.emit(saint)">
-                      <div class="preview-item__media" [style.background-image]="cardImageStyle(saint.imageUrl)">
-                        @if (!saint.imageUrl) {
-                          <span class="content-card__fallback">✧</span>
-                        }
-                      </div>
-                      <div class="preview-item__body">
-                        <strong>{{ saint.name }}</strong>
-                        <span>{{ saint.feastLabel }}</span>
-                      </div>
-                    </button>
-                  }
-                </div>
-              } @else {
-                <p class="preview-empty">{{ noSaintsCopy() }}</p>
+          <article class="preview-panel glass-subtle">
+            <div class="preview-header">
+              <div>
+                <h3>{{ previewSelectedTitle() }}</h3>
+                <p>{{ selectedPreviewLabel() }}</p>
+              </div>
+              @if (!isSelectedDateToday()) {
+                <span class="content-tag">{{ selectedSaints().length }} {{ t('saints', 'santos', 'swietych') }}</span>
               }
-            </article>
-          </section>
-        }
+            </div>
+
+            @if (saintsLoadFailed()) {
+              <p class="preview-empty">{{ apiErrorCopy() }}</p>
+            } @else if (isSelectedDateToday()) {
+              <p class="preview-empty">{{ selectedSameAsTodayCopy() }}</p>
+            } @else if (selectedSaints().length) {
+              <div class="preview-list">
+                @for (saint of selectedSaints(); track saint.slug) {
+                  <button class="preview-item" type="button" (click)="openSaint.emit(saint)">
+                    <div class="preview-item__media" [style.background-image]="cardImageStyle(saint.imageUrl)">
+                      @if (!saint.imageUrl) {
+                        <span class="content-card__fallback">✧</span>
+                      }
+                    </div>
+                    <div class="preview-item__body">
+                      <strong>{{ saint.name }}</strong>
+                      <span>{{ saint.feastLabel }}</span>
+                    </div>
+                  </button>
+                }
+              </div>
+            } @else {
+              <p class="preview-empty">{{ noSaintsCopy() }}</p>
+            }
+          </article>
+        </section>
       }
     </section>
   `,
