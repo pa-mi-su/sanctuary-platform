@@ -215,9 +215,6 @@ The temporary branch decision matches the current web pipeline:
 - `API_PROD_ECR_REPOSITORY`
 - `API_PROD_ECS_SERVICE_NAME`
 - `API_PROD_ECS_CLUSTER`
-- `API_PROD_ECS_EXECUTION_ROLE_ARN`
-- `API_PROD_ECS_INFRA_ROLE_ARN`
-- `API_PROD_ECS_TASK_ROLE_ARN`
 - secret:
   - `AWS_DEPLOY_ROLE_ARN`
 

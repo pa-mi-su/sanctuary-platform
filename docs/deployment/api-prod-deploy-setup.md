@@ -39,9 +39,6 @@ This mirrors the temporary production workflow choice already used for the Angul
 - `API_PROD_ECR_REPOSITORY`
 - `API_PROD_ECS_SERVICE_NAME`
 - `API_PROD_ECS_CLUSTER`
-- `API_PROD_ECS_EXECUTION_ROLE_ARN`
-- `API_PROD_ECS_INFRA_ROLE_ARN`
-- `API_PROD_ECS_TASK_ROLE_ARN`
 
 ## Required GitHub `prod` Environment Secret
 
@@ -76,7 +73,8 @@ You will also need these IAM roles available in AWS:
 - infrastructure role:
   - typically `ecsInfrastructureRoleForExpressServices`
 - task role:
-  - can be a dedicated app task role, or initially reuse the execution role if you keep the permissions minimal
+  - for the first production deploy we intentionally reuse `ecsTaskExecutionRole` to keep the bootstrap simple
+  - once the API needs AWS service access, split this into a dedicated app task role
 
 Recommended ECS Express Mode environment variables:
 
@@ -95,6 +93,15 @@ The workflow uses:
 - `aws-actions/amazon-ecs-deploy-express-service@v1`
 
 That action will deploy the image to the named ECS Express service and cluster.
+
+## Current Bootstrap Assumption
+
+The workflow now assumes the standard AWS-managed role names:
+
+- `ecsTaskExecutionRole`
+- `ecsInfrastructureRoleForExpressServices`
+
+That keeps the GitHub configuration smaller and lets us bootstrap the first ECS deployment faster.
 
 ## Verification Checklist
 

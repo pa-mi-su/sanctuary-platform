@@ -1169,7 +1169,8 @@ Logging expectations:
   - `API_PROD_ECR_REPOSITORY`
   - `API_PROD_ECS_SERVICE_NAME`
   - `API_PROD_ECS_CLUSTER`
-  - `API_PROD_ECS_EXECUTION_ROLE_ARN`
-  - `API_PROD_ECS_INFRA_ROLE_ARN`
-  - `API_PROD_ECS_TASK_ROLE_ARN`
 - This keeps the existing Docker + ECR investment intact while aligning the actual production runtime with the modern AWS container path.
+- Simplified the first ECS bootstrap by switching the workflow to standard AWS ECS role names instead of requiring three extra GitHub environment variables:
+  - `ecsTaskExecutionRole`
+  - `ecsInfrastructureRoleForExpressServices`
+- Kept the initial task role equal to `ecsTaskExecutionRole` so the first deploy path is smaller and easier to execute today.
