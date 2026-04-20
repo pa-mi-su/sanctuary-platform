@@ -1,16 +1,24 @@
 :host {
   --bg-top: #081724;
-  --bg-mid: #0d3547;
-  --bg-bottom: #031018;
-  --glass-fill: rgba(16, 39, 56, 0.84);
-  --glass-soft: rgba(255, 255, 255, 0.08);
-  --glass-stroke: rgba(255, 255, 255, 0.12);
+  --bg-mid: #15465d;
+  --bg-bottom: #0a1b28;
+  --glass-fill: rgba(28, 58, 76, 0.72);
+  --glass-fill-strong: rgba(24, 51, 67, 0.84);
+  --glass-overlay: rgba(255, 255, 255, 0.035);
+  --glass-soft: rgba(255, 255, 255, 0.11);
+  --glass-stroke: rgba(255, 255, 255, 0.14);
   --text-main: #ffffff;
-  --text-soft: rgba(255, 255, 255, 0.74);
+  --text-soft: rgba(255, 255, 255, 0.8);
   --gold: #e5c66a;
   --blue-pill: #4cb6d8;
   --rose: #c78bb8;
-  --tab-fill: rgba(8, 19, 29, 0.86);
+  --button-top: #3e9fc1;
+  --button-bottom: #195e78;
+  --purple-outline: #7cc7de;
+  --tab-fill: rgba(15, 35, 49, 0.78);
+  --tab-border: #2a5b70;
+  --tab-inactive: #a5c4d0;
+  --tab-active: #8ee0f2;
   --selected-fill: rgba(76, 182, 216, 0.2);
   display: block;
   min-height: 100vh;
@@ -24,9 +32,10 @@
   position: fixed;
   inset: 0;
   background:
-    radial-gradient(circle at 76% 12%, rgba(76, 182, 216, 0.22), transparent 20%),
-    radial-gradient(circle at 26% 26%, rgba(229, 198, 106, 0.16), transparent 18%),
-    radial-gradient(circle at 76% 74%, rgba(199, 139, 184, 0.14), transparent 22%),
+    radial-gradient(circle at 76% 12%, rgba(76, 182, 216, 0.26), transparent 22%),
+    radial-gradient(circle at 26% 26%, rgba(229, 198, 106, 0.18), transparent 20%),
+    radial-gradient(circle at 76% 74%, rgba(199, 139, 184, 0.16), transparent 24%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.03) 34%, rgba(0, 0, 0, 0.14) 100%),
     linear-gradient(180deg, var(--bg-top) 0%, var(--bg-mid) 52%, var(--bg-bottom) 100%);
 }
 

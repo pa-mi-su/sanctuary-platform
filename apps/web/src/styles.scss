@@ -5,7 +5,12 @@ body {
 }
 
 body {
-  background: #132331;
+  background:
+    radial-gradient(circle at 76% 12%, rgba(76, 182, 216, 0.22), transparent 20%),
+    radial-gradient(circle at 26% 26%, rgba(229, 198, 106, 0.16), transparent 18%),
+    radial-gradient(circle at 76% 74%, rgba(199, 139, 184, 0.14), transparent 22%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0) 34%, rgba(0, 0, 0, 0.18) 100%),
+    linear-gradient(180deg, #081724 0%, #0d3547 52%, #031018 100%);
 }
 
 * {

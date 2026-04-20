@@ -6,18 +6,18 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.http.HttpStatus;
+
+import app.sanctuary.api.content.service.PrayerContentService;
 
 @RestController
 @RequestMapping("/content/prayers")
 public class PrayerContentController {
 
-    private final PrayerContentRepository prayerContentRepository;
+    private final PrayerContentService prayerContentService;
 
-    public PrayerContentController(PrayerContentRepository prayerContentRepository) {
-        this.prayerContentRepository = prayerContentRepository;
+    public PrayerContentController(PrayerContentService prayerContentService) {
+        this.prayerContentService = prayerContentService;
     }
 
     @GetMapping
@@ -25,7 +25,7 @@ public class PrayerContentController {
         @RequestParam(defaultValue = "en") String lang,
         @RequestParam(defaultValue = "") String query
     ) {
-        return prayerContentRepository.list(lang, query);
+        return prayerContentService.list(lang, query);
     }
 
     @GetMapping("/{slug}")
@@ -33,14 +33,6 @@ public class PrayerContentController {
         @PathVariable String slug,
         @RequestParam(defaultValue = "en") String lang
     ) {
-        return prayerContentRepository.findBySlug(slug, lang)
-            .orElseThrow(() -> new NotFoundException("No prayer found for slug: " + slug));
-    }
-
-    @ResponseStatus(HttpStatus.NOT_FOUND)
-    private static final class NotFoundException extends RuntimeException {
-        private NotFoundException(String message) {
-            super(message);
-        }
+        return prayerContentService.getBySlug(slug, lang);
     }
 }

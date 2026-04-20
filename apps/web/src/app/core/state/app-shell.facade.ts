@@ -21,6 +21,8 @@ export type SeasonKey = 'ADVENT' | 'CHRISTMAS' | 'LENT' | 'EASTER' | 'ORDINARY';
 export type CalendarCell = { date: string | null; dayNumber: number | null; label: string; seasonKey?: SeasonKey | null };
 export type SaintsMode = 'calendar' | 'list';
 export type NovenasMode = 'calendar' | 'list' | 'intentions';
+export type AppLanguage = 'en' | 'es' | 'pl';
+export type LegalDocumentType = 'support' | 'privacy';
 
 @Injectable({ providedIn: 'root' })
 export class AppShellFacade {
@@ -34,7 +36,8 @@ export class AppShellFacade {
   readonly saintsMode = signal<SaintsMode>('calendar');
   readonly novenasMode = signal<NovenasMode>('calendar');
   readonly showAbout = signal(false);
-  readonly language = signal<'en' | 'es'>('en');
+  readonly activeLegalDocument = signal<LegalDocumentType | null>(null);
+  readonly language = signal<AppLanguage>('en');
   readonly selectedDate = signal(this.formatDateForApi(new Date()));
   readonly saintQuery = signal('');
   readonly prayerQuery = signal('');
@@ -211,7 +214,7 @@ export class AppShellFacade {
   );
 
   readonly selectedDateLabel = computed(() =>
-    new Intl.DateTimeFormat(this.isEnglish() ? 'en-US' : 'es-ES', {
+    new Intl.DateTimeFormat(this.dateLocale(), {
       month: 'long',
       day: 'numeric',
       year: 'numeric',
@@ -242,17 +245,17 @@ export class AppShellFacade {
   readonly novenaCalendarDays = computed(() => this.toCalendarEntries(this.selectedDate(), this.novenasView()));
 
   readonly seasonLegend = computed(() => [
-    { key: 'ADVENT' as const, label: this.isEnglish() ? 'Advent' : 'Adviento' },
-    { key: 'CHRISTMAS' as const, label: this.isEnglish() ? 'Christmas' : 'Navidad' },
-    { key: 'LENT' as const, label: this.isEnglish() ? 'Lent' : 'Cuaresma' },
-    { key: 'EASTER' as const, label: this.isEnglish() ? 'Easter' : 'Pascua' },
-    { key: 'ORDINARY' as const, label: this.isEnglish() ? 'Ordinary Time' : 'Tiempo Ordinario' },
+    { key: 'ADVENT' as const, label: this.translate('Advent', 'Adviento', 'Adwent') },
+    { key: 'CHRISTMAS' as const, label: this.translate('Christmas', 'Navidad', 'Boze Narodzenie') },
+    { key: 'LENT' as const, label: this.translate('Lent', 'Cuaresma', 'Wielki Post') },
+    { key: 'EASTER' as const, label: this.translate('Easter', 'Pascua', 'Wielkanoc') },
+    { key: 'ORDINARY' as const, label: this.translate('Ordinary Time', 'Tiempo Ordinario', 'Okres Zwykly') },
   ]);
 
   readonly selectedDateSeasonLabel = computed(() => {
     const liturgicalDay = this.selectedLiturgicalDay();
     if (!liturgicalDay) {
-      return this.isEnglish() ? 'Loading liturgical day...' : 'Cargando día litúrgico...';
+      return this.translate('Loading liturgical day...', 'Cargando día litúrgico...', 'Ladowanie dnia liturgicznego...');
     }
 
     return this.toTitleCase(liturgicalDay.season.replaceAll('_', ' '));
@@ -299,6 +302,7 @@ export class AppShellFacade {
   }
 
   openAbout(): void {
+    this.activeLegalDocument.set(null);
     this.showAbout.set(true);
   }
 
@@ -306,13 +310,44 @@ export class AppShellFacade {
     this.showAbout.set(false);
   }
 
+  openLegalDocument(document: LegalDocumentType): void {
+    this.showAbout.set(false);
+    this.activeLegalDocument.set(document);
+  }
+
+  closeLegalDocument(): void {
+    this.activeLegalDocument.set(null);
+  }
+
+  setLanguage(language: AppLanguage): void {
+    this.language.set(language);
+    this.clearErrors();
+  }
+
   toggleLanguage(): void {
-    this.language.update((current) => (current === 'en' ? 'es' : 'en'));
+    this.language.update((current) => {
+      switch (current) {
+        case 'en':
+          return 'es';
+        case 'es':
+          return 'pl';
+        default:
+          return 'en';
+      }
+    });
     this.clearErrors();
   }
 
   isEnglish(): boolean {
     return this.language() === 'en';
+  }
+
+  currentLanguageLabel(): string {
+    return {
+      en: 'English',
+      es: 'Spanish',
+      pl: 'Polish',
+    }[this.language()];
   }
 
   setLiturgicalView(view: CalendarView): void {
@@ -445,105 +480,140 @@ export class AppShellFacade {
 
   localizedSaintsCountLabel(): string {
     const count = this.selectedSaintGroup()?.saints.length ?? 0;
-    return this.isEnglish() ? `Selected day · ${count} saints` : `Día seleccionado · ${count} santos`;
+    return this.translate(
+      `Selected day · ${count} saints`,
+      `Día seleccionado · ${count} santos`,
+      `Wybrany dzien · ${count} swietych`
+    );
   }
 
   localizedNovenasCountLabel(): string {
     const count = this.selectedNovenas().length;
-    return this.isEnglish()
-      ? `Selected day · ${count} active novenas`
-      : `Día seleccionado · ${count} novenas activas`;
+    return this.translate(
+      `Selected day · ${count} active novenas`,
+      `Día seleccionado · ${count} novenas activas`,
+      `Wybrany dzien · ${count} aktywnych nowenn`
+    );
   }
 
   localizedNoSaintsCopy(): string {
-    return this.isEnglish()
-      ? 'No saints are assigned to this feast day in the imported legacy data.'
-      : 'No hay santos asignados a este día de fiesta en los datos heredados importados.';
+    return this.translate(
+      'No saints are assigned to this feast day in the imported legacy data.',
+      'No hay santos asignados a este día de fiesta en los datos heredados importados.',
+      'W zaimportowanych danych nie przypisano swietych do tego dnia swieta.'
+    );
   }
 
   localizedNoNovenasCopy(): string {
-    return this.isEnglish()
-      ? 'No novenas are active for this date.'
-      : 'No hay novenas activas para esta fecha.';
+    return this.translate(
+      'No novenas are active for this date.',
+      'No hay novenas activas para esta fecha.',
+      'Brak aktywnych nowenn dla tej daty.'
+    );
   }
 
   localizedNovenaSearchPlaceholder(): string {
     return this.novenasMode() === 'intentions'
-      ? this.isEnglish() ? 'Search intentions' : 'Buscar intenciones'
-      : this.isEnglish() ? 'Search novenas' : 'Buscar novenas';
+      ? this.translate('Search intentions', 'Buscar intenciones', 'Szukaj intencji')
+      : this.translate('Search novenas', 'Buscar novenas', 'Szukaj nowenn');
   }
 
   localizedSaintResultsLabel(): string {
-    return this.isEnglish() ? `${this.saintResults().length} saints` : `${this.saintResults().length} santos`;
+    return this.translate(
+      `${this.saintResults().length} saints`,
+      `${this.saintResults().length} santos`,
+      `${this.saintResults().length} swietych`
+    );
   }
 
   localizedPrayerResultsLabel(): string {
-    return this.isEnglish() ? `${this.prayerResults().length} prayers` : `${this.prayerResults().length} oraciones`;
+    return this.translate(
+      `${this.prayerResults().length} prayers`,
+      `${this.prayerResults().length} oraciones`,
+      `${this.prayerResults().length} modlitw`
+    );
   }
 
   localizedIntentionsResultsLabel(): string {
     if (this.novenasMode() === 'list') {
-      return `${this.novenaSearchResults().length} novenas`;
+      return this.translate(
+        `${this.novenaSearchResults().length} novenas`,
+        `${this.novenaSearchResults().length} novenas`,
+        `${this.novenaSearchResults().length} nowenn`
+      );
     }
 
-    return this.isEnglish()
-      ? `${this.novenaSearchResults().length} novenas with intentions`
-      : `${this.novenaSearchResults().length} novenas con intenciones`;
+    return this.translate(
+      `${this.novenaSearchResults().length} novenas with intentions`,
+      `${this.novenaSearchResults().length} novenas con intenciones`,
+      `${this.novenaSearchResults().length} nowenn z intencjami`
+    );
   }
 
   localizedPreviewTitle(mode: 'today' | 'selected'): string {
     return mode === 'today'
-      ? this.isEnglish() ? 'Today' : 'Hoy'
-      : this.isEnglish() ? 'Selected Day' : 'Día seleccionado';
+      ? this.translate('Today', 'Hoy', 'Dzisiaj')
+      : this.translate('Selected Day', 'Día seleccionado', 'Wybrany dzien');
   }
 
   localizedNoLiturgicalCopy(): string {
-    return this.isEnglish()
-      ? 'No liturgical summary is available for this day.'
-      : 'No hay un resumen litúrgico disponible para este día.';
+    return this.translate(
+      'No liturgical summary is available for this day.',
+      'No hay un resumen litúrgico disponible para este día.',
+      'Brak podsumowania liturgicznego dla tego dnia.'
+    );
   }
 
   localizedSelectedSameAsTodayCopy(): string {
-    return this.isEnglish()
-      ? 'Selected day matches today.'
-      : 'El día seleccionado coincide con hoy.';
+    return this.translate(
+      'Selected day matches today.',
+      'El día seleccionado coincide con hoy.',
+      'Wybrany dzien jest taki sam jak dzisiaj.'
+    );
   }
 
   localizedIntentionsEmptyCopy(): string {
     if (this.novenasMode() === 'list') {
-      return this.isEnglish()
-        ? 'Browse the novena library or search for a specific novena.'
-        : 'Explora la biblioteca de novenas o busca una novena específica.';
+      return this.translate(
+        'Browse the novena library or search for a specific novena.',
+        'Explora la biblioteca de novenas o busca una novena específica.',
+        'Przegladaj biblioteke nowenn lub wyszukaj konkretna nowenne.'
+      );
     }
 
-    return this.isEnglish()
-      ? 'Browse the available intention novenas or search for a specific intention.'
-      : 'Revisa las novenas con intenciones disponibles o busca una intención específica.';
+    return this.translate(
+      'Browse the available intention novenas or search for a specific intention.',
+      'Revisa las novenas con intenciones disponibles o busca una intención específica.',
+      'Przegladaj dostepne nowenny intencyjne lub szukaj konkretnej intencji.'
+    );
   }
 
   localizedApiErrorCopy(subject: 'saints' | 'liturgical' | 'novenas' | 'prayers'): string {
-    if (this.isEnglish()) {
-      switch (subject) {
-        case 'saints':
-          return 'We could not load saints from the API right now.';
-        case 'liturgical':
-          return 'We could not load the liturgical day from the API right now.';
-        case 'novenas':
-          return 'We could not load novenas from the API right now.';
-        case 'prayers':
-          return 'We could not load prayers from the API right now.';
-      }
-    }
-
     switch (subject) {
       case 'saints':
-        return 'No pudimos cargar los santos desde la API en este momento.';
+        return this.translate(
+          'We could not load saints from the API right now.',
+          'No pudimos cargar los santos desde la API en este momento.',
+          'Nie mozna teraz zaladowac swietych z API.'
+        );
       case 'liturgical':
-        return 'No pudimos cargar el día litúrgico desde la API en este momento.';
+        return this.translate(
+          'We could not load the liturgical day from the API right now.',
+          'No pudimos cargar el día litúrgico desde la API en este momento.',
+          'Nie mozna teraz zaladowac dnia liturgicznego z API.'
+        );
       case 'novenas':
-        return 'No pudimos cargar las novenas desde la API en este momento.';
+        return this.translate(
+          'We could not load novenas from the API right now.',
+          'No pudimos cargar las novenas desde la API en este momento.',
+          'Nie mozna teraz zaladowac nowenn z API.'
+        );
       case 'prayers':
-        return 'No pudimos cargar las oraciones desde la API en este momento.';
+        return this.translate(
+          'We could not load prayers from the API right now.',
+          'No pudimos cargar las oraciones desde la API en este momento.',
+          'Nie mozna teraz zaladowac modlitw z API.'
+        );
     }
   }
 
@@ -563,7 +633,7 @@ export class AppShellFacade {
   }
 
   previewDateLabel(date: string): string {
-    return new Intl.DateTimeFormat(this.isEnglish() ? 'en-US' : 'es-ES', {
+    return new Intl.DateTimeFormat(this.dateLocale(), {
       month: 'short',
       day: 'numeric',
       year: 'numeric',
@@ -687,8 +757,27 @@ export class AppShellFacade {
     return value.length <= maxLength ? value : `${value.slice(0, maxLength - 1)}…`;
   }
 
-  private apiLanguage(language: 'en' | 'es'): 'en' | 'es' | 'pl' {
+  private apiLanguage(language: AppLanguage): 'en' | 'es' | 'pl' {
     return language;
+  }
+
+  private translate(english: string, spanish: string, polish: string): string {
+    switch (this.language()) {
+      case 'es':
+        return spanish;
+      case 'pl':
+        return polish;
+      default:
+        return english;
+    }
+  }
+
+  private dateLocale(): string {
+    return {
+      en: 'en-US',
+      es: 'es-ES',
+      pl: 'pl-PL',
+    }[this.language()];
   }
 
   private normalizeSeasonKey(value: string | null | undefined): SeasonKey | null {

@@ -1,5 +1,6 @@
 import { Component, input, output } from '@angular/core';
 import { PrayerSummary } from '../core/api/sanctuary-api.service';
+type AppLanguage = 'en' | 'es' | 'pl';
 
 @Component({
   selector: 'app-prayers-page',
@@ -8,9 +9,9 @@ import { PrayerSummary } from '../core/api/sanctuary-api.service';
   template: `
     <section class="screen-card glass-card">
       <div class="screen-header">
-        <button class="circle-button" type="button" (click)="goHome.emit()">‹</button>
-        <div>
-          <h2>{{ isEnglish() ? 'Prayers' : 'Oraciones' }}</h2>
+          <button class="circle-button" type="button" (click)="goHome.emit()">‹</button>
+          <div>
+          <h2>{{ t('Prayers', 'Oraciones', 'Modlitwy') }}</h2>
           <p class="meta-text">{{ resultsLabel() }}</p>
         </div>
       </div>
@@ -22,13 +23,13 @@ import { PrayerSummary } from '../core/api/sanctuary-api.service';
           type="text"
           [value]="query()"
           (input)="updateQuery.emit($any($event.target).value)"
-          [placeholder]="isEnglish() ? 'Search prayers' : 'Buscar oraciones'"
+          [placeholder]="t('Search prayers', 'Buscar oraciones', 'Szukaj modlitw')"
         />
       </label>
 
       @if (loadFailed()) {
         <div class="mode-panel glass-subtle">
-          <strong>{{ isEnglish() ? 'Prayers' : 'Oraciones' }}</strong>
+          <strong>{{ t('Prayers', 'Oraciones', 'Modlitwy') }}</strong>
           <p>{{ apiErrorCopy() }}</p>
         </div>
       } @else {
@@ -54,6 +55,7 @@ import { PrayerSummary } from '../core/api/sanctuary-api.service';
 })
 export class PrayersPageComponent {
   readonly isEnglish = input<boolean>(true);
+  readonly currentLanguage = input<AppLanguage>('en');
   readonly query = input<string>('');
   readonly resultsLabel = input.required<string>();
   readonly loadFailed = input<boolean>(false);
@@ -74,5 +76,16 @@ export class PrayersPageComponent {
     }
 
     return `linear-gradient(180deg, rgba(6, 12, 18, 0.05), rgba(6, 12, 18, 0.28)), url(${imageUrl})`;
+  }
+
+  protected t(english: string, spanish: string, polish: string): string {
+    switch (this.currentLanguage()) {
+      case 'es':
+        return spanish;
+      case 'pl':
+        return polish;
+      default:
+        return english;
+    }
   }
 }

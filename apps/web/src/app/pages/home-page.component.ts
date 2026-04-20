@@ -1,4 +1,5 @@
 import { Component, input, output } from '@angular/core';
+type AppLanguage = 'en' | 'es' | 'pl';
 
 @Component({
   selector: 'app-home-page',
@@ -9,26 +10,18 @@ import { Component, input, output } from '@angular/core';
       <section class="hero glass-card">
         <div class="hero-stack">
           <p class="eyebrow">
-            {{ isEnglish() ? 'Catholic prayer companion' : 'Compañero católico de oración' }}
+            {{ t('Catholic prayer companion', 'Compañero católico de oración', 'Katolicki towarzysz modlitwy') }}
           </p>
 
           <div class="logo-wrap">
             <img class="logo-image" src="sanctuary-logo-source.png" alt="Sanctuary logo" />
           </div>
 
-          @if (isEnglish()) {
-            <h1>Welcome to your sanctuary</h1>
-            <p class="hero-question">How do you want to connect with God today?</p>
-            <p class="hero-copy-text">
-              Prayer, liturgy, saints, and novenas in one calm place.
-            </p>
-          } @else {
-            <h1>Bienvenido a tu santuario</h1>
-            <p class="hero-question">¿Cómo quieres conectarte con Dios hoy?</p>
-            <p class="hero-copy-text">
-              Oración, liturgia, santos y novenas en un solo lugar de paz.
-            </p>
-          }
+          <h1>{{ t('Welcome to your sanctuary', 'Bienvenido a tu santuario', 'Witamy w twoim sanktuarium') }}</h1>
+          <p class="hero-question">{{ t('How do you want to connect with God today?', '¿Cómo quieres conectarte con Dios hoy?', 'Jak chcesz dzisiaj polaczyc sie z Bogiem?') }}</p>
+          <p class="hero-copy-text">
+            {{ t('Prayer, liturgy, saints, and novenas in one calm place.', 'Oración, liturgia, santos y novenas en un solo lugar de paz.', 'Modlitwa, liturgia, swieci i nowenny w jednym spokojnym miejscu.') }}
+          </p>
         </div>
       </section>
 
@@ -37,8 +30,8 @@ import { Component, input, output } from '@angular/core';
           <div class="nav-card__left">
             <span class="nav-icon saints">👥</span>
             <div class="nav-text">
-              <strong>{{ isEnglish() ? 'Saints' : 'Santos' }}</strong>
-              <span>{{ isEnglish() ? 'Feasts and biographies' : 'Fiestas y biografías' }}</span>
+              <strong>{{ t('Saints', 'Santos', 'Swieci') }}</strong>
+              <span>{{ t('Feasts and biographies', 'Fiestas y biografías', 'Swieta i biografie') }}</span>
             </div>
           </div>
           <span class="nav-arrow">↗</span>
@@ -49,7 +42,7 @@ import { Component, input, output } from '@angular/core';
             <span class="nav-icon novenas">📘</span>
             <div class="nav-text">
               <strong>Novenas</strong>
-              <span>{{ isEnglish() ? 'Journeys of prayer' : 'Jornadas de oración' }}</span>
+              <span>{{ t('Journeys of prayer', 'Jornadas de oración', 'Drogi modlitwy') }}</span>
             </div>
           </div>
           <span class="nav-arrow">↗</span>
@@ -59,8 +52,8 @@ import { Component, input, output } from '@angular/core';
           <div class="nav-card__left">
             <span class="nav-icon prayers">🕯</span>
             <div class="nav-text">
-              <strong>{{ isEnglish() ? 'Prayers' : 'Oraciones' }}</strong>
-              <span>{{ isEnglish() ? 'Daily essentials' : 'Esenciales diarios' }}</span>
+              <strong>{{ t('Prayers', 'Oraciones', 'Modlitwy') }}</strong>
+              <span>{{ t('Daily essentials', 'Esenciales diarios', 'Codzienne podstawy') }}</span>
             </div>
           </div>
           <span class="nav-arrow">↗</span>
@@ -70,8 +63,8 @@ import { Component, input, output } from '@angular/core';
           <div class="nav-card__left">
             <span class="nav-icon daily">☼</span>
             <div class="nav-text">
-              <strong>{{ isEnglish() ? 'Daily' : 'Diario' }}</strong>
-              <span>{{ isEnglish() ? 'Readings and seasons' : 'Lecturas y tiempos' }}</span>
+              <strong>{{ t('Daily Readings', 'Lecturas diarias', 'Czytania dzienne') }}</strong>
+              <span>{{ t('Readings and seasons', 'Lecturas y tiempos', 'Czytania i okresy') }}</span>
             </div>
           </div>
           <span class="nav-arrow">↗</span>
@@ -81,8 +74,8 @@ import { Component, input, output } from '@angular/core';
           <div class="nav-card__left">
             <span class="nav-icon intentions">♥</span>
             <div class="nav-text">
-              <strong>{{ isEnglish() ? 'Intentions' : 'Intenciones' }}</strong>
-              <span>{{ isEnglish() ? 'Search by need' : 'Buscar por necesidad' }}</span>
+              <strong>{{ t('Intentions', 'Intenciones', 'Intencje') }}</strong>
+              <span>{{ t('Search by need', 'Buscar por necesidad', 'Szukaj wedlug potrzeby') }}</span>
             </div>
           </div>
           <span class="nav-arrow">↗</span>
@@ -93,6 +86,7 @@ import { Component, input, output } from '@angular/core';
 })
 export class HomePageComponent {
   readonly isEnglish = input<boolean>(true);
+  readonly currentLanguage = input<AppLanguage>('en');
 
   readonly openAbout = output<void>();
   readonly toggleLanguage = output<void>();
@@ -101,4 +95,15 @@ export class HomePageComponent {
   readonly openPrayers = output<void>();
   readonly openDaily = output<void>();
   readonly openIntentions = output<void>();
+
+  protected t(english: string, spanish: string, polish: string): string {
+    switch (this.currentLanguage()) {
+      case 'es':
+        return spanish;
+      case 'pl':
+        return polish;
+      default:
+        return english;
+    }
+  }
 }

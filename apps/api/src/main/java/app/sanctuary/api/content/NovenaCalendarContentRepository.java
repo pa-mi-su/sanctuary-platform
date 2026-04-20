@@ -4,7 +4,6 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 
@@ -15,6 +14,7 @@ import app.sanctuary.api.calendar.model.NovenaServingRule;
 import app.sanctuary.api.calendar.model.NovenaServingWindowResult;
 import app.sanctuary.api.calendar.service.NovenaServingRuleRepository;
 import app.sanctuary.api.calendar.service.NovenaServingWindowResolver;
+import app.sanctuary.api.content.support.SupportedLanguage;
 
 @Repository
 public class NovenaCalendarContentRepository {
@@ -33,8 +33,8 @@ public class NovenaCalendarContentRepository {
         this.novenaServingWindowResolver = novenaServingWindowResolver;
     }
 
-    public List<NovenaSummaryResponse> list(String language, String query) {
-        String locale = normalizeLanguage(language);
+    public List<NovenaSummaryResponse> list(SupportedLanguage language, String query) {
+        String locale = language.code();
         String filter = query == null ? "" : query.trim();
         String likeQuery = "%" + filter + "%";
 
@@ -71,8 +71,8 @@ public class NovenaCalendarContentRepository {
         );
     }
 
-    public List<NovenaSummaryResponse> listByIntentions(String language, String query) {
-        String locale = normalizeLanguage(language);
+    public List<NovenaSummaryResponse> listByIntentions(SupportedLanguage language, String query) {
+        String locale = language.code();
         String filter = query == null ? "" : query.trim();
         String likeQuery = "%" + filter + "%";
 
@@ -109,8 +109,8 @@ public class NovenaCalendarContentRepository {
         );
     }
 
-    public List<NovenaCalendarDateResponse> calendarRange(LocalDate start, LocalDate end, String language) {
-        String locale = normalizeLanguage(language);
+    public List<NovenaCalendarDateResponse> calendarRange(LocalDate start, LocalDate end, SupportedLanguage language) {
+        String locale = language.code();
         Map<LocalDate, Map<String, NovenaSummaryResponse>> byDate = new LinkedHashMap<>();
         Map<LocalDate, NovenaSummaryResponse> startingByDate = new LinkedHashMap<>();
         LocalDate cursor = start;
@@ -163,8 +163,8 @@ public class NovenaCalendarContentRepository {
         return response;
     }
 
-    public Optional<NovenaDetailResponse> findBySlug(String slug, String language) {
-        String locale = normalizeLanguage(language);
+    public Optional<NovenaDetailResponse> findBySlug(String slug, SupportedLanguage language) {
+        String locale = language.code();
         String sql = """
             SELECT
                 id,
@@ -273,16 +273,5 @@ public class NovenaCalendarContentRepository {
         );
 
         return results.isEmpty() ? null : results.getFirst();
-    }
-
-    private String normalizeLanguage(String language) {
-        if (language == null || language.isBlank()) {
-            return "en";
-        }
-
-        return switch (language.toLowerCase(Locale.US)) {
-            case "en", "es", "pl" -> language.toLowerCase(Locale.US);
-            default -> throw new IllegalArgumentException("Unsupported language: " + language);
-        };
     }
 }

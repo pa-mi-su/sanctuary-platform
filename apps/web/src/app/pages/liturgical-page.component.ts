@@ -3,6 +3,7 @@ import { LiturgicalDayResponse } from '../core/api/sanctuary-api.service';
 
 type CalendarView = 'day' | 'week' | 'month';
 type SeasonKey = 'ADVENT' | 'CHRISTMAS' | 'LENT' | 'EASTER' | 'ORDINARY';
+type AppLanguage = 'en' | 'es' | 'pl';
 
 @Component({
   selector: 'app-liturgical-page',
@@ -21,7 +22,7 @@ type SeasonKey = 'ADVENT' | 'CHRISTMAS' | 'LENT' | 'EASTER' | 'ORDINARY';
 
       <div class="chip-row">
         <button class="chip selected" type="button" (click)="resetDate.emit()">
-          {{ isSelectedDateToday() ? 'Today' : 'Jump to Today' }}
+          {{ isSelectedDateToday() ? t('Today', 'Hoy', 'Dzisiaj') : t('Jump to Today', 'Ir a hoy', 'Przejdz do dzisiaj') }}
         </button>
         <button class="chip" [class.active-blue]="liturgicalView() === 'day'" type="button" (click)="changeView.emit('day')">Day</button>
         <button class="chip" [class.active-blue]="liturgicalView() === 'week'" type="button" (click)="changeView.emit('week')">Week</button>
@@ -80,7 +81,7 @@ type SeasonKey = 'ADVENT' | 'CHRISTMAS' | 'LENT' | 'EASTER' | 'ORDINARY';
                 <strong>{{ todayLiturgical()!.primaryRank }}</strong>
                 <p>{{ liturgicalSubtitle(todayLiturgical()!) }}</p>
                 <a class="text-link" [href]="todayLiturgical()!.readingsUrl" target="_blank" rel="noreferrer">
-                  Open daily readings
+                  {{ t('Open daily readings', 'Abrir lecturas diarias', 'Otworz czytania dnia') }}
                 </a>
               </div>
             } @else {
@@ -103,7 +104,7 @@ type SeasonKey = 'ADVENT' | 'CHRISTMAS' | 'LENT' | 'EASTER' | 'ORDINARY';
                 <strong>{{ selectedLiturgical()!.primaryRank }}</strong>
                 <p>{{ liturgicalSubtitle(selectedLiturgical()!) }}</p>
                 <a class="text-link" [href]="selectedLiturgical()!.readingsUrl" target="_blank" rel="noreferrer">
-                  Open daily readings
+                  {{ t('Open daily readings', 'Abrir lecturas diarias', 'Otworz czytania dnia') }}
                 </a>
               </div>
             } @else {
@@ -116,6 +117,7 @@ type SeasonKey = 'ADVENT' | 'CHRISTMAS' | 'LENT' | 'EASTER' | 'ORDINARY';
   `,
 })
 export class LiturgicalPageComponent {
+  readonly currentLanguage = input<AppLanguage>('en');
   readonly selectedDate = input.required<string>();
   readonly todayDate = input.required<string>();
   readonly selectedDateLabel = input.required<string>();
@@ -148,5 +150,16 @@ export class LiturgicalPageComponent {
 
   protected liturgicalSubtitle(day: LiturgicalDayResponse): string {
     return `${day.season.replaceAll('_', ' ')} • ${day.rankType}`;
+  }
+
+  protected t(english: string, spanish: string, polish: string): string {
+    switch (this.currentLanguage()) {
+      case 'es':
+        return spanish;
+      case 'pl':
+        return polish;
+      default:
+        return english;
+    }
   }
 }

@@ -954,3 +954,57 @@ Logging expectations:
   - `npm run build` passed in `apps/web`
 - Note:
   - there is no dedicated `lint` script in `apps/web/package.json`, so the production build remains the current enforced verification step for this refactor pass.
+## 2026-04-20 - API layering and validation cleanup
+
+- Audited the Java API structure after the frontend shell cleanup to make sure the backend also follows clearer boundaries and safer request handling.
+- Main issue found:
+  - content controllers were still carrying validation/orchestration logic
+  - content repositories were mixing data access with request-level language parsing and application behavior
+  - unsupported language handling could fall through as generic runtime errors instead of consistent API `400` responses
+- Refactored the content area into cleaner layers:
+  - added shared support classes:
+    - `content/support/SupportedLanguage`
+    - `content/support/ContentRequestValidator`
+    - `content/support/ContentNotFoundException`
+  - added service layer classes:
+    - `content/service/SaintContentService`
+    - `content/service/PrayerContentService`
+    - `content/service/NovenaContentService`
+  - updated controllers to delegate to services instead of owning validation and lookup flow directly
+  - updated repositories to accept `SupportedLanguage` instead of raw strings and removed duplicated language-normalization logic
+- Resulting design improvements:
+  - controllers now stay focused on HTTP mapping
+  - services now own application-level content behavior
+  - repositories stay closer to data access responsibilities
+  - language parsing and date-range/month-day validation are consistent across content endpoints
+  - not-found behavior is standardized through a shared exception type
+- Added tests for the new shared request helpers:
+  - `SupportedLanguageTest`
+  - `ContentRequestValidatorTest`
+- Verification:
+  - `JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home mvn -q test` passed in `apps/api`
+## 2026-04-20 - Polish language support in Angular shell
+
+- Audited the language path after the user reported that the web app only exposed English and Spanish even though the backend was expected to support all three languages.
+- Confirmed the backend content API already supports `pl` through the shared `SupportedLanguage` flow added in the API cleanup.
+- Found the actual gap in the Angular shell:
+  - the root state modeled language as only `en | es`
+  - the desktop header only exposed a two-state language toggle
+- Updated the Angular shell to support all three language codes end to end:
+  - `AppLanguage = 'en' | 'es' | 'pl'`
+  - `AppShellFacade.language` now supports Polish
+  - API requests now pass `pl` through the existing API client path
+  - date labels now use `pl-PL` locale when Polish is selected
+- Replaced the old two-state header language toggle with a real `Language` selector offering:
+  - English
+  - Spanish
+  - Polish
+- Files updated:
+  - `apps/web/src/app/core/state/app-shell.facade.ts`
+  - `apps/web/src/app/pages/app-header.component.ts`
+  - `apps/web/src/app/pages/app-header.component.scss`
+  - `apps/web/src/app/app.html`
+- Verification:
+  - `npm run build` passed in `apps/web`
+  - live API check returned Polish saint content:
+    - `curl -s 'http://localhost:8080/content/saints?month=4&day=17&lang=pl'`

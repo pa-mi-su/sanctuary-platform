@@ -4,6 +4,7 @@ import { SaintSummary } from '../core/api/sanctuary-api.service';
 type CalendarView = 'day' | 'week' | 'month';
 type SaintsMode = 'calendar' | 'list';
 type SeasonKey = 'ADVENT' | 'CHRISTMAS' | 'LENT' | 'EASTER' | 'ORDINARY';
+type AppLanguage = 'en' | 'es' | 'pl';
 
 @Component({
   selector: 'app-saints-page',
@@ -15,7 +16,7 @@ type SeasonKey = 'ADVENT' | 'CHRISTMAS' | 'LENT' | 'EASTER' | 'ORDINARY';
         <div class="screen-header">
           <button class="circle-button" type="button" (click)="goHome.emit()">‹</button>
           <div>
-            <h2>{{ isEnglish() ? 'Saints' : 'Santos' }}</h2>
+            <h2>{{ t('Saints', 'Santos', 'Swieci') }}</h2>
             <p class="meta-text">{{ resultsLabel() }}</p>
           </div>
         </div>
@@ -27,13 +28,13 @@ type SeasonKey = 'ADVENT' | 'CHRISTMAS' | 'LENT' | 'EASTER' | 'ORDINARY';
             type="text"
             [value]="query()"
             (input)="updateQuery.emit($any($event.target).value)"
-            [placeholder]="isEnglish() ? 'Search saints' : 'Buscar santos'"
+            [placeholder]="t('Search saints', 'Buscar santos', 'Szukaj swietych')"
           />
         </label>
 
         @if (saintsLoadFailed()) {
           <div class="mode-panel glass-subtle">
-            <strong>{{ isEnglish() ? 'Saints' : 'Santos' }}</strong>
+            <strong>{{ t('Saints', 'Santos', 'Swieci') }}</strong>
             <p>{{ apiErrorCopy() }}</p>
           </div>
         } @else {
@@ -66,7 +67,7 @@ type SeasonKey = 'ADVENT' | 'CHRISTMAS' | 'LENT' | 'EASTER' | 'ORDINARY';
 
         <div class="chip-row">
           <button class="chip selected" type="button" (click)="resetDate.emit()">
-            {{ isSelectedDateToday() ? 'Today' : 'Jump to Today' }}
+            {{ isSelectedDateToday() ? t('Today', 'Hoy', 'Dzisiaj') : t('Jump to Today', 'Ir a hoy', 'Przejdz do dzisiaj') }}
           </button>
           <button class="chip" [class.active-blue]="saintsView() === 'day'" type="button" (click)="changeView.emit('day')">Day</button>
           <button class="chip" [class.active-blue]="saintsView() === 'week'" type="button" (click)="changeView.emit('week')">Week</button>
@@ -129,7 +130,7 @@ type SeasonKey = 'ADVENT' | 'CHRISTMAS' | 'LENT' | 'EASTER' | 'ORDINARY';
                   <h3>{{ previewTodayTitle() }}</h3>
                   <p>{{ todayPreviewLabel() }}</p>
                 </div>
-                <span class="content-tag">{{ todaySaints().length }} {{ isEnglish() ? 'saints' : 'santos' }}</span>
+                <span class="content-tag">{{ todaySaints().length }} {{ t('saints', 'santos', 'swietych') }}</span>
               </div>
 
               @if (todaySaints().length) {
@@ -160,7 +161,7 @@ type SeasonKey = 'ADVENT' | 'CHRISTMAS' | 'LENT' | 'EASTER' | 'ORDINARY';
                   <p>{{ selectedPreviewLabel() }}</p>
                 </div>
                 @if (!isSelectedDateToday()) {
-                  <span class="content-tag">{{ selectedSaints().length }} {{ isEnglish() ? 'saints' : 'santos' }}</span>
+                  <span class="content-tag">{{ selectedSaints().length }} {{ t('saints', 'santos', 'swietych') }}</span>
                 }
               </div>
 
@@ -194,6 +195,7 @@ type SeasonKey = 'ADVENT' | 'CHRISTMAS' | 'LENT' | 'EASTER' | 'ORDINARY';
 })
 export class SaintsPageComponent {
   readonly isEnglish = input<boolean>(true);
+  readonly currentLanguage = input<AppLanguage>('en');
   readonly mode = input<SaintsMode>('calendar');
   readonly query = input<string>('');
   readonly resultsLabel = input<string>('');
@@ -239,5 +241,16 @@ export class SaintsPageComponent {
     }
 
     return `linear-gradient(180deg, rgba(6, 12, 18, 0.05), rgba(6, 12, 18, 0.28)), url(${imageUrl})`;
+  }
+
+  protected t(english: string, spanish: string, polish: string): string {
+    switch (this.currentLanguage()) {
+      case 'es':
+        return spanish;
+      case 'pl':
+        return polish;
+      default:
+        return english;
+    }
   }
 }

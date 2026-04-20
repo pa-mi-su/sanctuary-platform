@@ -1,11 +1,12 @@
 package app.sanctuary.api.content;
 
 import java.util.List;
-import java.util.Locale;
 import java.util.Optional;
 
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
+
+import app.sanctuary.api.content.support.SupportedLanguage;
 
 @Repository
 public class PrayerContentRepository {
@@ -16,8 +17,8 @@ public class PrayerContentRepository {
         this.jdbcTemplate = jdbcTemplate;
     }
 
-    public List<PrayerSummaryResponse> list(String language, String query) {
-        String locale = normalizeLanguage(language);
+    public List<PrayerSummaryResponse> list(SupportedLanguage language, String query) {
+        String locale = language.code();
         String filter = query == null ? "" : query.trim();
         String likeQuery = "%" + filter + "%";
 
@@ -56,8 +57,8 @@ public class PrayerContentRepository {
         );
     }
 
-    public Optional<PrayerDetailResponse> findBySlug(String slug, String language) {
-        String locale = normalizeLanguage(language);
+    public Optional<PrayerDetailResponse> findBySlug(String slug, SupportedLanguage language) {
+        String locale = language.code();
         String sql = """
             SELECT
                 id,
@@ -123,16 +124,5 @@ public class PrayerContentRepository {
         }
 
         return normalized.length() > 160 ? normalized.substring(0, 157).trim() + "..." : normalized;
-    }
-
-    private String normalizeLanguage(String language) {
-        if (language == null || language.isBlank()) {
-            return "en";
-        }
-
-        return switch (language.toLowerCase(Locale.US)) {
-            case "en", "es", "pl" -> language.toLowerCase(Locale.US);
-            default -> throw new IllegalArgumentException("Unsupported language: " + language);
-        };
     }
 }

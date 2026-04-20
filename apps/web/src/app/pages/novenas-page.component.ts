@@ -4,6 +4,7 @@ import { NovenaSummary } from '../core/api/sanctuary-api.service';
 type CalendarView = 'day' | 'week' | 'month';
 type NovenasMode = 'calendar' | 'list' | 'intentions';
 type SeasonKey = 'ADVENT' | 'CHRISTMAS' | 'LENT' | 'EASTER' | 'ORDINARY';
+type AppLanguage = 'en' | 'es' | 'pl';
 
 @Component({
   selector: 'app-novenas-page',
@@ -15,7 +16,7 @@ type SeasonKey = 'ADVENT' | 'CHRISTMAS' | 'LENT' | 'EASTER' | 'ORDINARY';
         <div class="screen-header">
           <button class="circle-button" type="button" (click)="goHome.emit()">‹</button>
           <div>
-            <h2>{{ mode() === 'intentions' ? (isEnglish() ? 'Intentions' : 'Intenciones') : 'Novenas' }}</h2>
+            <h2>{{ mode() === 'intentions' ? t('Intentions', 'Intenciones', 'Intencje') : t('Novenas', 'Novenas', 'Nowenny') }}</h2>
             <p class="meta-text">{{ intentionsResultsLabel() }}</p>
           </div>
         </div>
@@ -42,7 +43,7 @@ type SeasonKey = 'ADVENT' | 'CHRISTMAS' | 'LENT' | 'EASTER' | 'ORDINARY';
 
         <div class="chip-row">
           <button class="chip selected" type="button" (click)="resetDate.emit()">
-            {{ isSelectedDateToday() ? 'Today' : 'Jump to Today' }}
+            {{ isSelectedDateToday() ? t('Today', 'Hoy', 'Dzisiaj') : t('Jump to Today', 'Ir a hoy', 'Przejdz do dzisiaj') }}
           </button>
           <button class="chip" [class.active-blue]="novenasView() === 'day'" type="button" (click)="changeView.emit('day')">Day</button>
           <button class="chip" [class.active-blue]="novenasView() === 'week'" type="button" (click)="changeView.emit('week')">Week</button>
@@ -84,7 +85,7 @@ type SeasonKey = 'ADVENT' | 'CHRISTMAS' | 'LENT' | 'EASTER' | 'ORDINARY';
 
       @if (novenasLoadFailed()) {
         <div class="mode-panel glass-subtle">
-          <strong>{{ isEnglish() ? 'Novenas' : 'Novenas' }}</strong>
+          <strong>{{ t('Novenas', 'Novenas', 'Nowenny') }}</strong>
           <p>{{ apiErrorCopy() }}</p>
         </div>
       }
@@ -109,7 +110,7 @@ type SeasonKey = 'ADVENT' | 'CHRISTMAS' | 'LENT' | 'EASTER' | 'ORDINARY';
           </section>
         } @else {
           <div class="mode-panel glass-subtle compact">
-            <strong>{{ mode() === 'intentions' ? (isEnglish() ? 'Intentions Search' : 'Búsqueda de intenciones') : 'Novenas' }}</strong>
+            <strong>{{ mode() === 'intentions' ? t('Intentions Search', 'Búsqueda de intenciones', 'Wyszukiwanie intencji') : t('Novenas', 'Novenas', 'Nowenny') }}</strong>
             <p>{{ intentionsEmptyCopy() }}</p>
           </div>
         }
@@ -128,11 +129,11 @@ type SeasonKey = 'ADVENT' | 'CHRISTMAS' | 'LENT' | 'EASTER' | 'ORDINARY';
         <section class="preview-grid">
           <article class="preview-panel glass-subtle">
             <div class="preview-header">
-              <div>
-                <h3>{{ previewTodayTitle() }}</h3>
-                <p>{{ todayPreviewLabel() }}</p>
-              </div>
-              <span class="content-tag">{{ todayNovenas().length }} {{ isEnglish() ? 'active' : 'activas' }}</span>
+                <div>
+                  <h3>{{ previewTodayTitle() }}</h3>
+                  <p>{{ todayPreviewLabel() }}</p>
+                </div>
+              <span class="content-tag">{{ todayNovenas().length }} {{ t('active', 'activas', 'aktywnych') }}</span>
             </div>
 
             @if (todayPrimaryNovena()) {
@@ -164,7 +165,7 @@ type SeasonKey = 'ADVENT' | 'CHRISTMAS' | 'LENT' | 'EASTER' | 'ORDINARY';
                 <p>{{ selectedPreviewLabel() }}</p>
               </div>
               @if (!isSelectedDateToday()) {
-                <span class="content-tag">{{ selectedNovenas().length }} {{ isEnglish() ? 'active' : 'activas' }}</span>
+                <span class="content-tag">{{ selectedNovenas().length }} {{ t('active', 'activas', 'aktywnych') }}</span>
               }
             </div>
 
@@ -198,6 +199,7 @@ type SeasonKey = 'ADVENT' | 'CHRISTMAS' | 'LENT' | 'EASTER' | 'ORDINARY';
 })
 export class NovenasPageComponent {
   readonly isEnglish = input<boolean>(true);
+  readonly currentLanguage = input<AppLanguage>('en');
   readonly mode = input.required<NovenasMode>();
   readonly query = input<string>('');
   readonly selectedDate = input.required<string>();
@@ -242,7 +244,11 @@ export class NovenasPageComponent {
   }
 
   protected novenaDayCountLabel(novena: NovenaSummary): string {
-    return this.isEnglish() ? `${novena.durationDays}-day novena` : `Novena de ${novena.durationDays} días`;
+    return this.t(
+      `${novena.durationDays}-day novena`,
+      `Novena de ${novena.durationDays} días`,
+      `${novena.durationDays}-dniowa nowenna`
+    );
   }
 
   protected todayPrimaryNovena(): NovenaSummary | null {
@@ -262,11 +268,13 @@ export class NovenasPageComponent {
   }
 
   protected additionalNovenasCopy(count: number): string {
-    if (this.isEnglish()) {
-      return count === 1 ? '+1 more active novena' : `+${count} more active novenas`;
+    if (this.currentLanguage() === 'es') {
+      return count === 1 ? '+1 novena activa más' : `+${count} novenas activas más`;
     }
-
-    return count === 1 ? '+1 novena activa más' : `+${count} novenas activas más`;
+    if (this.currentLanguage() === 'pl') {
+      return count === 1 ? '+1 aktywna nowenna więcej' : `+${count} aktywnych nowenn więcej`;
+    }
+    return count === 1 ? '+1 more active novena' : `+${count} more active novenas`;
   }
 
   private featuredNovena(novenas: NovenaSummary[]): NovenaSummary | null {
@@ -289,5 +297,16 @@ export class NovenasPageComponent {
     }
 
     return `linear-gradient(180deg, rgba(6, 12, 18, 0.05), rgba(6, 12, 18, 0.28)), url(${imageUrl})`;
+  }
+
+  protected t(english: string, spanish: string, polish: string): string {
+    switch (this.currentLanguage()) {
+      case 'es':
+        return spanish;
+      case 'pl':
+        return polish;
+      default:
+        return english;
+    }
   }
 }

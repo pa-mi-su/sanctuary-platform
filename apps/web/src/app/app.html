@@ -1,7 +1,20 @@
 <div class="page-bg"></div>
 
 @if (facade.showAbout()) {
-  <app-about-modal (close)="facade.closeAbout()" />
+  <app-about-modal
+    [currentLanguage]="facade.language()"
+    (close)="facade.closeAbout()"
+    (openSupport)="facade.openLegalDocument('support')"
+    (openPrivacy)="facade.openLegalDocument('privacy')"
+  />
+}
+
+@if (facade.activeLegalDocument(); as activeLegalDocument) {
+  <app-legal-document-modal
+    [type]="activeLegalDocument"
+    [currentLanguage]="facade.language()"
+    (close)="facade.closeLegalDocument()"
+  />
 }
 
 @if (facade.saintDetail() || facade.prayerDetail() || facade.novenaDetail()) {
@@ -20,14 +33,16 @@
     <app-header
       [currentTab]="facade.currentTab()"
       [isEnglish]="facade.isEnglish()"
+      [currentLanguage]="facade.language()"
       (navigate)="facade.handlePrimaryNavigate($event)"
       (openAbout)="facade.openAbout()"
-      (toggleLanguage)="facade.toggleLanguage()"
+      (selectLanguage)="facade.setLanguage($event)"
     />
 
     @if (facade.currentTab() === 'home') {
       <app-home-page
         [isEnglish]="facade.isEnglish()"
+        [currentLanguage]="facade.language()"
         (openSaints)="facade.openSaintsList()"
         (openNovenas)="facade.openNovenasList()"
         (openPrayers)="facade.setTab('prayers')"
@@ -39,6 +54,7 @@
     @if (facade.currentTab() === 'prayers') {
       <app-prayers-page
         [isEnglish]="facade.isEnglish()"
+        [currentLanguage]="facade.language()"
         [query]="facade.prayerQuery()"
         [resultsLabel]="facade.localizedPrayerResultsLabel()"
         [loadFailed]="facade.prayersLoadFailed()"
@@ -53,6 +69,7 @@
     @if (facade.currentTab() === 'novenas') {
       <app-novenas-page
         [isEnglish]="facade.isEnglish()"
+        [currentLanguage]="facade.language()"
         [mode]="facade.novenasMode()"
         [query]="facade.novenaQuery()"
         [selectedDate]="facade.selectedDate()"
@@ -95,6 +112,7 @@
 
     @if (facade.currentTab() === 'liturgical') {
       <app-liturgical-page
+        [currentLanguage]="facade.language()"
         [selectedDate]="facade.selectedDate()"
         [todayDate]="facade.todayDate()"
         [selectedDateLabel]="facade.selectedDateLabel()"
@@ -125,6 +143,7 @@
     @if (facade.currentTab() === 'saints') {
       <app-saints-page
         [isEnglish]="facade.isEnglish()"
+        [currentLanguage]="facade.language()"
         [mode]="facade.saintsMode()"
         [query]="facade.saintQuery()"
         [resultsLabel]="facade.localizedSaintResultsLabel()"

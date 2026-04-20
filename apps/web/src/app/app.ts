@@ -9,6 +9,7 @@ import { MePageComponent } from './pages/me-page.component';
 import { AboutModalComponent } from './pages/about-modal.component';
 import { ContentDetailModalComponent } from './pages/content-detail-modal.component';
 import { MobileNavComponent } from './pages/mobile-nav.component';
+import { LegalDocumentModalComponent } from './pages/legal-document-modal.component';
 import { AppShellFacade } from './core/state/app-shell.facade';
 
 @Component({
@@ -23,6 +24,7 @@ import { AppShellFacade } from './core/state/app-shell.facade';
     PrayersPageComponent,
     MePageComponent,
     AboutModalComponent,
+    LegalDocumentModalComponent,
     ContentDetailModalComponent,
     MobileNavComponent,
   ],
