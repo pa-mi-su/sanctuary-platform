@@ -29,6 +29,7 @@ jobs:
       API_ECS_CLUSTER: ${{ vars.API_PROD_ECS_CLUSTER }}
       SANCTUARY_DB_URL: ${{ vars.API_PROD_DB_URL }}
       SANCTUARY_DB_USERNAME: ${{ vars.API_PROD_DB_USERNAME }}
+      SANCTUARY_DB_SECRET_ARN: ${{ vars.API_PROD_DB_SECRET_ARN }}
       IMAGE_TAG: ${{ github.sha }}
 
     steps:
@@ -60,6 +61,7 @@ jobs:
           echo "API_ECS_CLUSTER=$(echo -n "${API_ECS_CLUSTER}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
           echo "SANCTUARY_DB_URL=$(echo -n "${SANCTUARY_DB_URL}" | tr -d '\r\n')" >> "$GITHUB_ENV"
           echo "SANCTUARY_DB_USERNAME=$(echo -n "${SANCTUARY_DB_USERNAME}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
+          echo "SANCTUARY_DB_SECRET_ARN=$(echo -n "${SANCTUARY_DB_SECRET_ARN}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
 
       - name: Login to Amazon ECR
         id: login-ecr
@@ -91,8 +93,11 @@ jobs:
               {"name": "SPRING_PROFILES_ACTIVE", "value": "prod"},
               {"name": "SANCTUARY_API_PORT", "value": "8080"},
               {"name": "SANCTUARY_DB_URL", "value": "${{ env.SANCTUARY_DB_URL }}"},
-              {"name": "SANCTUARY_DB_USERNAME", "value": "${{ env.SANCTUARY_DB_USERNAME }}"},
-              {"name": "SANCTUARY_DB_PASSWORD", "value": "${{ secrets.API_PROD_DB_PASSWORD }}"}
+              {"name": "SANCTUARY_DB_USERNAME", "value": "${{ env.SANCTUARY_DB_USERNAME }}"}
+            ]
+          secrets: |
+            [
+              {"name": "SANCTUARY_DB_PASSWORD", "valueFrom": "${{ env.SANCTUARY_DB_SECRET_ARN }}:password::"}
             ]
           health-check-path: /health
           cpu: "512"
