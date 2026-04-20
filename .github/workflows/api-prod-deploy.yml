@@ -99,3 +99,5 @@ jobs:
           memory: "1024"
           min-task-count: 1
           max-task-count: 1
+          subnets: subnet-0141079721351edf8,subnet-0dffd2400e13f49e4,subnet-02b055fa01680e51e,subnet-0fff729ae97ed1f58,subnet-0ffe1c33e4e0b665d,subnet-0cebbe66387ecc218
+          security-groups: sg-000f4021f05813471
