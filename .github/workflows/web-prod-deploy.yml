@@ -45,10 +45,15 @@ jobs:
         run: npm run build --workspace web
 
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v5
         with:
           role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
+
+      - name: Normalize deploy variables
+        run: |
+          echo "WEB_S3_BUCKET=$(echo -n "${WEB_S3_BUCKET}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
+          echo "WEB_CLOUDFRONT_DISTRIBUTION_ID=$(echo -n "${WEB_CLOUDFRONT_DISTRIBUTION_ID}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
 
       - name: Sync web build to S3
         run: aws s3 sync apps/web/dist/web/browser "s3://${WEB_S3_BUCKET}" --delete
