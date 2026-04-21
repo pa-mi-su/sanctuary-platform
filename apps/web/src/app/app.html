@@ -53,6 +53,8 @@
     @if (facade.currentTab() === 'auth') {
       <app-auth-page
         [currentLanguage]="facade.language()"
+        [isConfigured]="facade.authConfigured()"
+        [authMessage]="facade.authMessage()"
         (login)="facade.loginDemoUser()"
         (register)="facade.registerDemoUser()"
       />
@@ -192,6 +194,9 @@
       <app-me-page
         [currentLanguage]="facade.language()"
         [userName]="facade.currentUserName()"
+        [activeNovenaCount]="facade.activeNovenaCommitmentCount()"
+        [favoriteNovenaCount]="facade.favoriteNovenaCount()"
+        [favoriteSaintCount]="facade.favoriteSaintCount()"
         (logout)="facade.logout()"
       />
     }

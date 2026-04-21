@@ -13,7 +13,11 @@ import {
   SaintDetail,
   SaintSummary,
   SanctuaryApiService,
+  UserFavorite,
+  UserNovenaCommitment,
+  UserProfile,
 } from '../api/sanctuary-api.service';
+import { SanctuaryAuthService } from '../auth/sanctuary-auth.service';
 
 export type AppTab = 'home' | 'novenas' | 'liturgical' | 'saints' | 'prayers' | 'about' | 'auth' | 'me';
 export type CalendarView = 'day' | 'week' | 'month';
@@ -27,6 +31,7 @@ export type LegalDocumentType = 'support' | 'privacy';
 @Injectable({ providedIn: 'root' })
 export class AppShellFacade {
   private readonly api = inject(SanctuaryApiService);
+  private readonly auth = inject(SanctuaryAuthService);
   private readonly todayDateValue = this.formatDateForApi(new Date());
 
   readonly currentTab = signal<AppTab>('home');
@@ -37,8 +42,11 @@ export class AppShellFacade {
   readonly novenasMode = signal<NovenasMode>('calendar');
   readonly activeLegalDocument = signal<LegalDocumentType | null>(null);
   readonly language = signal<AppLanguage>('en');
-  readonly isAuthenticated = signal(false);
-  readonly currentUserName = signal<string | null>(null);
+  readonly authState = this.auth.state;
+  readonly isAuthenticated = computed(() => this.authState().status === 'authenticated');
+  readonly authConfigured = computed(() => this.authState().configured);
+  readonly authMessage = computed(() => this.authState().message);
+  readonly currentUserName = computed(() => this.userProfile()?.displayName ?? this.authState().displayName);
   readonly selectedDate = signal(this.formatDateForApi(new Date()));
   readonly saintQuery = signal('');
   readonly prayerQuery = signal('');
@@ -214,6 +222,38 @@ export class AppShellFacade {
     { initialValue: null },
   );
 
+  readonly userProfile = toSignal(
+    toObservable(this.authState).pipe(
+      switchMap((authState) => authState.status === 'authenticated' ? this.api.getMe() : of<UserProfile | null>(null)),
+      catchError(() => of<UserProfile | null>(null)),
+    ),
+    { initialValue: null },
+  );
+
+  readonly userFavorites = toSignal(
+    toObservable(this.authState).pipe(
+      switchMap((authState) => authState.status === 'authenticated' ? this.api.listFavorites() : of<UserFavorite[]>([])),
+      catchError(() => of<UserFavorite[]>([])),
+    ),
+    { initialValue: [] },
+  );
+
+  readonly userNovenaCommitments = toSignal(
+    toObservable(this.authState).pipe(
+      switchMap((authState) => authState.status === 'authenticated' ? this.api.listNovenaCommitments() : of<UserNovenaCommitment[]>([])),
+      catchError(() => of<UserNovenaCommitment[]>([])),
+    ),
+    { initialValue: [] },
+  );
+
+  readonly favoriteNovenaCount = computed(() => this.userFavorites().filter((favorite) => favorite.itemType === 'novena').length);
+  readonly favoriteSaintCount = computed(() => this.userFavorites().filter((favorite) => favorite.itemType === 'saint').length);
+  readonly activeNovenaCommitmentCount = computed(() => this.userNovenaCommitments().filter((commitment) => commitment.status === 'active').length);
+
+  constructor() {
+    void this.auth.completeRedirectIfPresent();
+  }
+
   readonly selectedDateLabel = computed(() =>
     new Intl.DateTimeFormat(this.dateLocale(), {
       month: 'long',
@@ -315,20 +355,15 @@ export class AppShellFacade {
   }
 
   loginDemoUser(): void {
-    this.isAuthenticated.set(true);
-    this.currentUserName.set(this.translate('Sanctuary pilgrim', 'Peregrino de Sanctuary', 'Pielgrzym Sanctuary'));
-    this.setTab('me');
+    void this.auth.startLogin();
   }
 
   registerDemoUser(): void {
-    this.isAuthenticated.set(true);
-    this.currentUserName.set(this.translate('Sanctuary pilgrim', 'Peregrino de Sanctuary', 'Pielgrzym Sanctuary'));
-    this.setTab('me');
+    void this.auth.startRegister();
   }
 
   logout(): void {
-    this.isAuthenticated.set(false);
-    this.currentUserName.set(null);
+    this.auth.logout();
     if (this.currentTab() === 'me') {
       this.setTab('auth');
     }

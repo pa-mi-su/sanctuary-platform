@@ -114,6 +114,19 @@
   font-size: 0.82rem;
 }
 
+.configuration-copy {
+  margin: 0 0 10px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(142, 224, 242, 0.1);
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 0.86rem;
+}
+
+.configuration-copy--warning {
+  background: rgba(246, 202, 105, 0.12);
+}
+
 .benefit-list {
   display: grid;
   gap: 12px;

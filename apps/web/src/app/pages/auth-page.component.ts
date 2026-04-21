@@ -69,6 +69,22 @@ type AuthMode = 'login' | 'register';
             }}
           </button>
 
+          @if (!isConfigured()) {
+            <p class="configuration-copy">
+              {{
+                t(
+                  'Cognito is ready to connect here. Add the user pool domain and app client config to enable live login.',
+                  'Cognito está listo para conectarse aquí. Agrega el dominio del user pool y el cliente de la app para activar el acceso real.',
+                  'Cognito jest gotowe do podlaczenia tutaj. Dodaj domene user pool i klienta aplikacji, aby wlaczyc logowanie.'
+                )
+              }}
+            </p>
+          }
+
+          @if (authMessage()) {
+            <p class="configuration-copy configuration-copy--warning">{{ authMessage() }}</p>
+          }
+
           <p class="legal-copy">
             {{
               t(
@@ -85,6 +101,8 @@ type AuthMode = 'login' | 'register';
 })
 export class AuthPageComponent {
   readonly currentLanguage = input<AppLanguage>('en');
+  readonly isConfigured = input<boolean>(false);
+  readonly authMessage = input<string | null>(null);
   readonly login = output<void>();
   readonly register = output<void>();
 

@@ -92,6 +92,31 @@ export interface NovenaCalendarDateResponse {
   startingNovena: NovenaSummary | null;
 }
 
+export interface UserProfile {
+  userId: string;
+  email: string | null;
+  displayName: string | null;
+}
+
+export interface UserFavorite {
+  itemType: 'saint' | 'novena' | 'prayer';
+  itemId: string;
+  createdAt: string;
+}
+
+export interface UserNovenaCommitment {
+  novenaId: string;
+  startedAt: string;
+  currentDay: number;
+  completedDays: number[];
+  reminderEnabled: boolean;
+  reminderMorningHour: number | null;
+  reminderEveningHour: number | null;
+  reminderTimeZoneId: string;
+  status: 'active' | 'paused' | 'completed';
+  updatedAt: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class SanctuaryApiService {
   private readonly http = inject(HttpClient);
@@ -173,6 +198,18 @@ export class SanctuaryApiService {
     return this.http.get<NovenaCalendarDateResponse[]>(`${this.apiBaseUrl}/content/novenas/calendar`, {
       params: this.rangeParams(start, end).set('lang', language),
     });
+  }
+
+  getMe(): Observable<UserProfile> {
+    return this.http.get<UserProfile>(`${this.apiBaseUrl}/me`);
+  }
+
+  listFavorites(): Observable<UserFavorite[]> {
+    return this.http.get<UserFavorite[]>(`${this.apiBaseUrl}/me/favorites`);
+  }
+
+  listNovenaCommitments(): Observable<UserNovenaCommitment[]> {
+    return this.http.get<UserNovenaCommitment[]>(`${this.apiBaseUrl}/me/novena-commitments`);
   }
 
   private rangeParams(start: string, end: string): HttpParams {
