@@ -133,7 +133,7 @@ jobs:
             ]
           secrets: |
             [
-              {"name": "SANCTUARY_DB_PASSWORD", "valueFrom": "${{ secrets.API_PROD_DB_PASSWORD_ARN }}"}
+              {"name": "SANCTUARY_DB_PASSWORD", "valueFrom": "${{ secrets.API_PROD_DB_SECRET_ARN }}"}
             ]
           health-check-path: /health
           cpu: "512"
