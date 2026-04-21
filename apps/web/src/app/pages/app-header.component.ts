@@ -33,13 +33,16 @@ type AppLanguage = 'en' | 'es' | 'pl';
           (click)="navigate.emit(isAuthenticated() ? 'me' : 'auth')"
         >
           <span class="tab-icon">{{ isAuthenticated() ? '●' : '◉' }}</span>
-          <span>
-            {{
-              isAuthenticated()
-                ? t('Me', 'Yo', 'Ja')
-                : t('Login / Register', 'Entrar / Registro', 'Login / Rejestracja')
-            }}
-          </span>
+          @if (isAuthenticated()) {
+            <span class="tab-label">{{ t('Me', 'Yo', 'Ja') }}</span>
+          } @else {
+            <span class="tab-label tab-label--desktop">
+              {{ t('Login / Register', 'Entrar / Registro', 'Login / Rejestracja') }}
+            </span>
+            <span class="tab-label tab-label--mobile">
+              {{ t('Login', 'Entrar', 'Login') }}
+            </span>
+          }
         </button>
       </div>
 
