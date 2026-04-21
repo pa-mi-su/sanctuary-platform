@@ -15,12 +15,16 @@ public record UserProfileDto(
     int favoriteNovenaCount,
     int favoritePrayerCount,
     int activeNovenaCount,
-    int completedNovenaCount
+    int completedNovenaCount,
+    int currentStreakDays,
+    int longestStreakDays,
+    java.time.LocalDate lastActiveDate
 ) {
     public static UserProfileDto from(
         UserAccountDto account,
         UserPreferenceDto preferences,
-        UserProfileCountsDto counts
+        UserProfileCountsDto counts,
+        UserStreakSummaryDto streakSummary
     ) {
         return new UserProfileDto(
             account.id().toString(),
@@ -37,7 +41,10 @@ public record UserProfileDto(
             counts.favoriteNovenaCount(),
             counts.favoritePrayerCount(),
             counts.activeNovenaCount(),
-            counts.completedNovenaCount()
+            counts.completedNovenaCount(),
+            streakSummary.currentStreakDays(),
+            streakSummary.longestStreakDays(),
+            streakSummary.lastActiveDate()
         );
     }
 }

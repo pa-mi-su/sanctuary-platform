@@ -73,9 +73,9 @@ type AuthMode = 'login' | 'register';
             <p class="configuration-copy">
               {{
                 t(
-                  'Cognito is ready to connect here. Add the user pool domain and app client config to enable live login.',
-                  'Cognito está listo para conectarse aquí. Agrega el dominio del user pool y el cliente de la app para activar el acceso real.',
-                  'Cognito jest gotowe do podlaczenia tutaj. Dodaj domene user pool i klienta aplikacji, aby wlaczyc logowanie.'
+                  'This environment does not have live account login enabled yet.',
+                  'Este entorno todavía no tiene activado el acceso real de cuenta.',
+                  'To srodowisko nie ma jeszcze wlaczonego prawdziwego logowania konta.'
                 )
               }}
             </p>
@@ -88,9 +88,9 @@ type AuthMode = 'login' | 'register';
           <p class="legal-copy">
             {{
               t(
-                'Account identity will be connected to Cognito next; this page is the production-ready shell for that flow.',
-                'La identidad de cuenta se conectará a Cognito después; esta página es la estructura lista para producción de ese flujo.',
-                'Tozsamosc konta zostanie nastepnie podlaczona do Cognito; ta strona jest gotowa baza tego przeplywu.'
+                'Sanctuary uses secure Hosted UI authentication so your prayer progress and favorites can follow you across devices.',
+                'Sanctuary usa autenticación segura con Hosted UI para que tu progreso de oración y favoritos te sigan entre dispositivos.',
+                'Sanctuary uzywa bezpiecznego logowania Hosted UI, aby postepy modlitwy i ulubione mogly podrozowac z toba miedzy urzadzeniami.'
               )
             }}
           </p>

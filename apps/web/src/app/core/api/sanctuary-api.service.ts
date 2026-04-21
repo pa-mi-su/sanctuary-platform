@@ -108,6 +108,18 @@ export interface UserProfile {
   favoritePrayerCount?: number;
   activeNovenaCount?: number;
   completedNovenaCount?: number;
+  currentStreakDays?: number;
+  longestStreakDays?: number;
+  lastActiveDate?: string | null;
+}
+
+export interface UserPreferencesUpdateRequest {
+  preferredLanguage: 'en' | 'es' | 'pl';
+  timeZoneId: string;
+  novenaRemindersEnabled: boolean;
+  feastRemindersEnabled: boolean;
+  emailUpdatesEnabled: boolean;
+  onboardingCompleted: boolean;
 }
 
 export interface UserFavorite {
@@ -225,6 +237,10 @@ export class SanctuaryApiService {
 
   getMe(): Observable<UserProfile> {
     return this.http.get<UserProfile>(`${this.apiBaseUrl}/me`);
+  }
+
+  updateMePreferences(request: UserPreferencesUpdateRequest): Observable<UserProfile> {
+    return this.http.put<UserProfile>(`${this.apiBaseUrl}/me/preferences`, request);
   }
 
   listFavorites(): Observable<UserFavorite[]> {

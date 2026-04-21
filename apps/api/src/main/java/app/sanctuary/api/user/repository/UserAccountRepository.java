@@ -92,6 +92,39 @@ public class UserAccountRepository {
         ).stream().findFirst();
     }
 
+    public UserAccountDto updatePreferredLanguage(UUID userId, String preferredLanguage) {
+        return jdbcTemplate.queryForObject(
+            """
+                UPDATE users
+                SET
+                    preferred_language = ?,
+                    updated_at = NOW()
+                WHERE id = ?
+                RETURNING
+                    id,
+                    cognito_sub,
+                    email,
+                    display_name,
+                    preferred_language,
+                    avatar_url,
+                    created_at,
+                    updated_at
+                """,
+            (rs, rowNum) -> new UserAccountDto(
+                rs.getObject("id", UUID.class),
+                rs.getString("cognito_sub"),
+                rs.getString("email"),
+                rs.getString("display_name"),
+                rs.getString("preferred_language"),
+                rs.getString("avatar_url"),
+                rs.getObject("created_at", java.time.OffsetDateTime.class),
+                rs.getObject("updated_at", java.time.OffsetDateTime.class)
+            ),
+            preferredLanguage,
+            userId
+        );
+    }
+
     private String emptyToNull(String value) {
         return value == null || value.isBlank() ? null : value;
     }

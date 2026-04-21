@@ -16,6 +16,7 @@ import {
   UserFavorite,
   UserNovenaCommitment,
   UserNovenaCommitmentRequest,
+  UserPreferencesUpdateRequest,
   UserProfile,
 } from '../api/sanctuary-api.service';
 import { SanctuaryAuthService } from '../auth/sanctuary-auth.service';
@@ -68,11 +69,16 @@ export class AppShellFacade {
   readonly localNovenaProgress = signal<Record<string, LocalNovenaProgress>>(this.loadLocalNovenaProgress());
   readonly favoriteOverrides = signal<Record<string, boolean>>({});
   readonly completedNovenaTitle = signal<string | null>(null);
+  readonly savePreferencesPending = signal(false);
+  readonly savePreferencesMessage = signal<string | null>(null);
+  readonly savePreferencesError = signal(false);
 
   readonly liturgicalLoadFailed = signal(false);
   readonly saintsLoadFailed = signal(false);
   readonly novenasLoadFailed = signal(false);
   readonly prayersLoadFailed = signal(false);
+  private readonly userProfileReloadToken = signal(0);
+  private readonly userProfileOverride = signal<UserProfile | null>(null);
 
   readonly liturgicalRange = toSignal(
     combineLatest([
@@ -235,13 +241,14 @@ export class AppShellFacade {
     { initialValue: null },
   );
 
-  readonly userProfile = toSignal(
-    toObservable(this.authState).pipe(
-      switchMap((authState) => authState.status === 'authenticated' ? this.api.getMe() : of<UserProfile | null>(null)),
+  readonly userProfileResponse = toSignal(
+    combineLatest([toObservable(this.authState), toObservable(this.userProfileReloadToken)]).pipe(
+      switchMap(([authState]) => authState.status === 'authenticated' ? this.api.getMe() : of<UserProfile | null>(null)),
       catchError(() => of<UserProfile | null>(null)),
     ),
     { initialValue: null },
   );
+  readonly userProfile = computed(() => this.userProfileOverride() ?? this.userProfileResponse());
 
   readonly userFavorites = toSignal(
     toObservable(this.authState).pipe(
@@ -384,6 +391,7 @@ export class AppShellFacade {
   }
 
   openAuth(): void {
+    this.savePreferencesMessage.set(null);
     this.setTab('auth');
   }
 
@@ -396,6 +404,9 @@ export class AppShellFacade {
   }
 
   logout(): void {
+    this.userProfileOverride.set(null);
+    this.savePreferencesMessage.set(null);
+    this.savePreferencesError.set(false);
     this.auth.logout();
     if (this.currentTab() === 'me') {
       this.setTab('auth');
@@ -414,6 +425,43 @@ export class AppShellFacade {
   setLanguage(language: AppLanguage): void {
     this.language.set(language);
     this.clearErrors();
+  }
+
+  saveUserPreferences(request: UserPreferencesUpdateRequest): void {
+    if (!this.isAuthenticated()) {
+      return;
+    }
+
+    this.savePreferencesPending.set(true);
+    this.savePreferencesMessage.set(null);
+    this.savePreferencesError.set(false);
+
+    this.api.updateMePreferences(request).subscribe({
+      next: (profile) => {
+        this.userProfileOverride.set(profile);
+        this.language.set(profile.preferredLanguage ?? request.preferredLanguage);
+        this.savePreferencesPending.set(false);
+        this.savePreferencesError.set(false);
+        this.savePreferencesMessage.set(
+          this.translate(
+            'Settings saved.',
+            'Configuración guardada.',
+            'Ustawienia zapisane.'
+          )
+        );
+      },
+      error: () => {
+        this.savePreferencesPending.set(false);
+        this.savePreferencesError.set(true);
+        this.savePreferencesMessage.set(
+          this.translate(
+            'We could not save your settings right now.',
+            'No pudimos guardar tu configuración en este momento.',
+            'Nie mozna teraz zapisac ustawien.'
+          )
+        );
+      },
+    });
   }
 
   isEnglish(): boolean {

@@ -45,9 +45,9 @@ Default local file:
 
 ```js
 window.SANCTUARY_AUTH_CONFIG = {
-  enabled: false,
-  cognitoDomain: "",
-  clientId: "",
+  enabled: true,
+  cognitoDomain: "https://sanctuary-160885294528-prod.auth.us-east-1.amazoncognito.com",
+  clientId: "7e3anthnuctm8p9nqck6kesjm9",
   redirectUri: window.location.origin,
   logoutUri: window.location.origin,
   scopes: ["openid", "email", "profile"]
@@ -91,11 +91,25 @@ Use a public SPA app client:
 
 ## Data Model
 
-User identity is keyed by the Cognito JWT `sub` claim.
+User identity is authenticated by Cognito, then materialized into Sanctuary-owned profile records.
 
-Existing tables:
+Current application tables:
 
+- `users`
+- `user_preferences`
 - `user_favorites`
 - `user_novena_commitments`
+- `user_activity_events`
+
+Sanctuary now uses an internal `users.id` UUID for long-term application identity.
+The Cognito JWT `sub` is stored in `users.cognito_sub` and used only to upsert/load the local account.
+
+This gives the app room for:
+
+- synced profile settings
+- reminder preferences
+- streaks and activity history
+- favorites and progress across devices
+- future profile and subscription features without rekeying user data again
 
 Flyway remains schema-only. User progress is created by authenticated API calls at runtime.

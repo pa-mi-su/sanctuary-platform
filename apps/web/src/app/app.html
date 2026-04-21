@@ -213,10 +213,15 @@
       <app-me-page
         [currentLanguage]="facade.language()"
         [userName]="facade.currentUserName()"
+        [profile]="facade.userProfile()"
         [activeNovenaCount]="facade.activeNovenaCommitmentCount()"
         [favoriteNovenaCount]="facade.favoriteNovenaCount()"
         [favoriteSaintCount]="facade.favoriteSaintCount()"
+        [savePending]="facade.savePreferencesPending()"
+        [saveMessage]="facade.savePreferencesMessage()"
+        [saveError]="facade.savePreferencesError()"
         (logout)="facade.logout()"
+        (savePreferences)="facade.saveUserPreferences($event)"
       />
     }
   </main>

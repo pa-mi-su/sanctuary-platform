@@ -27,4 +27,8 @@ public class UserAccountService {
             currentUser.avatarUrl()
         );
     }
+
+    public UserAccountDto updatePreferredLanguage(java.util.UUID userId, String preferredLanguage) {
+        return repository.updatePreferredLanguage(userId, preferredLanguage);
+    }
 }
