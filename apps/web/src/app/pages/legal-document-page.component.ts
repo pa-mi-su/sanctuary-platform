@@ -4,23 +4,23 @@ type LegalDocumentType = 'support' | 'privacy';
 type AppLanguage = 'en' | 'es' | 'pl';
 
 @Component({
-  selector: 'app-legal-document-modal',
+  selector: 'app-legal-document-page',
   standalone: true,
-  styleUrl: './legal-document-modal.component.scss',
+  styleUrl: './legal-document-page.component.scss',
   template: `
-    <div class="modal-backdrop" (click)="close.emit()"></div>
-    <section class="document-modal glass-card" [attr.aria-label]="title()" role="dialog" aria-modal="true">
+    <section class="screen-card document-page glass-card">
+      <button class="back-button" type="button" (click)="back.emit()">
+        {{ t('Back to About', 'Volver a Acerca de', 'Wroc do O aplikacji') }}
+      </button>
+
       <div class="document-header">
-        <div class="document-header__copy">
-          <p class="document-eyebrow">Sanctuary</p>
-          <h2>{{ title() }}</h2>
-          @if (type() === 'privacy') {
-            <p class="document-effective">
-              {{ t('Effective date: April 13, 2026', 'Fecha de vigencia: 13 de abril de 2026', 'Data wejscia w zycie: 13 kwietnia 2026') }}
-            </p>
-          }
-        </div>
-        <button class="close-button" type="button" (click)="close.emit()">×</button>
+        <p class="eyebrow">Sanctuary</p>
+        <h2>{{ title() }}</h2>
+        @if (type() === 'privacy') {
+          <p class="document-effective">
+            {{ t('Effective date: April 13, 2026', 'Fecha de vigencia: 13 de abril de 2026', 'Data wejscia w zycie: 13 kwietnia 2026') }}
+          </p>
+        }
       </div>
 
       @if (type() === 'support') {
@@ -43,7 +43,7 @@ type AppLanguage = 'en' | 'es' | 'pl';
                 t(
                   'Please include your device type, browser or platform, and a short description of the issue so we can help as quickly as possible.',
                   'Incluye el tipo de dispositivo, el navegador o la plataforma y una breve descripción del problema para que podamos ayudarte lo antes posible.',
-                  'Podaj typ urządzenia, przeglądarkę lub platformę oraz krótki opis problemu, abyśmy mogli pomóc tak szybko, jak to możliwe.'
+                  'Podaj typ urzadzenia, przegladarke lub platforme oraz krotki opis problemu, abysmy mogli pomoc jak najszybciej.'
                 )
               }}
             </p>
@@ -138,7 +138,7 @@ type AppLanguage = 'en' | 'es' | 'pl';
                 t(
                   'You can deny location and notification permissions and still use the core app experience.',
                   'Puedes rechazar los permisos de ubicación y notificaciones y seguir usando la experiencia principal de la app.',
-                  'Możesz odmowic dostepu do lokalizacji i powiadomien, a mimo to nadal korzystac z podstawowej funkcjonalnosci aplikacji.'
+                  'Mozesz odmowic dostepu do lokalizacji i powiadomien, a mimo to nadal korzystac z podstawowej funkcjonalnosci aplikacji.'
                 )
               }}
             </p>
@@ -154,25 +154,21 @@ type AppLanguage = 'en' | 'es' | 'pl';
         </div>
       }
 
-      <div class="document-actions">
-        <a class="document-email" href="mailto:info@mydailysanctuary.com">
-          {{ t('Email Support', 'Escribir a soporte', 'Napisz do wsparcia') }}
-        </a>
-      </div>
+      <a class="primary-action" href="mailto:info@mydailysanctuary.com">
+        {{ t('Email Support', 'Escribir a soporte', 'Napisz do wsparcia') }}
+      </a>
     </section>
   `,
 })
-export class LegalDocumentModalComponent {
+export class LegalDocumentPageComponent {
   readonly type = input<LegalDocumentType>('support');
   readonly currentLanguage = input<AppLanguage>('en');
-  readonly close = output<void>();
+  readonly back = output<void>();
 
   protected title(): string {
-    if (this.type() === 'support') {
-      return this.t('Sanctuary Support', 'Soporte de Sanctuary', 'Wsparcie Sanctuary');
-    }
-
-    return this.t('Sanctuary Privacy Policy', 'Política de privacidad de Sanctuary', 'Polityka prywatnosci Sanctuary');
+    return this.type() === 'support'
+      ? this.t('Sanctuary Support', 'Soporte de Sanctuary', 'Wsparcie Sanctuary')
+      : this.t('Sanctuary Privacy Policy', 'Política de privacidad de Sanctuary', 'Polityka prywatnosci Sanctuary');
   }
 
   protected t(english: string, spanish: string, polish: string): string {

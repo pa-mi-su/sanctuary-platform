@@ -1,22 +1,5 @@
 <div class="page-bg"></div>
 
-@if (facade.showAbout()) {
-  <app-about-modal
-    [currentLanguage]="facade.language()"
-    (close)="facade.closeAbout()"
-    (openSupport)="facade.openLegalDocument('support')"
-    (openPrivacy)="facade.openLegalDocument('privacy')"
-  />
-}
-
-@if (facade.activeLegalDocument(); as activeLegalDocument) {
-  <app-legal-document-modal
-    [type]="activeLegalDocument"
-    [currentLanguage]="facade.language()"
-    (close)="facade.closeLegalDocument()"
-  />
-}
-
 @if (facade.saintDetail() || facade.prayerDetail() || facade.novenaDetail()) {
   <app-content-detail-modal
     [saintDetail]="facade.saintDetail()"
@@ -34,9 +17,10 @@
       [currentTab]="facade.currentTab()"
       [isEnglish]="facade.isEnglish()"
       [currentLanguage]="facade.language()"
+      [isAuthenticated]="facade.isAuthenticated()"
       (navigate)="facade.handlePrimaryNavigate($event)"
-      (openAbout)="facade.openAbout()"
       (selectLanguage)="facade.setLanguage($event)"
+      (logout)="facade.logout()"
     />
 
     @if (facade.currentTab() === 'home') {
@@ -63,6 +47,30 @@
         (goHome)="facade.setTab('home')"
         (updateQuery)="facade.updatePrayerQuery($event)"
         (openPrayer)="facade.openPrayerDetail($event)"
+      />
+    }
+
+    @if (facade.currentTab() === 'auth') {
+      <app-auth-page
+        [currentLanguage]="facade.language()"
+        (login)="facade.loginDemoUser()"
+        (register)="facade.registerDemoUser()"
+      />
+    }
+
+    @if (facade.currentTab() === 'about' && !facade.activeLegalDocument()) {
+      <app-about-page
+        [currentLanguage]="facade.language()"
+        (openSupport)="facade.openLegalDocument('support')"
+        (openPrivacy)="facade.openLegalDocument('privacy')"
+      />
+    }
+
+    @if (facade.currentTab() === 'about' && facade.activeLegalDocument(); as activeLegalDocument) {
+      <app-legal-document-page
+        [type]="activeLegalDocument"
+        [currentLanguage]="facade.language()"
+        (back)="facade.closeLegalDocument()"
       />
     }
 
@@ -181,9 +189,11 @@
     }
 
     @if (facade.currentTab() === 'me') {
-      <app-me-page />
+      <app-me-page
+        [currentLanguage]="facade.language()"
+        [userName]="facade.currentUserName()"
+        (logout)="facade.logout()"
+      />
     }
-
-    <app-mobile-nav [currentTab]="facade.currentTab()" (navigate)="facade.handlePrimaryNavigate($event)" />
   </main>
 </div>

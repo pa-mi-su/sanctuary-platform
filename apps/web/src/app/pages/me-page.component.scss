@@ -31,6 +31,10 @@
 
 .me-header {
   margin-bottom: 18px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
 }
 
 .me-header h2 {
@@ -38,6 +42,28 @@
   font-size: 2.1rem;
   font-weight: 700;
   letter-spacing: -0.04em;
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  color: rgba(142, 224, 242, 0.82);
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.logout-button {
+  min-height: 44px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 16px;
+  padding: 0 16px;
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.1);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 800;
+  flex-shrink: 0;
 }
 
 .me-header p,
@@ -73,5 +99,15 @@
 @media (min-width: 900px) {
   .list-stack {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .me-header {
+    display: grid;
+  }
+
+  .logout-button {
+    width: 100%;
   }
 }

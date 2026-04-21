@@ -88,8 +88,6 @@ export class HomePageComponent {
   readonly isEnglish = input<boolean>(true);
   readonly currentLanguage = input<AppLanguage>('en');
 
-  readonly openAbout = output<void>();
-  readonly toggleLanguage = output<void>();
   readonly openSaints = output<void>();
   readonly openNovenas = output<void>();
   readonly openPrayers = output<void>();

@@ -15,7 +15,7 @@ import {
   SanctuaryApiService,
 } from '../api/sanctuary-api.service';
 
-export type AppTab = 'home' | 'novenas' | 'liturgical' | 'saints' | 'prayers' | 'me';
+export type AppTab = 'home' | 'novenas' | 'liturgical' | 'saints' | 'prayers' | 'about' | 'auth' | 'me';
 export type CalendarView = 'day' | 'week' | 'month';
 export type SeasonKey = 'ADVENT' | 'CHRISTMAS' | 'LENT' | 'EASTER' | 'ORDINARY';
 export type CalendarCell = { date: string | null; dayNumber: number | null; label: string; seasonKey?: SeasonKey | null };
@@ -35,9 +35,10 @@ export class AppShellFacade {
   readonly novenasView = signal<CalendarView>('day');
   readonly saintsMode = signal<SaintsMode>('calendar');
   readonly novenasMode = signal<NovenasMode>('calendar');
-  readonly showAbout = signal(false);
   readonly activeLegalDocument = signal<LegalDocumentType | null>(null);
   readonly language = signal<AppLanguage>('en');
+  readonly isAuthenticated = signal(false);
+  readonly currentUserName = signal<string | null>(null);
   readonly selectedDate = signal(this.formatDateForApi(new Date()));
   readonly saintQuery = signal('');
   readonly prayerQuery = signal('');
@@ -230,7 +231,10 @@ export class AppShellFacade {
   readonly selectedNovenas = computed(() => this.novenasByDate().get(this.selectedDate())?.novenas ?? []);
 
   readonly selectedSaintHeadline = computed(() => this.selectedSaintGroup()?.saints[0] ?? null);
-  readonly selectedNovenaHeadline = computed(() => this.novenasByDate().get(this.selectedDate())?.startingNovena ?? null);
+  readonly selectedNovenaHeadline = computed(() => {
+    const selectedDay = this.novenasByDate().get(this.selectedDate());
+    return selectedDay?.startingNovena ?? this.featuredNovena(selectedDay?.novenas ?? []);
+  });
   readonly selectedNovenaDay = computed(() => {
     const detail = this.novenaDetail();
     if (!detail || detail.days.length === 0) {
@@ -298,21 +302,41 @@ export class AppShellFacade {
       return;
     }
 
+    if (tab === 'me' && !this.isAuthenticated()) {
+      this.openAuth();
+      return;
+    }
+
     this.setTab(tab);
   }
 
-  openAbout(): void {
-    this.activeLegalDocument.set(null);
-    this.showAbout.set(true);
+  openAuth(): void {
+    this.setTab('auth');
   }
 
-  closeAbout(): void {
-    this.showAbout.set(false);
+  loginDemoUser(): void {
+    this.isAuthenticated.set(true);
+    this.currentUserName.set(this.translate('Sanctuary pilgrim', 'Peregrino de Sanctuary', 'Pielgrzym Sanctuary'));
+    this.setTab('me');
+  }
+
+  registerDemoUser(): void {
+    this.isAuthenticated.set(true);
+    this.currentUserName.set(this.translate('Sanctuary pilgrim', 'Peregrino de Sanctuary', 'Pielgrzym Sanctuary'));
+    this.setTab('me');
+  }
+
+  logout(): void {
+    this.isAuthenticated.set(false);
+    this.currentUserName.set(null);
+    if (this.currentTab() === 'me') {
+      this.setTab('auth');
+    }
   }
 
   openLegalDocument(document: LegalDocumentType): void {
-    this.showAbout.set(false);
     this.activeLegalDocument.set(document);
+    this.setTab('about');
   }
 
   closeLegalDocument(): void {
@@ -324,30 +348,8 @@ export class AppShellFacade {
     this.clearErrors();
   }
 
-  toggleLanguage(): void {
-    this.language.update((current) => {
-      switch (current) {
-        case 'en':
-          return 'es';
-        case 'es':
-          return 'pl';
-        default:
-          return 'en';
-      }
-    });
-    this.clearErrors();
-  }
-
   isEnglish(): boolean {
     return this.language() === 'en';
-  }
-
-  currentLanguageLabel(): string {
-    return {
-      en: 'English',
-      es: 'Spanish',
-      pl: 'Polish',
-    }[this.language()];
   }
 
   setLiturgicalView(view: CalendarView): void {
