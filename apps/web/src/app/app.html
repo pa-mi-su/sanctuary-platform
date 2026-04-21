@@ -6,9 +6,27 @@
     [prayerDetail]="facade.prayerDetail()"
     [novenaDetail]="facade.novenaDetail()"
     [selectedNovenaDay]="facade.selectedNovenaDay()"
+    [novenaProgress]="facade.selectedNovenaProgress()"
+    [isSaintFavorite]="facade.selectedSaintIsFavorite()"
+    [isNovenaFavorite]="facade.selectedNovenaIsFavorite()"
     (close)="facade.closeDetailModal()"
     (selectNovenaDay)="facade.selectNovenaDay($event)"
+    (startNovena)="facade.startSelectedNovena()"
+    (stopNovena)="facade.stopSelectedNovena()"
+    (completeNovenaDay)="facade.completeSelectedNovenaDay()"
+    (toggleSaintFavorite)="facade.toggleSelectedSaintFavorite()"
+    (toggleNovenaFavorite)="facade.toggleSelectedNovenaFavorite()"
   />
+}
+
+@if (facade.completedNovenaTitle(); as completedNovenaTitle) {
+  <div class="completion-backdrop" (click)="facade.closeCompletionModal()"></div>
+  <section class="completion-modal glass-card" aria-label="Novena complete">
+    <p class="completion-icon">✦</p>
+    <h2>Congratulations</h2>
+    <p>You finished {{ completedNovenaTitle }}. Take a quiet moment of gratitude for completing this novena.</p>
+    <button type="button" (click)="facade.closeCompletionModal()">Amen</button>
+  </section>
 }
 
 <div class="app-shell">

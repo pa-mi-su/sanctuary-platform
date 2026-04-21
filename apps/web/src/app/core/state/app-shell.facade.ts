@@ -15,6 +15,7 @@ import {
   SanctuaryApiService,
   UserFavorite,
   UserNovenaCommitment,
+  UserNovenaCommitmentRequest,
   UserProfile,
 } from '../api/sanctuary-api.service';
 import { SanctuaryAuthService } from '../auth/sanctuary-auth.service';
@@ -27,6 +28,22 @@ export type SaintsMode = 'calendar' | 'list';
 export type NovenasMode = 'calendar' | 'list' | 'intentions';
 export type AppLanguage = 'en' | 'es' | 'pl';
 export type LegalDocumentType = 'support' | 'privacy';
+export interface LocalNovenaProgress {
+  novenaId: string;
+  startedAt: string;
+  currentDay: number;
+  completedDays: number[];
+  status: 'active' | 'paused' | 'completed';
+}
+
+type LocalFavoritesState = {
+  saints: string[];
+  novenas: string[];
+  prayers: string[];
+};
+
+const LOCAL_NOVENA_PROGRESS_KEY = 'sanctuary.localNovenaProgress';
+const LOCAL_FAVORITES_KEY = 'sanctuary.localFavorites';
 
 @Injectable({ providedIn: 'root' })
 export class AppShellFacade {
@@ -55,6 +72,10 @@ export class AppShellFacade {
   readonly selectedPrayerSlug = signal<string | null>(null);
   readonly selectedNovenaSlug = signal<string | null>(null);
   readonly selectedNovenaDayNumber = signal(1);
+  readonly localNovenaProgress = signal<Record<string, LocalNovenaProgress>>(this.loadLocalNovenaProgress());
+  readonly localFavorites = signal<LocalFavoritesState>(this.loadLocalFavorites());
+  readonly favoriteOverrides = signal<Record<string, boolean>>({});
+  readonly completedNovenaTitle = signal<string | null>(null);
 
   readonly liturgicalLoadFailed = signal(false);
   readonly saintsLoadFailed = signal(false);
@@ -246,9 +267,25 @@ export class AppShellFacade {
     { initialValue: [] },
   );
 
-  readonly favoriteNovenaCount = computed(() => this.userFavorites().filter((favorite) => favorite.itemType === 'novena').length);
-  readonly favoriteSaintCount = computed(() => this.userFavorites().filter((favorite) => favorite.itemType === 'saint').length);
-  readonly activeNovenaCommitmentCount = computed(() => this.userNovenaCommitments().filter((commitment) => commitment.status === 'active').length);
+  readonly favoriteNovenaCount = computed(() => this.favoriteCount('novena'));
+  readonly favoriteSaintCount = computed(() => this.favoriteCount('saint'));
+  readonly activeNovenaCommitmentCount = computed(() => {
+    const serverCount = this.userNovenaCommitments().filter((commitment) => commitment.status === 'active').length;
+    const localCount = Object.values(this.localNovenaProgress()).filter((commitment) => commitment.status === 'active').length;
+    return Math.max(serverCount, localCount);
+  });
+  readonly selectedNovenaProgress = computed(() => {
+    const detail = this.novenaDetail();
+    return detail ? this.localNovenaProgress()[detail.id] ?? null : null;
+  });
+  readonly selectedSaintIsFavorite = computed(() => {
+    const saint = this.saintDetail();
+    return saint ? this.isFavorite('saint', saint.id) : false;
+  });
+  readonly selectedNovenaIsFavorite = computed(() => {
+    const novena = this.novenaDetail();
+    return novena ? this.isFavorite('novena', novena.id) : false;
+  });
 
   constructor() {
     void this.auth.completeRedirectIfPresent();
@@ -472,6 +509,88 @@ export class AppShellFacade {
 
   selectNovenaDay(dayNumber: number): void {
     this.selectedNovenaDayNumber.set(dayNumber);
+  }
+
+  startSelectedNovena(): void {
+    const detail = this.novenaDetail();
+    if (!detail) {
+      return;
+    }
+
+    const progress: LocalNovenaProgress = {
+      novenaId: detail.id,
+      startedAt: new Date().toISOString(),
+      currentDay: 1,
+      completedDays: [],
+      status: 'active',
+    };
+    this.saveLocalNovenaProgress(progress);
+    this.selectedNovenaDayNumber.set(1);
+    this.syncNovenaProgress(progress);
+  }
+
+  stopSelectedNovena(): void {
+    const detail = this.novenaDetail();
+    if (!detail) {
+      return;
+    }
+
+    this.localNovenaProgress.update((current) => {
+      const next = { ...current };
+      delete next[detail.id];
+      this.persistLocalNovenaProgress(next);
+      return next;
+    });
+    if (this.isAuthenticated()) {
+      this.api.deleteNovenaCommitment(detail.id).subscribe({ error: () => undefined });
+    }
+  }
+
+  completeSelectedNovenaDay(): void {
+    const detail = this.novenaDetail();
+    const selectedDay = this.selectedNovenaDay();
+    const existing = this.selectedNovenaProgress();
+    if (!detail || !selectedDay || !existing) {
+      return;
+    }
+
+    const completedDays = Array.from(new Set([...existing.completedDays, selectedDay.dayNumber])).sort((left, right) => left - right);
+    const isComplete = completedDays.length >= detail.days.length;
+    const nextDay = isComplete ? selectedDay.dayNumber : Math.min(selectedDay.dayNumber + 1, detail.days.length);
+    const progress: LocalNovenaProgress = {
+      ...existing,
+      currentDay: nextDay,
+      completedDays,
+      status: isComplete ? 'completed' : 'active',
+    };
+
+    this.saveLocalNovenaProgress(progress);
+    this.syncNovenaProgress(progress);
+
+    if (isComplete) {
+      this.completedNovenaTitle.set(detail.title);
+      return;
+    }
+
+    this.selectedNovenaDayNumber.set(nextDay);
+  }
+
+  closeCompletionModal(): void {
+    this.completedNovenaTitle.set(null);
+  }
+
+  toggleSelectedSaintFavorite(): void {
+    const saint = this.saintDetail();
+    if (saint) {
+      this.toggleFavorite('saint', saint.id);
+    }
+  }
+
+  toggleSelectedNovenaFavorite(): void {
+    const novena = this.novenaDetail();
+    if (novena) {
+      this.toggleFavorite('novena', novena.id);
+    }
   }
 
   closeDetailModal(): void {
@@ -746,6 +865,118 @@ export class AppShellFacade {
     this.saintsLoadFailed.set(false);
     this.novenasLoadFailed.set(false);
     this.prayersLoadFailed.set(false);
+  }
+
+  private isFavorite(itemType: 'saint' | 'novena' | 'prayer', itemId: string): boolean {
+    const override = this.favoriteOverrides()[this.favoriteKey(itemType, itemId)];
+    if (override !== undefined) {
+      return override;
+    }
+
+    const localKey = itemType === 'saint' ? 'saints' : itemType === 'novena' ? 'novenas' : 'prayers';
+    return this.localFavorites()[localKey].includes(itemId)
+      || this.userFavorites().some((favorite) => favorite.itemType === itemType && favorite.itemId === itemId);
+  }
+
+  private toggleFavorite(itemType: 'saint' | 'novena' | 'prayer', itemId: string): void {
+    const localKey = itemType === 'saint' ? 'saints' : itemType === 'novena' ? 'novenas' : 'prayers';
+    const currentlyFavorite = this.isFavorite(itemType, itemId);
+    this.favoriteOverrides.update((current) => ({ ...current, [this.favoriteKey(itemType, itemId)]: !currentlyFavorite }));
+    this.localFavorites.update((current) => {
+      const values = new Set(current[localKey]);
+      if (currentlyFavorite) {
+        values.delete(itemId);
+      } else {
+        values.add(itemId);
+      }
+      const next = { ...current, [localKey]: Array.from(values) };
+      localStorage.setItem(LOCAL_FAVORITES_KEY, JSON.stringify(next));
+      return next;
+    });
+
+    if (!this.isAuthenticated()) {
+      return;
+    }
+
+    const request = currentlyFavorite
+      ? this.api.deleteFavorite(itemType, itemId)
+      : this.api.saveFavorite(itemType, itemId);
+    request.subscribe({ error: () => undefined });
+  }
+
+  private favoriteCount(itemType: 'saint' | 'novena' | 'prayer'): number {
+    const localKey = itemType === 'saint' ? 'saints' : itemType === 'novena' ? 'novenas' : 'prayers';
+    const ids = new Set([
+      ...this.localFavorites()[localKey],
+      ...this.userFavorites().filter((favorite) => favorite.itemType === itemType).map((favorite) => favorite.itemId),
+    ]);
+    for (const [key, value] of Object.entries(this.favoriteOverrides())) {
+      const [type, id] = key.split(':');
+      if (type !== itemType || !id) {
+        continue;
+      }
+      if (value) {
+        ids.add(id);
+      } else {
+        ids.delete(id);
+      }
+    }
+    return ids.size;
+  }
+
+  private favoriteKey(itemType: 'saint' | 'novena' | 'prayer', itemId: string): string {
+    return `${itemType}:${itemId}`;
+  }
+
+  private saveLocalNovenaProgress(progress: LocalNovenaProgress): void {
+    this.localNovenaProgress.update((current) => {
+      const next = { ...current, [progress.novenaId]: progress };
+      this.persistLocalNovenaProgress(next);
+      return next;
+    });
+  }
+
+  private syncNovenaProgress(progress: LocalNovenaProgress): void {
+    if (!this.isAuthenticated()) {
+      return;
+    }
+
+    const request: UserNovenaCommitmentRequest = {
+      startedAt: progress.startedAt,
+      currentDay: progress.currentDay,
+      completedDays: progress.completedDays,
+      reminderEnabled: false,
+      reminderMorningHour: null,
+      reminderEveningHour: null,
+      reminderTimeZoneId: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+      status: progress.status,
+    };
+    this.api.saveNovenaCommitment(progress.novenaId, request).subscribe({ error: () => undefined });
+  }
+
+  private loadLocalNovenaProgress(): Record<string, LocalNovenaProgress> {
+    try {
+      return JSON.parse(localStorage.getItem(LOCAL_NOVENA_PROGRESS_KEY) ?? '{}') as Record<string, LocalNovenaProgress>;
+    } catch {
+      return {};
+    }
+  }
+
+  private persistLocalNovenaProgress(progress: Record<string, LocalNovenaProgress>): void {
+    localStorage.setItem(LOCAL_NOVENA_PROGRESS_KEY, JSON.stringify(progress));
+  }
+
+  private loadLocalFavorites(): LocalFavoritesState {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(LOCAL_FAVORITES_KEY) ?? '{}') as Partial<LocalFavoritesState>;
+      return {
+        saints: parsed.saints ?? [],
+        novenas: parsed.novenas ?? [],
+        prayers: parsed.prayers ?? [],
+      };
+    } catch {
+      return { saints: [], novenas: [], prayers: [] };
+    }
   }
 
   private getDateRange(date: string, view: CalendarView): { start: string; end: string } {

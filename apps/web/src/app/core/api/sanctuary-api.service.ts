@@ -117,6 +117,17 @@ export interface UserNovenaCommitment {
   updatedAt: string;
 }
 
+export interface UserNovenaCommitmentRequest {
+  startedAt: string;
+  currentDay: number;
+  completedDays: number[];
+  reminderEnabled: boolean;
+  reminderMorningHour: number | null;
+  reminderEveningHour: number | null;
+  reminderTimeZoneId: string;
+  status: 'active' | 'paused' | 'completed';
+}
+
 @Injectable({ providedIn: 'root' })
 export class SanctuaryApiService {
   private readonly http = inject(HttpClient);
@@ -210,6 +221,22 @@ export class SanctuaryApiService {
 
   listNovenaCommitments(): Observable<UserNovenaCommitment[]> {
     return this.http.get<UserNovenaCommitment[]>(`${this.apiBaseUrl}/me/novena-commitments`);
+  }
+
+  saveFavorite(itemType: 'saint' | 'novena' | 'prayer', itemId: string): Observable<void> {
+    return this.http.put<void>(`${this.apiBaseUrl}/me/favorites/${itemType}/${itemId}`, null);
+  }
+
+  deleteFavorite(itemType: 'saint' | 'novena' | 'prayer', itemId: string): Observable<void> {
+    return this.http.delete<void>(`${this.apiBaseUrl}/me/favorites/${itemType}/${itemId}`);
+  }
+
+  saveNovenaCommitment(novenaId: string, request: UserNovenaCommitmentRequest): Observable<UserNovenaCommitment> {
+    return this.http.put<UserNovenaCommitment>(`${this.apiBaseUrl}/me/novena-commitments/${novenaId}`, request);
+  }
+
+  deleteNovenaCommitment(novenaId: string): Observable<void> {
+    return this.http.delete<void>(`${this.apiBaseUrl}/me/novena-commitments/${novenaId}`);
   }
 
   private rangeParams(start: string, end: string): HttpParams {
