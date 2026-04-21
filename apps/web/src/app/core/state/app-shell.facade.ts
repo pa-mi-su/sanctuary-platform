@@ -36,14 +36,7 @@ export interface LocalNovenaProgress {
   status: 'active' | 'paused' | 'completed';
 }
 
-type LocalFavoritesState = {
-  saints: string[];
-  novenas: string[];
-  prayers: string[];
-};
-
 const LOCAL_NOVENA_PROGRESS_KEY = 'sanctuary.localNovenaProgress';
-const LOCAL_FAVORITES_KEY = 'sanctuary.localFavorites';
 
 @Injectable({ providedIn: 'root' })
 export class AppShellFacade {
@@ -73,7 +66,6 @@ export class AppShellFacade {
   readonly selectedNovenaSlug = signal<string | null>(null);
   readonly selectedNovenaDayNumber = signal(1);
   readonly localNovenaProgress = signal<Record<string, LocalNovenaProgress>>(this.loadLocalNovenaProgress());
-  readonly localFavorites = signal<LocalFavoritesState>(this.loadLocalFavorites());
   readonly favoriteOverrides = signal<Record<string, boolean>>({});
   readonly completedNovenaTitle = signal<string | null>(null);
 
@@ -267,13 +259,13 @@ export class AppShellFacade {
     { initialValue: [] },
   );
 
-  readonly favoriteNovenaCount = computed(() => this.favoriteCount('novena'));
-  readonly favoriteSaintCount = computed(() => this.favoriteCount('saint'));
-  readonly activeNovenaCommitmentCount = computed(() => {
-    const serverCount = this.userNovenaCommitments().filter((commitment) => commitment.status === 'active').length;
-    const localCount = Object.values(this.localNovenaProgress()).filter((commitment) => commitment.status === 'active').length;
-    return Math.max(serverCount, localCount);
-  });
+  readonly favoriteNovenaCount = computed(() => this.isAuthenticated() ? this.favoriteCount('novena') : 0);
+  readonly favoriteSaintCount = computed(() => this.isAuthenticated() ? this.favoriteCount('saint') : 0);
+  readonly activeNovenaCommitmentCount = computed(() =>
+    this.isAuthenticated()
+      ? this.userNovenaCommitments().filter((commitment) => commitment.status === 'active').length
+      : 0
+  );
   readonly selectedNovenaProgress = computed(() => {
     const detail = this.novenaDetail();
     return detail ? this.localNovenaProgress()[detail.id] ?? null : null;
@@ -868,35 +860,25 @@ export class AppShellFacade {
   }
 
   private isFavorite(itemType: 'saint' | 'novena' | 'prayer', itemId: string): boolean {
+    if (!this.isAuthenticated()) {
+      return false;
+    }
+
     const override = this.favoriteOverrides()[this.favoriteKey(itemType, itemId)];
     if (override !== undefined) {
       return override;
     }
 
-    const localKey = itemType === 'saint' ? 'saints' : itemType === 'novena' ? 'novenas' : 'prayers';
-    return this.localFavorites()[localKey].includes(itemId)
-      || this.userFavorites().some((favorite) => favorite.itemType === itemType && favorite.itemId === itemId);
+    return this.userFavorites().some((favorite) => favorite.itemType === itemType && favorite.itemId === itemId);
   }
 
   private toggleFavorite(itemType: 'saint' | 'novena' | 'prayer', itemId: string): void {
-    const localKey = itemType === 'saint' ? 'saints' : itemType === 'novena' ? 'novenas' : 'prayers';
-    const currentlyFavorite = this.isFavorite(itemType, itemId);
-    this.favoriteOverrides.update((current) => ({ ...current, [this.favoriteKey(itemType, itemId)]: !currentlyFavorite }));
-    this.localFavorites.update((current) => {
-      const values = new Set(current[localKey]);
-      if (currentlyFavorite) {
-        values.delete(itemId);
-      } else {
-        values.add(itemId);
-      }
-      const next = { ...current, [localKey]: Array.from(values) };
-      localStorage.setItem(LOCAL_FAVORITES_KEY, JSON.stringify(next));
-      return next;
-    });
-
     if (!this.isAuthenticated()) {
       return;
     }
+
+    const currentlyFavorite = this.isFavorite(itemType, itemId);
+    this.favoriteOverrides.update((current) => ({ ...current, [this.favoriteKey(itemType, itemId)]: !currentlyFavorite }));
 
     const request = currentlyFavorite
       ? this.api.deleteFavorite(itemType, itemId)
@@ -905,11 +887,9 @@ export class AppShellFacade {
   }
 
   private favoriteCount(itemType: 'saint' | 'novena' | 'prayer'): number {
-    const localKey = itemType === 'saint' ? 'saints' : itemType === 'novena' ? 'novenas' : 'prayers';
-    const ids = new Set([
-      ...this.localFavorites()[localKey],
-      ...this.userFavorites().filter((favorite) => favorite.itemType === itemType).map((favorite) => favorite.itemId),
-    ]);
+    const ids = new Set(
+      this.userFavorites().filter((favorite) => favorite.itemType === itemType).map((favorite) => favorite.itemId),
+    );
     for (const [key, value] of Object.entries(this.favoriteOverrides())) {
       const [type, id] = key.split(':');
       if (type !== itemType || !id) {
@@ -964,19 +944,6 @@ export class AppShellFacade {
 
   private persistLocalNovenaProgress(progress: Record<string, LocalNovenaProgress>): void {
     localStorage.setItem(LOCAL_NOVENA_PROGRESS_KEY, JSON.stringify(progress));
-  }
-
-  private loadLocalFavorites(): LocalFavoritesState {
-    try {
-      const parsed = JSON.parse(localStorage.getItem(LOCAL_FAVORITES_KEY) ?? '{}') as Partial<LocalFavoritesState>;
-      return {
-        saints: parsed.saints ?? [],
-        novenas: parsed.novenas ?? [],
-        prayers: parsed.prayers ?? [],
-      };
-    } catch {
-      return { saints: [], novenas: [], prayers: [] };
-    }
   }
 
   private getDateRange(date: string, view: CalendarView): { start: string; end: string } {

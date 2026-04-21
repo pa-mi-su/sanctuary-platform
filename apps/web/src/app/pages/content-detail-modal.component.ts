@@ -31,11 +31,13 @@ interface NovenaProgress {
 
       @if (saintDetail()) {
         <div class="detail-stack">
-          <div class="detail-actions">
-            <button class="favorite-button" [class.active]="isSaintFavorite()" type="button" (click)="toggleSaintFavorite.emit()">
-              {{ isSaintFavorite() ? 'Favorited Saint' : 'Favorite Saint' }}
-            </button>
-          </div>
+          @if (isAuthenticated()) {
+            <div class="detail-actions">
+              <button class="favorite-button" [class.active]="isSaintFavorite()" type="button" (click)="toggleSaintFavorite.emit()">
+                {{ isSaintFavorite() ? 'Favorited Saint' : 'Favorite Saint' }}
+              </button>
+            </div>
+          }
           <div class="detail-hero">
             <div class="detail-image" [style.background-image]="imageStyle(saintDetail()!.imageUrl)"></div>
             <div class="detail-meta">
@@ -93,9 +95,11 @@ interface NovenaProgress {
       @if (novenaDetail()) {
         <div class="detail-stack">
           <div class="detail-actions">
-            <button class="favorite-button" [class.active]="isNovenaFavorite()" type="button" (click)="toggleNovenaFavorite.emit()">
-              {{ isNovenaFavorite() ? 'Favorited Novena' : 'Favorite Novena' }}
-            </button>
+            @if (isAuthenticated()) {
+              <button class="favorite-button" [class.active]="isNovenaFavorite()" type="button" (click)="toggleNovenaFavorite.emit()">
+                {{ isNovenaFavorite() ? 'Favorited Novena' : 'Favorite Novena' }}
+              </button>
+            }
             @if (!novenaProgress()) {
               <button class="primary-action" type="button" (click)="startNovena.emit()">Start Novena</button>
             } @else {
@@ -181,6 +185,7 @@ export class ContentDetailModalComponent {
   readonly novenaDetail = input<NovenaDetail | null>(null);
   readonly selectedNovenaDay = input<NovenaDayDetail | null>(null);
   readonly novenaProgress = input<NovenaProgress | null>(null);
+  readonly isAuthenticated = input<boolean>(false);
   readonly isSaintFavorite = input<boolean>(false);
   readonly isNovenaFavorite = input<boolean>(false);
 
