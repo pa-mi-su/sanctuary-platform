@@ -3,30 +3,48 @@ import { Component, input, output } from '@angular/core';
 type AppLanguage = 'en' | 'es' | 'pl';
 
 @Component({
-  selector: 'app-about-modal',
+  selector: 'app-about-page',
   standalone: true,
-  styleUrl: './about-modal.component.scss',
+  styleUrl: './about-page.component.scss',
   template: `
-    <div class="modal-backdrop" (click)="close.emit()"></div>
-    <section class="about-modal glass-card" [attr.aria-label]="t('About Sanctuary', 'Acerca de Sanctuary', 'O Sanctuary')">
-      <div class="about-header">
-        <button class="close-pill" type="button" (click)="close.emit()">
-          {{ t('Close', 'Cerrar', 'Zamknij') }}
-        </button>
+    <section class="screen-card about-screen glass-card">
+      <div class="about-hero">
+        <p class="eyebrow">Sanctuary</p>
+        <h2>{{ t('About Sanctuary', 'Acerca de Sanctuary', 'O Sanctuary') }}</h2>
+        <p>
+          {{
+            t(
+              'Sanctuary is a Catholic companion for prayer, daily readings, saints, liturgical living, and novenas.',
+              'Sanctuary es un acompañante católico para la oración, las lecturas diarias, los santos, la vida litúrgica y las novenas.',
+              'Sanctuary to katolicki towarzysz modlitwy, codziennych czytań, świętych, życia liturgicznego i nowenn.'
+            )
+          }}
+        </p>
       </div>
 
-      <div class="about-stack">
-        <section class="about-card">
-          <h2>Sanctuary</h2>
-          <p>
-            {{
-              t(
-                'Sanctuary is a Catholic companion for prayer, daily readings, saints, liturgical living, and novenas.',
-                'Sanctuary es un acompañante católico para la oración, las lecturas diarias, los santos, la vida litúrgica y las novenas.',
-                'Sanctuary to katolicki towarzysz modlitwy, codziennych czytań, świętych, życia liturgicznego i nowenn.'
-              )
-            }}
-          </p>
+      <div class="about-grid">
+        <article class="download-card glass-subtle">
+          <div>
+            <p class="eyebrow">{{ t('iPhone app', 'App para iPhone', 'Aplikacja na iPhone') }}</p>
+            <h3>{{ t('Download Sanctuary on the App Store', 'Descarga Sanctuary en App Store', 'Pobierz Sanctuary w App Store') }}</h3>
+            <p>
+              {{
+                t(
+                  'Take the same prayer companion with you on iPhone for novenas, saints, liturgical browsing, and reminders.',
+                  'Lleva contigo el mismo acompañante de oración en iPhone para novenas, santos, calendario litúrgico y recordatorios.',
+                  'Zabierz tego samego towarzysza modlitwy na iPhone: nowenny, swieci, kalendarz liturgiczny i przypomnienia.'
+                )
+              }}
+            </p>
+          </div>
+          <a class="app-store-action" [href]="appStoreUrl" target="_blank" rel="noreferrer">
+            <span>{{ t('Download on the', 'Descargar en', 'Pobierz w') }}</span>
+            <strong>{{ t('App Store', 'App Store', 'App Store') }}</strong>
+          </a>
+        </article>
+
+        <article class="about-card glass-subtle">
+          <h3>{{ t('What Sanctuary includes', 'Qué incluye Sanctuary', 'Co zawiera Sanctuary') }}</h3>
           <ul>
             <li>
               {{
@@ -56,10 +74,10 @@ type AppLanguage = 'en' | 'es' | 'pl';
               }}
             </li>
           </ul>
-        </section>
+        </article>
 
-        <section class="about-card">
-          <h2>{{ t('References', 'Referencias', 'Źródła') }}</h2>
+        <article class="about-card glass-subtle">
+          <h3>{{ t('References', 'Referencias', 'Źródła') }}</h3>
           <p>
             {{
               t(
@@ -69,22 +87,16 @@ type AppLanguage = 'en' | 'es' | 'pl';
               )
             }}
           </p>
-          <ul>
-            <li>{{ t('USCCB (daily readings)', 'USCCB (lecturas diarias)', 'USCCB (codzienne czytania)') }}</li>
-            <li>Wikipedia</li>
-          </ul>
-          <div class="about-actions">
-            <a class="about-secondary-button" href="https://bible.usccb.org/daily-bible-reading" target="_blank" rel="noreferrer">
+          <div class="action-stack">
+            <a class="secondary-action" href="https://bible.usccb.org/daily-bible-reading" target="_blank" rel="noreferrer">
               {{ t('USCCB Daily Bible Reading', 'Lecturas diarias USCCB', 'Codzienne czytania USCCB') }}
             </a>
-            <a class="about-secondary-button" href="https://www.wikipedia.org/" target="_blank" rel="noreferrer">
-              Wikipedia
-            </a>
+            <a class="secondary-action" href="https://www.wikipedia.org/" target="_blank" rel="noreferrer">Wikipedia</a>
           </div>
-        </section>
+        </article>
 
-        <section class="about-card">
-          <h2>{{ t('Contact & feedback', 'Contacto y comentarios', 'Kontakt i opinie') }}</h2>
+        <article class="about-card about-card--wide glass-subtle">
+          <h3>{{ t('Contact & feedback', 'Contacto y comentarios', 'Kontakt i opinie') }}</h3>
           <p>
             {{
               t(
@@ -94,25 +106,26 @@ type AppLanguage = 'en' | 'es' | 'pl';
               )
             }}
           </p>
-          <div class="about-actions">
-            <a class="about-email-button" href="mailto:info@mydailysanctuary.com">
-              {{ t('Email info@mydailysanctuary.com', 'Escribe a info@mydailysanctuary.com', 'Napisz na info@mydailysanctuary.com') }}
+          <div class="action-stack action-stack--row">
+            <a class="primary-action" href="mailto:info@mydailysanctuary.com">
+              {{ t('Email Support', 'Escribir a soporte', 'Napisz do wsparcia') }}
             </a>
-            <button type="button" class="about-link-button" (click)="openSupport.emit()">
+            <button type="button" class="secondary-action" (click)="openSupport.emit()">
               {{ t('Support', 'Soporte', 'Wsparcie') }}
             </button>
-            <button type="button" class="about-link-button" (click)="openPrivacy.emit()">
+            <button type="button" class="secondary-action" (click)="openPrivacy.emit()">
               {{ t('Privacy Policy', 'Política de privacidad', 'Polityka prywatności') }}
             </button>
           </div>
-        </section>
+        </article>
       </div>
     </section>
   `,
 })
-export class AboutModalComponent {
+export class AboutPageComponent {
+  protected readonly appStoreUrl = 'https://apps.apple.com/us/app/sanctuary-prayer-peace/id6759986068?uo=4';
+
   readonly currentLanguage = input<AppLanguage>('en');
-  readonly close = output<void>();
   readonly openSupport = output<void>();
   readonly openPrivacy = output<void>();
 

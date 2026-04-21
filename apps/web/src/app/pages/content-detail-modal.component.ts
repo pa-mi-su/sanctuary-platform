@@ -1,6 +1,14 @@
 import { Component, input, output } from '@angular/core';
 import { NovenaDayDetail, NovenaDetail, PrayerDetail, SaintDetail } from '../core/api/sanctuary-api.service';
 
+interface NovenaProgress {
+  novenaId: string;
+  startedAt: string;
+  currentDay: number;
+  completedDays: number[];
+  status: 'active' | 'paused' | 'completed';
+}
+
 @Component({
   selector: 'app-content-detail-modal',
   standalone: true,
@@ -23,6 +31,13 @@ import { NovenaDayDetail, NovenaDetail, PrayerDetail, SaintDetail } from '../cor
 
       @if (saintDetail()) {
         <div class="detail-stack">
+          @if (isAuthenticated()) {
+            <div class="detail-actions">
+              <button class="favorite-button" [class.active]="isSaintFavorite()" type="button" (click)="toggleSaintFavorite.emit()">
+                {{ isSaintFavorite() ? 'Favorited Saint' : 'Favorite Saint' }}
+              </button>
+            </div>
+          }
           <div class="detail-hero">
             <div class="detail-image" [style.background-image]="imageStyle(saintDetail()!.imageUrl)"></div>
             <div class="detail-meta">
@@ -79,6 +94,18 @@ import { NovenaDayDetail, NovenaDetail, PrayerDetail, SaintDetail } from '../cor
 
       @if (novenaDetail()) {
         <div class="detail-stack">
+          @if (isAuthenticated()) {
+            <div class="detail-actions">
+              <button class="favorite-button" [class.active]="isNovenaFavorite()" type="button" (click)="toggleNovenaFavorite.emit()">
+                {{ isNovenaFavorite() ? 'Favorited Novena' : 'Favorite Novena' }}
+              </button>
+              @if (!novenaProgress()) {
+                <button class="primary-action" type="button" (click)="startNovena.emit()">Start Novena</button>
+              } @else {
+                <button class="danger-action" type="button" (click)="stopNovena.emit()">Stop Novena</button>
+              }
+            </div>
+          }
           <div class="detail-hero">
             <div class="detail-image" [style.background-image]="imageStyle(novenaDetail()!.imageUrl)"></div>
             <div class="detail-meta">
@@ -95,6 +122,17 @@ import { NovenaDayDetail, NovenaDetail, PrayerDetail, SaintDetail } from '../cor
             </section>
           }
           @if (novenaDetail()!.days.length) {
+            @if (novenaProgress()) {
+              <section class="progress-card">
+                <div>
+                  <strong>{{ novenaProgressLabel(novenaDetail()!, novenaProgress()!) }}</strong>
+                  <span>{{ novenaProgress()!.status === 'completed' ? 'Completed' : 'In progress' }}</span>
+                </div>
+                <div class="progress-bar">
+                  <span [style.width.%]="novenaProgressPercent(novenaDetail()!, novenaProgress()!)"></span>
+                </div>
+              </section>
+            }
             <section class="detail-section">
               <h3>Days</h3>
               <div class="detail-chip-row">
@@ -103,9 +141,10 @@ import { NovenaDayDetail, NovenaDetail, PrayerDetail, SaintDetail } from '../cor
                     class="day-chip"
                     type="button"
                     [class.active-blue]="selectedNovenaDay()?.dayNumber === day.dayNumber"
+                    [class.completed]="isDayCompleted(day.dayNumber)"
                     (click)="selectNovenaDay.emit(day.dayNumber)"
                   >
-                    Day {{ day.dayNumber }}
+                    {{ isDayCompleted(day.dayNumber) ? '✓' : '' }} Day {{ day.dayNumber }}
                   </button>
                 }
               </div>
@@ -123,6 +162,17 @@ import { NovenaDayDetail, NovenaDetail, PrayerDetail, SaintDetail } from '../cor
                 @if (selectedNovenaDay()!.prayer) {
                   <p class="detail-copy"><strong>Prayer:</strong> {{ selectedNovenaDay()!.prayer }}</p>
                 }
+                @if (!isAuthenticated()) {
+                  <p class="complete-note">Log in or register to start this novena and track your progress.</p>
+                } @else if (novenaProgress() && !isDayCompleted(selectedNovenaDay()!.dayNumber)) {
+                  <button class="primary-action" type="button" (click)="completeNovenaDay.emit()">
+                    Mark Day {{ selectedNovenaDay()!.dayNumber }} Complete
+                  </button>
+                } @else if (novenaProgress()) {
+                  <p class="complete-note">This day is complete.</p>
+                } @else {
+                  <p class="complete-note">Start this novena to track daily progress.</p>
+                }
               </section>
             }
           }
@@ -136,9 +186,18 @@ export class ContentDetailModalComponent {
   readonly prayerDetail = input<PrayerDetail | null>(null);
   readonly novenaDetail = input<NovenaDetail | null>(null);
   readonly selectedNovenaDay = input<NovenaDayDetail | null>(null);
+  readonly novenaProgress = input<NovenaProgress | null>(null);
+  readonly isAuthenticated = input<boolean>(false);
+  readonly isSaintFavorite = input<boolean>(false);
+  readonly isNovenaFavorite = input<boolean>(false);
 
   readonly close = output<void>();
   readonly selectNovenaDay = output<number>();
+  readonly startNovena = output<void>();
+  readonly stopNovena = output<void>();
+  readonly completeNovenaDay = output<void>();
+  readonly toggleSaintFavorite = output<void>();
+  readonly toggleNovenaFavorite = output<void>();
 
   protected imageStyle(imageUrl: string | null | undefined): string | null {
     if (!imageUrl) {
@@ -150,5 +209,21 @@ export class ContentDetailModalComponent {
 
   protected novenaDayCountLabel(novena: NovenaDetail): string {
     return `${novena.days.length}-day novena`;
+  }
+
+  protected isDayCompleted(dayNumber: number): boolean {
+    return this.novenaProgress()?.completedDays.includes(dayNumber) ?? false;
+  }
+
+  protected novenaProgressPercent(novena: NovenaDetail, progress: NovenaProgress): number {
+    if (novena.days.length === 0) {
+      return 0;
+    }
+
+    return Math.round((progress.completedDays.length / novena.days.length) * 100);
+  }
+
+  protected novenaProgressLabel(novena: NovenaDetail, progress: NovenaProgress): string {
+    return `${progress.completedDays.length} of ${novena.days.length} days complete`;
   }
 }

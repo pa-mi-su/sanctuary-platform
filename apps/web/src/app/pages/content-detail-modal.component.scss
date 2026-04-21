@@ -61,6 +61,74 @@
   color: #fff;
 }
 
+.detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.favorite-button,
+.primary-action,
+.danger-action {
+  min-height: 44px;
+  border-radius: 16px;
+  padding: 0 16px;
+  color: #ffffff;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.favorite-button {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.favorite-button.active {
+  border-color: rgba(229, 198, 106, 0.55);
+  background: rgba(229, 198, 106, 0.16);
+}
+
+.primary-action {
+  border: 0;
+  background: linear-gradient(180deg, var(--button-top), var(--button-bottom));
+}
+
+.danger-action {
+  border: 1px solid rgba(255, 150, 150, 0.28);
+  background: rgba(193, 70, 70, 0.22);
+}
+
+.progress-card {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.progress-card div:first-child {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.progress-bar {
+  height: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.progress-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--button-top), var(--gold));
+}
+
 .detail-hero {
   display: grid;
   grid-template-columns: minmax(0, 180px) minmax(0, 1fr);
@@ -141,6 +209,17 @@
 .day-chip.active-blue {
   background: linear-gradient(180deg, #3e9fc1, #195e78);
   color: white;
+}
+
+.day-chip.completed {
+  border: 1px solid rgba(229, 198, 106, 0.35);
+  color: #f5df94;
+}
+
+.complete-note {
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .content-tag {
