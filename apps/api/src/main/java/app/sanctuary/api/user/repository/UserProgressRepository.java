@@ -6,6 +6,7 @@ import java.sql.Timestamp;
 import java.time.OffsetDateTime;
 import java.util.Arrays;
 import java.util.List;
+import java.util.UUID;
 
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -13,6 +14,7 @@ import org.springframework.stereotype.Repository;
 import app.sanctuary.api.user.dto.UserFavoriteDto;
 import app.sanctuary.api.user.dto.UserNovenaCommitmentDto;
 import app.sanctuary.api.user.dto.UserNovenaCommitmentRequest;
+import app.sanctuary.api.user.dto.UserProfileCountsDto;
 
 @Repository
 public class UserProgressRepository {
@@ -23,7 +25,7 @@ public class UserProgressRepository {
         this.jdbcTemplate = jdbcTemplate;
     }
 
-    public List<UserFavoriteDto> findFavorites(String userId) {
+    public List<UserFavoriteDto> findFavorites(UUID userId) {
         return jdbcTemplate.query(
             """
                 SELECT item_type, item_id, created_at
@@ -40,7 +42,7 @@ public class UserProgressRepository {
         );
     }
 
-    public void saveFavorite(String userId, String itemType, String itemId) {
+    public void saveFavorite(UUID userId, String itemType, String itemId) {
         jdbcTemplate.update(
             """
                 INSERT INTO user_favorites (user_id, item_type, item_id)
@@ -53,7 +55,7 @@ public class UserProgressRepository {
         );
     }
 
-    public void deleteFavorite(String userId, String itemType, String itemId) {
+    public void deleteFavorite(UUID userId, String itemType, String itemId) {
         jdbcTemplate.update(
             """
                 DELETE FROM user_favorites
@@ -65,7 +67,7 @@ public class UserProgressRepository {
         );
     }
 
-    public List<UserNovenaCommitmentDto> findNovenaCommitments(String userId) {
+    public List<UserNovenaCommitmentDto> findNovenaCommitments(UUID userId) {
         return jdbcTemplate.query(
             """
                 SELECT
@@ -99,7 +101,7 @@ public class UserProgressRepository {
         );
     }
 
-    public UserNovenaCommitmentDto saveNovenaCommitment(String userId, String novenaId, UserNovenaCommitmentRequest request) {
+    public UserNovenaCommitmentDto saveNovenaCommitment(UUID userId, String novenaId, UserNovenaCommitmentRequest request) {
         OffsetDateTime startedAt = request.startedAt() == null ? OffsetDateTime.now() : request.startedAt();
         OffsetDateTime updatedAt = OffsetDateTime.now();
         jdbcTemplate.update(
@@ -133,7 +135,7 @@ public class UserProgressRepository {
                             updated_at = EXCLUDED.updated_at
                         """
                 );
-                statement.setString(1, userId);
+                statement.setObject(1, userId);
                 statement.setString(2, novenaId);
                 statement.setTimestamp(3, Timestamp.from(startedAt.toInstant()));
                 statement.setInt(4, request.currentDay());
@@ -162,7 +164,7 @@ public class UserProgressRepository {
         );
     }
 
-    public void deleteNovenaCommitment(String userId, String novenaId) {
+    public void deleteNovenaCommitment(UUID userId, String novenaId) {
         jdbcTemplate.update(
             """
                 DELETE FROM user_novena_commitments
@@ -170,6 +172,39 @@ public class UserProgressRepository {
                 """,
             userId,
             novenaId
+        );
+    }
+
+    public UserProfileCountsDto profileCounts(UUID userId) {
+        return jdbcTemplate.queryForObject(
+            """
+                SELECT
+                    COUNT(*) FILTER (WHERE item_type = 'saint') AS favorite_saint_count,
+                    COUNT(*) FILTER (WHERE item_type = 'novena') AS favorite_novena_count,
+                    COUNT(*) FILTER (WHERE item_type = 'prayer') AS favorite_prayer_count,
+                    (
+                        SELECT COUNT(*)
+                        FROM user_novena_commitments
+                        WHERE user_id = ? AND status = 'active'
+                    ) AS active_novena_count,
+                    (
+                        SELECT COUNT(*)
+                        FROM user_novena_commitments
+                        WHERE user_id = ? AND status = 'completed'
+                    ) AS completed_novena_count
+                FROM user_favorites
+                WHERE user_id = ?
+                """,
+            (rs, rowNum) -> new UserProfileCountsDto(
+                rs.getInt("favorite_saint_count"),
+                rs.getInt("favorite_novena_count"),
+                rs.getInt("favorite_prayer_count"),
+                rs.getInt("active_novena_count"),
+                rs.getInt("completed_novena_count")
+            ),
+            userId,
+            userId,
+            userId
         );
     }
 

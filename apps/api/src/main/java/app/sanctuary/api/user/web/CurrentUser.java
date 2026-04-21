@@ -4,9 +4,10 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.jwt.Jwt;
 
 public record CurrentUser(
-    String id,
+    String cognitoSub,
     String email,
-    String displayName
+    String displayName,
+    String avatarUrl
 ) {
     public static CurrentUser from(Authentication authentication) {
         if (authentication == null || !(authentication.getPrincipal() instanceof Jwt jwt)) {
@@ -23,7 +24,11 @@ public record CurrentUser(
         return new CurrentUser(
             jwt.getSubject(),
             jwt.getClaimAsString("email"),
-            displayName
+            displayName,
+            firstPresent(
+                jwt.getClaimAsString("picture"),
+                jwt.getClaimAsString("custom:avatar_url")
+            )
         );
     }
 

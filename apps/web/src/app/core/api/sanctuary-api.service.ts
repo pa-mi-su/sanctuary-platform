@@ -96,6 +96,18 @@ export interface UserProfile {
   userId: string;
   email: string | null;
   displayName: string | null;
+  avatarUrl?: string | null;
+  preferredLanguage?: 'en' | 'es' | 'pl' | null;
+  timeZoneId?: string | null;
+  novenaRemindersEnabled?: boolean;
+  feastRemindersEnabled?: boolean;
+  emailUpdatesEnabled?: boolean;
+  onboardingCompleted?: boolean;
+  favoriteSaintCount?: number;
+  favoriteNovenaCount?: number;
+  favoritePrayerCount?: number;
+  activeNovenaCount?: number;
+  completedNovenaCount?: number;
 }
 
 export interface UserFavorite {

@@ -17,7 +17,10 @@ import org.springframework.web.bind.annotation.RestController;
 import app.sanctuary.api.user.dto.UserFavoriteDto;
 import app.sanctuary.api.user.dto.UserNovenaCommitmentDto;
 import app.sanctuary.api.user.dto.UserNovenaCommitmentRequest;
+import app.sanctuary.api.user.dto.UserPreferencesUpdateRequest;
 import app.sanctuary.api.user.dto.UserProfileDto;
+import app.sanctuary.api.user.service.UserAccountService;
+import app.sanctuary.api.user.service.UserProfileService;
 import app.sanctuary.api.user.service.UserProgressService;
 
 @RestController
@@ -25,20 +28,36 @@ import app.sanctuary.api.user.service.UserProgressService;
 public class UserProgressController {
 
     private final UserProgressService userProgressService;
+    private final UserAccountService userAccountService;
+    private final UserProfileService userProfileService;
 
-    public UserProgressController(UserProgressService userProgressService) {
+    public UserProgressController(
+        UserProgressService userProgressService,
+        UserAccountService userAccountService,
+        UserProfileService userProfileService
+    ) {
         this.userProgressService = userProgressService;
+        this.userAccountService = userAccountService;
+        this.userProfileService = userProfileService;
     }
 
     @GetMapping
     public UserProfileDto profile(Authentication authentication) {
-        CurrentUser user = CurrentUser.from(authentication);
-        return new UserProfileDto(user.id(), user.email(), user.displayName());
+        return userProfileService.getProfile(CurrentUser.from(authentication));
+    }
+
+    @PutMapping("/preferences")
+    public UserProfileDto updatePreferences(
+        Authentication authentication,
+        @Valid @RequestBody UserPreferencesUpdateRequest request
+    ) {
+        return userProfileService.updatePreferences(CurrentUser.from(authentication), request);
     }
 
     @GetMapping("/favorites")
     public List<UserFavoriteDto> favorites(Authentication authentication) {
-        return userProgressService.favorites(CurrentUser.from(authentication).id());
+        var account = userAccountService.ensureAccount(CurrentUser.from(authentication));
+        return userProgressService.favorites(account.id());
     }
 
     @PutMapping("/favorites/{itemType}/{itemId}")
@@ -47,7 +66,8 @@ public class UserProgressController {
         @PathVariable String itemType,
         @PathVariable String itemId
     ) {
-        userProgressService.saveFavorite(CurrentUser.from(authentication).id(), itemType, itemId);
+        var account = userAccountService.ensureAccount(CurrentUser.from(authentication));
+        userProgressService.saveFavorite(account.id(), itemType, itemId);
         return ResponseEntity.noContent().build();
     }
 
@@ -57,13 +77,15 @@ public class UserProgressController {
         @PathVariable String itemType,
         @PathVariable String itemId
     ) {
-        userProgressService.deleteFavorite(CurrentUser.from(authentication).id(), itemType, itemId);
+        var account = userAccountService.ensureAccount(CurrentUser.from(authentication));
+        userProgressService.deleteFavorite(account.id(), itemType, itemId);
         return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/novena-commitments")
     public List<UserNovenaCommitmentDto> novenaCommitments(Authentication authentication) {
-        return userProgressService.novenaCommitments(CurrentUser.from(authentication).id());
+        var account = userAccountService.ensureAccount(CurrentUser.from(authentication));
+        return userProgressService.novenaCommitments(account.id());
     }
 
     @PutMapping("/novena-commitments/{novenaId}")
@@ -72,7 +94,8 @@ public class UserProgressController {
         @PathVariable String novenaId,
         @Valid @RequestBody UserNovenaCommitmentRequest request
     ) {
-        return userProgressService.saveNovenaCommitment(CurrentUser.from(authentication).id(), novenaId, request);
+        var account = userAccountService.ensureAccount(CurrentUser.from(authentication));
+        return userProgressService.saveNovenaCommitment(account.id(), novenaId, request);
     }
 
     @DeleteMapping("/novena-commitments/{novenaId}")
@@ -80,7 +103,8 @@ public class UserProgressController {
         Authentication authentication,
         @PathVariable String novenaId
     ) {
-        userProgressService.deleteNovenaCommitment(CurrentUser.from(authentication).id(), novenaId);
+        var account = userAccountService.ensureAccount(CurrentUser.from(authentication));
+        userProgressService.deleteNovenaCommitment(account.id(), novenaId);
         return ResponseEntity.noContent().build();
     }
 }

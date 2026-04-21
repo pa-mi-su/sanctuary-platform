@@ -2,6 +2,7 @@ package app.sanctuary.api.user.service;
 
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 
 import org.springframework.stereotype.Service;
 
@@ -22,25 +23,25 @@ public class UserProgressService {
         this.repository = repository;
     }
 
-    public List<UserFavoriteDto> favorites(String userId) {
+    public List<UserFavoriteDto> favorites(UUID userId) {
         return repository.findFavorites(userId);
     }
 
-    public void saveFavorite(String userId, String itemType, String itemId) {
+    public void saveFavorite(UUID userId, String itemType, String itemId) {
         validateFavorite(itemType, itemId);
         repository.saveFavorite(userId, itemType, itemId);
     }
 
-    public void deleteFavorite(String userId, String itemType, String itemId) {
+    public void deleteFavorite(UUID userId, String itemType, String itemId) {
         validateFavorite(itemType, itemId);
         repository.deleteFavorite(userId, itemType, itemId);
     }
 
-    public List<UserNovenaCommitmentDto> novenaCommitments(String userId) {
+    public List<UserNovenaCommitmentDto> novenaCommitments(UUID userId) {
         return repository.findNovenaCommitments(userId);
     }
 
-    public UserNovenaCommitmentDto saveNovenaCommitment(String userId, String novenaId, UserNovenaCommitmentRequest request) {
+    public UserNovenaCommitmentDto saveNovenaCommitment(UUID userId, String novenaId, UserNovenaCommitmentRequest request) {
         if (novenaId == null || novenaId.isBlank()) {
             throw new IllegalArgumentException("Novena id is required.");
         }
@@ -50,7 +51,7 @@ public class UserProgressService {
         return repository.saveNovenaCommitment(userId, novenaId, request);
     }
 
-    public void deleteNovenaCommitment(String userId, String novenaId) {
+    public void deleteNovenaCommitment(UUID userId, String novenaId) {
         if (novenaId == null || novenaId.isBlank()) {
             throw new IllegalArgumentException("Novena id is required.");
         }
