@@ -266,6 +266,8 @@
   gap: 6px;
   color: #ffffff;
   box-shadow: inset 0 0 0 2px var(--season-color);
+  min-width: 0;
+  overflow: hidden;
 }
 
 .calendar-day.selected {
@@ -295,6 +297,12 @@
 .calendar-day span {
   font-size: 0.6rem;
   line-height: 1.15;
+  min-width: 0;
+  overflow: hidden;
+  word-break: break-word;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
 }
 
 .saint-highlight {
@@ -483,6 +491,56 @@
   .saint-photo {
     width: 100%;
     max-width: 280px;
+  }
+}
+
+@media (max-width: 640px) {
+  .screen-card {
+    padding: 18px 14px;
+    border-radius: 24px;
+  }
+
+  .screen-title h2,
+  .screen-header h2 {
+    font-size: 1.05rem;
+  }
+
+  .chip-row {
+    gap: 8px;
+  }
+
+  .chip {
+    font-size: 0.84rem;
+  }
+
+  .season-pill {
+    padding: 5px 9px;
+    font-size: 0.68rem;
+  }
+
+  .calendar-headings {
+    gap: 6px;
+    font-size: 0.62rem;
+  }
+
+  .calendar-grid {
+    gap: 6px;
+  }
+
+  .calendar-day {
+    min-height: 64px;
+    padding: 6px 5px;
+    border-radius: 16px;
+    gap: 4px;
+  }
+
+  .calendar-day strong {
+    font-size: 0.92rem;
+  }
+
+  .calendar-day span {
+    font-size: 0.5rem;
+    line-height: 1.08;
   }
 }
 
