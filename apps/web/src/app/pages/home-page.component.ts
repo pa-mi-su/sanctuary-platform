@@ -14,7 +14,7 @@ type AppLanguage = 'en' | 'es' | 'pl';
           </p>
 
           <div class="logo-wrap">
-            <img class="logo-image" src="sanctuary-logo-source.png" alt="Sanctuary logo" />
+            <img class="logo-image" src="brand-logo.png" alt="Sanctuary logo" />
           </div>
 
           <h1>{{ t('Welcome to your sanctuary', 'Bienvenido a tu santuario', 'Witamy w twoim sanktuarium') }}</h1>
@@ -26,8 +26,11 @@ type AppLanguage = 'en' | 'es' | 'pl';
       </section>
 
       <section class="quick-links">
-        <button class="nav-card action-card" type="button" (click)="openSaints.emit()">
-          <div class="nav-card__left">
+        <button class="nav-card action-card saints-card" type="button" (click)="openSaints.emit()">
+          <span class="card-illustration" aria-hidden="true">
+            <img src="home-cards/saints.svg" alt="" />
+          </span>
+          <div class="nav-card__content">
             <span class="nav-icon saints">👥</span>
             <div class="nav-text">
               <strong>{{ t('Saints', 'Santos', 'Swieci') }}</strong>
@@ -37,8 +40,11 @@ type AppLanguage = 'en' | 'es' | 'pl';
           <span class="nav-arrow">↗</span>
         </button>
 
-        <button class="nav-card action-card" type="button" (click)="openNovenas.emit()">
-          <div class="nav-card__left">
+        <button class="nav-card action-card novenas-card" type="button" (click)="openNovenas.emit()">
+          <span class="card-illustration" aria-hidden="true">
+            <img src="home-cards/novenas.svg" alt="" />
+          </span>
+          <div class="nav-card__content">
             <span class="nav-icon novenas">📘</span>
             <div class="nav-text">
               <strong>Novenas</strong>
@@ -48,8 +54,11 @@ type AppLanguage = 'en' | 'es' | 'pl';
           <span class="nav-arrow">↗</span>
         </button>
 
-        <button class="nav-card action-card" type="button" (click)="openPrayers.emit()">
-          <div class="nav-card__left">
+        <button class="nav-card action-card prayers-card" type="button" (click)="openPrayers.emit()">
+          <span class="card-illustration" aria-hidden="true">
+            <img src="home-cards/prayers.svg" alt="" />
+          </span>
+          <div class="nav-card__content">
             <span class="nav-icon prayers">🕯</span>
             <div class="nav-text">
               <strong>{{ t('Prayers', 'Oraciones', 'Modlitwy') }}</strong>
@@ -59,8 +68,11 @@ type AppLanguage = 'en' | 'es' | 'pl';
           <span class="nav-arrow">↗</span>
         </button>
 
-        <button class="nav-card action-card" type="button" (click)="openDaily.emit()">
-          <div class="nav-card__left">
+        <button class="nav-card action-card daily-card" type="button" (click)="openDaily.emit()">
+          <span class="card-illustration" aria-hidden="true">
+            <img src="home-cards/daily-readings.svg" alt="" />
+          </span>
+          <div class="nav-card__content">
             <span class="nav-icon daily">☼</span>
             <div class="nav-text">
               <strong>{{ t('Daily Readings', 'Lecturas diarias', 'Czytania dzienne') }}</strong>
@@ -70,8 +82,11 @@ type AppLanguage = 'en' | 'es' | 'pl';
           <span class="nav-arrow">↗</span>
         </button>
 
-        <button class="nav-card action-card" type="button" (click)="openIntentions.emit()">
-          <div class="nav-card__left">
+        <button class="nav-card action-card intentions-card" type="button" (click)="openIntentions.emit()">
+          <span class="card-illustration" aria-hidden="true">
+            <img src="home-cards/intentions.svg" alt="" />
+          </span>
+          <div class="nav-card__content">
             <span class="nav-icon intentions">♥</span>
             <div class="nav-text">
               <strong>{{ t('Intentions', 'Intenciones', 'Intencje') }}</strong>
@@ -88,8 +103,6 @@ export class HomePageComponent {
   readonly isEnglish = input<boolean>(true);
   readonly currentLanguage = input<AppLanguage>('en');
 
-  readonly openAbout = output<void>();
-  readonly toggleLanguage = output<void>();
   readonly openSaints = output<void>();
   readonly openNovenas = output<void>();
   readonly openPrayers = output<void>();
