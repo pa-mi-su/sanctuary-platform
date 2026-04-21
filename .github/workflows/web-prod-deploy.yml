@@ -2,6 +2,9 @@ name: Web Build
 on:
   pull_request:
     branches:
+      - dev
+      - uat
+      - prod
       - main
     paths:
       - "apps/web/**"
