@@ -267,6 +267,10 @@ export class AppShellFacade {
       : 0
   );
   readonly selectedNovenaProgress = computed(() => {
+    if (!this.isAuthenticated()) {
+      return null;
+    }
+
     const detail = this.novenaDetail();
     return detail ? this.localNovenaProgress()[detail.id] ?? null : null;
   });
@@ -505,7 +509,7 @@ export class AppShellFacade {
 
   startSelectedNovena(): void {
     const detail = this.novenaDetail();
-    if (!detail) {
+    if (!detail || !this.isAuthenticated()) {
       return;
     }
 
@@ -523,7 +527,7 @@ export class AppShellFacade {
 
   stopSelectedNovena(): void {
     const detail = this.novenaDetail();
-    if (!detail) {
+    if (!detail || !this.isAuthenticated()) {
       return;
     }
 
@@ -533,16 +537,14 @@ export class AppShellFacade {
       this.persistLocalNovenaProgress(next);
       return next;
     });
-    if (this.isAuthenticated()) {
-      this.api.deleteNovenaCommitment(detail.id).subscribe({ error: () => undefined });
-    }
+    this.api.deleteNovenaCommitment(detail.id).subscribe({ error: () => undefined });
   }
 
   completeSelectedNovenaDay(): void {
     const detail = this.novenaDetail();
     const selectedDay = this.selectedNovenaDay();
     const existing = this.selectedNovenaProgress();
-    if (!detail || !selectedDay || !existing) {
+    if (!detail || !selectedDay || !existing || !this.isAuthenticated()) {
       return;
     }
 

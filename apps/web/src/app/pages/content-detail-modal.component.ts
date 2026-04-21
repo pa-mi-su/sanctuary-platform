@@ -94,18 +94,18 @@ interface NovenaProgress {
 
       @if (novenaDetail()) {
         <div class="detail-stack">
-          <div class="detail-actions">
-            @if (isAuthenticated()) {
+          @if (isAuthenticated()) {
+            <div class="detail-actions">
               <button class="favorite-button" [class.active]="isNovenaFavorite()" type="button" (click)="toggleNovenaFavorite.emit()">
                 {{ isNovenaFavorite() ? 'Favorited Novena' : 'Favorite Novena' }}
               </button>
-            }
-            @if (!novenaProgress()) {
-              <button class="primary-action" type="button" (click)="startNovena.emit()">Start Novena</button>
-            } @else {
-              <button class="danger-action" type="button" (click)="stopNovena.emit()">Stop Novena</button>
-            }
-          </div>
+              @if (!novenaProgress()) {
+                <button class="primary-action" type="button" (click)="startNovena.emit()">Start Novena</button>
+              } @else {
+                <button class="danger-action" type="button" (click)="stopNovena.emit()">Stop Novena</button>
+              }
+            </div>
+          }
           <div class="detail-hero">
             <div class="detail-image" [style.background-image]="imageStyle(novenaDetail()!.imageUrl)"></div>
             <div class="detail-meta">
@@ -162,7 +162,9 @@ interface NovenaProgress {
                 @if (selectedNovenaDay()!.prayer) {
                   <p class="detail-copy"><strong>Prayer:</strong> {{ selectedNovenaDay()!.prayer }}</p>
                 }
-                @if (novenaProgress() && !isDayCompleted(selectedNovenaDay()!.dayNumber)) {
+                @if (!isAuthenticated()) {
+                  <p class="complete-note">Log in or register to start this novena and track your progress.</p>
+                } @else if (novenaProgress() && !isDayCompleted(selectedNovenaDay()!.dayNumber)) {
                   <button class="primary-action" type="button" (click)="completeNovenaDay.emit()">
                     Mark Day {{ selectedNovenaDay()!.dayNumber }} Complete
                   </button>
