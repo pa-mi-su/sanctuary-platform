@@ -1,10 +1,17 @@
-name: API Build
+name: API Pipeline
+
 on:
   pull_request:
     branches:
       - dev
       - uat
       - prod
+      - main
+    paths:
+      - "apps/api/**"
+      - ".github/workflows/api-prod-deploy.yml"
+  push:
+    branches:
       - main
     paths:
       - "apps/api/**"
@@ -16,11 +23,12 @@ permissions:
   id-token: write
 
 concurrency:
-  group: api-build
+  group: api-pipeline-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   build:
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
 
     steps:
@@ -37,3 +45,100 @@ jobs:
       - name: Run API tests
         run: mvn -q test
         working-directory: apps/api
+
+  deploy:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: prod
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
+      API_ECR_REPOSITORY: ${{ vars.API_PROD_ECR_REPOSITORY }}
+      API_ECS_SERVICE_NAME: ${{ vars.API_PROD_ECS_SERVICE_NAME }}
+      API_ECS_CLUSTER: ${{ vars.API_PROD_ECS_CLUSTER }}
+      SANCTUARY_DB_URL: ${{ vars.API_PROD_DB_URL }}
+      SANCTUARY_DB_USERNAME: ${{ vars.API_PROD_DB_USERNAME }}
+      SANCTUARY_AUTH_ENABLED: ${{ vars.API_PROD_AUTH_ENABLED || 'true' }}
+      SANCTUARY_COGNITO_ISSUER_URI: ${{ vars.API_PROD_COGNITO_ISSUER_URI || 'https://cognito-idp.us-east-1.amazonaws.com/us-east-1_syYJKg0NY' }}
+      SANCTUARY_COGNITO_CLIENT_ID: ${{ vars.API_PROD_COGNITO_CLIENT_ID || '7e3anthnuctm8p9nqck6kesjm9' }}
+      IMAGE_TAG: ${{ github.sha }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Setup Java 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: maven
+
+      - name: Run API tests
+        run: mvn -q test
+        working-directory: apps/api
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Normalize deploy variables
+        run: |
+          echo "AWS_ACCOUNT_ID=$(echo -n "${AWS_ACCOUNT_ID}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
+          echo "API_ECR_REPOSITORY=$(echo -n "${API_ECR_REPOSITORY}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
+          echo "API_ECS_SERVICE_NAME=$(echo -n "${API_ECS_SERVICE_NAME}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
+          echo "API_ECS_CLUSTER=$(echo -n "${API_ECS_CLUSTER}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
+          echo "SANCTUARY_DB_URL=$(echo -n "${SANCTUARY_DB_URL}" | tr -d '\r\n')" >> "$GITHUB_ENV"
+          echo "SANCTUARY_DB_USERNAME=$(echo -n "${SANCTUARY_DB_USERNAME}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
+          echo "SANCTUARY_AUTH_ENABLED=$(echo -n "${SANCTUARY_AUTH_ENABLED}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
+          echo "SANCTUARY_COGNITO_ISSUER_URI=$(echo -n "${SANCTUARY_COGNITO_ISSUER_URI}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
+          echo "SANCTUARY_COGNITO_CLIENT_ID=$(echo -n "${SANCTUARY_COGNITO_CLIENT_ID}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push API image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          docker build -t "${ECR_REGISTRY}/${API_ECR_REPOSITORY}:${IMAGE_TAG}" -f apps/api/Dockerfile apps/api
+          docker tag "${ECR_REGISTRY}/${API_ECR_REPOSITORY}:${IMAGE_TAG}" "${ECR_REGISTRY}/${API_ECR_REPOSITORY}:latest"
+          docker push "${ECR_REGISTRY}/${API_ECR_REPOSITORY}:${IMAGE_TAG}"
+          docker push "${ECR_REGISTRY}/${API_ECR_REPOSITORY}:latest"
+
+      - name: Deploy to ECS Express Mode
+        uses: aws-actions/amazon-ecs-deploy-express-service@v1
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        with:
+          service-name: ${{ env.API_ECS_SERVICE_NAME }}
+          image: ${{ env.ECR_REGISTRY }}/${{ env.API_ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
+          execution-role-arn: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/ecsTaskExecutionRole
+          infrastructure-role-arn: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/ecsInfrastructureRoleForExpressServices
+          task-role-arn: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/ecsTaskExecutionRole
+          container-port: 8080
+          cluster: ${{ env.API_ECS_CLUSTER }}
+          environment-variables: |
+            [
+              {"name": "SPRING_PROFILES_ACTIVE", "value": "prod"},
+              {"name": "SANCTUARY_API_PORT", "value": "8080"},
+              {"name": "SANCTUARY_DB_URL", "value": "${{ env.SANCTUARY_DB_URL }}"},
+              {"name": "SANCTUARY_DB_USERNAME", "value": "${{ env.SANCTUARY_DB_USERNAME }}"},
+              {"name": "SANCTUARY_AUTH_ENABLED", "value": "${{ env.SANCTUARY_AUTH_ENABLED }}"},
+              {"name": "SANCTUARY_COGNITO_ISSUER_URI", "value": "${{ env.SANCTUARY_COGNITO_ISSUER_URI }}"},
+              {"name": "SANCTUARY_COGNITO_CLIENT_ID", "value": "${{ env.SANCTUARY_COGNITO_CLIENT_ID }}"}
+            ]
+          secrets: |
+            [
+              {"name": "SANCTUARY_DB_PASSWORD", "valueFrom": "${{ secrets.API_PROD_DB_SECRET_ARN }}"}
+            ]
+          health-check-path: /health
+          cpu: "512"
+          memory: "1024"
+          min-task-count: 1
+          max-task-count: 1
+          subnets: subnet-0141079721351edf8,subnet-0dffd2400e13f49e4,subnet-02b055fa01680e51e,subnet-0fff729ae97ed1f58,subnet-0ffe1c33e4e0b665d,subnet-0cebbe66387ecc218
+          security-groups: sg-000f4021f05813471
