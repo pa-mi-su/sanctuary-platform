@@ -1,6 +1,6 @@
 import { Component, input, output } from '@angular/core';
 
-type AppTab = 'home' | 'novenas' | 'liturgical' | 'saints' | 'prayers' | 'me';
+type AppTab = 'home' | 'novenas' | 'liturgical' | 'saints' | 'prayers' | 'about' | 'auth' | 'me';
 type AppLanguage = 'en' | 'es' | 'pl';
 
 @Component({
@@ -26,14 +26,36 @@ type AppLanguage = 'en' | 'es' | 'pl';
           <span class="tab-icon">♁</span>
           <span>{{ t('Saints', 'Santos', 'Swieci') }}</span>
         </button>
-        <button class="tab" [class.active]="currentTab() === 'me'" type="button" (click)="navigate.emit('me')">
-          <span class="tab-icon">●</span>
-          <span>{{ t('Me', 'Yo', 'Ja') }}</span>
+        <button
+          class="tab"
+          [class.active]="isAuthenticated() ? currentTab() === 'me' : currentTab() === 'auth'"
+          type="button"
+          (click)="navigate.emit(isAuthenticated() ? 'me' : 'auth')"
+        >
+          <span class="tab-icon">{{ isAuthenticated() ? '●' : '◉' }}</span>
+          <span>
+            {{
+              isAuthenticated()
+                ? t('Me', 'Yo', 'Ja')
+                : t('Login / Register', 'Entrar / Registro', 'Login / Rejestracja')
+            }}
+          </span>
         </button>
       </div>
 
       <div class="primary-nav__actions">
-        <button class="pill-button nav-pill-button" type="button" (click)="openAbout.emit()">
+        @if (isAuthenticated()) {
+          <button class="pill-button nav-pill-button logout-button" type="button" (click)="logout.emit()">
+            <span class="pill-icon">↩</span>
+            <span>{{ t('Logout', 'Salir', 'Wyloguj') }}</span>
+          </button>
+        }
+        <button
+          class="pill-button nav-pill-button"
+          [class.active]="currentTab() === 'about'"
+          type="button"
+          (click)="navigate.emit('about')"
+        >
           <span class="pill-icon">◎</span>
           <span>{{ t('About', 'Acerca de', 'O aplikacji') }}</span>
         </button>
@@ -59,10 +81,11 @@ export class AppHeaderComponent {
   readonly currentTab = input<AppTab>('home');
   readonly isEnglish = input<boolean>(true);
   readonly currentLanguage = input<AppLanguage>('en');
+  readonly isAuthenticated = input<boolean>(false);
 
   readonly navigate = output<AppTab>();
-  readonly openAbout = output<void>();
   readonly selectLanguage = output<AppLanguage>();
+  readonly logout = output<void>();
 
   protected t(english: string, spanish: string, polish: string): string {
     switch (this.currentLanguage()) {

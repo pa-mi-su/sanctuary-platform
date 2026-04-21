@@ -6,10 +6,10 @@ import { LiturgicalPageComponent } from './pages/liturgical-page.component';
 import { NovenasPageComponent } from './pages/novenas-page.component';
 import { PrayersPageComponent } from './pages/prayers-page.component';
 import { MePageComponent } from './pages/me-page.component';
-import { AboutModalComponent } from './pages/about-modal.component';
+import { AuthPageComponent } from './pages/auth-page.component';
+import { AboutPageComponent } from './pages/about-page.component';
 import { ContentDetailModalComponent } from './pages/content-detail-modal.component';
-import { MobileNavComponent } from './pages/mobile-nav.component';
-import { LegalDocumentModalComponent } from './pages/legal-document-modal.component';
+import { LegalDocumentPageComponent } from './pages/legal-document-page.component';
 import { AppShellFacade } from './core/state/app-shell.facade';
 
 @Component({
@@ -22,11 +22,11 @@ import { AppShellFacade } from './core/state/app-shell.facade';
     LiturgicalPageComponent,
     NovenasPageComponent,
     PrayersPageComponent,
+    AuthPageComponent,
     MePageComponent,
-    AboutModalComponent,
-    LegalDocumentModalComponent,
+    AboutPageComponent,
+    LegalDocumentPageComponent,
     ContentDetailModalComponent,
-    MobileNavComponent,
   ],
   templateUrl: './app.html',
   styleUrl: './app.scss',

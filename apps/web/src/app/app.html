@@ -1,31 +1,33 @@
 <div class="page-bg"></div>
 
-@if (facade.showAbout()) {
-  <app-about-modal
-    [currentLanguage]="facade.language()"
-    (close)="facade.closeAbout()"
-    (openSupport)="facade.openLegalDocument('support')"
-    (openPrivacy)="facade.openLegalDocument('privacy')"
-  />
-}
-
-@if (facade.activeLegalDocument(); as activeLegalDocument) {
-  <app-legal-document-modal
-    [type]="activeLegalDocument"
-    [currentLanguage]="facade.language()"
-    (close)="facade.closeLegalDocument()"
-  />
-}
-
 @if (facade.saintDetail() || facade.prayerDetail() || facade.novenaDetail()) {
   <app-content-detail-modal
     [saintDetail]="facade.saintDetail()"
     [prayerDetail]="facade.prayerDetail()"
     [novenaDetail]="facade.novenaDetail()"
     [selectedNovenaDay]="facade.selectedNovenaDay()"
+    [novenaProgress]="facade.selectedNovenaProgress()"
+    [isAuthenticated]="facade.isAuthenticated()"
+    [isSaintFavorite]="facade.selectedSaintIsFavorite()"
+    [isNovenaFavorite]="facade.selectedNovenaIsFavorite()"
     (close)="facade.closeDetailModal()"
     (selectNovenaDay)="facade.selectNovenaDay($event)"
+    (startNovena)="facade.startSelectedNovena()"
+    (stopNovena)="facade.stopSelectedNovena()"
+    (completeNovenaDay)="facade.completeSelectedNovenaDay()"
+    (toggleSaintFavorite)="facade.toggleSelectedSaintFavorite()"
+    (toggleNovenaFavorite)="facade.toggleSelectedNovenaFavorite()"
   />
+}
+
+@if (facade.completedNovenaTitle(); as completedNovenaTitle) {
+  <div class="completion-backdrop" (click)="facade.closeCompletionModal()"></div>
+  <section class="completion-modal glass-card" aria-label="Novena complete">
+    <p class="completion-icon">✦</p>
+    <h2>Congratulations</h2>
+    <p>You finished {{ completedNovenaTitle }}. Take a quiet moment of gratitude for completing this novena.</p>
+    <button type="button" (click)="facade.closeCompletionModal()">Amen</button>
+  </section>
 }
 
 <div class="app-shell">
@@ -34,9 +36,10 @@
       [currentTab]="facade.currentTab()"
       [isEnglish]="facade.isEnglish()"
       [currentLanguage]="facade.language()"
+      [isAuthenticated]="facade.isAuthenticated()"
       (navigate)="facade.handlePrimaryNavigate($event)"
-      (openAbout)="facade.openAbout()"
       (selectLanguage)="facade.setLanguage($event)"
+      (logout)="facade.logout()"
     />
 
     @if (facade.currentTab() === 'home') {
@@ -63,6 +66,32 @@
         (goHome)="facade.setTab('home')"
         (updateQuery)="facade.updatePrayerQuery($event)"
         (openPrayer)="facade.openPrayerDetail($event)"
+      />
+    }
+
+    @if (facade.currentTab() === 'auth') {
+      <app-auth-page
+        [currentLanguage]="facade.language()"
+        [isConfigured]="facade.authConfigured()"
+        [authMessage]="facade.authMessage()"
+        (login)="facade.loginDemoUser()"
+        (register)="facade.registerDemoUser()"
+      />
+    }
+
+    @if (facade.currentTab() === 'about' && !facade.activeLegalDocument()) {
+      <app-about-page
+        [currentLanguage]="facade.language()"
+        (openSupport)="facade.openLegalDocument('support')"
+        (openPrivacy)="facade.openLegalDocument('privacy')"
+      />
+    }
+
+    @if (facade.currentTab() === 'about' && facade.activeLegalDocument(); as activeLegalDocument) {
+      <app-legal-document-page
+        [type]="activeLegalDocument"
+        [currentLanguage]="facade.language()"
+        (back)="facade.closeLegalDocument()"
       />
     }
 
@@ -181,9 +210,19 @@
     }
 
     @if (facade.currentTab() === 'me') {
-      <app-me-page />
+      <app-me-page
+        [currentLanguage]="facade.language()"
+        [userName]="facade.currentUserName()"
+        [profile]="facade.userProfile()"
+        [activeNovenaCount]="facade.activeNovenaCommitmentCount()"
+        [favoriteNovenaCount]="facade.favoriteNovenaCount()"
+        [favoriteSaintCount]="facade.favoriteSaintCount()"
+        [savePending]="facade.savePreferencesPending()"
+        [saveMessage]="facade.savePreferencesMessage()"
+        [saveError]="facade.savePreferencesError()"
+        (logout)="facade.logout()"
+        (savePreferences)="facade.saveUserPreferences($event)"
+      />
     }
-
-    <app-mobile-nav [currentTab]="facade.currentTab()" (navigate)="facade.handlePrimaryNavigate($event)" />
   </main>
 </div>

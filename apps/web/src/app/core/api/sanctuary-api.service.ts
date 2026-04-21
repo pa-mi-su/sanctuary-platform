@@ -92,6 +92,66 @@ export interface NovenaCalendarDateResponse {
   startingNovena: NovenaSummary | null;
 }
 
+export interface UserProfile {
+  userId: string;
+  email: string | null;
+  displayName: string | null;
+  avatarUrl?: string | null;
+  preferredLanguage?: 'en' | 'es' | 'pl' | null;
+  timeZoneId?: string | null;
+  novenaRemindersEnabled?: boolean;
+  feastRemindersEnabled?: boolean;
+  emailUpdatesEnabled?: boolean;
+  onboardingCompleted?: boolean;
+  favoriteSaintCount?: number;
+  favoriteNovenaCount?: number;
+  favoritePrayerCount?: number;
+  activeNovenaCount?: number;
+  completedNovenaCount?: number;
+  currentStreakDays?: number;
+  longestStreakDays?: number;
+  lastActiveDate?: string | null;
+}
+
+export interface UserPreferencesUpdateRequest {
+  preferredLanguage: 'en' | 'es' | 'pl';
+  timeZoneId: string;
+  novenaRemindersEnabled: boolean;
+  feastRemindersEnabled: boolean;
+  emailUpdatesEnabled: boolean;
+  onboardingCompleted: boolean;
+}
+
+export interface UserFavorite {
+  itemType: 'saint' | 'novena' | 'prayer';
+  itemId: string;
+  createdAt: string;
+}
+
+export interface UserNovenaCommitment {
+  novenaId: string;
+  startedAt: string;
+  currentDay: number;
+  completedDays: number[];
+  reminderEnabled: boolean;
+  reminderMorningHour: number | null;
+  reminderEveningHour: number | null;
+  reminderTimeZoneId: string;
+  status: 'active' | 'paused' | 'completed';
+  updatedAt: string;
+}
+
+export interface UserNovenaCommitmentRequest {
+  startedAt: string;
+  currentDay: number;
+  completedDays: number[];
+  reminderEnabled: boolean;
+  reminderMorningHour: number | null;
+  reminderEveningHour: number | null;
+  reminderTimeZoneId: string;
+  status: 'active' | 'paused' | 'completed';
+}
+
 @Injectable({ providedIn: 'root' })
 export class SanctuaryApiService {
   private readonly http = inject(HttpClient);
@@ -173,6 +233,38 @@ export class SanctuaryApiService {
     return this.http.get<NovenaCalendarDateResponse[]>(`${this.apiBaseUrl}/content/novenas/calendar`, {
       params: this.rangeParams(start, end).set('lang', language),
     });
+  }
+
+  getMe(): Observable<UserProfile> {
+    return this.http.get<UserProfile>(`${this.apiBaseUrl}/me`);
+  }
+
+  updateMePreferences(request: UserPreferencesUpdateRequest): Observable<UserProfile> {
+    return this.http.put<UserProfile>(`${this.apiBaseUrl}/me/preferences`, request);
+  }
+
+  listFavorites(): Observable<UserFavorite[]> {
+    return this.http.get<UserFavorite[]>(`${this.apiBaseUrl}/me/favorites`);
+  }
+
+  listNovenaCommitments(): Observable<UserNovenaCommitment[]> {
+    return this.http.get<UserNovenaCommitment[]>(`${this.apiBaseUrl}/me/novena-commitments`);
+  }
+
+  saveFavorite(itemType: 'saint' | 'novena' | 'prayer', itemId: string): Observable<void> {
+    return this.http.put<void>(`${this.apiBaseUrl}/me/favorites/${itemType}/${itemId}`, null);
+  }
+
+  deleteFavorite(itemType: 'saint' | 'novena' | 'prayer', itemId: string): Observable<void> {
+    return this.http.delete<void>(`${this.apiBaseUrl}/me/favorites/${itemType}/${itemId}`);
+  }
+
+  saveNovenaCommitment(novenaId: string, request: UserNovenaCommitmentRequest): Observable<UserNovenaCommitment> {
+    return this.http.put<UserNovenaCommitment>(`${this.apiBaseUrl}/me/novena-commitments/${novenaId}`, request);
+  }
+
+  deleteNovenaCommitment(novenaId: string): Observable<void> {
+    return this.http.delete<void>(`${this.apiBaseUrl}/me/novena-commitments/${novenaId}`);
   }
 
   private rangeParams(start: string, end: string): HttpParams {
