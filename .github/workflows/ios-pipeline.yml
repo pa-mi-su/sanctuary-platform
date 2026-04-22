@@ -136,6 +136,7 @@ jobs:
           KEYCHAIN_PATH="${RUNNER_TEMP}/sanctuary-build.keychain-db"
           KEYCHAIN_PASSWORD="$(uuidgen)"
           API_KEY_PATH="${RUNNER_TEMP}/AuthKey_${APP_STORE_CONNECT_API_KEY_ID}.p8"
+          APP_STORE_CONNECT_PRIVATE_KEYS_DIR="${HOME}/.appstoreconnect/private_keys"
           CERT_PATH="${RUNNER_TEMP}/ios_distribution.p12"
           PROFILE_PATH="${RUNNER_TEMP}/Sanctuary-Dev.mobileprovision"
           EXPORT_OPTIONS_PATH="${RUNNER_TEMP}/ExportOptions.plist"
@@ -143,16 +144,18 @@ jobs:
 
           cleanup() {
             security delete-keychain "${KEYCHAIN_PATH}" >/dev/null 2>&1 || true
-            rm -f "${API_KEY_PATH}" "${CERT_PATH}" "${PROFILE_PATH}" "${EXPORT_OPTIONS_PATH}" >/dev/null 2>&1 || true
+            rm -f "${API_KEY_PATH}" "${CERT_PATH}" "${PROFILE_PATH}" "${EXPORT_OPTIONS_PATH}" "${APP_STORE_CONNECT_PRIVATE_KEYS_DIR}/AuthKey_${APP_STORE_CONNECT_API_KEY_ID}.p8" >/dev/null 2>&1 || true
           }
 
           trap cleanup EXIT
 
           mkdir -p "${EXPORT_PATH}"
+          mkdir -p "${APP_STORE_CONNECT_PRIVATE_KEYS_DIR}"
 
           echo "${APP_STORE_CONNECT_API_PRIVATE_KEY_BASE64}" | base64 --decode > "${API_KEY_PATH}"
           echo "${IOS_DISTRIBUTION_CERTIFICATE_P12_BASE64}" | base64 --decode > "${CERT_PATH}"
           echo "${IOS_PROVISIONING_PROFILE_DEV_BASE64}" | base64 --decode > "${PROFILE_PATH}"
+          cp "${API_KEY_PATH}" "${APP_STORE_CONNECT_PRIVATE_KEYS_DIR}/AuthKey_${APP_STORE_CONNECT_API_KEY_ID}.p8"
 
           security create-keychain -p "${KEYCHAIN_PASSWORD}" "${KEYCHAIN_PATH}"
           security set-keychain-settings -lut 21600 "${KEYCHAIN_PATH}"
@@ -291,20 +294,23 @@ jobs:
           KEYCHAIN_PATH="${RUNNER_TEMP}/sanctuary-build.keychain-db"
           KEYCHAIN_PASSWORD="$(uuidgen)"
           API_KEY_PATH="${RUNNER_TEMP}/AuthKey_${APP_STORE_CONNECT_API_KEY_ID}.p8"
+          APP_STORE_CONNECT_PRIVATE_KEYS_DIR="${HOME}/.appstoreconnect/private_keys"
           CERT_PATH="${RUNNER_TEMP}/ios_distribution.p12"
           EXPORT_OPTIONS_PATH="${RUNNER_TEMP}/ExportOptions.plist"
 
           cleanup() {
             security delete-keychain "${KEYCHAIN_PATH}" >/dev/null 2>&1 || true
-            rm -f "${API_KEY_PATH}" "${CERT_PATH}" "${EXPORT_OPTIONS_PATH}" >/dev/null 2>&1 || true
+            rm -f "${API_KEY_PATH}" "${CERT_PATH}" "${EXPORT_OPTIONS_PATH}" "${APP_STORE_CONNECT_PRIVATE_KEYS_DIR}/AuthKey_${APP_STORE_CONNECT_API_KEY_ID}.p8" >/dev/null 2>&1 || true
           }
 
           trap cleanup EXIT
 
           mkdir -p "${EXPORT_PATH}"
+          mkdir -p "${APP_STORE_CONNECT_PRIVATE_KEYS_DIR}"
 
           echo "${APP_STORE_CONNECT_API_PRIVATE_KEY_BASE64}" | base64 --decode > "${API_KEY_PATH}"
           echo "${IOS_DISTRIBUTION_CERTIFICATE_P12_BASE64}" | base64 --decode > "${CERT_PATH}"
+          cp "${API_KEY_PATH}" "${APP_STORE_CONNECT_PRIVATE_KEYS_DIR}/AuthKey_${APP_STORE_CONNECT_API_KEY_ID}.p8"
 
           security create-keychain -p "${KEYCHAIN_PASSWORD}" "${KEYCHAIN_PATH}"
           security set-keychain-settings -lut 21600 "${KEYCHAIN_PATH}"
@@ -433,20 +439,23 @@ jobs:
           KEYCHAIN_PATH="${RUNNER_TEMP}/sanctuary-build.keychain-db"
           KEYCHAIN_PASSWORD="$(uuidgen)"
           API_KEY_PATH="${RUNNER_TEMP}/AuthKey_${APP_STORE_CONNECT_API_KEY_ID}.p8"
+          APP_STORE_CONNECT_PRIVATE_KEYS_DIR="${HOME}/.appstoreconnect/private_keys"
           CERT_PATH="${RUNNER_TEMP}/ios_distribution.p12"
           EXPORT_OPTIONS_PATH="${RUNNER_TEMP}/ExportOptions.plist"
 
           cleanup() {
             security delete-keychain "${KEYCHAIN_PATH}" >/dev/null 2>&1 || true
-            rm -f "${API_KEY_PATH}" "${CERT_PATH}" "${EXPORT_OPTIONS_PATH}" >/dev/null 2>&1 || true
+            rm -f "${API_KEY_PATH}" "${CERT_PATH}" "${EXPORT_OPTIONS_PATH}" "${APP_STORE_CONNECT_PRIVATE_KEYS_DIR}/AuthKey_${APP_STORE_CONNECT_API_KEY_ID}.p8" >/dev/null 2>&1 || true
           }
 
           trap cleanup EXIT
 
           mkdir -p "${EXPORT_PATH}"
+          mkdir -p "${APP_STORE_CONNECT_PRIVATE_KEYS_DIR}"
 
           echo "${APP_STORE_CONNECT_API_PRIVATE_KEY_BASE64}" | base64 --decode > "${API_KEY_PATH}"
           echo "${IOS_DISTRIBUTION_CERTIFICATE_P12_BASE64}" | base64 --decode > "${CERT_PATH}"
+          cp "${API_KEY_PATH}" "${APP_STORE_CONNECT_PRIVATE_KEYS_DIR}/AuthKey_${APP_STORE_CONNECT_API_KEY_ID}.p8"
 
           security create-keychain -p "${KEYCHAIN_PASSWORD}" "${KEYCHAIN_PATH}"
           security set-keychain-settings -lut 21600 "${KEYCHAIN_PATH}"
