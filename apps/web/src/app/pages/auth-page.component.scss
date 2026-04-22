@@ -215,6 +215,83 @@
   cursor: default;
 }
 
+.password-panel {
+  display: grid;
+  gap: 12px;
+  padding: 16px 18px;
+  border-radius: 18px;
+}
+
+.password-panel--ready {
+  border-color: rgba(135, 225, 170, 0.35);
+  background: rgba(135, 225, 170, 0.08);
+}
+
+.password-panel__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.password-panel__header strong {
+  font-size: 0.95rem;
+}
+
+.password-panel__header span {
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.password-score--ready {
+  color: rgba(135, 225, 170, 0.96) !important;
+}
+
+.password-checklist {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.password-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 0.84rem;
+}
+
+.password-check--met {
+  color: rgba(135, 225, 170, 0.96);
+}
+
+.password-check__icon {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  flex: 0 0 18px;
+  font-size: 0.8rem;
+  line-height: 1;
+}
+
+.password-check--met .password-check__icon {
+  background: rgba(135, 225, 170, 0.16);
+}
+
+.password-match {
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 0.82rem;
+}
+
+.password-match--ready {
+  color: rgba(135, 225, 170, 0.96);
+}
+
 @media (max-width: 900px) {
   .auth-layout {
     grid-template-columns: 1fr;
@@ -263,6 +340,10 @@
   }
 
   .field-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .password-checklist {
     grid-template-columns: 1fr;
   }
 }
