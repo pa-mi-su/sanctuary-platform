@@ -1,0 +1,79 @@
+{
+  "id": "05-03_saint_alexander",
+  "name": "Saint Alexander",
+  "mmdd": "05-03",
+  "feast": "The Third Day of May",
+  "summary": "Saint Alexander may refer to one of several saints including:Pope Alexander I, bishop of Rome from c. 107 – c. 115 and hieromartyr Alexander (101–165), one of the seven sons of Felicitas of Rome Epipodius and Alexander, martyrs in Lyon Alexander of Jerusalem, bishop of Jerusalem and hieromartyr Alexander of Comana, bishop of Comana Alexander of Rome, martyr Alexander, a martyr and companion of Saint Victor of Marseilles Alexander of Bergamo, martyr and patron saint of Bergamo Alexander, one of the Forty Martyrs of Sebaste Pope Alexander I of Alexandria, Patriarch of Alexandria Alexander of Constantinople, bishop of Byzantium and first bishop of Constantinople Sisinnius, Martyrius and Alexander, martyrs",
+  "biography": "Pope Alexander I (died 115), bishop of Rome from c. 107 – c. 115 and hieromartyr\nAlexander (101–165), one of the seven sons of Felicitas of Rome\nEpipodius and Alexander (died 178), martyrs in Lyon\nAlexander of Jerusalem (died 251), bishop of Jerusalem and hieromartyr\nAlexander of Comana (died c. 251), bishop of Comana\nAlexander of Rome (died c. 289), martyr\nAlexander (died 290), a martyr and companion of Saint Victor of Marseilles\nAlexander of Bergamo (died c. 303), martyr and patron saint of Bergamo\nAlexander (died 320), one of the Forty Martyrs of Sebaste\nPope Alexander I of Alexandria (died 326 or 328), Patriarch of Alexandria\nAlexander of Constantinople (c.",
+  "prayers": [],
+  "sources": [
+    "https://en.wikipedia.org/wiki/Saint_Alexander",
+    "Wikipedia (CC BY-SA) — text attribution required."
+  ],
+  "photoUrl": "https://sanctuaryapp-media-prod.s3.us-east-1.amazonaws.com/saints/02-26_saint_alexander.jpg",
+  "_translationMeta": {
+    "version": 1,
+    "fields": {
+      "name": {
+        "sourceHash": "39cd4f8bd5ff069f214f4f577127e2119ff4eeff1236c00dfa29523fd4e551d2",
+        "langs": {
+          "es": {
+            "translatedHash": "c8b5a908cbb9ad1ed564b00b7edf7e036f359e568615bb2312320a676a319b88",
+            "updatedAt": "2026-02-24T23:18:56.156Z"
+          },
+          "pl": {
+            "translatedHash": "9324361b30facf8a48aa3d17ec4c6a6ab80cef0bd63f2e0b5375485074c65a66",
+            "updatedAt": "2026-02-24T23:18:56.888Z"
+          }
+        }
+      },
+      "feast": {
+        "sourceHash": "ac230ffbe3c47d910eed24e649408d56aa4fa91c6623d4d5cec086a5941357b5",
+        "langs": {
+          "es": {
+            "translatedHash": "eb29110de8bf941fea65f80120418c5e355481d8513fb2d9568bc3ff9e8cf323",
+            "updatedAt": "2026-02-24T23:18:57.573Z"
+          },
+          "pl": {
+            "translatedHash": "21903ffdec17d975fb588a9a624ee1cc53e6d3124acf293061deccac518924af",
+            "updatedAt": "2026-02-24T23:18:58.794Z"
+          }
+        }
+      },
+      "summary": {
+        "sourceHash": "0c9240fd55d627eea11081fccfcf228a77b588a8bf58a3446f9431aa8e045b3f",
+        "langs": {
+          "es": {
+            "translatedHash": "2d0b616585e46b8267e36f77c9684692b598c5ad26eaa27af0030ddbc31fecd9",
+            "updatedAt": "2026-02-24T23:19:01.946Z"
+          },
+          "pl": {
+            "translatedHash": "f0843a53c1e1f64a710e3c5043a61c73819322fbbcd9304c26c2ad4073bc156b",
+            "updatedAt": "2026-02-24T23:19:07.035Z"
+          }
+        }
+      },
+      "biography": {
+        "sourceHash": "eba4a48ec8acdb8bc86c4394be2f14b1766ef55635eed92080b8701f51aa2b98",
+        "langs": {
+          "es": {
+            "translatedHash": "55e68cf7b5bc330fbde6e1035607f09d74d0b2bf5ecb660d5a61e8c7cab4ddad",
+            "updatedAt": "2026-02-24T23:19:12.928Z"
+          },
+          "pl": {
+            "translatedHash": "691f65ae32d36d2cd931ee71bc7720382875f3917939f1ad7d429fd169d6e510",
+            "updatedAt": "2026-02-24T23:19:20.783Z"
+          }
+        }
+      }
+    }
+  },
+  "name_es": "San Alejandro",
+  "name_pl": "Święty Aleksander",
+  "feast_es": "El Tercer Día de Mayo",
+  "feast_pl": "Trzeci Dzień Maja",
+  "summary_es": "San Alejandro puede referirse a uno de varios santos, incluyendo: El Papa Alejandro I, obispo de Roma desde aproximadamente 107 hasta aproximadamente 115 y hieromártir Alejandro (101–165), uno de los siete hijos de Felicitas de Roma Epipodio y Alejandro, mártires en Lyon Alejandro de Jerusalén, obispo de Jerusalén y hieromártir Alejandro de Comana, obispo de Comana Alejandro de Roma, mártir Alejandro, mártir y compañero de San Víctor de Marsella Alejandro de Bérgamo, mártir y santo patrón de Bérgamo Alejandro, uno de los Cuarenta Mártires de Sebaste El Papa Alejandro I de Alejandría, Patriarca de Alejandría Alejandro de Constantinopla, obispo de Bizancio y primer obispo de Constantinopla Sisinnio, Martirio y Alejandro, mártires",
+  "summary_pl": "Święty Aleksander może odnosić się do jednego z kilku świętych, w tym: Papież Aleksander I, biskup Rzymu około 107 – około 115 oraz hieromęczennik Aleksander (101–165), jeden z siedmiu synów Felicyty z Rzymu Epipodiusz i Aleksander, męczennicy w Lyonie Aleksander Jerozolimski, biskup Jerozolimy i hieromęczennik Aleksander z Komany, biskup Komany Aleksander Rzymski, męczennik Aleksander, męczennik i towarzysz św. Wiktora z Marsylii Aleksander z Bergamo, męczennik i patron Bergamo Aleksander, jeden z Czterdziestu Męczenników z Sebasty Papież Aleksander I z Aleksandrii, patriarcha Aleksandrii Aleksander Konstantynopolski, biskup Bizancjum i pierwszy biskup Konstantynopola Sisinniusz, Martyriusz i Aleksander, męczennicy",
+  "biography_es": "Papa Alejandro I (fallecido en 115), obispo de Roma desde c. 107 – c. 115 y hieromártir Alejandro (101–165), uno de los siete hijos de Felicitas de Roma Epipodio y Alejandro (fallecidos en 178), mártires en Lyon Alejandro de Jerusalén (fallecido en 251), obispo de Jerusalén y hieromártir Alejandro de Comana (fallecido c. 251), obispo de Comana Alejandro de Roma (fallecido c. 289), mártir Alejandro (fallecido en 290), mártir y compañero de San Víctor de Marsella Alejandro de Bérgamo (fallecido c. 303), mártir y santo patrón de Bérgamo Alejandro (fallecido en 320), uno de los Cuarenta Mártires de Sebaste Papa Alejandro I de Alejandría (fallecido en 326 o 328), Patriarca de Alejandría Alejandro de Constantinopla (c.",
+  "biography_pl": "Papież Aleksander I (zm. 115), biskup Rzymu od ok. 107 do ok. 115 i hieromęczennik Aleksander (101–165), jeden z siedmiu synów Felicyty Rzymskiej Epipodiusz i Aleksander (zm. 178), męczennicy w Lyonie Aleksander Jerozolimski (zm. 251), biskup Jerozolimy i hieromęczennik Aleksander z Comany (zm. ok. 251), biskup Comany Aleksander Rzymski (zm. ok. 289), męczennik Aleksander (zm. 290), męczennik i towarzysz św. Wiktora z Marsylii Aleksander z Bergamo (zm. ok. 303), męczennik i patron Bergamo Aleksander (zm. 320), jeden z Czterdziestu Męczenników z Sebasty Papież Aleksander I Aleksandryjski (zm. 326 lub 328), patriarcha Aleksandrii Aleksander Konstantynopolski (ok. 240–337), biskup Bizancjum i pierwszy biskup Konstantynopola Sisinniusz, Martyriusz i Aleksander (zm."
+}

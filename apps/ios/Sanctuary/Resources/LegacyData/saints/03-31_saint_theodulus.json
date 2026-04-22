@@ -1,0 +1,79 @@
+{
+  "id": "03-31_saint_theodulus",
+  "name": "Saint Theodulus",
+  "mmdd": "03-31",
+  "feast": "The Thirty-First Day of March",
+  "summary": "Saint Theodulus, also rendered Theodolus, is honored with Saints Leontius and Hypatius as a martyr who confessed Christ with courage.",
+  "biography": "Saint Theodulus, also rendered Theodolus in some traditions, is remembered together with Saints Leontius and Hypatius. Christian tradition presents them as Roman soldiers whose encounter with the faith of Leontius led to conversion, steadfast witness, and martyrdom. The Church honors Theodulus for confessing Christ without fear and for sharing in the suffering that sealed the testimony of these early martyrs.",
+  "prayers": [],
+  "sources": [
+    "https://en.wikipedia.org/wiki/Leontius%2C_Hypatius_and_Theodulus",
+    "Wikipedia (CC BY-SA) — text attribution required."
+  ],
+  "photoUrl": "https://sanctuaryapp-media-prod.s3.us-east-1.amazonaws.com/saints/03-31_saint_theodulus.jpg",
+  "_translationMeta": {
+    "version": 1,
+    "fields": {
+      "name": {
+        "sourceHash": "560d3b6b18b5911ccd262e2ad117e031d79790e5aeb9c023a9b3a8809c13bd8c",
+        "langs": {
+          "es": {
+            "translatedHash": "02b3317a218580ed759e8dd8d03e5c28fbb60326bccb1ae6c6192105b53ad762",
+            "updatedAt": "2026-02-24T23:02:14.248Z"
+          },
+          "pl": {
+            "translatedHash": "7c0e8b7d85a1479a851105bc7fb8d676559768d262d9f8404230aa0c23b537e8",
+            "updatedAt": "2026-02-24T23:02:15.319Z"
+          }
+        }
+      },
+      "feast": {
+        "sourceHash": "f2a37a97a1131f2d6a5d8a2c0efc6092280d367869a380a3a069b7e95299a5f7",
+        "langs": {
+          "es": {
+            "translatedHash": "dd8758fc07031234ac41e6a9302848afa7422a112a22a4d48b272ff7f9aaabd8",
+            "updatedAt": "2026-02-24T23:02:16.027Z"
+          },
+          "pl": {
+            "translatedHash": "0de60dbf9231a0e566f0ef00474f9c98fe4022665e9a0c57cf661cc3e1d879ac",
+            "updatedAt": "2026-02-24T23:02:16.880Z"
+          }
+        }
+      },
+      "summary": {
+        "sourceHash": "7cc3c7be4a2a70cf6e10c3a2f05b449b1d535f8ea18f6b34837bdf6b3beaa3b6",
+        "langs": {
+          "es": {
+            "translatedHash": "1891fc613e22ca4d26237abbf718974c9998f65384ccde84f933c94f42e3dde0",
+            "updatedAt": "2026-02-24T23:02:17.838Z"
+          },
+          "pl": {
+            "translatedHash": "9b40230d1adbcbf1ede078ab4210024d8cc45f9aef09809ca273da9cfb8fccc9",
+            "updatedAt": "2026-02-24T23:02:19.237Z"
+          }
+        }
+      },
+      "biography": {
+        "sourceHash": "1aaba416e517af16323618a15ecf7bc0ecf2ad26cd1d6f7b1ef7b60d0566796c",
+        "langs": {
+          "es": {
+            "translatedHash": "31c28f8fece08db6c836715d839965ed0f0b9c9be8fd1ed287c84d1a4279b645",
+            "updatedAt": "2026-02-24T23:02:25.157Z"
+          },
+          "pl": {
+            "translatedHash": "bb32f216f26e196691dcf850b9faab1cd993d0889b9b86638cc967358464afaa",
+            "updatedAt": "2026-02-24T23:02:31.137Z"
+          }
+        }
+      }
+    }
+  },
+  "name_es": "San Teódulo",
+  "name_pl": "Święty Teodulus",
+  "feast_es": "El Trigésimo Primer Día de Marzo",
+  "feast_pl": "Trzydziesty pierwszy dzień marca",
+  "summary_es": "San Teódulo, también escrito Theodolus, es honrado junto con los santos Leoncio e Hipacio como mártir que confesó a Cristo con valentía.",
+  "summary_pl": "Święty Teodul, zapisywany także jako Theodolus, jest czczony razem ze świętymi Leoncjuszem i Hipacjuszem jako męczennik, który odważnie wyznał Chrystusa.",
+  "biography_es": "San Teódulo, escrito también como Theodolus en algunas tradiciones, es recordado junto con los santos Leoncio e Hipacio. La tradición cristiana los presenta como soldados romanos cuyo encuentro con la fe de Leoncio los condujo a la conversión, al testimonio firme y al martirio. La Iglesia honra a Teódulo por confesar a Cristo sin temor y por compartir el sufrimiento que selló el testimonio de estos primeros mártires.",
+  "biography_pl": "Święty Teodul, zapisywany w niektórych tradycjach także jako Theodolus, jest wspominany razem ze świętymi Leoncjuszem i Hipacjuszem. Tradycja chrześcijańska przedstawia ich jako rzymskich żołnierzy, których spotkanie z wiarą Leoncjusza doprowadziło do nawrócenia, wytrwałego świadectwa i męczeństwa. Kościół czci Teodula za nieustraszone wyznanie Chrystusa i za udział w cierpieniu, które przypieczętowało świadectwo tych wczesnych męczenników."
+}

@@ -1,0 +1,79 @@
+{
+  "id": "01-23_saint_vincent",
+  "name": "Saint Vincent",
+  "mmdd": "01-23",
+  "feast": "The Twenty-Third Day of January",
+  "summary": "Saint Vincent of Saragossa, also called Vincent the Deacon, was a Spanish deacon and martyr of the early fourth century who is venerated across the Latin Church.",
+  "biography": "Saint Vincent of Saragossa, also called Vincent the Deacon, served the Church in Roman Spain under Bishop Valerius of Saragossa. During the persecution under Emperor Diocletian, Vincent and Valerius were arrested and taken to Valencia. Christian tradition holds that Vincent endured imprisonment and torture rather than surrender the sacred books or deny Christ, and he died a martyr around the year 304. His cult spread quickly through the Western Church, and he remains especially associated with Valencia, Lisbon, and devotion to steadfast witness under persecution.",
+  "prayers": [],
+  "sources": [
+    "https://en.wikipedia.org/wiki/Vincent_of_Saragossa",
+    "Wikipedia (CC BY-SA) — text attribution required."
+  ],
+  "photoUrl": "https://sanctuaryapp-media-prod.s3.us-east-1.amazonaws.com/saints/01-22_saint_vincent_deacon_and_martyr_optional_memorial_celebrated_january_23_in_the_u.jpg",
+  "_translationMeta": {
+    "version": 1,
+    "fields": {
+      "name": {
+        "sourceHash": "ca8c4c95d04f5b44c7c8976173db6f552e68e27e230c44d599a9a941b6e38661",
+        "langs": {
+          "es": {
+            "translatedHash": "dbbe68f64a0817ba9855600f6ca6f8c39bd4470369fd6e0625be88e82b53dd95",
+            "updatedAt": "2026-02-24T22:20:35.026Z"
+          },
+          "pl": {
+            "translatedHash": "41d80f06c366ae4d7fdd35192d5295b1becace06e4347229b39f0560b9fd62a5",
+            "updatedAt": "2026-02-24T22:20:36.359Z"
+          }
+        }
+      },
+      "feast": {
+        "sourceHash": "158d848445c7b1c485086a34944c1a3ac9e6d66a8adb46f1c15401c88529a848",
+        "langs": {
+          "es": {
+            "translatedHash": "7a079864f281d9e289df4ef126ef16e0f150c5ad4795fcf1ccb16a89ddb5ef09",
+            "updatedAt": "2026-02-24T22:20:37.071Z"
+          },
+          "pl": {
+            "translatedHash": "6a5a3dfa46e8363427670d2fa121e1a482afbb928e2bbaacc939f891b9627204",
+            "updatedAt": "2026-02-24T22:20:37.783Z"
+          }
+        }
+      },
+      "summary": {
+        "sourceHash": "63fe4a3a5bd44dfe019a6f8f592919e34a5056af06b7416e0ba3f29bffde3cb4",
+        "langs": {
+          "es": {
+            "translatedHash": "34ce9c02b86774354c5dce0021a33ca53f74aeda83985015fb693c23185e26af",
+            "updatedAt": "2026-02-24T22:20:38.742Z"
+          },
+          "pl": {
+            "translatedHash": "ad9eb79651b1727ce391e8e051fc781fc0963f815fc6d336b3f0ea01ca080107",
+            "updatedAt": "2026-02-24T22:20:39.682Z"
+          }
+        }
+      },
+      "biography": {
+        "sourceHash": "db9914b014be822f8a8b572e36de101a4e4787c915af4a84624ac3c7e3cc304b",
+        "langs": {
+          "es": {
+            "translatedHash": "0b69c0bc3fd434d6a43db247c1f502b1c3b55f87450f6db7ae8c907c3d4b248d",
+            "updatedAt": "2026-02-24T22:20:45.099Z"
+          },
+          "pl": {
+            "translatedHash": "13cf5cddc0c069591b43d97c79efa547dbc088d6272caa3b177fa3215d494b71",
+            "updatedAt": "2026-02-24T22:20:50.022Z"
+          }
+        }
+      }
+    }
+  },
+  "name_es": "San Vicente",
+  "name_pl": "Święty Wincenty",
+  "feast_es": "El vigésimo tercer día de enero",
+  "feast_pl": "Dwudziesty trzeci dzień stycznia",
+  "summary_es": "San Vicente de Zaragoza, también llamado Vicente el Diácono, fue un diácono y mártir español de comienzos del siglo IV, venerado en toda la Iglesia latina.",
+  "summary_pl": "Święty Wincenty z Saragossy, zwany także Wincentym Diakonem, był hiszpańskim diakonem i męczennikiem z początku IV wieku, czczonym w całym Kościele łacińskim.",
+  "biography_es": "San Vicente de Zaragoza, también llamado Vicente el Diácono, sirvió a la Iglesia en la Hispania romana junto al obispo Valero de Zaragoza. Durante la persecución del emperador Diocleciano, Vicente y Valero fueron arrestados y llevados a Valencia. La tradición cristiana sostiene que Vicente soportó prisión y torturas antes que entregar los libros sagrados o negar a Cristo, y murió mártir hacia el año 304. Su culto se difundió rápidamente por la Iglesia de Occidente, y sigue estando especialmente vinculado con Valencia, Lisboa y el testimonio fiel bajo persecución.",
+  "biography_pl": "Święty Wincenty z Saragossy, zwany także Wincentym Diakonem, służył Kościołowi w rzymskiej Hiszpanii u boku biskupa Waleriusza z Saragossy. Podczas prześladowań za cesarza Dioklecjana Wincenty i Waleriusz zostali aresztowani i przewiezieni do Walencji. Tradycja chrześcijańska podaje, że Wincenty zniósł więzienie i tortury, nie chcąc wydać świętych ksiąg ani zaprzeć się Chrystusa, i poniósł śmierć męczeńską około roku 304. Jego kult szybko rozprzestrzenił się w Kościele zachodnim, a sam święty jest szczególnie związany z Walencją, Lizboną i świadectwem wierności w czasie prześladowań."
+}

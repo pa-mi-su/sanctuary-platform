@@ -1,0 +1,79 @@
+{
+  "id": "08-22_queenship_of_blessed_virgin_mary_memorial",
+  "name": "Queenship of Blessed Virgin Mary—Memorial",
+  "mmdd": "08-22",
+  "feast": "The Twenty-Second Day of August",
+  "summary": "The Queenship of the Blessed Virgin Mary honors Mary as Queen because of her unique union with Christ the King and her loving care for the Church.",
+  "biography": "The memorial of the Queenship of the Blessed Virgin Mary celebrates the dignity given to Mary by her Son, Jesus Christ, King of the universe. Rooted in ancient Christian devotion and placed within the Church calendar after the Solemnity of the Assumption, this observance highlights Mary’s intercession, humility, and maternal care for all the faithful. The title of Queen does not separate her from Christ, but points to the glory God bestowed on the one who said yes to his saving plan. This feast invites Christians to trust her prayers and to follow her example of obedience and holiness.",
+  "prayers": [],
+  "sources": [
+    "https://en.wikipedia.org/wiki/May_devotions_to_the_Blessed_Virgin_Mary",
+    "Wikipedia (CC BY-SA) — text attribution required."
+  ],
+  "photoUrl": "https://sanctuaryapp-media-prod.s3.us-east-1.amazonaws.com/saints/08-22_queenship_of_blessed_virgin_mary_memorial.jpg",
+  "_translationMeta": {
+    "version": 1,
+    "fields": {
+      "name": {
+        "sourceHash": "cac13168d97271225f8f6d9752e715e4a58415c2f5826453565cc02b1a352ed6",
+        "langs": {
+          "es": {
+            "translatedHash": "27c88e331b6c13e9c4be708ac188dd54b5395376516c68e0de13caf85a6f21a2",
+            "updatedAt": "2026-02-25T00:19:25.922Z"
+          },
+          "pl": {
+            "translatedHash": "3dcfdaf5c6164d9c2c94ee592d0e7ea079250eb1488830c25da5f649c515e3bb",
+            "updatedAt": "2026-02-25T00:19:26.621Z"
+          }
+        }
+      },
+      "feast": {
+        "sourceHash": "c367a794d6fccf5dd0024886d7443327953e0472fa245c92cb59e89bdc5e496d",
+        "langs": {
+          "es": {
+            "translatedHash": "bcb566a0f0a00e3296c8734123963d58e94b82e1b680d61c08d2aa8f7bfbdf49",
+            "updatedAt": "2026-02-25T00:19:27.196Z"
+          },
+          "pl": {
+            "translatedHash": "221bd01978f8e7f72604a5a675437e47259439966ff2f3ec52668b3c29000f29",
+            "updatedAt": "2026-02-25T00:19:27.810Z"
+          }
+        }
+      },
+      "summary": {
+        "sourceHash": "1bafb19b8db952e9d9efceef52ff1047a0ff3494078b28c969c339e1917f66d0",
+        "langs": {
+          "es": {
+            "translatedHash": "bf1d3ab21911f3946b413e1ca7ee964d29b153c9bfb56e4808a1484cd157abc3",
+            "updatedAt": "2026-02-25T00:19:29.364Z"
+          },
+          "pl": {
+            "translatedHash": "960189f9079d2c5ccc0fb5d512162122c46daf92220e706e1b582223beb45109",
+            "updatedAt": "2026-02-25T00:19:31.510Z"
+          }
+        }
+      },
+      "biography": {
+        "sourceHash": "a409773e8347d1f47ac9ca97b14aa2cdea930c611db8153097bc60640ecec68b",
+        "langs": {
+          "es": {
+            "translatedHash": "cab9da804a7f47b9d4128507b1b0121494e8bb0d0380644358a843cc9b80c7c2",
+            "updatedAt": "2026-02-25T00:19:39.514Z"
+          },
+          "pl": {
+            "translatedHash": "90468ffe1c65a3752f54565395ac53d6dcc904495313c8fe3c9119452973b28d",
+            "updatedAt": "2026-02-25T00:19:45.106Z"
+          }
+        }
+      }
+    }
+  },
+  "name_es": "Reina de la Santísima Virgen María—Memoria",
+  "name_pl": "Królowo Najświętszej Maryi Panny — Wspomnienie",
+  "feast_es": "El Veintidós de Agosto",
+  "feast_pl": "Dwudziesty drugi dzień sierpnia",
+  "summary_es": "La Realeza de la Santísima Virgen María honra a María como Reina por su unión singular con Cristo Rey y por su amoroso cuidado de la Iglesia.",
+  "summary_pl": "Wspomnienie Najświętszej Maryi Panny Królowej czci Maryję jako Królową ze względu na jej wyjątkowe zjednoczenie z Chrystusem Królem i pełną miłości troskę o Kościół.",
+  "biography_es": "La memoria de la Realeza de la Santísima Virgen María celebra la dignidad que su Hijo, Jesucristo Rey del universo, concedió a María. Enraizada en la antigua devoción cristiana y situada en el calendario de la Iglesia después de la solemnidad de la Asunción, esta celebración destaca la intercesión de María, su humildad y su cuidado maternal por todos los fieles. El título de Reina no la separa de Cristo, sino que señala la gloria que Dios concedió a quien dijo sí a su plan de salvación. Esta fiesta invita a los cristianos a confiar en su oración y a seguir su ejemplo de obediencia y santidad.",
+  "biography_pl": "Wspomnienie Najświętszej Maryi Panny Królowej celebruje godność daną Maryi przez jej Syna, Jezusa Chrystusa, Króla wszechświata. Zakorzenione w dawnej pobożności chrześcijańskiej i umieszczone w kalendarzu Kościoła po uroczystości Wniebowzięcia, to wspomnienie podkreśla wstawiennictwo Maryi, jej pokorę i macierzyńską troskę o wszystkich wiernych. Tytuł Królowej nie oddziela jej od Chrystusa, lecz wskazuje na chwałę, jaką Bóg obdarzył Tę, która powiedziała tak Jego zbawczemu planowi. To święto zaprasza chrześcijan do ufności w jej modlitwę i do naśladowania jej posłuszeństwa i świętości."
+}

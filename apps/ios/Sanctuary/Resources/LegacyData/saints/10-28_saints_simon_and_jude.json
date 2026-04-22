@@ -1,0 +1,79 @@
+{
+  "id": "10-28_saints_simon_and_jude",
+  "name": "Saints Simon and Jude",
+  "mmdd": "10-28",
+  "feast": "The Twenty-Eighth Day of October",
+  "summary": "Saints Simon and Jude are honored together as apostles of the Lord who preached the Gospel faithfully and gave their lives in witness to Christ.",
+  "biography": "Saints Simon and Jude were two of the Twelve Apostles chosen by Jesus. Simon is traditionally called the Zealot, while Jude, also known as Thaddeus, is remembered in the New Testament and loved by many Christians as a patron in desperate situations. The Church celebrates them together because both shared in the apostolic mission to proclaim Christ and strengthen the early Church. Their feast honors missionary courage, fidelity to the Gospel, and the unity of those who bear witness to the risen Lord.",
+  "prayers": [],
+  "sources": [
+    "https://en.wikipedia.org/wiki/Jude_Thaddeus_the_Apostle",
+    "Wikipedia (CC BY-SA) — text attribution required."
+  ],
+  "photoUrl": "https://sanctuaryapp-media-prod.s3.us-east-1.amazonaws.com/saints/10-28_saints_simon_and_jude.jpg",
+  "_translationMeta": {
+    "version": 1,
+    "fields": {
+      "name": {
+        "sourceHash": "f714cca7ff36b37b74c6f9790a3081f83037a24694bc47ad44eefa5e208a6db6",
+        "langs": {
+          "es": {
+            "translatedHash": "8b8b844ac2ac16535bf15e90bd95fbb4c55d2d643d5b3b50dc4954c146552381",
+            "updatedAt": "2026-02-25T00:57:40.512Z"
+          },
+          "pl": {
+            "translatedHash": "59717ca39a08d35160641d62b9fa96927ed3c6df21bb14537ecae5d5a8e40556",
+            "updatedAt": "2026-02-25T00:57:41.149Z"
+          }
+        }
+      },
+      "feast": {
+        "sourceHash": "5ac823fd4befab6bfdd4e990aeb7223db8904071d91648fa4da8aeddaff2f769",
+        "langs": {
+          "es": {
+            "translatedHash": "d678a5c749b77263c170e4cca950fc35864412d07d0c887cd6bb07079930db3d",
+            "updatedAt": "2026-02-25T00:57:41.767Z"
+          },
+          "pl": {
+            "translatedHash": "b304e7fe078a3ec0375d9fb03d82811b2965cb6642dc75bb5722e33962e9c0b3",
+            "updatedAt": "2026-02-25T00:57:42.491Z"
+          }
+        }
+      },
+      "summary": {
+        "sourceHash": "bf9eb299600c8bed073f0ef547e2977b3cf4305600154f16fee57cced1ce209d",
+        "langs": {
+          "es": {
+            "translatedHash": "501462b17c9924892cc910e6e26600d6c4c249e43b46fb8e3550f4c3bf098283",
+            "updatedAt": "2026-02-25T00:57:45.249Z"
+          },
+          "pl": {
+            "translatedHash": "5bb592b5650219b468769a7ec98725f4814f7afa6de478ef1bdf4d2149c58d1c",
+            "updatedAt": "2026-02-25T00:57:48.405Z"
+          }
+        }
+      },
+      "biography": {
+        "sourceHash": "3127c31fb31991b4a39e1b0f66c16caab94588b884dc7269b5bd71acbe44af4b",
+        "langs": {
+          "es": {
+            "translatedHash": "c6836c0d6bae73c414049737931df5f3c1e89aa334483e413ecd17b12b0a781a",
+            "updatedAt": "2026-02-25T00:57:55.664Z"
+          },
+          "pl": {
+            "translatedHash": "e470c9f0798b6de85814b34889a2a8ccfc6dd6572593f1f0099a5964eee4303d",
+            "updatedAt": "2026-02-25T00:58:10.766Z"
+          }
+        }
+      }
+    }
+  },
+  "name_es": "Santos Simón y Judas",
+  "name_pl": "Święci Szymon i Juda",
+  "feast_es": "El Vigésimo Octavo Día de Octubre",
+  "feast_pl": "Dwudziesty ósmy dzień października",
+  "summary_es": "Los santos Simón y Judas son honrados juntos como apóstoles del Señor que predicaron fielmente el Evangelio y entregaron su vida como testimonio de Cristo.",
+  "summary_pl": "Święci Szymon i Juda są czczeni razem jako apostołowie Pana, którzy wiernie głosili Ewangelię i oddali życie w świadectwie o Chrystusie.",
+  "biography_es": "Los santos Simón y Judas fueron dos de los Doce Apóstoles elegidos por Jesús. A Simón se le llama tradicionalmente el Zelote, mientras que Judas, también conocido como Tadeo, es recordado en el Nuevo Testamento y amado por muchos cristianos como patrono de las causas difíciles. La Iglesia los celebra juntos porque ambos compartieron la misión apostólica de anunciar a Cristo y fortalecer a la Iglesia naciente. Su fiesta honra el valor misionero, la fidelidad al Evangelio y la unidad de quienes dan testimonio del Señor resucitado.",
+  "biography_pl": "Święci Szymon i Juda byli dwoma z Dwunastu Apostołów wybranych przez Jezusa. Szymon tradycyjnie nosi przydomek Gorliwy, a Juda, zwany także Tadeuszem, jest wspominany w Nowym Testamencie i umiłowany przez wielu chrześcijan jako patron spraw trudnych. Kościół obchodzi ich razem, ponieważ obaj uczestniczyli w apostolskiej misji głoszenia Chrystusa i umacniania rodzącego się Kościoła. Ich święto czci misyjną odwagę, wierność Ewangelii i jedność tych, którzy świadczą o zmartwychwstałym Panu."
+}
