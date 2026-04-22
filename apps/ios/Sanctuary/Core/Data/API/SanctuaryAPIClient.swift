@@ -137,6 +137,49 @@ struct APIContentSaintDetailResponse: Decodable, Sendable {
     let sources: [String]
 }
 
+struct APIContentNovenaSummaryResponse: Decodable, Sendable {
+    let id: String
+    let slug: String
+    let title: String
+    let description: String
+    let durationDays: Int
+    let imageUrl: String?
+}
+
+struct APIContentNovenaDayDetailResponse: Decodable, Sendable {
+    let dayNumber: Int
+    let title: String?
+    let scripture: String?
+    let prayer: String?
+    let reflection: String?
+    let body: String?
+}
+
+struct APIContentNovenaDetailResponse: Decodable, Sendable {
+    let id: String
+    let slug: String
+    let title: String
+    let description: String
+    let durationDays: Int
+    let imageUrl: String?
+    let tags: [String]
+    let intentions: [String]
+    let days: [APIContentNovenaDayDetailResponse]
+}
+
+struct APIContentNovenaCalendarDateResponse: Decodable, Sendable {
+    let date: String
+    let novenas: [APIContentNovenaSummaryResponse]
+    let startingNovena: APIContentNovenaSummaryResponse?
+}
+
+struct APINovenaServingWindowResponse: Decodable, Sendable {
+    let novenaId: String
+    let startDate: String
+    let endDate: String
+    let feastDate: String
+}
+
 private struct APIErrorEnvelope: Decodable {
     let message: String
 }
@@ -253,6 +296,81 @@ actor SanctuaryAPIClient {
         return try await performRequest(
             path: "/content/saints/range",
             queryItems: queryItems,
+            method: "GET",
+            body: Optional<String>.none,
+            token: nil
+        )
+    }
+
+    func listNovenas(
+        locale: ContentLocale,
+        query: String?
+    ) async throws -> [APIContentNovenaSummaryResponse] {
+        var queryItems = [URLQueryItem(name: "lang", value: locale.rawValue)]
+        if let query, !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            queryItems.append(URLQueryItem(name: "query", value: query))
+        }
+
+        return try await performRequest(
+            path: "/content/novenas",
+            queryItems: queryItems,
+            method: "GET",
+            body: Optional<String>.none,
+            token: nil
+        )
+    }
+
+    func searchNovenasByIntentions(
+        locale: ContentLocale,
+        query: String
+    ) async throws -> [APIContentNovenaSummaryResponse] {
+        let queryItems = [
+            URLQueryItem(name: "lang", value: locale.rawValue),
+            URLQueryItem(name: "query", value: query)
+        ]
+
+        return try await performRequest(
+            path: "/content/novenas/intentions",
+            queryItems: queryItems,
+            method: "GET",
+            body: Optional<String>.none,
+            token: nil
+        )
+    }
+
+    func listNovenaCalendarDays(
+        locale: ContentLocale,
+        startDate: Date,
+        endDate: Date
+    ) async throws -> [APIContentNovenaCalendarDateResponse] {
+        let queryItems = [
+            URLQueryItem(name: "lang", value: locale.rawValue),
+            URLQueryItem(name: "start", value: queryDateFormatter.string(from: startDate)),
+            URLQueryItem(name: "end", value: queryDateFormatter.string(from: endDate))
+        ]
+
+        return try await performRequest(
+            path: "/content/novenas/calendar",
+            queryItems: queryItems,
+            method: "GET",
+            body: Optional<String>.none,
+            token: nil
+        )
+    }
+
+    func fetchNovena(slug: String, locale: ContentLocale) async throws -> APIContentNovenaDetailResponse? {
+        try await performRequest(
+            path: "/content/novenas/\(slug)",
+            queryItems: [URLQueryItem(name: "lang", value: locale.rawValue)],
+            method: "GET",
+            body: Optional<String>.none,
+            token: nil
+        )
+    }
+
+    func fetchNovenaServingWindow(novenaID: String, year: Int) async throws -> APINovenaServingWindowResponse? {
+        try await performRequest(
+            path: "/calendar/novenas/\(novenaID)/window/\(year)",
             method: "GET",
             body: Optional<String>.none,
             token: nil

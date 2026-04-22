@@ -16,6 +16,7 @@ final class NovenasListViewModel: ObservableObject {
     @Published private(set) var errorMessage: String?
 
     private let useCase: ListNovenasUseCase
+    let contentRepository: any ContentRepository
     private var locale: ContentLocale
     private var allNovenas: [Novena] = []
     private var indexedNovenas: [IndexedNovena] = []
@@ -23,6 +24,7 @@ final class NovenasListViewModel: ObservableObject {
 
     init(useCase: ListNovenasUseCase, locale: ContentLocale = .en) {
         self.useCase = useCase
+        self.contentRepository = useCase.contentRepository
         self.locale = locale
     }
 

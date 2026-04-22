@@ -128,6 +128,7 @@ struct NovenasCalendarView: View {
         }
         .sheet(item: $selectedNovenaSelection) { selection in
             NovenaDetailView(
+                contentRepository: environment.contentRepository,
                 novena: Novena(
                     id: selection.id,
                     slug: selection.id,
@@ -135,7 +136,7 @@ struct NovenasCalendarView: View {
                     descriptionByLocale: [.en: ""],
                     durationDays: 1,
                     tags: [],
-                    imageURL: nil,
+                    imageURL: novenaImageURLByDay[selectedDay],
                     days: []
                 ),
                 displayYear: selectedYear,
@@ -181,31 +182,47 @@ struct NovenasCalendarView: View {
     }
 
     private func loadNovenaLookups() async {
-        let year = selectedYear
-        let month = selectedMonth
-        let days = daysInMonth(year: selectedYear, month: selectedMonth)
-        let loaded = await Task.detached(priority: .userInitiated) {
+        let calendar = Calendar(identifier: .gregorian)
+        var components = DateComponents()
+        components.year = selectedYear
+        components.month = selectedMonth
+        components.day = 1
+        components.hour = 12
+        guard let monthStart = calendar.date(from: components) else { return }
+        guard let monthEnd = calendar.date(byAdding: DateComponents(month: 1, day: -1), to: monthStart) else { return }
+
+        do {
+            let entries = try await environment.contentRepository.listNovenaCalendarDays(
+                locale: localization.language.contentLocale,
+                startDate: monthStart,
+                endDate: monthEnd
+            )
+
             var ids: [Int: String] = [:]
             var titles: [Int: String] = [:]
             var images: [Int: URL] = [:]
-            for day in 1...days {
-                if let id = ContentStore.firstNovenaIDForCalendarDay(onYear: year, month: month, day: day) {
-                    ids[day] = id
-                }
-                if let title = ContentStore.firstNovenaTitleForCalendarDay(onYear: year, month: month, day: day) {
-                    titles[day] = title
-                }
-                if let raw = ContentStore.firstNovenaImageURLStringForCalendarDay(onYear: year, month: month, day: day),
-                   let url = urlFromString(raw) {
-                    images[day] = url
+
+            for entry in entries {
+                let day = calendar.component(.day, from: entry.date)
+                let featured = entry.startingNovena ?? entry.novenas.first
+                guard let featured else { continue }
+                ids[day] = featured.id
+                titles[day] = featured.titleByLocale[localization.language.contentLocale]
+                    ?? featured.titleByLocale[.en]
+                    ?? featured.slug
+                if let imageURL = featured.imageURL {
+                    images[day] = imageURL
                 }
             }
-            return (ids, titles, images)
-        }.value
 
-        novenaIDByDay = loaded.0
-        novenaTitleByDay = loaded.1
-        novenaImageURLByDay = loaded.2
+            novenaIDByDay = ids
+            novenaTitleByDay = titles
+            novenaImageURLByDay = images
+        } catch {
+            novenaIDByDay = [:]
+            novenaTitleByDay = [:]
+            novenaImageURLByDay = [:]
+        }
     }
 
     private func selectedDate() -> Date {

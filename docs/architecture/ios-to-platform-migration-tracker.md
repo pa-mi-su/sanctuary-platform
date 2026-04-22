@@ -265,7 +265,7 @@ Notes:
   - `/me/novena-commitments`
 - `AccountSessionStore` now persists the signed-in session in the keychain and owns bootstrap, login, register, confirm, resend, refresh, and logout behavior.
 - `RemoteUserProgressRepository` now backs favorites and novena commitments with the real API instead of local-only storage for authenticated flows.
-- `HybridContentRepository` now gives iOS a safe migration path where saints are API-backed first while novenas, prayers, and liturgical data continue to read from the legacy local repositories until their domain migrations are ready.
+- `HybridContentRepository` now gives iOS a safe migration path where saints and novenas are API-backed first while prayers and liturgical data continue to read from the legacy local repositories until their domain migrations are ready.
 - Prod, Dev, and UAT simulator builds all succeed with this new foundation slice in place.
 
 ### Phase 4: Auth And Account Migration
@@ -329,6 +329,7 @@ Notes:
 - Authenticated favorites and novena commitments are now backed by the real `/me` API surface.
 - `MeView` now refreshes signed-in profile and synced user progress from the API-backed stores instead of relying on a local placeholder state model.
 - Favorite saint rows in `Me` now resolve saint names and detail navigation through the repository layer rather than the bundled saint JSON store.
+- Active novena rows and favorite novena rows in `Me` now resolve titles and detail navigation through the repository layer rather than the bundled novena JSON store.
 
 ### Phase 6: Content Domain Migration
 
@@ -345,7 +346,7 @@ Recommended order:
 
 Checklist:
 - [x] Replace saints local repository with API repository
-- [ ] Replace novenas local repository with API repository
+- [x] Replace novenas local repository with API repository
 - [ ] Replace liturgical local/rule logic with API-backed data
 - [ ] Replace prayers local repository with API repository
 - [x] Verify search and detail screens work from API data
@@ -354,13 +355,21 @@ Checklist:
 Notes:
 
 - Saints is now the first real content domain migrated off bundled JSON in the runtime path.
+- Novenas is now the second content domain migrated off bundled JSON in the main runtime path.
 - The following iOS surfaces now source saints from the API-backed repository path:
   - saints list
   - saints search
   - saint detail hydration
   - saints calendar monthly/day lookup
   - favorite saint resolution in `Me`
-- Saint detail still keeps local related-novena lookup as a temporary bridge until novenas migrate.
+- The following iOS surfaces now source novenas from the API-backed repository path:
+  - novenas list
+  - novena detail hydration
+  - novena intentions search
+  - novena calendar monthly/day lookup
+  - active novena and favorite novena resolution in `Me`
+- Saint detail still keeps local related-novena lookup as a temporary bridge until saints and novenas can share a backend-driven relation model.
+- Novena detail still keeps local related-saint lookup as a temporary bridge until saints and novenas can share a backend-driven relation model.
 
 ### Phase 7: Legacy Removal
 
@@ -415,9 +424,9 @@ Checklist:
 
 ## Immediate Next Actions
 
-1. Validate the new saints API-backed flow against the live backend on simulator/device
-2. Continue Phase 6 with novenas as the next content domain migration
-3. Remove remaining local-only authenticated fallback behavior once novenas are on the API
+1. Validate the new saints + novenas API-backed flows against the live backend on simulator/device
+2. Continue Phase 6 with liturgical as the next content domain migration
+3. Remove remaining local-only authenticated fallback behavior once liturgical is on the API
 4. Verify a real signed archive/upload path from the monorepo once the first two content domains are stable
 
 ## Progress Log
@@ -431,3 +440,4 @@ Checklist:
 - [x] Add keychain-backed account session flow and API-backed `/me`
 - [x] Add API-backed favorites and novena commitments foundation
 - [x] Migrate saints to the first API-backed content domain across list, search, detail, calendar, and `Me`
+- [x] Migrate novenas to the second API-backed content domain across list, detail, intentions search, calendar, and `Me`

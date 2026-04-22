@@ -2,6 +2,7 @@ import Foundation
 import SwiftUI
 
 struct NovenaDetailView: View {
+    let contentRepository: any ContentRepository
     let novena: Novena
     var displayYear: Int? = nil
     var allowsRelatedNavigation: Bool = true
@@ -15,9 +16,9 @@ struct NovenaDetailView: View {
     @State private var isFavorite = false
     @State private var relatedSaints: [RelatedSaint] = []
     @State private var selectedSaintSelection: IDSelection?
-    @State private var sourceDoc: NovenaDocument?
     @State private var hydratedNovena: Novena?
     @State private var showCompletionModal = false
+    @State private var servingWindow: NovenaServingWindowInfo?
 
     private var locale: ContentLocale { localization.language.contentLocale }
     private var effectiveNovena: Novena { hydratedNovena ?? novena }
@@ -62,19 +63,11 @@ struct NovenaDetailView: View {
     }
 
     private var novenaStartDateString: String? {
-        let year = displayYear ?? Calendar.current.component(.year, from: Date())
-        guard let window = ContentStore.novenaServingWindow(id: effectiveNovena.id, year: year) else {
-            return nil
-        }
-        return localization.formatMonthDay(window.start)
+        servingWindow.map { localization.formatMonthDay($0.startDate) }
     }
 
     private var novenaEndDateString: String? {
-        let year = displayYear ?? Calendar.current.component(.year, from: Date())
-        guard let date = ContentStore.novenaFeastDate(id: effectiveNovena.id, year: year) else {
-            return nil
-        }
-        return localization.formatMonthDay(date)
+        servingWindow.map { localization.formatMonthDay($0.feastDate) }
     }
 
     private var currentCommitment: UserNovenaCommitment? {
@@ -370,17 +363,21 @@ struct NovenaDetailView: View {
         }
         .task {
             let id = novena.id
-            let loadedDoc: NovenaDocument? = await Task.detached(priority: .userInitiated) {
-                ContentStore.novena(id: id)
-            }.value
-            sourceDoc = loadedDoc
-            if let loadedDoc {
-                hydratedNovena = mapSourceNovena(loadedDoc)
+            async let loadedNovena = contentRepository.fetchNovena(slug: id, locale: locale)
+            async let loadedWindow = contentRepository.fetchNovenaServingWindow(
+                novenaID: id,
+                year: displayYear ?? Calendar.current.component(.year, from: Date())
+            )
+
+            if let loadedNovena = try? await loadedNovena {
+                hydratedNovena = loadedNovena
             }
+            servingWindow = try? await loadedWindow
             await loadRelatedSaints()
         }
         .sheet(item: $selectedSaintSelection) { selection in
             SaintDetailView(
+                contentRepository: contentRepository,
                 saint: Saint(
                     id: selection.id,
                     slug: selection.id,
@@ -443,63 +440,6 @@ struct NovenaDetailView: View {
             RelationResolver.relatedSaints(forNovenaID: id)
         }.value
         relatedSaints = related
-    }
-
-    private func mapSourceNovena(_ doc: NovenaDocument) -> Novena {
-        let titleByLocale: [ContentLocale: String] = [
-            .en: doc.title ?? doc.id,
-            .es: doc.title_es ?? doc.title ?? doc.id,
-            .pl: doc.title_pl ?? doc.title ?? doc.id,
-        ]
-        let descriptionByLocale: [ContentLocale: String] = [
-            .en: doc.description ?? "",
-            .es: doc.description_es ?? doc.description ?? "",
-            .pl: doc.description_pl ?? doc.description ?? "",
-        ]
-        let days = (doc.days ?? []).map { d in
-            let title: [ContentLocale: String] = [
-                .en: d.title ?? "",
-                .es: d.title_es ?? d.title ?? "",
-                .pl: d.title_pl ?? d.title ?? "",
-            ]
-            let scripture: [ContentLocale: String] = [
-                .en: d.scripture ?? "",
-                .es: d.scripture_es ?? d.scripture ?? "",
-                .pl: d.scripture_pl ?? d.scripture ?? "",
-            ]
-            let prayer: [ContentLocale: String] = [
-                .en: d.prayer ?? "",
-                .es: d.prayer_es ?? d.prayer ?? "",
-                .pl: d.prayer_pl ?? d.prayer ?? "",
-            ]
-            let reflection: [ContentLocale: String] = [
-                .en: d.reflection ?? "",
-                .es: d.reflection_es ?? d.reflection ?? "",
-                .pl: d.reflection_pl ?? d.reflection ?? "",
-            ]
-            return NovenaDay(
-                dayNumber: d.day ?? 1,
-                titleByLocale: title,
-                scriptureByLocale: scripture,
-                prayerByLocale: prayer,
-                reflectionByLocale: reflection,
-                bodyByLocale: [
-                    .en: [title[.en], scripture[.en], prayer[.en], reflection[.en]].compactMap { $0 }.joined(separator: "\n\n"),
-                    .es: [title[.es], scripture[.es], prayer[.es], reflection[.es]].compactMap { $0 }.joined(separator: "\n\n"),
-                    .pl: [title[.pl], scripture[.pl], prayer[.pl], reflection[.pl]].compactMap { $0 }.joined(separator: "\n\n"),
-                ]
-            )
-        }
-        return Novena(
-            id: doc.id,
-            slug: doc.id,
-            titleByLocale: titleByLocale,
-            descriptionByLocale: descriptionByLocale,
-            durationDays: doc.durationDays ?? max(1, days.count),
-            tags: doc.tags ?? [],
-            imageURL: urlFromString(doc.image),
-            days: days
-        )
     }
 
     private func mapSourceSaint(_ doc: SaintDocument) -> Saint {
@@ -692,7 +632,7 @@ private struct RelatedLinkButtonStyle: ButtonStyle {
 
 struct NovenaDetailView_Previews: PreviewProvider {
     static var previews: some View {
-        NovenaDetailView(novena: LocalSeedData.novenas[0])
+        NovenaDetailView(contentRepository: LocalContentRepository(), novena: LocalSeedData.novenas[0])
             .environmentObject(LocalizationManager())
             .environmentObject(
                 UserProgressStore(userProgressRepository: LocalUserProgressRepository())

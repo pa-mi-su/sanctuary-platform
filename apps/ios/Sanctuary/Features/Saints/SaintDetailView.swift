@@ -255,6 +255,7 @@ struct SaintDetailView: View {
         }
         .sheet(item: $selectedNovenaSelection) { selection in
             NovenaDetailView(
+                contentRepository: contentRepository,
                 novena: Novena(
                     id: selection.id,
                     slug: selection.id,

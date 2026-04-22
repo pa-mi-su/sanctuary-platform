@@ -22,7 +22,7 @@ struct NovenasListView: View {
 
                     ForEach(viewModel.novenas) { novena in
                         NavigationLink {
-                            NovenaDetailView(novena: novena)
+                            NovenaDetailView(contentRepository: viewModel.contentRepository, novena: novena)
                         } label: {
                             VStack(alignment: .leading, spacing: 6) {
                                 Text(viewModel.title(for: novena))

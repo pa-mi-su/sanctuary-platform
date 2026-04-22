@@ -7,6 +7,7 @@ struct MeView: View {
     @EnvironmentObject private var progressStore: UserProgressStore
     @State private var selectedRoute: MeSelectionRoute?
     @State private var saintDetailsByID: [String: Saint] = [:]
+    @State private var novenaDetailsByID: [String: Novena] = [:]
 
     var body: some View {
         ZStack {
@@ -37,6 +38,9 @@ struct MeView: View {
         .task(id: favoriteSaintLookupKey) {
             await loadFavoriteSaintDetails()
         }
+        .task(id: novenaLookupKey) {
+            await loadNovenaDetails()
+        }
         .sheet(item: $selectedRoute) { route in
             switch route {
             case .saint(let id):
@@ -66,12 +70,13 @@ struct MeView: View {
                 )
             case .novena(let id):
                 NovenaDetailView(
-                    novena: Novena(
+                    contentRepository: environment.contentRepository,
+                    novena: novenaDetailsByID[id] ?? Novena(
                         id: id,
                         slug: id,
                         titleByLocale: [.en: novenaTitle(for: id)],
                         descriptionByLocale: [.en: ""],
-                        durationDays: 9,
+                        durationDays: novenaDuration(for: id),
                         tags: [],
                         imageURL: nil,
                         days: []
@@ -149,8 +154,8 @@ struct MeView: View {
             } else {
                 VStack(spacing: 10) {
                     ForEach(progressStore.activeCommitments, id: \.novenaID) { commitment in
-                        let title = ContentStore.novena(id: commitment.novenaID)?.title ?? commitment.novenaID
-                        let total = max(1, ContentStore.novena(id: commitment.novenaID)?.durationDays ?? 9)
+                        let title = novenaTitle(for: commitment.novenaID)
+                        let total = novenaDuration(for: commitment.novenaID)
                         let dayLabel = "Day \(min(commitment.currentDay, total)) of \(total)"
                         accountLinkedRow(title: title, subtitle: dayLabel) {
                             selectedRoute = .novena(id: commitment.novenaID)
@@ -241,79 +246,22 @@ struct MeView: View {
     }
 
     private func novenaTitle(for id: String) -> String {
-        ContentStore.novena(id: id)?.title ?? id
+        let locale = localization.language.contentLocale
+        return novenaDetailsByID[id]?.titleByLocale[locale]
+            ?? novenaDetailsByID[id]?.titleByLocale[.en]
+            ?? id
     }
 
     private var favoriteSaintLookupKey: String {
         ([localization.language.contentLocale.rawValue] + favoriteSaints.map(\.itemID).sorted()).joined(separator: "|")
     }
-
-    private func mapSourceNovena(_ doc: NovenaDocument) -> Novena {
-        let titleByLocale: [ContentLocale: String] = [
-            .en: doc.title ?? doc.id,
-            .es: doc.title_es ?? doc.title ?? doc.id,
-            .pl: doc.title_pl ?? doc.title ?? doc.id,
-        ]
-        let descriptionByLocale: [ContentLocale: String] = [
-            .en: doc.description ?? "",
-            .es: doc.description_es ?? doc.description ?? "",
-            .pl: doc.description_pl ?? doc.description ?? "",
-        ]
-
-        let days = (doc.days ?? []).map { d in
-            let title: [ContentLocale: String] = [
-                .en: d.title ?? "",
-                .es: d.title_es ?? d.title ?? "",
-                .pl: d.title_pl ?? d.title ?? "",
-            ]
-            let scripture: [ContentLocale: String] = [
-                .en: d.scripture ?? "",
-                .es: d.scripture_es ?? d.scripture ?? "",
-                .pl: d.scripture_pl ?? d.scripture ?? "",
-            ]
-            let prayer: [ContentLocale: String] = [
-                .en: d.prayer ?? "",
-                .es: d.prayer_es ?? d.prayer ?? "",
-                .pl: d.prayer_pl ?? d.prayer ?? "",
-            ]
-            let reflection: [ContentLocale: String] = [
-                .en: d.reflection ?? "",
-                .es: d.reflection_es ?? d.reflection ?? "",
-                .pl: d.reflection_pl ?? d.reflection ?? "",
-            ]
-
-            return NovenaDay(
-                dayNumber: d.day ?? 1,
-                titleByLocale: title,
-                scriptureByLocale: scripture,
-                prayerByLocale: prayer,
-                reflectionByLocale: reflection,
-                bodyByLocale: [
-                    .en: [title[.en], scripture[.en], prayer[.en], reflection[.en]].compactMap { $0 }.joined(separator: "\n\n"),
-                    .es: [title[.es], scripture[.es], prayer[.es], reflection[.es]].compactMap { $0 }.joined(separator: "\n\n"),
-                    .pl: [title[.pl], scripture[.pl], prayer[.pl], reflection[.pl]].compactMap { $0 }.joined(separator: "\n\n"),
-                ]
-            )
-        }
-
-        return Novena(
-            id: doc.id,
-            slug: doc.id,
-            titleByLocale: titleByLocale,
-            descriptionByLocale: descriptionByLocale,
-            durationDays: doc.durationDays ?? max(1, days.count),
-            tags: doc.tags ?? [],
-            imageURL: urlFromString(doc.image),
-            days: days
-        )
+    private var novenaLookupKey: String {
+        let allIDs = progressStore.activeCommitments.map(\.novenaID) + favoriteNovenas.map(\.itemID)
+        return ([localization.language.contentLocale.rawValue] + allIDs.sorted()).joined(separator: "|")
     }
 
-    private func urlFromString(_ raw: String?) -> URL? {
-        guard let raw, !raw.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            return nil
-        }
-        if let direct = URL(string: raw) { return direct }
-        return raw.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed).flatMap(URL.init(string:))
+    private func novenaDuration(for id: String) -> Int {
+        max(1, novenaDetailsByID[id]?.durationDays ?? 9)
     }
 
     private func loadFavoriteSaintDetails() async {
@@ -332,6 +280,25 @@ struct MeView: View {
         }
 
         saintDetailsByID = loadedDetails
+    }
+
+    private func loadNovenaDetails() async {
+        let allIDs = Array(Set(progressStore.activeCommitments.map(\.novenaID) + favoriteNovenas.map(\.itemID))).sorted()
+        guard !allIDs.isEmpty else {
+            novenaDetailsByID = [:]
+            return
+        }
+
+        let locale = localization.language.contentLocale
+        var loadedDetails: [String: Novena] = [:]
+
+        for id in allIDs {
+            if let novena = try? await environment.contentRepository.fetchNovena(slug: id, locale: locale) {
+                loadedDetails[id] = novena
+            }
+        }
+
+        novenaDetailsByID = loadedDetails
     }
 }
 

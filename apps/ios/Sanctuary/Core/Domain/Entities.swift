@@ -53,6 +53,19 @@ struct Novena: Codable, Identifiable, Hashable, Sendable {
     let days: [NovenaDay]
 }
 
+struct NovenaCalendarDay: Hashable, Sendable {
+    let date: Date
+    let novenas: [Novena]
+    let startingNovena: Novena?
+}
+
+struct NovenaServingWindowInfo: Hashable, Sendable {
+    let novenaID: String
+    let startDate: Date
+    let endDate: Date
+    let feastDate: Date
+}
+
 struct Prayer: Codable, Identifiable, Hashable, Sendable {
     let id: String
     let slug: String

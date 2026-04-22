@@ -1,7 +1,7 @@
 import Foundation
 
 struct ListNovenasUseCase: Sendable {
-    private let contentRepository: any ContentRepository
+    let contentRepository: any ContentRepository
 
     init(contentRepository: any ContentRepository) {
         self.contentRepository = contentRepository
@@ -11,4 +11,3 @@ struct ListNovenasUseCase: Sendable {
         try await contentRepository.listNovenas(locale: locale, tag: nil, query: query)
     }
 }
-

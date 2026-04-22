@@ -115,6 +115,89 @@ actor LocalContentRepository: ContentRepository, SaintRangeRepository {
         return novenas.first { $0.slug == slug }
     }
 
+    func searchNovenasByIntentions(
+        locale: ContentLocale,
+        query: String
+    ) async throws -> [Novena] {
+        await ensurePrimaryContentLoaded()
+        let normalizedQuery = normalize(query)
+        guard let normalizedQuery else {
+            return novenas
+        }
+
+        return novenas
+            .filter { novena in
+                guard let doc = ContentStore.novena(id: novena.id) else { return false }
+                let rawIntentions = localizedIntentions(doc: doc, locale: locale)
+                    .map { $0.lowercased() }
+                    .joined(separator: " ")
+                return rawIntentions.contains(normalizedQuery)
+            }
+            .sorted {
+                let lhs = $0.titleByLocale[locale] ?? ""
+                let rhs = $1.titleByLocale[locale] ?? ""
+                return lhs < rhs
+            }
+    }
+
+    func listNovenaCalendarDays(
+        locale: ContentLocale,
+        startDate: Date,
+        endDate: Date
+    ) async throws -> [NovenaCalendarDay] {
+        await ensurePrimaryContentLoaded()
+
+        let calendar = Calendar(identifier: .gregorian)
+        let lowerBound = min(startDate, endDate)
+        let upperBound = max(startDate, endDate)
+        var cursor = lowerBound
+        var entries: [NovenaCalendarDay] = []
+
+        while cursor <= upperBound {
+            let year = calendar.component(.year, from: cursor)
+            let month = calendar.component(.month, from: cursor)
+            let day = calendar.component(.day, from: cursor)
+
+            let startingNovena = ContentStore
+                .firstNovenaIDForCalendarDay(onYear: year, month: month, day: day)
+                .flatMap { id in
+                    novenas.first { $0.id == id }
+                }
+
+            let dayNovenas = startingNovena.map { [$0] } ?? []
+            entries.append(
+                NovenaCalendarDay(
+                    date: cursor,
+                    novenas: dayNovenas,
+                    startingNovena: startingNovena
+                )
+            )
+
+            guard let next = calendar.date(byAdding: .day, value: 1, to: cursor) else {
+                break
+            }
+            cursor = next
+        }
+
+        return entries
+    }
+
+    func fetchNovenaServingWindow(
+        novenaID: String,
+        year: Int
+    ) async throws -> NovenaServingWindowInfo? {
+        guard let window = ContentStore.novenaServingWindow(id: novenaID, year: year) else {
+            return nil
+        }
+
+        return NovenaServingWindowInfo(
+            novenaID: novenaID,
+            startDate: window.start,
+            endDate: window.end,
+            feastDate: window.feast
+        )
+    }
+
     func listPrayers(
         locale: ContentLocale,
         category: String?,
@@ -458,6 +541,17 @@ actor LocalContentRepository: ContentRepository, SaintRangeRepository {
     private func normalize(_ value: String?) -> String? {
         let trimmed = (value ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         return trimmed.isEmpty ? nil : trimmed
+    }
+
+    private func localizedIntentions(doc: NovenaDocument, locale: ContentLocale) -> [String] {
+        switch locale {
+        case .en:
+            return doc.intentions ?? doc.intentions_es ?? doc.intentions_pl ?? []
+        case .es:
+            return doc.intentions_es ?? doc.intentions ?? doc.intentions_pl ?? []
+        case .pl:
+            return doc.intentions_pl ?? doc.intentions ?? doc.intentions_es ?? []
+        }
     }
 }
 

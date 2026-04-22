@@ -59,11 +59,100 @@ actor HybridContentRepository: ContentRepository, SaintRangeRepository {
         tag: String?,
         query: String?
     ) async throws -> [Novena] {
-        try await localRepository.listNovenas(locale: locale, tag: tag, query: query)
+        do {
+            let remoteNovenas = try await apiClient.listNovenas(locale: locale, query: query)
+            let mapped = remoteNovenas.map { mapNovenaSummary($0, locale: locale) }
+            guard let tag, !tag.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                return mapped
+            }
+            let normalizedTag = tag.lowercased()
+            return mapped.filter { $0.tags.contains(where: { $0.lowercased() == normalizedTag }) }
+        } catch {
+            return try await localRepository.listNovenas(locale: locale, tag: tag, query: query)
+        }
     }
 
     func fetchNovena(slug: String, locale: ContentLocale) async throws -> Novena? {
-        try await localRepository.fetchNovena(slug: slug, locale: locale)
+        do {
+            if let remoteNovena = try await apiClient.fetchNovena(slug: slug, locale: locale) {
+                return mapNovenaDetail(remoteNovena, locale: locale)
+            }
+            return nil
+        } catch {
+            return try await localRepository.fetchNovena(slug: slug, locale: locale)
+        }
+    }
+
+    func searchNovenasByIntentions(
+        locale: ContentLocale,
+        query: String
+    ) async throws -> [Novena] {
+        do {
+            let summaries = try await apiClient.searchNovenasByIntentions(locale: locale, query: query)
+            var results: [Novena] = []
+            for summary in summaries {
+                if let detail = try? await apiClient.fetchNovena(slug: summary.slug, locale: locale) {
+                    results.append(mapNovenaDetail(detail, locale: locale))
+                } else {
+                    results.append(mapNovenaSummary(summary, locale: locale))
+                }
+            }
+            return results
+        } catch {
+            return try await localRepository.searchNovenasByIntentions(locale: locale, query: query)
+        }
+    }
+
+    func listNovenaCalendarDays(
+        locale: ContentLocale,
+        startDate: Date,
+        endDate: Date
+    ) async throws -> [NovenaCalendarDay] {
+        do {
+            let remoteDays = try await apiClient.listNovenaCalendarDays(
+                locale: locale,
+                startDate: startDate,
+                endDate: endDate
+            )
+            return remoteDays.compactMap { day in
+                guard let parsedDate = date(from: day.date) else { return nil }
+                return NovenaCalendarDay(
+                    date: parsedDate,
+                    novenas: day.novenas.map { mapNovenaSummary($0, locale: locale) },
+                    startingNovena: day.startingNovena.map { mapNovenaSummary($0, locale: locale) }
+                )
+            }
+        } catch {
+            return try await localRepository.listNovenaCalendarDays(
+                locale: locale,
+                startDate: startDate,
+                endDate: endDate
+            )
+        }
+    }
+
+    func fetchNovenaServingWindow(
+        novenaID: String,
+        year: Int
+    ) async throws -> NovenaServingWindowInfo? {
+        do {
+            guard let response = try await apiClient.fetchNovenaServingWindow(novenaID: novenaID, year: year),
+                  let startDate = date(from: response.startDate),
+                  let endDate = date(from: response.endDate),
+                  let feastDate = date(from: response.feastDate)
+            else {
+                return nil
+            }
+
+            return NovenaServingWindowInfo(
+                novenaID: response.novenaId,
+                startDate: startDate,
+                endDate: endDate,
+                feastDate: feastDate
+            )
+        } catch {
+            return try await localRepository.fetchNovenaServingWindow(novenaID: novenaID, year: year)
+        }
     }
 
     func listPrayers(
@@ -122,6 +211,53 @@ actor HybridContentRepository: ContentRepository, SaintRangeRepository {
         return [.en: trimmed, locale: trimmed]
     }
 
+    private func mapNovenaSummary(_ response: APIContentNovenaSummaryResponse, locale: ContentLocale) -> Novena {
+        Novena(
+            id: response.id,
+            slug: response.slug,
+            titleByLocale: localizedValueMap(value: response.title, locale: locale),
+            descriptionByLocale: localizedValueMap(value: response.description, locale: locale),
+            durationDays: response.durationDays,
+            tags: [],
+            imageURL: url(from: response.imageUrl),
+            days: []
+        )
+    }
+
+    private func mapNovenaDetail(_ response: APIContentNovenaDetailResponse, locale: ContentLocale) -> Novena {
+        let days = response.days.map { day in
+            let title = localizedValueMap(value: day.title ?? "", locale: locale)
+            let scripture = localizedValueMap(value: day.scripture ?? "", locale: locale)
+            let prayer = localizedValueMap(value: day.prayer ?? "", locale: locale)
+            let reflection = localizedValueMap(value: day.reflection ?? "", locale: locale)
+            let body = localizedValueMap(value: day.body ?? "", locale: locale)
+
+            return NovenaDay(
+                dayNumber: day.dayNumber,
+                titleByLocale: title,
+                scriptureByLocale: scripture,
+                prayerByLocale: prayer,
+                reflectionByLocale: reflection,
+                bodyByLocale: body.isEmpty ? [
+                    .en: [title[.en], scripture[.en], prayer[.en], reflection[.en]]
+                        .compactMap { $0 }
+                        .joined(separator: "\n\n")
+                ] : body
+            )
+        }
+
+        return Novena(
+            id: response.id,
+            slug: response.slug,
+            titleByLocale: localizedValueMap(value: response.title, locale: locale),
+            descriptionByLocale: localizedValueMap(value: response.description, locale: locale),
+            durationDays: response.durationDays,
+            tags: response.tags,
+            imageURL: url(from: response.imageUrl),
+            days: days
+        )
+    }
+
     private func url(from raw: String?) -> URL? {
         guard let raw, !raw.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             return nil
@@ -130,5 +266,16 @@ actor HybridContentRepository: ContentRepository, SaintRangeRepository {
             return direct
         }
         return raw.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed).flatMap(URL.init(string:))
+    }
+
+    private func date(from raw: String) -> Date? {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.date(from: trimmed)
     }
 }
