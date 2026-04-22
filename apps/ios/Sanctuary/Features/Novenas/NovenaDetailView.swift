@@ -376,55 +376,6 @@ struct NovenaDetailView: View {
         )
         .clipShape(Capsule())
     }
-
-}
-
-private struct NovenaIndexCache {
-    struct MonthDay {
-        let month: Int
-        let day: Int
-    }
-
-    static let shared = load()
-
-    let fixedFeastDateByID: [String: MonthDay]
-
-    private struct IndexEntry: Decodable {
-        let id: String
-        let feastRule: FeastRule?
-    }
-
-    private struct FeastRule: Decodable {
-        let type: String
-        let month: Int?
-        let day: Int?
-    }
-
-    private static func load() -> NovenaIndexCache {
-        guard
-            let url = Bundle.main.url(forResource: "novenas_index", withExtension: "json", subdirectory: "Resources/LegacyData")
-                ?? Bundle.main.url(forResource: "novenas_index", withExtension: "json", subdirectory: "LegacyData")
-                ?? Bundle.main.url(forResource: "novenas_index", withExtension: "json"),
-            let data = try? Data(contentsOf: url),
-            let entries = try? JSONDecoder().decode([IndexEntry].self, from: data)
-        else {
-            return NovenaIndexCache(fixedFeastDateByID: [:])
-        }
-
-        var map: [String: MonthDay] = [:]
-        for entry in entries {
-            guard
-                let rule = entry.feastRule,
-                rule.type == "fixed",
-                let month = rule.month,
-                let day = rule.day
-            else {
-                continue
-            }
-            map[entry.id] = MonthDay(month: month, day: day)
-        }
-        return NovenaIndexCache(fixedFeastDateByID: map)
-    }
 }
 
 private struct DetailCard<Content: View>: View {

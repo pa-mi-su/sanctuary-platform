@@ -384,14 +384,14 @@ Notes:
 
 ### Phase 7: Legacy Removal
 
-Status: `TODO`
+Status: `IN PROGRESS`
 
 Goal:
 - eliminate duplicate systems
 
 Checklist:
 - [ ] Remove bundled JSON usage where API parity exists
-- [ ] Remove legacy local rule engines no longer needed
+- [x] Remove legacy local rule engines no longer needed from the active runtime path
 - [ ] Remove obsolete local content loaders
 - [ ] Remove fallback seed data that is no longer needed
 - [ ] Document what was retired and why
@@ -400,6 +400,10 @@ Notes:
 - First cleanup pass is underway: the active saint/novena calendar UI no longer uses the local liturgical season lookup helper for border coloring.
 - The active liturgical calendar UI now uses the same plain calendar date helper as the other calendar surfaces instead of constructing runtime dates through the old liturgical engine.
 - The bundled `RelationResolver` bridge has been removed from the active app after saint and novena detail screens stopped depending on local related-content JSON.
+- `ContentStore.swift` has now been removed entirely after its final runtime usages were deleted from the local novena fallback path.
+- The old `LiturgicalCalendarEngine` has been removed from `Entities.swift`; the app now relies on API-backed liturgical data for active runtime behavior instead of maintaining a second local liturgical engine.
+- The legacy JSON document parsing types were preserved in a small parser-only file so the remaining local fallback loader can still decode bundled resources without reviving the old engine or relation bridge.
+- Dev, UAT, and Prod simulator builds all succeed after these removals, which confirms the active app no longer depends on `ContentStore` or `LiturgicalCalendarEngine`.
 
 ### Phase 8: App Store And Delivery Hardening
 

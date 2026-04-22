@@ -127,11 +127,14 @@ actor LocalContentRepository: ContentRepository, SaintRangeRepository {
 
         return novenas
             .filter { novena in
-                guard let doc = ContentStore.novena(id: novena.id) else { return false }
-                let rawIntentions = localizedIntentions(doc: doc, locale: locale)
-                    .map { $0.lowercased() }
+                let title = novena.titleByLocale[locale]?.lowercased() ?? novena.titleByLocale[.en]?.lowercased() ?? ""
+                let description = novena.descriptionByLocale[locale]?.lowercased() ?? novena.descriptionByLocale[.en]?.lowercased() ?? ""
+                let dayBodies = novena.days
+                    .compactMap { $0.bodyByLocale[locale] ?? $0.bodyByLocale[.en] }
                     .joined(separator: " ")
-                return rawIntentions.contains(normalizedQuery)
+                    .lowercased()
+                let searchable = [title, description, dayBodies].joined(separator: " ")
+                return searchable.contains(normalizedQuery)
             }
             .sorted {
                 let lhs = $0.titleByLocale[locale] ?? ""
@@ -154,22 +157,11 @@ actor LocalContentRepository: ContentRepository, SaintRangeRepository {
         var entries: [NovenaCalendarDay] = []
 
         while cursor <= upperBound {
-            let year = calendar.component(.year, from: cursor)
-            let month = calendar.component(.month, from: cursor)
-            let day = calendar.component(.day, from: cursor)
-
-            let startingNovena = ContentStore
-                .firstNovenaIDForCalendarDay(onYear: year, month: month, day: day)
-                .flatMap { id in
-                    novenas.first { $0.id == id }
-                }
-
-            let dayNovenas = startingNovena.map { [$0] } ?? []
             entries.append(
                 NovenaCalendarDay(
                     date: cursor,
-                    novenas: dayNovenas,
-                    startingNovena: startingNovena
+                    novenas: [],
+                    startingNovena: nil
                 )
             )
 
@@ -186,16 +178,7 @@ actor LocalContentRepository: ContentRepository, SaintRangeRepository {
         novenaID: String,
         year: Int
     ) async throws -> NovenaServingWindowInfo? {
-        guard let window = ContentStore.novenaServingWindow(id: novenaID, year: year) else {
-            return nil
-        }
-
-        return NovenaServingWindowInfo(
-            novenaID: novenaID,
-            startDate: window.start,
-            endDate: window.end,
-            feastDate: window.feast
-        )
+        nil
     }
 
     func listPrayers(
@@ -240,7 +223,7 @@ actor LocalContentRepository: ContentRepository, SaintRangeRepository {
 
     func fetchLiturgicalDay(for date: Date) async throws -> LiturgicalDay? {
         await ensureSupplementaryContentLoaded()
-        return LiturgicalCalendarEngine.day(for: date)
+        return liturgicalDays[Self.dateKey(for: date)]
     }
 
     func listLiturgicalDays(
@@ -256,7 +239,9 @@ actor LocalContentRepository: ContentRepository, SaintRangeRepository {
         var cursor = lowerBound
 
         while cursor <= upperBound {
-            days.append(LiturgicalCalendarEngine.day(for: cursor))
+            if let day = liturgicalDays[Self.dateKey(for: cursor)] {
+                days.append(day)
+            }
             guard let next = calendar.date(byAdding: .day, value: 1, to: cursor) else { break }
             cursor = next
         }
@@ -377,8 +362,7 @@ actor LocalContentRepository: ContentRepository, SaintRangeRepository {
         }
 
         var saints: [Saint] = index.compactMap { entry in
-            guard let doc = (try? loader.load(entry.id, as: SaintDocument.self, subdirectoryCandidates: docSubdirs))
-                ?? ContentStore.saint(id: entry.id)
+            guard let doc = try? loader.load(entry.id, as: SaintDocument.self, subdirectoryCandidates: docSubdirs)
             else {
                 return nil
             }
@@ -421,8 +405,7 @@ actor LocalContentRepository: ContentRepository, SaintRangeRepository {
         }
 
         var novenas: [Novena] = index.compactMap { entry in
-            guard let doc = (try? loader.load(entry.id, as: NovenaDocument.self, subdirectoryCandidates: docSubdirs))
-                ?? ContentStore.novena(id: entry.id)
+            guard let doc = try? loader.load(entry.id, as: NovenaDocument.self, subdirectoryCandidates: docSubdirs)
             else {
                 return nil
             }
@@ -575,17 +558,6 @@ actor LocalContentRepository: ContentRepository, SaintRangeRepository {
     private func normalize(_ value: String?) -> String? {
         let trimmed = (value ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         return trimmed.isEmpty ? nil : trimmed
-    }
-
-    private func localizedIntentions(doc: NovenaDocument, locale: ContentLocale) -> [String] {
-        switch locale {
-        case .en:
-            return doc.intentions ?? doc.intentions_es ?? doc.intentions_pl ?? []
-        case .es:
-            return doc.intentions_es ?? doc.intentions ?? doc.intentions_pl ?? []
-        case .pl:
-            return doc.intentions_pl ?? doc.intentions ?? doc.intentions_es ?? []
-        }
     }
 }
 
