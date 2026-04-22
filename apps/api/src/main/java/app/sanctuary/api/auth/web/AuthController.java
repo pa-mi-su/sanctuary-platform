@@ -1,10 +1,12 @@
 package app.sanctuary.api.auth.web;
 
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import jakarta.validation.Valid;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -55,5 +57,24 @@ public class AuthController {
     public ResponseEntity<Map<String, String>> handleAuthFlowException(AuthFlowException exception) {
         return ResponseEntity.status(exception.status())
             .body(Map.of("message", exception.getMessage()));
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<Map<String, String>> handleValidationException(MethodArgumentNotValidException exception) {
+        String message = exception.getBindingResult().getFieldErrors().stream()
+            .map((error) -> error.getDefaultMessage())
+            .filter((value) -> value != null && !value.isBlank())
+            .findFirst()
+            .orElse("Please check the highlighted fields and try again.");
+
+        String details = exception.getBindingResult().getFieldErrors().stream()
+            .map((error) -> error.getField() + ": " + error.getDefaultMessage())
+            .collect(Collectors.joining("; "));
+
+        return ResponseEntity.badRequest().body(
+            details.isBlank()
+                ? Map.of("message", message)
+                : Map.of("message", message, "details", details)
+        );
     }
 }

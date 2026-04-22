@@ -116,7 +116,31 @@ type AuthStep = 'landing' | 'login' | 'register' | 'confirm';
                 </label>
               </div>
 
-              <button class="primary-action" type="submit" [disabled]="pending()">
+              <section class="password-panel glass-subtle" [class.password-panel--ready]="isPasswordReady()">
+                <div class="password-panel__header">
+                  <strong>{{ t('Password strength', 'Seguridad de contraseña', 'Siła hasła') }}</strong>
+                  <span [class.password-score--ready]="isPasswordReady()">{{ passwordStrengthLabel() }}</span>
+                </div>
+
+                <div class="password-checklist">
+                  @for (rule of passwordRules(); track rule.label) {
+                    <div class="password-check" [class.password-check--met]="rule.met">
+                      <span class="password-check__icon">{{ rule.met ? '✓' : '•' }}</span>
+                      <span>{{ rule.label }}</span>
+                    </div>
+                  }
+                </div>
+
+                <div class="password-match" [class.password-match--ready]="passwordsMatch() && !!registerPasswordConfirmation">
+                  {{
+                    passwordsMatch() && registerPasswordConfirmation
+                      ? t('Passwords match.', 'Las contraseñas coinciden.', 'Hasła są zgodne.')
+                      : t('Passwords must match before you can create the account.', 'Las contraseñas deben coincidir antes de crear la cuenta.', 'Hasła muszą się zgadzać przed utworzeniem konta.')
+                  }}
+                </div>
+              </section>
+
+              <button class="primary-action" type="submit" [disabled]="pending() || !isPasswordReady() || !passwordsMatch()">
                 {{ pending() ? t('Creating account…', 'Creando cuenta…', 'Tworzenie konta…') : t('Create account', 'Crear cuenta', 'Utwórz konto') }}
               </button>
             </form>
@@ -178,6 +202,54 @@ export class AuthPageComponent {
   protected registerPasswordConfirmation = '';
   protected confirmationCode = '';
   protected confirmationEmail = '';
+
+  protected passwordRules(): Array<{ label: string; met: boolean }> {
+    const password = this.registerPassword;
+    return [
+      {
+        label: this.t('At least 8 characters', 'Al menos 8 caracteres', 'Co najmniej 8 znaków'),
+        met: password.length >= 8,
+      },
+      {
+        label: this.t('One uppercase letter', 'Una letra mayúscula', 'Jedna wielka litera'),
+        met: /[A-Z]/.test(password),
+      },
+      {
+        label: this.t('One lowercase letter', 'Una letra minúscula', 'Jedna mała litera'),
+        met: /[a-z]/.test(password),
+      },
+      {
+        label: this.t('One number', 'Un número', 'Jedna cyfra'),
+        met: /\d/.test(password),
+      },
+      {
+        label: this.t('One special character', 'Un carácter especial', 'Jeden znak specjalny'),
+        met: /[^A-Za-z0-9]/.test(password),
+      },
+    ];
+  }
+
+  protected passwordsMatch(): boolean {
+    return this.registerPassword === this.registerPasswordConfirmation;
+  }
+
+  protected isPasswordReady(): boolean {
+    return this.passwordRules().every((rule) => rule.met);
+  }
+
+  protected passwordStrengthLabel(): string {
+    const metCount = this.passwordRules().filter((rule) => rule.met).length;
+    if (metCount === this.passwordRules().length) {
+      return this.t('Ready', 'Lista', 'Gotowe');
+    }
+    if (metCount >= 4) {
+      return this.t('Almost there', 'Casi lista', 'Prawie gotowe');
+    }
+    if (metCount >= 2) {
+      return this.t('Needs work', 'Necesita trabajo', 'Wymaga poprawy');
+    }
+    return this.t('Too weak', 'Demasiado débil', 'Za słabe');
+  }
 
   protected readonly heading = computed(() => {
     switch (this.step()) {
@@ -260,6 +332,17 @@ export class AuthPageComponent {
 
     if (this.registerPassword !== this.registerPasswordConfirmation) {
       this.error.set(this.t('Your password confirmation does not match.', 'La confirmación de tu contraseña no coincide.', 'Potwierdzenie hasła nie pasuje.'));
+      return;
+    }
+
+    if (!this.isPasswordReady()) {
+      this.error.set(
+        this.t(
+          'Choose a password that matches every requirement below before creating your account.',
+          'Elige una contraseña que cumpla todos los requisitos antes de crear tu cuenta.',
+          'Wybierz hasło spełniające wszystkie wymagania poniżej przed utworzeniem konta.'
+        )
+      );
       return;
     }
 
