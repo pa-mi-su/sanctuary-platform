@@ -133,7 +133,6 @@ type AppLanguage = 'en' | 'es' | 'pl';
                   <h3>{{ previewTodayTitle() }}</h3>
                   <p>{{ todayPreviewLabel() }}</p>
                 </div>
-              <span class="content-tag">{{ todayNovenas().length }} {{ t('active', 'activas', 'aktywnych') }}</span>
             </div>
 
             @if (todayPrimaryNovena()) {
@@ -148,11 +147,6 @@ type AppLanguage = 'en' | 'es' | 'pl';
                   <span>{{ novenaDayCountLabel(todayPrimaryNovena()!) }}</span>
                 </div>
               </button>
-              @if (todayAdditionalCount() > 0) {
-                <p class="preview-summary">
-                  {{ additionalNovenasCopy(todayAdditionalCount()) }}
-                </p>
-              }
             } @else {
               <p class="preview-empty">{{ noNovenasCopy() }}</p>
             }
@@ -164,9 +158,6 @@ type AppLanguage = 'en' | 'es' | 'pl';
                 <h3>{{ previewSelectedTitle() }}</h3>
                 <p>{{ selectedPreviewLabel() }}</p>
               </div>
-              @if (!isSelectedDateToday()) {
-                <span class="content-tag">{{ selectedNovenas().length }} {{ t('active', 'activas', 'aktywnych') }}</span>
-              }
             </div>
 
             @if (isSelectedDateToday()) {
@@ -183,11 +174,6 @@ type AppLanguage = 'en' | 'es' | 'pl';
                   <span>{{ novenaDayCountLabel(selectedPrimaryNovena()!) }}</span>
                 </div>
               </button>
-              @if (selectedAdditionalCount() > 0) {
-                <p class="preview-summary">
-                  {{ additionalNovenasCopy(selectedAdditionalCount()) }}
-                </p>
-              }
             } @else {
               <p class="preview-empty">{{ noNovenasCopy() }}</p>
             }
@@ -257,24 +243,6 @@ export class NovenasPageComponent {
 
   protected selectedPrimaryNovena(): NovenaSummary | null {
     return this.selectedPrimaryNovenaInput() ?? this.featuredNovena(this.selectedNovenas());
-  }
-
-  protected todayAdditionalCount(): number {
-    return Math.max(0, this.todayNovenas().length - 1);
-  }
-
-  protected selectedAdditionalCount(): number {
-    return Math.max(0, this.selectedNovenas().length - 1);
-  }
-
-  protected additionalNovenasCopy(count: number): string {
-    if (this.currentLanguage() === 'es') {
-      return count === 1 ? '+1 novena activa más' : `+${count} novenas activas más`;
-    }
-    if (this.currentLanguage() === 'pl') {
-      return count === 1 ? '+1 aktywna nowenna więcej' : `+${count} aktywnych nowenn więcej`;
-    }
-    return count === 1 ? '+1 more active novena' : `+${count} more active novenas`;
   }
 
   private featuredNovena(novenas: NovenaSummary[]): NovenaSummary | null {

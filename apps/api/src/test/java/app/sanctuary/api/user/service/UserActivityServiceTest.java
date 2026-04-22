@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.when;
 
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.UUID;
 
@@ -27,7 +28,7 @@ class UserActivityServiceTest {
     @Test
     void streakSummaryCalculatesCurrentAndLongestStreaks() {
         UUID userId = UUID.randomUUID();
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(ZoneOffset.UTC);
         when(repository.findDistinctActivityDates(userId)).thenReturn(
             List.of(
                 today.minusDays(4),

@@ -30,11 +30,13 @@ class UserAccountServiceTest {
 
     @Test
     void ensureAccountUpsertsCurrentUser() {
-        CurrentUser currentUser = new CurrentUser("cognito-sub-123", "saint@example.com", "Saint User", "https://example.com/avatar.png");
+        CurrentUser currentUser = new CurrentUser("cognito-sub-123", "saint@example.com", "Saint", "User", "Saint User", "https://example.com/avatar.png");
         UserAccountDto account = new UserAccountDto(
             UUID.randomUUID(),
             currentUser.cognitoSub(),
             currentUser.email(),
+            currentUser.firstName(),
+            currentUser.lastName(),
             currentUser.displayName(),
             "en",
             currentUser.avatarUrl(),
@@ -42,18 +44,32 @@ class UserAccountServiceTest {
             OffsetDateTime.now()
         );
 
-        when(repository.upsert(eq(currentUser.cognitoSub()), eq(currentUser.email()), eq(currentUser.displayName()), eq(currentUser.avatarUrl())))
+        when(repository.upsert(
+            eq(currentUser.cognitoSub()),
+            eq(currentUser.email()),
+            eq(currentUser.firstName()),
+            eq(currentUser.lastName()),
+            eq(currentUser.displayName()),
+            eq(currentUser.avatarUrl())
+        ))
             .thenReturn(account);
 
         UserAccountDto result = service.ensureAccount(currentUser);
 
         assertEquals(account, result);
-        verify(repository).upsert(currentUser.cognitoSub(), currentUser.email(), currentUser.displayName(), currentUser.avatarUrl());
+        verify(repository).upsert(
+            currentUser.cognitoSub(),
+            currentUser.email(),
+            currentUser.firstName(),
+            currentUser.lastName(),
+            currentUser.displayName(),
+            currentUser.avatarUrl()
+        );
     }
 
     @Test
     void ensureAccountRejectsMissingCognitoSubject() {
-        CurrentUser currentUser = new CurrentUser(" ", "saint@example.com", "Saint User", null);
+        CurrentUser currentUser = new CurrentUser(" ", "saint@example.com", "Saint", "User", "Saint User", null);
 
         assertThrows(IllegalArgumentException.class, () -> service.ensureAccount(currentUser));
     }

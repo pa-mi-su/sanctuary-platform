@@ -42,9 +42,9 @@ class UserProfileServiceTest {
 
     @Test
     void getProfileBuildsAggregateView() {
-        CurrentUser currentUser = new CurrentUser("sub-1", "saint@example.com", "Saint User", "https://example.com/avatar.png");
+        CurrentUser currentUser = new CurrentUser("sub-1", "saint@example.com", "Saint", "User", "Saint User", "https://example.com/avatar.png");
         UUID userId = UUID.randomUUID();
-        UserAccountDto account = new UserAccountDto(userId, "sub-1", "saint@example.com", "Saint User", "en", null, OffsetDateTime.now(), OffsetDateTime.now());
+        UserAccountDto account = new UserAccountDto(userId, "sub-1", "saint@example.com", "Saint", "User", "Saint User", "en", null, OffsetDateTime.now(), OffsetDateTime.now());
         UserPreferenceDto preferences = new UserPreferenceDto(userId, "America/New_York", true, false, true, true, OffsetDateTime.now(), OffsetDateTime.now());
         UserProfileCountsDto counts = new UserProfileCountsDto(2, 3, 1, 4, 5);
         UserStreakSummaryDto streakSummary = new UserStreakSummaryDto(6, 9, java.time.LocalDate.now());
@@ -65,13 +65,13 @@ class UserProfileServiceTest {
 
     @Test
     void updatePreferencesReturnsRefreshedProfile() {
-        CurrentUser currentUser = new CurrentUser("sub-1", "saint@example.com", "Saint User", "https://example.com/avatar.png");
+        CurrentUser currentUser = new CurrentUser("sub-1", "saint@example.com", "Saint", "User", "Saint User", "https://example.com/avatar.png");
         UUID userId = UUID.randomUUID();
-        UserAccountDto account = new UserAccountDto(userId, "sub-1", "saint@example.com", "Saint User", "en", null, OffsetDateTime.now(), OffsetDateTime.now());
+        UserAccountDto account = new UserAccountDto(userId, "sub-1", "saint@example.com", "Saint", "User", "Saint User", "en", null, OffsetDateTime.now(), OffsetDateTime.now());
         UserPreferencesUpdateRequest request = new UserPreferencesUpdateRequest("pl", "Europe/Warsaw", true, true, false, true);
         UserPreferenceDto preferences = new UserPreferenceDto(userId, "Europe/Warsaw", true, true, false, true, OffsetDateTime.now(), OffsetDateTime.now());
         UserProfileCountsDto counts = new UserProfileCountsDto(1, 1, 0, 2, 0);
-        UserAccountDto updatedAccount = new UserAccountDto(userId, "sub-1", "saint@example.com", "Saint User", "pl", "https://example.com/avatar.png", OffsetDateTime.now(), OffsetDateTime.now());
+        UserAccountDto updatedAccount = new UserAccountDto(userId, "sub-1", "saint@example.com", "Saint", "User", "Saint User", "pl", "https://example.com/avatar.png", OffsetDateTime.now(), OffsetDateTime.now());
         UserStreakSummaryDto streakSummary = new UserStreakSummaryDto(3, 7, java.time.LocalDate.now());
 
         when(userAccountService.ensureAccount(currentUser)).thenReturn(account);

@@ -7,6 +7,8 @@ public record UserAccountDto(
     UUID id,
     String cognitoSub,
     String email,
+    String firstName,
+    String lastName,
     String displayName,
     String preferredLanguage,
     String avatarUrl,
