@@ -108,7 +108,7 @@ This gives the app room for:
 
 - synced profile settings
 - reminder preferences
-- streaks and activity history
+- activity history for future account features
 - favorites and progress across devices
 - future profile and subscription features without rekeying user data again
 
