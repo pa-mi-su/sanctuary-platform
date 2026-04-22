@@ -254,6 +254,7 @@ Checklist:
 Notes:
 
 - `PlatformConfiguration` now resolves iOS environment from the bundle identifier and exposes an API base URL, including a simulator-friendly localhost override for non-production work.
+- Dev and UAT are now explicitly configured to prefer a local backend by default instead of silently falling back to production.
 - `SanctuaryAPIClient` now provides a typed async client for the current auth and account endpoints used by the web app:
   - `/auth/register`
   - `/auth/confirm`

@@ -259,6 +259,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = "Sanctuary: Prayer and Peace";
 				INFOPLIST_KEY_CFBundleIconName = AppIcon;
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Sanctuary uses your location to find the nearest Catholic parish.";
+				INFOPLIST_KEY_SanctuaryAPIBaseURL = "https://sa-d7fe5f77e3bd409caf712e69b701f1e8.ecs.us-east-1.on.aws";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -295,6 +296,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = "Sanctuary: Prayer and Peace";
 				INFOPLIST_KEY_CFBundleIconName = AppIcon;
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Sanctuary uses your location to find the nearest Catholic parish.";
+				INFOPLIST_KEY_SanctuaryAPIBaseURL = "https://sa-d7fe5f77e3bd409caf712e69b701f1e8.ecs.us-east-1.on.aws";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -395,6 +397,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = "Sanctuary: Prayer and Peace";
 				INFOPLIST_KEY_CFBundleIconName = AppIcon;
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Sanctuary uses your location to find the nearest Catholic parish.";
+				INFOPLIST_KEY_SanctuaryAPIBaseURL = "http://localhost:8080";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -495,6 +498,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = "Sanctuary: Prayer and Peace";
 				INFOPLIST_KEY_CFBundleIconName = AppIcon;
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Sanctuary uses your location to find the nearest Catholic parish.";
+				INFOPLIST_KEY_SanctuaryAPIBaseURL = "http://localhost:8080";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -588,6 +592,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = "Sanctuary: Prayer and Peace";
 				INFOPLIST_KEY_CFBundleIconName = AppIcon;
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Sanctuary uses your location to find the nearest Catholic parish.";
+				INFOPLIST_KEY_SanctuaryAPIBaseURL = "http://localhost:8080";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -681,6 +686,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = "Sanctuary: Prayer and Peace";
 				INFOPLIST_KEY_CFBundleIconName = AppIcon;
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Sanctuary uses your location to find the nearest Catholic parish.";
+				INFOPLIST_KEY_SanctuaryAPIBaseURL = "http://localhost:8080";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

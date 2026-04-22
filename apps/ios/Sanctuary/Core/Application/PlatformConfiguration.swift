@@ -21,6 +21,9 @@ enum PlatformEnvironment: String, Sendable {
 }
 
 struct PlatformConfiguration: Sendable {
+    private static let apiBaseURLInfoKey = "SanctuaryAPIBaseURL"
+    private static let productionAPIBaseURL = "https://sa-d7fe5f77e3bd409caf712e69b701f1e8.ecs.us-east-1.on.aws"
+
     let environment: PlatformEnvironment
     let apiBaseURL: URL
     let authenticationEnabled: Bool
@@ -40,6 +43,7 @@ struct PlatformConfiguration: Sendable {
     }
 
     private static func resolveAPIBaseURL(
+        bundle: Bundle = .main,
         environment: PlatformEnvironment,
         processInfo: ProcessInfo
     ) -> URL {
@@ -50,14 +54,19 @@ struct PlatformConfiguration: Sendable {
             return url
         }
 
-        #if targetEnvironment(simulator)
-            if environment != .prod {
-                return URL(string: "http://localhost:8080")!
-            }
-        #endif
+        if let configuredBaseURL = bundle.object(forInfoDictionaryKey: apiBaseURLInfoKey) as? String,
+           let url = URL(string: configuredBaseURL),
+           let scheme = url.scheme,
+           ["http", "https"].contains(scheme.lowercased()) {
+            return url
+        }
 
-        // We currently operate one live API stack. Non-production iOS targets can
-        // override this via SANCTUARY_API_BASE_URL when a dedicated backend exists.
-        return URL(string: "https://sa-d7fe5f77e3bd409caf712e69b701f1e8.ecs.us-east-1.on.aws")!
+        if environment == .prod {
+            return URL(string: productionAPIBaseURL)!
+        }
+
+        // Dev and UAT should never silently fall back to production. By default
+        // they talk to a local backend, which in turn can use local Postgres.
+        return URL(string: "http://localhost:8080")!
     }
 }

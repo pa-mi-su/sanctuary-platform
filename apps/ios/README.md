@@ -38,6 +38,18 @@ apps/ios/
   - `Sanctuary-UAT`
 - simulator builds succeed from the monorepo for prod, dev, and UAT when validated via `xcodebuild`
 
+## Environment Routing
+
+- `Sanctuary-Prod` points to the production API.
+- `Sanctuary-Dev` points to `http://localhost:8080` by default.
+- `Sanctuary-UAT` points to `http://localhost:8080` by default.
+
+Important:
+
+- iOS never talks directly to PostgreSQL or RDS.
+- Dev and UAT now point to a local backend by default, and that backend can use your local Postgres instance.
+- For real-device testing, `localhost` means the device itself, not your Mac. In that case, override `SANCTUARY_API_BASE_URL` to your Mac's LAN IP or a tunnel URL.
+
 ## Remaining Verification
 
 Continue using the Apple-side release checklist in:
