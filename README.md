@@ -70,7 +70,7 @@ Sanctuary Platform currently supports:
 
 ### Frontend
 
-- Angular
+- Angular 21 (`@angular/core` `^21.2.0`, CLI/build `^21.2.7`)
 - TypeScript
 - SCSS
 

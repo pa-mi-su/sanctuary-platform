@@ -119,6 +119,16 @@ type AppLanguage = 'en' | 'es' | 'pl';
           </div>
         </article>
       </div>
+
+      <p class="about-footnote">
+        {{
+          t(
+            'Sanctuary © 2026. All rights reserved.',
+            'Sanctuary © 2026. Todos los derechos reservados.',
+            'Sanctuary © 2026. Wszelkie prawa zastrzezone.'
+          )
+        }}
+      </p>
     </section>
   `,
 })
