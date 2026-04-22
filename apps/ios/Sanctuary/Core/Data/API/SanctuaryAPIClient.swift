@@ -180,6 +180,14 @@ struct APINovenaServingWindowResponse: Decodable, Sendable {
     let feastDate: String
 }
 
+struct APILiturgicalDayResponse: Decodable, Sendable {
+    let date: String
+    let season: String
+    let primaryRank: String
+    let observances: [String]
+    let readingsUrl: String?
+}
+
 private struct APIErrorEnvelope: Decodable {
     let message: String
 }
@@ -371,6 +379,33 @@ actor SanctuaryAPIClient {
     func fetchNovenaServingWindow(novenaID: String, year: Int) async throws -> APINovenaServingWindowResponse? {
         try await performRequest(
             path: "/calendar/novenas/\(novenaID)/window/\(year)",
+            method: "GET",
+            body: Optional<String>.none,
+            token: nil
+        )
+    }
+
+    func fetchLiturgicalDay(date: Date) async throws -> APILiturgicalDayResponse {
+        try await performRequest(
+            path: "/calendar/day/\(queryDateFormatter.string(from: date))",
+            method: "GET",
+            body: Optional<String>.none,
+            token: nil
+        )
+    }
+
+    func listLiturgicalDays(
+        startDate: Date,
+        endDate: Date
+    ) async throws -> [APILiturgicalDayResponse] {
+        let queryItems = [
+            URLQueryItem(name: "start", value: queryDateFormatter.string(from: startDate)),
+            URLQueryItem(name: "end", value: queryDateFormatter.string(from: endDate))
+        ]
+
+        return try await performRequest(
+            path: "/calendar/range",
+            queryItems: queryItems,
             method: "GET",
             body: Optional<String>.none,
             token: nil

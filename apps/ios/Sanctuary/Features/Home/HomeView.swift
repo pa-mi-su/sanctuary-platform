@@ -13,15 +13,10 @@ struct HomeView: View {
     @State private var showIntentionsSearch = false
     @State private var showParishFinder = false
     @State private var showDailyReadings = false
+    @State private var dailyReadingsURLOverride: URL?
 
     private var dailyReadingsURL: URL {
-        let today = Date()
-        if let localized = localization.language.localizedDailyReadingsURL(
-            from: LiturgicalCalendarEngine.readingURL(for: today)?.absoluteString
-        ) {
-            return localized
-        }
-        return localization.language.dailyReadingsLandingURL
+        dailyReadingsURLOverride ?? localization.language.dailyReadingsLandingURL
     }
 
     private var primaryActions: [HomeAction] {
@@ -145,6 +140,9 @@ struct HomeView: View {
                     revealContent = true
                 }
             }
+            .task(id: localization.language) {
+                await loadDailyReadingsURL()
+            }
             .sheet(isPresented: $showLanguageDialog) {
                 LanguagePickerSheet()
                     .presentationDetents([.medium])
@@ -171,6 +169,21 @@ struct HomeView: View {
                 DailyReadingsView(url: dailyReadingsURL)
             }
             .toolbar(.hidden)
+        }
+    }
+
+    private func loadDailyReadingsURL() async {
+        do {
+            if let liturgicalDay = try await environment.contentRepository.fetchLiturgicalDay(for: Date()),
+               let localized = localization.language.localizedDailyReadingsURL(
+                   from: liturgicalDay.readingURL?.absoluteString
+               ) {
+                dailyReadingsURLOverride = localized
+            } else {
+                dailyReadingsURLOverride = localization.language.dailyReadingsLandingURL
+            }
+        } catch {
+            dailyReadingsURLOverride = localization.language.dailyReadingsLandingURL
         }
     }
 }

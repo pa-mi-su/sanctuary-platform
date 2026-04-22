@@ -275,11 +275,10 @@ struct LiturgicalCalendarView: View {
     @State private var suppressDayTapUntil: Date = .distantPast
     @State private var selectedReadingSelection: ReadingSelection?
     @State private var showDatePicker = false
+    @State private var liturgicalDayByDay: [Int: LiturgicalDay] = [:]
 
-    // Uses the centralized liturgical engine so season logic is not duplicated in UI.
     private var displayedSeason: LiturgicalSeason {
-        LiturgicalLookup.day(forYear: selectedYear, month: selectedMonth, day: selectedDay)?.season
-            ?? LiturgicalCalendarEngine.day(for: selectedDate()).season
+        liturgicalDayByDay[selectedDay]?.season ?? .ordinary
     }
 
     private var displayedSeasonBorderColor: Color {
@@ -287,7 +286,7 @@ struct LiturgicalCalendarView: View {
     }
 
     private func borderColor(for day: Int) -> Color {
-        guard let season = LiturgicalLookup.day(forYear: selectedYear, month: selectedMonth, day: day)?.season else {
+        guard let season = liturgicalDayByDay[day]?.season else {
             return displayedSeasonBorderColor
         }
         return AppTheme.liturgicalBorderColor(for: season)
@@ -356,6 +355,9 @@ struct LiturgicalCalendarView: View {
                 )
             }
         }
+        .task(id: "\(selectedYear)-\(selectedMonth)") {
+            await loadLiturgicalLookups()
+        }
         .sheet(isPresented: $showSearch) {
             GlobalSearchView(environment: environment)
         }
@@ -371,25 +373,48 @@ struct LiturgicalCalendarView: View {
     }
 
     private func liturgicalTitleForDay() -> String {
-        if let rank = LiturgicalLookup.day(forYear: selectedYear, month: selectedMonth, day: selectedDay)?.rank {
+        if let rank = liturgicalDayByDay[selectedDay]?.rank {
             return localizedLiturgicalRank(rank, localization: localization)
         }
         return localization.t("calendar.dailyReadings")
     }
 
     private func liturgicalLabel(for day: Int) -> String {
-        if let entry = LiturgicalLookup.day(forYear: selectedYear, month: selectedMonth, day: day) {
-            return shortLabel(localizedLiturgicalRank(entry.rank, localization: localization))
+        if let rank = liturgicalDayByDay[day]?.rank {
+            return shortLabel(localizedLiturgicalRank(rank, localization: localization))
         }
         return "📖"
     }
 
     private func liturgicalReadingURLForDay() -> URL {
-        if let raw = LiturgicalLookup.day(forYear: selectedYear, month: selectedMonth, day: selectedDay)?.readingURL,
+        if let raw = liturgicalDayByDay[selectedDay]?.readingURL?.absoluteString,
            let url = localization.language.localizedDailyReadingsURL(from: raw) {
             return url
         }
         return localization.language.dailyReadingsLandingURL
+    }
+
+    private func loadLiturgicalLookups() async {
+        let startDate = LiturgicalCalendarEngine.makeDate(year: selectedYear, month: selectedMonth, day: 1)
+        let endDate = LiturgicalCalendarEngine.makeDate(
+            year: selectedYear,
+            month: selectedMonth,
+            day: daysInMonth(year: selectedYear, month: selectedMonth)
+        )
+
+        do {
+            let days = try await environment.contentRepository.listLiturgicalDays(
+                startDate: startDate,
+                endDate: endDate
+            )
+
+            liturgicalDayByDay = days.reduce(into: [:]) { partialResult, day in
+                let dayNumber = liturgicalUICalendar.component(.day, from: day.date)
+                partialResult[dayNumber] = day
+            }
+        } catch {
+            liturgicalDayByDay = [:]
+        }
     }
 
     private func selectedDate() -> Date {

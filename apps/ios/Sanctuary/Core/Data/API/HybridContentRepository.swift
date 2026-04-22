@@ -163,8 +163,24 @@ actor HybridContentRepository: ContentRepository, SaintRangeRepository {
         try await localRepository.listPrayers(locale: locale, category: category, query: query)
     }
 
+    func listLiturgicalDays(
+        startDate: Date,
+        endDate: Date
+    ) async throws -> [LiturgicalDay] {
+        do {
+            let remoteDays = try await apiClient.listLiturgicalDays(startDate: startDate, endDate: endDate)
+            return remoteDays.compactMap(mapLiturgicalDay)
+        } catch {
+            return try await localRepository.listLiturgicalDays(startDate: startDate, endDate: endDate)
+        }
+    }
+
     func fetchLiturgicalDay(for date: Date) async throws -> LiturgicalDay? {
-        try await localRepository.fetchLiturgicalDay(for: date)
+        do {
+            return mapLiturgicalDay(try await apiClient.fetchLiturgicalDay(date: date))
+        } catch {
+            return try await localRepository.fetchLiturgicalDay(for: date)
+        }
     }
 
     private func mapSaintSummary(_ response: APIContentSaintSummaryResponse, locale: ContentLocale) -> Saint {
@@ -277,5 +293,20 @@ actor HybridContentRepository: ContentRepository, SaintRangeRepository {
         formatter.timeZone = TimeZone(secondsFromGMT: 0)
         formatter.dateFormat = "yyyy-MM-dd"
         return formatter.date(from: trimmed)
+    }
+
+    private func mapLiturgicalDay(_ response: APILiturgicalDayResponse) -> LiturgicalDay? {
+        guard let date = date(from: response.date),
+              let season = LiturgicalSeason(rawValue: response.season.lowercased()) else {
+            return nil
+        }
+
+        return LiturgicalDay(
+            date: date,
+            season: season,
+            rank: response.primaryRank,
+            observances: response.observances,
+            readingURL: url(from: response.readingsUrl)
+        )
     }
 }

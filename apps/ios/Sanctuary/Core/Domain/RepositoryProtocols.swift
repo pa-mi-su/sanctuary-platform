@@ -50,6 +50,11 @@ protocol ContentRepository: Sendable {
         query: String?
     ) async throws -> [Prayer]
 
+    func listLiturgicalDays(
+        startDate: Date,
+        endDate: Date
+    ) async throws -> [LiturgicalDay]
+
     func fetchLiturgicalDay(for date: Date) async throws -> LiturgicalDay?
 }
 

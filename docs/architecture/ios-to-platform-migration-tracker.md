@@ -265,7 +265,7 @@ Notes:
   - `/me/novena-commitments`
 - `AccountSessionStore` now persists the signed-in session in the keychain and owns bootstrap, login, register, confirm, resend, refresh, and logout behavior.
 - `RemoteUserProgressRepository` now backs favorites and novena commitments with the real API instead of local-only storage for authenticated flows.
-- `HybridContentRepository` now gives iOS a safe migration path where saints and novenas are API-backed first while prayers and liturgical data continue to read from the legacy local repositories until their domain migrations are ready.
+- `HybridContentRepository` now gives iOS a safe migration path where saints, novenas, and liturgical calendar data are API-backed first while prayers continue to read from the legacy local repository until that domain migration is ready.
 - Prod, Dev, and UAT simulator builds all succeed with this new foundation slice in place.
 
 ### Phase 4: Auth And Account Migration
@@ -330,6 +330,7 @@ Notes:
 - `MeView` now refreshes signed-in profile and synced user progress from the API-backed stores instead of relying on a local placeholder state model.
 - Favorite saint rows in `Me` now resolve saint names and detail navigation through the repository layer rather than the bundled saint JSON store.
 - Active novena rows and favorite novena rows in `Me` now resolve titles and detail navigation through the repository layer rather than the bundled novena JSON store.
+- Home daily readings now resolve from the API-backed liturgical repository path instead of computing the reading URL directly from the local engine.
 
 ### Phase 6: Content Domain Migration
 
@@ -347,7 +348,7 @@ Recommended order:
 Checklist:
 - [x] Replace saints local repository with API repository
 - [x] Replace novenas local repository with API repository
-- [ ] Replace liturgical local/rule logic with API-backed data
+- [x] Replace liturgical local/rule logic with API-backed data
 - [ ] Replace prayers local repository with API repository
 - [x] Verify search and detail screens work from API data
 - [x] Verify calendar/date-driven screens work from API data
@@ -368,6 +369,11 @@ Notes:
   - novena intentions search
   - novena calendar monthly/day lookup
   - active novena and favorite novena resolution in `Me`
+- Liturgical is now the third content domain migrated off the local engine in the main runtime path.
+- The following iOS surfaces now source liturgical data from the API-backed repository path:
+  - liturgical day / week / month calendar lookup
+  - liturgical daily readings link resolution
+  - home daily readings launcher
 - Saint detail still keeps local related-novena lookup as a temporary bridge until saints and novenas can share a backend-driven relation model.
 - Novena detail still keeps local related-saint lookup as a temporary bridge until saints and novenas can share a backend-driven relation model.
 
@@ -425,9 +431,9 @@ Checklist:
 ## Immediate Next Actions
 
 1. Validate the new saints + novenas API-backed flows against the live backend on simulator/device
-2. Continue Phase 6 with liturgical as the next content domain migration
-3. Remove remaining local-only authenticated fallback behavior once liturgical is on the API
-4. Verify a real signed archive/upload path from the monorepo once the first two content domains are stable
+2. Continue Phase 6 with prayers as the next content domain migration
+3. Remove remaining local-only authenticated fallback behavior now that liturgical is on the API
+4. Verify a real signed archive/upload path from the monorepo once the first three content domains are stable
 
 ## Progress Log
 
@@ -441,3 +447,4 @@ Checklist:
 - [x] Add API-backed favorites and novena commitments foundation
 - [x] Migrate saints to the first API-backed content domain across list, search, detail, calendar, and `Me`
 - [x] Migrate novenas to the second API-backed content domain across list, detail, intentions search, calendar, and `Me`
+- [x] Migrate liturgical to the third API-backed content domain across calendar and home daily readings flows

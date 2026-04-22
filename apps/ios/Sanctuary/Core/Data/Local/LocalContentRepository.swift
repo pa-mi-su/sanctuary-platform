@@ -235,6 +235,27 @@ actor LocalContentRepository: ContentRepository, SaintRangeRepository {
         return LiturgicalCalendarEngine.day(for: date)
     }
 
+    func listLiturgicalDays(
+        startDate: Date,
+        endDate: Date
+    ) async throws -> [LiturgicalDay] {
+        await ensureSupplementaryContentLoaded()
+
+        let calendar = Calendar(identifier: .gregorian)
+        let lowerBound = min(startDate, endDate)
+        let upperBound = max(startDate, endDate)
+        var days: [LiturgicalDay] = []
+        var cursor = lowerBound
+
+        while cursor <= upperBound {
+            days.append(LiturgicalCalendarEngine.day(for: cursor))
+            guard let next = calendar.date(byAdding: .day, value: 1, to: cursor) else { break }
+            cursor = next
+        }
+
+        return days
+    }
+
     func listSaintsInRange(
         locale _: ContentLocale,
         startDate: Date,
