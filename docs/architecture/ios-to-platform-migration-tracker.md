@@ -265,7 +265,7 @@ Notes:
   - `/me/novena-commitments`
 - `AccountSessionStore` now persists the signed-in session in the keychain and owns bootstrap, login, register, confirm, resend, refresh, and logout behavior.
 - `RemoteUserProgressRepository` now backs favorites and novena commitments with the real API instead of local-only storage for authenticated flows.
-- `HybridContentRepository` now gives iOS a safe migration path where saints, novenas, and liturgical calendar data are API-backed first while prayers continue to read from the legacy local repository until that domain migration is ready.
+- `HybridContentRepository` now gives iOS a safe migration path where saints, novenas, liturgical calendar data, and prayers are API-backed first while local repositories remain only as fallback during the final cleanup phase.
 - Prod, Dev, and UAT simulator builds all succeed with this new foundation slice in place.
 
 ### Phase 4: Auth And Account Migration
@@ -349,7 +349,7 @@ Checklist:
 - [x] Replace saints local repository with API repository
 - [x] Replace novenas local repository with API repository
 - [x] Replace liturgical local/rule logic with API-backed data
-- [ ] Replace prayers local repository with API repository
+- [x] Replace prayers local repository with API repository
 - [x] Verify search and detail screens work from API data
 - [x] Verify calendar/date-driven screens work from API data
 
@@ -374,6 +374,10 @@ Notes:
   - liturgical day / week / month calendar lookup
   - liturgical daily readings link resolution
   - home daily readings launcher
+- Prayers is now the fourth major content domain migrated off bundled JSON in the main runtime path.
+- The following iOS surfaces now source prayers from the API-backed repository path:
+  - prayers search list
+  - prayer detail hydration
 - Saint detail still keeps local related-novena lookup as a temporary bridge until saints and novenas can share a backend-driven relation model.
 - Novena detail still keeps local related-saint lookup as a temporary bridge until saints and novenas can share a backend-driven relation model.
 
@@ -430,10 +434,10 @@ Checklist:
 
 ## Immediate Next Actions
 
-1. Validate the new saints + novenas API-backed flows against the live backend on simulator/device
-2. Continue Phase 6 with prayers as the next content domain migration
-3. Remove remaining local-only authenticated fallback behavior now that liturgical is on the API
-4. Verify a real signed archive/upload path from the monorepo once the first three content domains are stable
+1. Validate the full API-backed content stack against the live backend on simulator/device
+2. Start the legacy removal sweep for bundled JSON, local rule paths, and direct `ContentStore` usage
+3. Remove remaining local-only authenticated fallback behavior now that the main content domains are on the API
+4. Verify a real signed archive/upload path from the monorepo once the legacy sweep is complete
 
 ## Progress Log
 
@@ -448,3 +452,4 @@ Checklist:
 - [x] Migrate saints to the first API-backed content domain across list, search, detail, calendar, and `Me`
 - [x] Migrate novenas to the second API-backed content domain across list, detail, intentions search, calendar, and `Me`
 - [x] Migrate liturgical to the third API-backed content domain across calendar and home daily readings flows
+- [x] Migrate prayers to the fourth API-backed content domain across search and detail flows

@@ -72,7 +72,38 @@ struct Prayer: Codable, Identifiable, Hashable, Sendable {
     let category: String
     let titleByLocale: [ContentLocale: String]
     let bodyByLocale: [ContentLocale: String]
+    let alternateTitleByLocale: [ContentLocale: String]
+    let noteByLocale: [ContentLocale: String]
+    let imageURL: URL?
+    let sourceTitle: String?
+    let sourceType: String?
     let tags: [String]
+
+    init(
+        id: String,
+        slug: String,
+        category: String,
+        titleByLocale: [ContentLocale: String],
+        bodyByLocale: [ContentLocale: String],
+        alternateTitleByLocale: [ContentLocale: String] = [:],
+        noteByLocale: [ContentLocale: String] = [:],
+        imageURL: URL? = nil,
+        sourceTitle: String? = nil,
+        sourceType: String? = nil,
+        tags: [String]
+    ) {
+        self.id = id
+        self.slug = slug
+        self.category = category
+        self.titleByLocale = titleByLocale
+        self.bodyByLocale = bodyByLocale
+        self.alternateTitleByLocale = alternateTitleByLocale
+        self.noteByLocale = noteByLocale
+        self.imageURL = imageURL
+        self.sourceTitle = sourceTitle
+        self.sourceType = sourceType
+        self.tags = tags
+    }
 }
 
 enum LiturgicalSeason: String, Codable, CaseIterable, Sendable {

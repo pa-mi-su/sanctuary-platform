@@ -176,7 +176,7 @@ struct PrayersSearchView: View {
                         LazyVStack(spacing: 10) {
                             ForEach(viewModel.prayers) { prayer in
                                 NavigationLink {
-                                    PrayerDetailView(prayer: prayer)
+                                    PrayerDetailView(contentRepository: environment.contentRepository, prayer: prayer)
                                 } label: {
                                     VStack(alignment: .leading, spacing: 4) {
                                         Text(viewModel.title(for: prayer, locale: locale))
@@ -223,91 +223,50 @@ struct PrayersSearchView: View {
     }
 }
 
-private struct BundledPrayerDocument: Decodable {
-    struct Source: Decodable {
-        let type: String?
-        let title: String?
-    }
-
-    let id: String
-    let title: String?
-    let title_es: String?
-    let title_pl: String?
-    let alternateTitle: String?
-    let alternateTitle_es: String?
-    let alternateTitle_pl: String?
-    let photoUrl: String?
-    let prayerText: String?
-    let prayerText_es: String?
-    let prayerText_pl: String?
-    let note: String?
-    let note_es: String?
-    let note_pl: String?
-    let source: Source?
-}
-
-private enum BundledPrayerStore {
-    private static var cache: [String: BundledPrayerDocument] = [:]
-    private static let lock = NSLock()
-
-    static func prayer(id: String) -> BundledPrayerDocument? {
-        lock.lock()
-        if let cached = cache[id] {
-            lock.unlock()
-            return cached
-        }
-        lock.unlock()
-
-        let loader = LocalBundleJSONLoader(bundle: .main)
-        let subdirs: [String?] = ["Resources/LegacyData/prayers", "LegacyData/prayers", "prayers", nil]
-        guard let loaded = try? loader.load(id, as: BundledPrayerDocument.self, subdirectoryCandidates: subdirs) else {
-            return nil
-        }
-
-        lock.lock()
-        cache[id] = loaded
-        lock.unlock()
-        return loaded
-    }
-}
-
 struct PrayerDetailView: View {
+    let contentRepository: any ContentRepository
     let prayer: Prayer
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var localization: LocalizationManager
-    @State private var bundledPrayer: BundledPrayerDocument?
+    @State private var currentPrayer: Prayer
+
+    init(contentRepository: any ContentRepository, prayer: Prayer) {
+        self.contentRepository = contentRepository
+        self.prayer = prayer
+        _currentPrayer = State(initialValue: prayer)
+    }
 
     private var locale: ContentLocale { localization.language.contentLocale }
-
     private var title: String {
-        localizedFromBundle(base: bundledPrayer?.title, es: bundledPrayer?.title_es, pl: bundledPrayer?.title_pl)
-            ?? prayer.titleByLocale[locale]
-            ?? prayer.titleByLocale[.en]
-            ?? prayer.slug
+        currentPrayer.titleByLocale[locale]
+            ?? currentPrayer.titleByLocale[.en]
+            ?? currentPrayer.slug
     }
 
     private var alternateTitle: String {
-        localizedFromBundle(base: bundledPrayer?.alternateTitle, es: bundledPrayer?.alternateTitle_es, pl: bundledPrayer?.alternateTitle_pl) ?? ""
+        currentPrayer.alternateTitleByLocale[locale]
+            ?? currentPrayer.alternateTitleByLocale[.en]
+            ?? ""
     }
 
     private var prayerText: String {
-        localizedFromBundle(base: bundledPrayer?.prayerText, es: bundledPrayer?.prayerText_es, pl: bundledPrayer?.prayerText_pl)
-            ?? prayer.bodyByLocale[locale]
-            ?? prayer.bodyByLocale[.en]
+        currentPrayer.bodyByLocale[locale]
+            ?? currentPrayer.bodyByLocale[.en]
             ?? ""
     }
 
     private var noteText: String {
-        localizedFromBundle(base: bundledPrayer?.note, es: bundledPrayer?.note_es, pl: bundledPrayer?.note_pl) ?? ""
+        currentPrayer.noteByLocale[locale]
+            ?? currentPrayer.noteByLocale[.en]
+            ?? ""
     }
 
     private var sourceTitle: String {
-        bundledPrayer?.source?.title ?? ""
+        currentPrayer.sourceTitle ?? ""
     }
 
     private var imageURL: URL? {
-        guard let raw = bundledPrayer?.photoUrl, !raw.isEmpty else { return nil }
-        return URL(string: raw)
+        currentPrayer.imageURL
     }
 
     private func handleBack() {
@@ -374,12 +333,14 @@ struct PrayerDetailView: View {
             }
         }
         .toolbar(.hidden, for: .navigationBar)
-        .task {
-            let id = prayer.id
-            let loaded = await Task.detached(priority: .userInitiated) {
-                BundledPrayerStore.prayer(id: id)
-            }.value
-            bundledPrayer = loaded
+        .task(id: "\(prayer.slug)-\(locale.rawValue)") {
+            do {
+                if let loaded = try await contentRepository.fetchPrayer(slug: prayer.slug, locale: locale) {
+                    currentPrayer = loaded
+                }
+            } catch {
+                currentPrayer = prayer
+            }
         }
     }
 
@@ -400,14 +361,6 @@ struct PrayerDetailView: View {
                 .stroke(Color.white.opacity(0.1), lineWidth: 1)
         )
         .clipShape(Capsule())
-    }
-
-    private func localizedFromBundle(base: String?, es: String?, pl: String?) -> String? {
-        switch locale {
-        case .en: return (base?.isEmpty == false ? base : nil) ?? es ?? pl
-        case .es: return (es?.isEmpty == false ? es : nil) ?? base ?? pl
-        case .pl: return (pl?.isEmpty == false ? pl : nil) ?? base ?? es
-        }
     }
 }
 

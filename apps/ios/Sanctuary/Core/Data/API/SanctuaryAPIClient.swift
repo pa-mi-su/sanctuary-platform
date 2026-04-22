@@ -188,6 +188,29 @@ struct APILiturgicalDayResponse: Decodable, Sendable {
     let readingsUrl: String?
 }
 
+struct APIPrayerSummaryResponse: Decodable, Sendable {
+    let id: String
+    let slug: String
+    let title: String
+    let bodyPreview: String
+    let category: String
+    let imageUrl: String?
+}
+
+struct APIPrayerDetailResponse: Decodable, Sendable {
+    let id: String
+    let slug: String
+    let title: String
+    let alternateTitle: String?
+    let body: String
+    let note: String?
+    let category: String
+    let imageUrl: String?
+    let sourceTitle: String?
+    let sourceType: String?
+    let tags: [String]
+}
+
 private struct APIErrorEnvelope: Decodable {
     let message: String
 }
@@ -439,6 +462,54 @@ actor SanctuaryAPIClient {
             return try decoder.decode(APIContentSaintDetailResponse.self, from: data)
         } catch {
             throw SanctuaryAPIError.decoding(message: "Sanctuary returned saint details we could not read.")
+        }
+    }
+
+    func listPrayers(
+        locale: ContentLocale,
+        query: String?
+    ) async throws -> [APIPrayerSummaryResponse] {
+        var queryItems = [URLQueryItem(name: "lang", value: locale.rawValue)]
+        if let query, !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            queryItems.append(URLQueryItem(name: "query", value: query))
+        }
+
+        return try await performRequest(
+            path: "/content/prayers",
+            queryItems: queryItems,
+            method: "GET",
+            body: Optional<String>.none,
+            token: nil
+        )
+    }
+
+    func fetchPrayer(
+        slug: String,
+        locale: ContentLocale
+    ) async throws -> APIPrayerDetailResponse? {
+        let request = try makeRequest(
+            path: "/content/prayers/\(slug)",
+            queryItems: [URLQueryItem(name: "lang", value: locale.rawValue)],
+            method: "GET",
+            body: Optional<String>.none,
+            token: nil
+        )
+        let (data, response) = try await execute(request)
+
+        guard let http = response as? HTTPURLResponse else {
+            throw SanctuaryAPIError.invalidResponse
+        }
+
+        if http.statusCode == 404 {
+            return nil
+        }
+
+        try validate(response: response, data: data)
+
+        do {
+            return try decoder.decode(APIPrayerDetailResponse.self, from: data)
+        } catch {
+            throw SanctuaryAPIError.decoding(message: "Sanctuary returned prayer details we could not read.")
         }
     }
 

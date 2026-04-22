@@ -160,7 +160,31 @@ actor HybridContentRepository: ContentRepository, SaintRangeRepository {
         category: String?,
         query: String?
     ) async throws -> [Prayer] {
-        try await localRepository.listPrayers(locale: locale, category: category, query: query)
+        do {
+            let remotePrayers = try await apiClient.listPrayers(locale: locale, query: query)
+            let mapped = remotePrayers.map { mapPrayerSummary($0, locale: locale) }
+            guard let category, !category.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                return mapped
+            }
+            let normalizedCategory = category.lowercased()
+            return mapped.filter { $0.category.lowercased() == normalizedCategory }
+        } catch {
+            return try await localRepository.listPrayers(locale: locale, category: category, query: query)
+        }
+    }
+
+    func fetchPrayer(
+        slug: String,
+        locale: ContentLocale
+    ) async throws -> Prayer? {
+        do {
+            if let remotePrayer = try await apiClient.fetchPrayer(slug: slug, locale: locale) {
+                return mapPrayerDetail(remotePrayer, locale: locale)
+            }
+            return nil
+        } catch {
+            return try await localRepository.fetchPrayer(slug: slug, locale: locale)
+        }
     }
 
     func listLiturgicalDays(
@@ -307,6 +331,34 @@ actor HybridContentRepository: ContentRepository, SaintRangeRepository {
             rank: response.primaryRank,
             observances: response.observances,
             readingURL: url(from: response.readingsUrl)
+        )
+    }
+
+    private func mapPrayerSummary(_ response: APIPrayerSummaryResponse, locale: ContentLocale) -> Prayer {
+        Prayer(
+            id: response.id,
+            slug: response.slug,
+            category: response.category,
+            titleByLocale: localizedValueMap(value: response.title, locale: locale),
+            bodyByLocale: localizedValueMap(value: response.bodyPreview, locale: locale),
+            imageURL: url(from: response.imageUrl),
+            tags: []
+        )
+    }
+
+    private func mapPrayerDetail(_ response: APIPrayerDetailResponse, locale: ContentLocale) -> Prayer {
+        Prayer(
+            id: response.id,
+            slug: response.slug,
+            category: response.category,
+            titleByLocale: localizedValueMap(value: response.title, locale: locale),
+            bodyByLocale: localizedValueMap(value: response.body, locale: locale),
+            alternateTitleByLocale: localizedValueMap(value: response.alternateTitle ?? "", locale: locale),
+            noteByLocale: localizedValueMap(value: response.note ?? "", locale: locale),
+            imageURL: url(from: response.imageUrl),
+            sourceTitle: response.sourceTitle,
+            sourceType: response.sourceType,
+            tags: response.tags
         )
     }
 }

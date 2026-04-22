@@ -230,6 +230,14 @@ actor LocalContentRepository: ContentRepository, SaintRangeRepository {
             }
     }
 
+    func fetchPrayer(
+        slug: String,
+        locale _: ContentLocale
+    ) async throws -> Prayer? {
+        await ensureSupplementaryContentLoaded()
+        return prayers.first { $0.slug == slug }
+    }
+
     func fetchLiturgicalDay(for date: Date) async throws -> LiturgicalDay? {
         await ensureSupplementaryContentLoaded()
         return LiturgicalCalendarEngine.day(for: date)
@@ -319,7 +327,7 @@ actor LocalContentRepository: ContentRepository, SaintRangeRepository {
             return []
         }
 
-        return index.compactMap { entry in
+        return index.compactMap { entry -> Prayer? in
             guard let doc = try? loader.load(entry.id, as: LegacyPrayerDocument.self, subdirectoryCandidates: docSubdirs) else {
                 return nil
             }
@@ -342,6 +350,11 @@ actor LocalContentRepository: ContentRepository, SaintRangeRepository {
                     .es: firstNonEmpty(doc.prayerText_es, fallback: bodyEn),
                     .pl: firstNonEmpty(doc.prayerText_pl, fallback: bodyEn),
                 ],
+                alternateTitleByLocale: [:],
+                noteByLocale: [:],
+                imageURL: nil,
+                sourceTitle: nil,
+                sourceType: doc.source?.type,
                 tags: []
             )
         }

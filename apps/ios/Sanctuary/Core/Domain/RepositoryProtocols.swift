@@ -50,6 +50,11 @@ protocol ContentRepository: Sendable {
         query: String?
     ) async throws -> [Prayer]
 
+    func fetchPrayer(
+        slug: String,
+        locale: ContentLocale
+    ) async throws -> Prayer?
+
     func listLiturgicalDays(
         startDate: Date,
         endDate: Date
