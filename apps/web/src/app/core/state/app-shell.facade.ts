@@ -696,11 +696,10 @@ export class AppShellFacade {
   }
 
   localizedNovenasCountLabel(): string {
-    const count = this.selectedNovenas().length;
     return this.translate(
-      `Selected day · ${count} active novenas`,
-      `Día seleccionado · ${count} novenas activas`,
-      `Wybrany dzien · ${count} aktywnych nowenn`
+      'Selected day · Featured novena',
+      'Día seleccionado · Novena destacada',
+      'Wybrany dzien · Wyrozniona nowenna'
     );
   }
 
@@ -714,9 +713,9 @@ export class AppShellFacade {
 
   localizedNoNovenasCopy(): string {
     return this.translate(
-      'No novenas are active for this date.',
-      'No hay novenas activas para esta fecha.',
-      'Brak aktywnych nowenn dla tej daty.'
+      'No novena is assigned to this date.',
+      'No hay una novena asignada a esta fecha.',
+      'Do tej daty nie przypisano nowenny.'
     );
   }
 
