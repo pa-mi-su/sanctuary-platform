@@ -3,6 +3,7 @@ import SwiftUI
 struct MeView: View {
     let environment: AppEnvironment
     @EnvironmentObject private var localization: LocalizationManager
+    @EnvironmentObject private var accountStore: AccountSessionStore
     @EnvironmentObject private var progressStore: UserProgressStore
     @State private var selectedRoute: MeSelectionRoute?
 
@@ -12,128 +13,14 @@ struct MeView: View {
 
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 14) {
-                    Text(localization.t("tab.me"))
-                        .font(AppTheme.rounded(42, weight: .bold))
-                        .foregroundStyle(.white)
-
-                    Text(localization.t("me.subtitle"))
-                        .font(AppTheme.rounded(18, weight: .medium))
-                        .foregroundStyle(AppTheme.subtitleText)
-
-                    MeCard(title: localization.t("me.inProgress"), subtitle: "\(progressStore.activeCommitments.count) in progress") {
-                        if progressStore.activeCommitments.isEmpty {
-                            Text(localization.t("me.noneInProgress"))
-                                .font(AppTheme.rounded(16, weight: .medium))
-                                .foregroundStyle(AppTheme.cardText.opacity(0.85))
-                        } else {
-                            VStack(spacing: 10) {
-                                ForEach(progressStore.activeCommitments, id: \.novenaID) { commitment in
-                                    let title = ContentStore.novena(id: commitment.novenaID)?.title ?? commitment.novenaID
-                                    let total = max(1, ContentStore.novena(id: commitment.novenaID)?.durationDays ?? 9)
-                                    let dayLabel = "Day \(min(commitment.currentDay, total)) of \(total)"
-                                    Button {
-                                        selectedRoute = .novena(id: commitment.novenaID)
-                                    } label: {
-                                        HStack {
-                                            VStack(alignment: .leading, spacing: 4) {
-                                                Text(title)
-                                                    .font(AppTheme.rounded(16, weight: .semibold))
-                                                    .foregroundStyle(.white)
-                                                Text(dayLabel)
-                                                    .font(AppTheme.rounded(13, weight: .medium))
-                                                    .foregroundStyle(.white.opacity(0.86))
-                                            }
-                                            Spacer()
-                                            Image(systemName: "chevron.right")
-                                                .font(.system(size: 12, weight: .semibold))
-                                                .foregroundStyle(.white.opacity(0.9))
-                                        }
-                                        .frame(maxWidth: .infinity, alignment: .leading)
-                                        .padding(.vertical, 10)
-                                        .padding(.horizontal, 14)
-                                        .background(AppTheme.cardBackgroundSoft)
-                                        .overlay(
-                                            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                                .stroke(Color.white.opacity(0.12), lineWidth: 1)
-                                        )
-                                        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-                                    }
-                                    .buttonStyle(.plain)
-                                }
-                            }
-                        }
-                    }
-
-                    MeCard(title: localization.t("me.favoriteNovenas")) {
-                        if favoriteNovenas.isEmpty {
-                            Text(localization.t("me.noneFavoriteNovenas"))
-                                .font(AppTheme.rounded(16, weight: .medium))
-                                .foregroundStyle(AppTheme.cardText.opacity(0.85))
-                        } else {
-                            VStack(spacing: 10) {
-                                ForEach(favoriteNovenas, id: \.itemID) { favorite in
-                                    Button {
-                                        selectedRoute = .novena(id: favorite.itemID)
-                                    } label: {
-                                        HStack {
-                                            Text(novenaTitle(for: favorite.itemID))
-                                                .font(.system(size: 16, weight: .semibold, design: .rounded))
-                                                .foregroundStyle(.white)
-                                                .lineLimit(2)
-                                            Spacer()
-                                            Image(systemName: "chevron.right")
-                                                .font(.system(size: 12, weight: .semibold))
-                                                .foregroundStyle(.white.opacity(0.9))
-                                        }
-                                        .padding(.vertical, 12)
-                                        .padding(.horizontal, 14)
-                                        .background(AppTheme.cardBackgroundSoft)
-                                        .overlay(
-                                            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                                .stroke(Color.white.opacity(0.12), lineWidth: 1)
-                                        )
-                                        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-                                    }
-                                    .buttonStyle(.plain)
-                                }
-                            }
-                        }
-                    }
-
-                    MeCard(title: localization.t("me.favoriteSaints")) {
-                        if favoriteSaints.isEmpty {
-                            Text(localization.t("me.noneFavoriteSaints"))
-                                .font(AppTheme.rounded(16, weight: .medium))
-                                .foregroundStyle(AppTheme.cardText.opacity(0.85))
-                        } else {
-                            VStack(spacing: 10) {
-                                ForEach(favoriteSaints, id: \.itemID) { favorite in
-                                    Button {
-                                        selectedRoute = .saint(id: favorite.itemID)
-                                    } label: {
-                                        HStack {
-                                            Text(saintName(for: favorite.itemID))
-                                                .font(.system(size: 16, weight: .semibold, design: .rounded))
-                                                .foregroundStyle(.white)
-                                                .lineLimit(2)
-                                            Spacer()
-                                            Image(systemName: "chevron.right")
-                                                .font(.system(size: 12, weight: .semibold))
-                                                .foregroundStyle(.white.opacity(0.9))
-                                        }
-                                        .padding(.vertical, 12)
-                                        .padding(.horizontal, 14)
-                                        .background(AppTheme.cardBackgroundSoft)
-                                        .overlay(
-                                            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                                .stroke(Color.white.opacity(0.12), lineWidth: 1)
-                                        )
-                                        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-                                    }
-                                    .buttonStyle(.plain)
-                                }
-                            }
-                        }
+                    if accountStore.isAuthenticated {
+                        accountHeader
+                        accountSummary
+                        inProgressCard
+                        favoriteNovenasCard
+                        favoriteSaintsCard
+                    } else {
+                        AccountAccessView()
                     }
                 }
                 .padding(16)
@@ -141,7 +28,10 @@ struct MeView: View {
             }
         }
         .task {
-            await progressStore.refresh()
+            if accountStore.isAuthenticated {
+                await accountStore.refreshProfile()
+                await progressStore.refresh()
+            }
         }
         .sheet(item: $selectedRoute) { route in
             switch route {
@@ -185,6 +75,152 @@ struct MeView: View {
                 )
             }
         }
+    }
+
+    private var accountHeader: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(localization.t("tab.me"))
+                .font(AppTheme.rounded(42, weight: .bold))
+                .foregroundStyle(.white)
+
+            Text(localization.t("me.subtitle"))
+                .font(AppTheme.rounded(18, weight: .medium))
+                .foregroundStyle(AppTheme.subtitleText)
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text(accountStore.profile?.displayName ?? accountStore.session?.displayName ?? "Sanctuary")
+                    .font(AppTheme.rounded(28, weight: .bold))
+                    .foregroundStyle(.white)
+
+                if let email = accountStore.profile?.email ?? accountStore.session?.email, !email.isEmpty {
+                    Text(email)
+                        .font(AppTheme.rounded(16, weight: .medium))
+                        .foregroundStyle(AppTheme.subtitleText)
+                }
+            }
+            .padding(18)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .appGlassCard(cornerRadius: 24)
+        }
+    }
+
+    private var accountSummary: some View {
+        HStack(spacing: 12) {
+            summaryMetric(
+                title: localization.t("me.inProgress"),
+                value: "\(progressStore.activeCommitments.count)"
+            )
+            summaryMetric(
+                title: localization.t("me.favoriteNovenas"),
+                value: "\(favoriteNovenas.count)"
+            )
+            summaryMetric(
+                title: localization.t("me.favoriteSaints"),
+                value: "\(favoriteSaints.count)"
+            )
+        }
+    }
+
+    private func summaryMetric(title: String, value: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(value)
+                .font(AppTheme.rounded(26, weight: .bold))
+                .foregroundStyle(.white)
+            Text(title)
+                .font(AppTheme.rounded(14, weight: .bold))
+                .foregroundStyle(AppTheme.subtitleText)
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .appGlassCard(cornerRadius: 22)
+    }
+
+    private var inProgressCard: some View {
+        MeCard(title: localization.t("me.inProgress"), subtitle: "\(progressStore.activeCommitments.count) synced") {
+            if progressStore.activeCommitments.isEmpty {
+                Text(localization.t("me.noneInProgress"))
+                    .font(AppTheme.rounded(16, weight: .medium))
+                    .foregroundStyle(AppTheme.cardText.opacity(0.85))
+            } else {
+                VStack(spacing: 10) {
+                    ForEach(progressStore.activeCommitments, id: \.novenaID) { commitment in
+                        let title = ContentStore.novena(id: commitment.novenaID)?.title ?? commitment.novenaID
+                        let total = max(1, ContentStore.novena(id: commitment.novenaID)?.durationDays ?? 9)
+                        let dayLabel = "Day \(min(commitment.currentDay, total)) of \(total)"
+                        accountLinkedRow(title: title, subtitle: dayLabel) {
+                            selectedRoute = .novena(id: commitment.novenaID)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private var favoriteNovenasCard: some View {
+        MeCard(title: localization.t("me.favoriteNovenas")) {
+            if favoriteNovenas.isEmpty {
+                Text(localization.t("me.noneFavoriteNovenas"))
+                    .font(AppTheme.rounded(16, weight: .medium))
+                    .foregroundStyle(AppTheme.cardText.opacity(0.85))
+            } else {
+                VStack(spacing: 10) {
+                    ForEach(favoriteNovenas, id: \.itemID) { favorite in
+                        accountLinkedRow(title: novenaTitle(for: favorite.itemID), subtitle: nil) {
+                            selectedRoute = .novena(id: favorite.itemID)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private var favoriteSaintsCard: some View {
+        MeCard(title: localization.t("me.favoriteSaints")) {
+            if favoriteSaints.isEmpty {
+                Text(localization.t("me.noneFavoriteSaints"))
+                    .font(AppTheme.rounded(16, weight: .medium))
+                    .foregroundStyle(AppTheme.cardText.opacity(0.85))
+            } else {
+                VStack(spacing: 10) {
+                    ForEach(favoriteSaints, id: \.itemID) { favorite in
+                        accountLinkedRow(title: saintName(for: favorite.itemID), subtitle: nil) {
+                            selectedRoute = .saint(id: favorite.itemID)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func accountLinkedRow(title: String, subtitle: String?, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title)
+                        .font(.system(size: 16, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.white)
+                        .lineLimit(2)
+                    if let subtitle, !subtitle.isEmpty {
+                        Text(subtitle)
+                            .font(AppTheme.rounded(13, weight: .medium))
+                            .foregroundStyle(.white.opacity(0.82))
+                    }
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.9))
+            }
+            .padding(.vertical, 12)
+            .padding(.horizontal, 14)
+            .background(AppTheme.cardBackgroundSoft)
+            .overlay(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .stroke(Color.white.opacity(0.12), lineWidth: 1)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        }
+        .buttonStyle(.plain)
     }
 
     private var favoriteNovenas: [UserFavorite] {
@@ -355,7 +391,15 @@ struct MeView_Previews: PreviewProvider {
     static var previews: some View {
         MeView(environment: .local())
             .environmentObject(
-                UserProgressStore(userProgressRepository: AppEnvironment.local().userProgressRepository)
+                UserProgressStore(
+                    userProgressRepository: LocalUserProgressRepository()
+                )
+            )
+            .environmentObject(
+                AccountSessionStore(
+                    apiClient: AppEnvironment.local().apiClient,
+                    platformConfiguration: AppEnvironment.local().platformConfiguration
+                )
             )
             .environmentObject(LocalizationManager())
     }

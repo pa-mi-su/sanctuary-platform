@@ -1,20 +1,32 @@
 import Foundation
 
 struct AppEnvironment {
+    let platformConfiguration: PlatformConfiguration
+    let apiClient: SanctuaryAPIClient
     let contentRepository: any ContentRepository
-    let userProgressRepository: any UserProgressRepository
     let searchRepository: any SearchRepository
 
-    static func local() -> AppEnvironment {
+    func makeUserProgressRepository(sessionStore: AccountSessionStore) -> any UserProgressRepository {
+        RemoteUserProgressRepository(apiClient: apiClient, sessionStore: sessionStore)
+    }
+
+    static func current() -> AppEnvironment {
+        let platformConfiguration = PlatformConfiguration.current()
+        let apiClient = SanctuaryAPIClient(baseURL: platformConfiguration.apiBaseURL)
+
         // Avoid eager large in-memory seed payload allocation at startup.
         let contentRepository = LocalContentRepository(fallbackToSeed: false)
-        let userProgressRepository = LocalUserProgressRepository()
         let searchRepository = LocalSearchRepository(contentRepository: contentRepository)
 
         return AppEnvironment(
+            platformConfiguration: platformConfiguration,
+            apiClient: apiClient,
             contentRepository: contentRepository,
-            userProgressRepository: userProgressRepository,
             searchRepository: searchRepository
         )
+    }
+
+    static func local() -> AppEnvironment {
+        current()
     }
 }

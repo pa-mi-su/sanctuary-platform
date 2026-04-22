@@ -12,7 +12,7 @@ import UIKit
 
 @main
 struct SanctuaryApp: App {
-    private let environment = AppEnvironment.local()
+    private let environment = AppEnvironment.current()
 
     init() {
 #if os(iOS)

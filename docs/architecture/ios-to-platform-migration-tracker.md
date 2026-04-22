@@ -203,7 +203,7 @@ Notes:
 
 ### Phase 2: Move iOS Into `sanctuary-platform`
 
-Status: `IN PROGRESS`
+Status: `COMPLETE`
 
 Goal:
 - move the project into the monorepo without changing runtime behavior yet
@@ -214,7 +214,7 @@ Deliverables:
 - updated local docs
 
 Checklist:
-- [ ] Create migration branch in `sanctuary-platform`
+- [x] Create migration branch in `sanctuary-platform`
 - [x] Import iOS project into `apps/ios`
 - [x] Preserve Xcode references and asset paths
 - [x] Verify build still works after the move
@@ -233,7 +233,7 @@ Notes:
 
 ### Phase 3: Shared Client Foundation
 
-Status: `TODO`
+Status: `IN PROGRESS`
 
 Goal:
 - make iOS a real client of the platform
@@ -245,15 +245,30 @@ Deliverables:
 - environment config model
 
 Checklist:
-- [ ] Introduce API base URL config for iOS environments
-- [ ] Introduce auth/session manager for Cognito-backed flows
+- [x] Introduce API base URL config for iOS environments
+- [x] Introduce auth/session manager for Cognito-backed flows
 - [ ] Introduce content repository protocols backed by API
-- [ ] Introduce user progress repository backed by API
+- [x] Introduce user progress repository backed by API
 - [ ] Introduce feature flags only if needed for incremental cutover
+
+Notes:
+
+- `PlatformConfiguration` now resolves iOS environment from the bundle identifier and exposes an API base URL, including a simulator-friendly localhost override for non-production work.
+- `SanctuaryAPIClient` now provides a typed async client for the current auth and account endpoints used by the web app:
+  - `/auth/register`
+  - `/auth/confirm`
+  - `/auth/resend-confirmation`
+  - `/auth/login`
+  - `/me`
+  - `/me/favorites`
+  - `/me/novena-commitments`
+- `AccountSessionStore` now persists the signed-in session in the keychain and owns bootstrap, login, register, confirm, resend, refresh, and logout behavior.
+- `RemoteUserProgressRepository` now backs favorites and novena commitments with the real API instead of local-only storage for authenticated flows.
+- Prod, Dev, and UAT simulator builds all succeed with this new foundation slice in place.
 
 ### Phase 4: Auth And Account Migration
 
-Status: `TODO`
+Status: `IN PROGRESS`
 
 Goal:
 - align iOS login/register/account behavior with the platform
@@ -266,13 +281,25 @@ Deliverables:
 - `/me`
 
 Checklist:
-- [ ] Replace legacy/no-auth assumptions with real account state
-- [ ] Wire iOS login to Cognito-backed platform flow
-- [ ] Wire registration and confirmation flow
-- [ ] Wire logout and token/session clearing
-- [ ] Wire `/me` profile loading
-- [ ] Use first name / last name / display name consistently
-- [ ] Verify authenticated state survives app relaunch correctly
+- [x] Replace legacy/no-auth assumptions with real account state
+- [x] Wire iOS login to Cognito-backed platform flow
+- [x] Wire registration and confirmation flow
+- [x] Wire logout and token/session clearing
+- [x] Wire `/me` profile loading
+- [x] Use first name / last name / display name consistently
+- [x] Verify authenticated state survives app relaunch correctly
+
+Notes:
+
+- `MeView` now renders a signed-out account experience through `AccountAccessView` instead of assuming a local placeholder user.
+- The account flow now supports:
+  - login
+  - register
+  - email confirmation
+  - resend confirmation
+  - logout
+- Account state is restored at app launch through the keychain-backed `AccountSessionStore`.
+- The current account-facing UI slice is intentionally limited to authentication and synced user-state wiring; saints, novenas, liturgical, and prayers content still come from local repositories until later domain migration phases.
 
 ### Phase 5: User Data Features
 
@@ -369,15 +396,18 @@ Checklist:
 
 ## Immediate Next Actions
 
-1. Verify App Store Connect and signing ownership outside the repo
-2. Create the monorepo migration branch in `sanctuary-platform`
-3. Move the iOS project into `apps/ios`
-4. Prove the moved iOS project still builds before any large rewrites
+1. Replace remaining local `Me` content lookups with API-backed account detail models where practical
+2. Continue Phase 5 by validating favorites and novena commitments against live backend data
+3. Start Phase 6 with the first content-domain migration, likely saints or novenas
+4. Verify a real signed archive/upload path from the monorepo once the auth/account foundation is stable
 
 ## Progress Log
 
 - [x] Create migration branch in `sanctuary-platform`
 - [x] Move migration tracker into `sanctuary-platform/docs/architecture`
-- [ ] Create `apps/ios` destination and migration placeholders
-- [ ] Verify App Store Connect / signing / TestFlight manually
-- [ ] Import iOS project into `apps/ios`
+- [x] Create `apps/ios` destination and migration placeholders
+- [x] Verify App Store Connect / signing / TestFlight manually
+- [x] Import iOS project into `apps/ios`
+- [x] Add platform-aware iOS environment and API client foundation
+- [x] Add keychain-backed account session flow and API-backed `/me`
+- [x] Add API-backed favorites and novena commitments foundation

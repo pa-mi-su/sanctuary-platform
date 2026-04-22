@@ -5,22 +5,49 @@ import Combine
 final class UserProgressStore: ObservableObject {
     @Published private(set) var commitments: [UserNovenaCommitment] = []
     @Published private(set) var favorites: [UserFavorite] = []
+    @Published private(set) var userID: String?
 
-    let userID: String
     private let repository: any UserProgressRepository
     private let reminderScheduler: NovenaReminderScheduler
 
     init(
-        userID: String = "local-user",
         userProgressRepository: any UserProgressRepository,
         reminderScheduler: NovenaReminderScheduler = .shared
     ) {
-        self.userID = userID
         self.repository = userProgressRepository
         self.reminderScheduler = reminderScheduler
     }
 
+    var isAuthenticated: Bool {
+        userID != nil
+    }
+
+    func setAuthenticatedUser(id: String?) async {
+        guard userID != id else {
+            await refresh()
+            return
+        }
+
+        userID = id
+
+        guard id != nil else {
+            commitments = []
+            favorites = []
+            await syncDigestReminders()
+            return
+        }
+
+        await refresh()
+    }
+
     func refresh() async {
+        guard let userID else {
+            commitments = []
+            favorites = []
+            await syncDigestReminders()
+            return
+        }
+
         do {
             async let loadedCommitments = repository.listNovenaCommitments(userID: userID)
             async let loadedFavorites = repository.listFavorites(userID: userID)
@@ -57,6 +84,7 @@ final class UserProgressStore: ObservableObject {
         itemType: FavoriteItemType,
         itemID: String
     ) async {
+        guard let userID else { return }
         do {
             if enabled {
                 try await repository.addFavorite(userID: userID, itemType: itemType, itemID: itemID)
@@ -73,6 +101,7 @@ final class UserProgressStore: ObservableObject {
     }
 
     func startNovena(novenaID: String) async {
+        guard let userID else { return }
         let now = Date()
         let started = UserNovenaCommitment(
             userID: userID,
@@ -91,6 +120,7 @@ final class UserProgressStore: ObservableObject {
     }
 
     func completeCurrentDay(novenaID: String, totalDays: Int) async {
+        guard let userID else { return }
         guard let current = activeCommitment(for: novenaID) else { return }
         let dayToComplete = current.currentDay
         do {
@@ -119,6 +149,7 @@ final class UserProgressStore: ObservableObject {
     }
 
     func stopNovena(novenaID: String) async {
+        guard let userID else { return }
         do {
             try await repository.removeNovenaCommitment(userID: userID, novenaID: novenaID)
             await refresh()

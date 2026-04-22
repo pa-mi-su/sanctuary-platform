@@ -12,13 +12,21 @@ struct AppShellView: View {
     let environment: AppEnvironment
     @State private var selectedTab: AppTab = .home
     @StateObject private var localization: LocalizationManager
+    @StateObject private var accountStore: AccountSessionStore
     @StateObject private var progressStore: UserProgressStore
 
     init(environment: AppEnvironment) {
         self.environment = environment
+        let accountStore = AccountSessionStore(
+            apiClient: environment.apiClient,
+            platformConfiguration: environment.platformConfiguration
+        )
         _localization = StateObject(wrappedValue: LocalizationManager())
+        _accountStore = StateObject(wrappedValue: accountStore)
         _progressStore = StateObject(
-            wrappedValue: UserProgressStore(userProgressRepository: environment.userProgressRepository)
+            wrappedValue: UserProgressStore(
+                userProgressRepository: environment.makeUserProgressRepository(sessionStore: accountStore)
+            )
         )
     }
 
@@ -64,11 +72,15 @@ struct AppShellView: View {
         }
         .tint(AppTheme.tabActive)
         .environmentObject(localization)
+        .environmentObject(accountStore)
         .environmentObject(progressStore)
         .task {
             // Let first frame and taps land before background state refresh.
             try? await Task.sleep(nanoseconds: 700_000_000)
-            await progressStore.refresh()
+            await accountStore.bootstrap()
+        }
+        .task(id: accountStore.profile?.userID) {
+            await progressStore.setAuthenticatedUser(id: accountStore.profile?.userID)
         }
     }
 }

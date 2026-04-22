@@ -695,7 +695,7 @@ struct NovenaDetailView_Previews: PreviewProvider {
         NovenaDetailView(novena: LocalSeedData.novenas[0])
             .environmentObject(LocalizationManager())
             .environmentObject(
-                UserProgressStore(userProgressRepository: AppEnvironment.local().userProgressRepository)
+                UserProgressStore(userProgressRepository: LocalUserProgressRepository())
             )
     }
 }

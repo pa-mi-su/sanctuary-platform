@@ -466,7 +466,7 @@ struct SaintDetailView_Previews: PreviewProvider {
         SaintDetailView(saint: previewSaint)
             .environmentObject(LocalizationManager())
             .environmentObject(
-                UserProgressStore(userProgressRepository: AppEnvironment.local().userProgressRepository)
+                UserProgressStore(userProgressRepository: LocalUserProgressRepository())
             )
     }
 
