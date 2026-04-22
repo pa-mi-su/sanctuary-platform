@@ -6,7 +6,6 @@ import app.sanctuary.api.user.dto.UserPreferenceDto;
 import app.sanctuary.api.user.dto.UserPreferencesUpdateRequest;
 import app.sanctuary.api.user.dto.UserProfileCountsDto;
 import app.sanctuary.api.user.dto.UserProfileDto;
-import app.sanctuary.api.user.dto.UserStreakSummaryDto;
 import app.sanctuary.api.user.repository.UserPreferencesRepository;
 import app.sanctuary.api.user.repository.UserProgressRepository;
 import app.sanctuary.api.user.web.CurrentUser;
@@ -18,26 +17,22 @@ public class UserProfileService {
     private final UserAccountService userAccountService;
     private final UserPreferencesRepository userPreferencesRepository;
     private final UserProgressRepository userProgressRepository;
-    private final UserActivityService userActivityService;
 
     public UserProfileService(
         UserAccountService userAccountService,
         UserPreferencesRepository userPreferencesRepository,
-        UserProgressRepository userProgressRepository,
-        UserActivityService userActivityService
+        UserProgressRepository userProgressRepository
     ) {
         this.userAccountService = userAccountService;
         this.userPreferencesRepository = userPreferencesRepository;
         this.userProgressRepository = userProgressRepository;
-        this.userActivityService = userActivityService;
     }
 
     public UserProfileDto getProfile(CurrentUser currentUser) {
         var account = userAccountService.ensureAccount(currentUser);
         UserPreferenceDto preferences = userPreferencesRepository.ensureForUser(account.id());
         UserProfileCountsDto counts = userProgressRepository.profileCounts(account.id());
-        UserStreakSummaryDto streakSummary = userActivityService.streakSummary(account.id(), preferences.timeZoneId());
-        return UserProfileDto.from(account, preferences, counts, streakSummary);
+        return UserProfileDto.from(account, preferences, counts);
     }
 
     public UserProfileDto updatePreferences(CurrentUser currentUser, UserPreferencesUpdateRequest request) {
@@ -47,8 +42,7 @@ public class UserProfileService {
         var updatedAccount = userAccountService.updatePreferredLanguage(account.id(), request.preferredLanguage());
         UserPreferenceDto preferences = userPreferencesRepository.update(updatedAccount.id(), request);
         UserProfileCountsDto counts = userProgressRepository.profileCounts(updatedAccount.id());
-        UserStreakSummaryDto streakSummary = userActivityService.streakSummary(updatedAccount.id(), preferences.timeZoneId());
-        return UserProfileDto.from(updatedAccount, preferences, counts, streakSummary);
+        return UserProfileDto.from(updatedAccount, preferences, counts);
     }
 
     private void validateLanguage(String preferredLanguage) {

@@ -33,12 +33,6 @@ type AppLanguage = 'en' | 'es' | 'pl';
             </div>
           </div>
         </div>
-
-        <article class="panel-card glass-subtle member-card">
-          <span class="member-card__label">{{ t('Current streak', 'Racha actual', 'Aktualna passa') }}</span>
-          <strong>{{ profile?.currentStreakDays ?? 0 }} {{ t('days', 'días', 'dni') }}</strong>
-          <small>{{ t('Quiet consistency matters more than speed.', 'La constancia tranquila importa más que la velocidad.', 'Spokojna konsekwencja liczy się bardziej niż tempo.') }}</small>
-        </article>
       </div>
 
       <section class="stats-grid">
@@ -62,10 +56,6 @@ type AppLanguage = 'en' | 'es' | 'pl';
           <span class="stat-label">{{ t('Favorite novenas', 'Novenas favoritas', 'Ulubione nowenny') }}</span>
         </article>
 
-        <article class="panel-card glass-subtle stat-card">
-          <span class="stat-value">{{ profile?.currentStreakDays ?? 0 }}</span>
-          <span class="stat-label">{{ t('Current streak', 'Racha actual', 'Aktualna passa') }}</span>
-        </article>
       </section>
 
       <section class="linked-grid">
@@ -187,10 +177,6 @@ type AppLanguage = 'en' | 'es' | 'pl';
             <div>
               <dt>{{ t('Time zone', 'Zona horaria', 'Strefa czasowa') }}</dt>
               <dd>{{ formTimeZoneId || browserTimeZone }}</dd>
-            </div>
-            <div>
-              <dt>{{ t('Longest streak', 'Racha más larga', 'Najdluzsza passa') }}</dt>
-              <dd>{{ profile?.longestStreakDays ?? 0 }} {{ t('days', 'días', 'dni') }}</dd>
             </div>
           </dl>
         </article>

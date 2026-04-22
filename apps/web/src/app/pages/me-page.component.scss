@@ -216,31 +216,6 @@
   line-height: 1.45;
 }
 
-.member-card {
-  min-width: 220px;
-  display: grid;
-  gap: 6px;
-  align-content: start;
-}
-
-.member-card__label {
-  color: rgba(142, 224, 242, 0.82);
-  font-size: 0.74rem;
-  font-weight: 800;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
-.member-card strong {
-  font-size: 1.5rem;
-  letter-spacing: -0.04em;
-}
-
-.member-card small {
-  color: rgba(255, 255, 255, 0.66);
-  line-height: 1.4;
-}
-
 .stat-card {
   display: grid;
   gap: 6px;
@@ -417,7 +392,4 @@
     border-radius: 18px;
   }
 
-  .member-card {
-    min-width: 0;
-  }
 }

@@ -17,7 +17,6 @@ import app.sanctuary.api.user.dto.UserAccountDto;
 import app.sanctuary.api.user.dto.UserPreferenceDto;
 import app.sanctuary.api.user.dto.UserPreferencesUpdateRequest;
 import app.sanctuary.api.user.dto.UserProfileCountsDto;
-import app.sanctuary.api.user.dto.UserStreakSummaryDto;
 import app.sanctuary.api.user.repository.UserPreferencesRepository;
 import app.sanctuary.api.user.repository.UserProgressRepository;
 import app.sanctuary.api.user.web.CurrentUser;
@@ -34,9 +33,6 @@ class UserProfileServiceTest {
     @Mock
     private UserProgressRepository userProgressRepository;
 
-    @Mock
-    private UserActivityService userActivityService;
-
     @InjectMocks
     private UserProfileService service;
 
@@ -47,12 +43,10 @@ class UserProfileServiceTest {
         UserAccountDto account = new UserAccountDto(userId, "sub-1", "saint@example.com", "Saint", "User", "Saint User", "en", null, OffsetDateTime.now(), OffsetDateTime.now());
         UserPreferenceDto preferences = new UserPreferenceDto(userId, "America/New_York", true, false, true, true, OffsetDateTime.now(), OffsetDateTime.now());
         UserProfileCountsDto counts = new UserProfileCountsDto(2, 3, 1, 4, 5);
-        UserStreakSummaryDto streakSummary = new UserStreakSummaryDto(6, 9, java.time.LocalDate.now());
 
         when(userAccountService.ensureAccount(currentUser)).thenReturn(account);
         when(userPreferencesRepository.ensureForUser(userId)).thenReturn(preferences);
         when(userProgressRepository.profileCounts(userId)).thenReturn(counts);
-        when(userActivityService.streakSummary(userId, "America/New_York")).thenReturn(streakSummary);
 
         var result = service.getProfile(currentUser);
 
@@ -60,7 +54,6 @@ class UserProfileServiceTest {
         assertEquals("America/New_York", result.timeZoneId());
         assertEquals(3, result.favoriteNovenaCount());
         assertEquals(4, result.activeNovenaCount());
-        assertEquals(6, result.currentStreakDays());
     }
 
     @Test
@@ -72,13 +65,11 @@ class UserProfileServiceTest {
         UserPreferenceDto preferences = new UserPreferenceDto(userId, "Europe/Warsaw", true, true, false, true, OffsetDateTime.now(), OffsetDateTime.now());
         UserProfileCountsDto counts = new UserProfileCountsDto(1, 1, 0, 2, 0);
         UserAccountDto updatedAccount = new UserAccountDto(userId, "sub-1", "saint@example.com", "Saint", "User", "Saint User", "pl", "https://example.com/avatar.png", OffsetDateTime.now(), OffsetDateTime.now());
-        UserStreakSummaryDto streakSummary = new UserStreakSummaryDto(3, 7, java.time.LocalDate.now());
 
         when(userAccountService.ensureAccount(currentUser)).thenReturn(account);
         when(userAccountService.updatePreferredLanguage(userId, "pl")).thenReturn(updatedAccount);
         when(userPreferencesRepository.update(userId, request)).thenReturn(preferences);
         when(userProgressRepository.profileCounts(userId)).thenReturn(counts);
-        when(userActivityService.streakSummary(userId, "Europe/Warsaw")).thenReturn(streakSummary);
 
         var result = service.updatePreferences(currentUser, request);
 

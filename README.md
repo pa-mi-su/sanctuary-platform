@@ -216,7 +216,7 @@ That gives us room for:
 - synced favorites
 - novena progress
 - preferences
-- streaks and activity
+- synced preferences and progress over time
 - future subscription and reminder settings
 
 ## Deployment Model
