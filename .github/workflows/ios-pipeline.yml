@@ -99,6 +99,7 @@ jobs:
       APP_STORE_CONNECT_API_PRIVATE_KEY_BASE64: ${{ secrets.IOS_APP_STORE_CONNECT_API_PRIVATE_KEY_BASE64 }}
       IOS_DISTRIBUTION_CERTIFICATE_P12_BASE64: ${{ secrets.IOS_DISTRIBUTION_CERTIFICATE_P12_BASE64 }}
       IOS_DISTRIBUTION_CERTIFICATE_PASSWORD: ${{ secrets.IOS_DISTRIBUTION_CERTIFICATE_PASSWORD }}
+      IOS_PROVISIONING_PROFILE_DEV_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_DEV_BASE64 }}
 
     steps:
       - name: Checkout repository
@@ -119,6 +120,7 @@ jobs:
             APP_STORE_CONNECT_API_PRIVATE_KEY_BASE64
             IOS_DISTRIBUTION_CERTIFICATE_P12_BASE64
             IOS_DISTRIBUTION_CERTIFICATE_PASSWORD
+            IOS_PROVISIONING_PROFILE_DEV_BASE64
           )
 
           for var_name in "${required_vars[@]}"; do
@@ -135,11 +137,13 @@ jobs:
           KEYCHAIN_PASSWORD="$(uuidgen)"
           API_KEY_PATH="${RUNNER_TEMP}/AuthKey_${APP_STORE_CONNECT_API_KEY_ID}.p8"
           CERT_PATH="${RUNNER_TEMP}/ios_distribution.p12"
+          PROFILE_PATH="${RUNNER_TEMP}/Sanctuary-Dev.mobileprovision"
           EXPORT_OPTIONS_PATH="${RUNNER_TEMP}/ExportOptions.plist"
+          PROVISIONING_PROFILE_DIR="${HOME}/Library/MobileDevice/Provisioning Profiles"
 
           cleanup() {
             security delete-keychain "${KEYCHAIN_PATH}" >/dev/null 2>&1 || true
-            rm -f "${API_KEY_PATH}" "${CERT_PATH}" "${EXPORT_OPTIONS_PATH}" >/dev/null 2>&1 || true
+            rm -f "${API_KEY_PATH}" "${CERT_PATH}" "${PROFILE_PATH}" "${EXPORT_OPTIONS_PATH}" >/dev/null 2>&1 || true
           }
 
           trap cleanup EXIT
@@ -148,6 +152,7 @@ jobs:
 
           echo "${APP_STORE_CONNECT_API_PRIVATE_KEY_BASE64}" | base64 --decode > "${API_KEY_PATH}"
           echo "${IOS_DISTRIBUTION_CERTIFICATE_P12_BASE64}" | base64 --decode > "${CERT_PATH}"
+          echo "${IOS_PROVISIONING_PROFILE_DEV_BASE64}" | base64 --decode > "${PROFILE_PATH}"
 
           security create-keychain -p "${KEYCHAIN_PASSWORD}" "${KEYCHAIN_PATH}"
           security set-keychain-settings -lut 21600 "${KEYCHAIN_PATH}"
@@ -166,6 +171,10 @@ jobs:
             -k "${KEYCHAIN_PASSWORD}" \
             "${KEYCHAIN_PATH}" >/dev/null
 
+          mkdir -p "${PROVISIONING_PROFILE_DIR}"
+          PROFILE_UUID="$(security cms -D -i "${PROFILE_PATH}" | /usr/libexec/PlistBuddy -c 'Print :UUID' /dev/stdin)"
+          cp "${PROFILE_PATH}" "${PROVISIONING_PROFILE_DIR}/${PROFILE_UUID}.mobileprovision"
+
           cat > "${EXPORT_OPTIONS_PATH}" <<EOF
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -174,9 +183,16 @@ jobs:
             <key>method</key>
             <string>app-store-connect</string>
             <key>signingStyle</key>
-            <string>automatic</string>
+            <string>manual</string>
             <key>teamID</key>
             <string>${IOS_TEAM_ID}</string>
+            <key>signingCertificate</key>
+            <string>Apple Distribution</string>
+            <key>provisioningProfiles</key>
+            <dict>
+              <key>com.pamisu.Sanctuary.dev</key>
+              <string>Sanctuary Dev App Store</string>
+            </dict>
             <key>stripSwiftSymbols</key>
             <true/>
             <key>uploadSymbols</key>
