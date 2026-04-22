@@ -15,14 +15,16 @@ final class SaintsListViewModel: ObservableObject {
     @Published private(set) var isLoading = false
     @Published private(set) var errorMessage: String?
 
+    let contentRepository: any ContentRepository
     private let useCase: ListSaintsUseCase
     private var locale: ContentLocale
     private var allSaints: [Saint] = []
     private var indexedSaints: [IndexedSaint] = []
     private var filterTask: Task<Void, Never>?
 
-    init(useCase: ListSaintsUseCase, locale: ContentLocale = .en) {
-        self.useCase = useCase
+    init(contentRepository: any ContentRepository, locale: ContentLocale = .en) {
+        self.contentRepository = contentRepository
+        self.useCase = ListSaintsUseCase(contentRepository: contentRepository)
         self.locale = locale
     }
 

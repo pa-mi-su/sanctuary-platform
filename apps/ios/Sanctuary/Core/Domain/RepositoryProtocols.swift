@@ -69,3 +69,11 @@ protocol SearchRepository: Sendable {
     func searchNovenas(query: String, locale: ContentLocale) async throws -> [Novena]
     func searchPrayers(query: String, locale: ContentLocale) async throws -> [Prayer]
 }
+
+protocol SaintRangeRepository: Sendable {
+    func listSaintsInRange(
+        locale: ContentLocale,
+        startDate: Date,
+        endDate: Date
+    ) async throws -> [Saint]
+}

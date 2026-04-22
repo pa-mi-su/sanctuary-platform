@@ -6,6 +6,7 @@ struct MeView: View {
     @EnvironmentObject private var accountStore: AccountSessionStore
     @EnvironmentObject private var progressStore: UserProgressStore
     @State private var selectedRoute: MeSelectionRoute?
+    @State private var saintDetailsByID: [String: Saint] = [:]
 
     var body: some View {
         ZStack {
@@ -33,11 +34,15 @@ struct MeView: View {
                 await progressStore.refresh()
             }
         }
+        .task(id: favoriteSaintLookupKey) {
+            await loadFavoriteSaintDetails()
+        }
         .sheet(item: $selectedRoute) { route in
             switch route {
             case .saint(let id):
                 SaintDetailView(
-                    saint: Saint(
+                    contentRepository: environment.contentRepository,
+                    saint: saintDetailsByID[id] ?? Saint(
                         id: id,
                         slug: id,
                         name: saintName(for: id),
@@ -232,60 +237,15 @@ struct MeView: View {
     }
 
     private func saintName(for id: String) -> String {
-        guard let doc = ContentStore.saint(id: id) else { return id }
-        switch localization.language.contentLocale {
-        case .en:
-            return doc.name ?? id
-        case .es:
-            return doc.name_es ?? doc.name ?? id
-        case .pl:
-            return doc.name_pl ?? doc.name ?? id
-        }
+        saintDetailsByID[id]?.displayName(locale: localization.language.contentLocale) ?? id
     }
 
     private func novenaTitle(for id: String) -> String {
         ContentStore.novena(id: id)?.title ?? id
     }
 
-    private func mapSourceSaint(_ doc: SaintDocument) -> Saint {
-        let mmdd = doc.mmdd ?? "01-01"
-        let parts = mmdd.split(separator: "-")
-        let month = parts.count == 2 ? Int(parts[0]) ?? 1 : 1
-        let day = parts.count == 2 ? Int(parts[1]) ?? 1 : 1
-        let nameByLocale: [ContentLocale: String] = [
-            .en: doc.name ?? doc.id,
-            .es: doc.name_es ?? doc.name ?? doc.id,
-            .pl: doc.name_pl ?? doc.name ?? doc.id
-        ]
-
-        return Saint(
-            id: doc.id,
-            slug: doc.id,
-            name: nameByLocale[.en] ?? doc.id,
-            nameByLocale: nameByLocale,
-            feastMonth: month,
-            feastDay: day,
-            imageURL: urlFromString(doc.photoUrl),
-            tags: [],
-            patronages: [],
-            feastLabelByLocale: [
-                .en: doc.feast ?? "",
-                .es: doc.feast_es ?? doc.feast ?? "",
-                .pl: doc.feast_pl ?? doc.feast ?? "",
-            ],
-            summaryByLocale: [
-                .en: doc.summary ?? "",
-                .es: doc.summary_es ?? doc.summary ?? "",
-                .pl: doc.summary_pl ?? doc.summary ?? "",
-            ],
-            biographyByLocale: [
-                .en: doc.biography ?? "",
-                .es: doc.biography_es ?? doc.biography ?? "",
-                .pl: doc.biography_pl ?? doc.biography ?? "",
-            ],
-            prayersByLocale: [.en: doc.prayers ?? [], .es: doc.prayers ?? [], .pl: doc.prayers ?? []],
-            sources: doc.sources ?? []
-        )
+    private var favoriteSaintLookupKey: String {
+        ([localization.language.contentLocale.rawValue] + favoriteSaints.map(\.itemID).sorted()).joined(separator: "|")
     }
 
     private func mapSourceNovena(_ doc: NovenaDocument) -> Novena {
@@ -354,6 +314,24 @@ struct MeView: View {
         }
         if let direct = URL(string: raw) { return direct }
         return raw.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed).flatMap(URL.init(string:))
+    }
+
+    private func loadFavoriteSaintDetails() async {
+        guard !favoriteSaints.isEmpty else {
+            saintDetailsByID = [:]
+            return
+        }
+
+        let locale = localization.language.contentLocale
+        var loadedDetails: [String: Saint] = [:]
+
+        for favorite in favoriteSaints {
+            if let saint = try? await environment.contentRepository.fetchSaint(slug: favorite.itemID, locale: locale) {
+                loadedDetails[favorite.itemID] = saint
+            }
+        }
+
+        saintDetailsByID = loadedDetails
     }
 }
 

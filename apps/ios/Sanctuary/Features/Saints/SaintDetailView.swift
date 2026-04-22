@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct SaintDetailView: View {
+    let contentRepository: any ContentRepository
     let saint: Saint
     var displayYear: Int? = nil
     var allowsRelatedNavigation: Bool = true
@@ -12,51 +13,57 @@ struct SaintDetailView: View {
     @State private var isFavorite = false
     @State private var relatedNovenas: [RelatedNovena] = []
     @State private var selectedNovenaSelection: IDSelection?
-    @State private var sourceDoc: SaintDocument?
+    @State private var detailedSaint: Saint?
+
+    init(
+        contentRepository: any ContentRepository = LocalContentRepository(),
+        saint: Saint,
+        displayYear: Int? = nil,
+        allowsRelatedNavigation: Bool = true,
+        onClose: (() -> Void)? = nil
+    ) {
+        self.contentRepository = contentRepository
+        self.saint = saint
+        self.displayYear = displayYear
+        self.allowsRelatedNavigation = allowsRelatedNavigation
+        self.onClose = onClose
+    }
 
     private var locale: ContentLocale { localization.language.contentLocale }
+    private var currentSaint: Saint { detailedSaint ?? saint }
 
     private var displayName: String {
-        let baseName = localized(base: sourceDoc?.name, es: sourceDoc?.name_es, pl: sourceDoc?.name_pl) ?? saint.displayName(locale: locale)
+        let baseName = currentSaint.displayName(locale: locale)
         let raw = baseName.replacingOccurrences(of: #",\s*\d{3,4}[–-]\d{2,4}$"#, with: "", options: .regularExpression)
         return raw.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private var biography: String {
-        localized(base: sourceDoc?.biography, es: sourceDoc?.biography_es, pl: sourceDoc?.biography_pl)
-            ?? saint.biographyByLocale[locale]
-            ?? saint.biographyByLocale[.en]
+        currentSaint.biographyByLocale[locale]
+            ?? currentSaint.biographyByLocale[.en]
             ?? ""
     }
 
     private var summary: String {
-        localized(base: sourceDoc?.summary, es: sourceDoc?.summary_es, pl: sourceDoc?.summary_pl)
-            ?? saint.summaryByLocale[locale]
-            ?? saint.summaryByLocale[.en]
+        currentSaint.summaryByLocale[locale]
+            ?? currentSaint.summaryByLocale[.en]
             ?? ""
     }
 
     private var prayers: [String] {
-        sourceDoc?.prayers ?? saint.prayersByLocale[locale] ?? saint.prayersByLocale[.en] ?? []
+        currentSaint.prayersByLocale[locale] ?? currentSaint.prayersByLocale[.en] ?? []
     }
 
     private var feastLabel: String {
-        localized(base: sourceDoc?.feast, es: sourceDoc?.feast_es, pl: sourceDoc?.feast_pl)
-            ?? saint.feastLabelByLocale[locale]
-            ?? saint.feastLabelByLocale[.en]
+        currentSaint.feastLabelByLocale[locale]
+            ?? currentSaint.feastLabelByLocale[.en]
             ?? ""
     }
 
     private var feastDateString: String {
         let year = displayYear ?? Calendar.current.component(.year, from: Date())
-        let parsedMonthDay: (Int, Int)? = {
-            guard let mmdd = sourceDoc?.mmdd else { return nil }
-            let parts = mmdd.split(separator: "-")
-            guard parts.count == 2, let m = Int(parts[0]), let d = Int(parts[1]) else { return nil }
-            return (m, d)
-        }()
-        let month = parsedMonthDay?.0 ?? saint.feastMonth
-        let day = parsedMonthDay?.1 ?? saint.feastDay
+        let month = currentSaint.feastMonth
+        let day = currentSaint.feastDay
         return localization.formatMonthDay(month: month, day: day, year: year)
     }
 
@@ -158,10 +165,10 @@ struct SaintDetailView: View {
                         }
                     }
 
-                    if !saint.patronages.isEmpty {
+                            if !currentSaint.patronages.isEmpty {
                         DetailCard(title: localization.t("detail.patronages")) {
                             VStack(alignment: .leading, spacing: 8) {
-                                ForEach(saint.patronages, id: \.self) { patronage in
+                                ForEach(currentSaint.patronages, id: \.self) { patronage in
                                     Text("• \(patronage)")
                                         .font(AppTheme.rounded(17, weight: .medium))
                                         .foregroundStyle(AppTheme.cardText.opacity(0.9))
@@ -236,13 +243,13 @@ struct SaintDetailView: View {
         .toolbar(.hidden, for: .navigationBar)
         .task {
             let saintID = saint.id
-            async let loadedDoc: SaintDocument? = Task.detached(priority: .userInitiated) {
-                ContentStore.saint(id: saintID)
+            async let loadedSaint: Saint? = Task.detached(priority: .userInitiated) {
+                try? await contentRepository.fetchSaint(slug: saint.slug, locale: locale)
             }.value
             async let loadedRelated: [RelatedNovena] = Task.detached(priority: .userInitiated) {
                 RelationResolver.relatedNovenas(forSaintID: saintID)
             }.value
-            sourceDoc = await loadedDoc
+            detailedSaint = await loadedSaint
             relatedNovenas = await loadedRelated
             isFavorite = progressStore.isFavorite(itemType: .saint, itemID: saint.id)
         }
@@ -285,23 +292,11 @@ struct SaintDetailView: View {
     }
 
     private var imageURL: URL? {
-        if let raw = sourceDoc?.photoUrl, let url = urlFromString(raw) {
-            return url
-        }
-        return saint.imageURL
+        currentSaint.imageURL
     }
 
     private var sources: [String] {
-        if let src = sourceDoc?.sources, !src.isEmpty { return src }
-        return saint.sources
-    }
-
-    private func localized(base: String?, es: String?, pl: String?) -> String? {
-        switch locale {
-        case .en: return (base?.isEmpty == false ? base : nil) ?? es ?? pl
-        case .es: return (es?.isEmpty == false ? es : nil) ?? base ?? pl
-        case .pl: return (pl?.isEmpty == false ? pl : nil) ?? base ?? es
-        }
+        currentSaint.sources
     }
 
     private func urlFromString(_ raw: String?) -> URL? {
@@ -463,7 +458,7 @@ private struct RelatedLinkButtonStyle: ButtonStyle {
 
 struct SaintDetailView_Previews: PreviewProvider {
     static var previews: some View {
-        SaintDetailView(saint: previewSaint)
+        SaintDetailView(contentRepository: LocalContentRepository(), saint: previewSaint)
             .environmentObject(LocalizationManager())
             .environmentObject(
                 UserProgressStore(userProgressRepository: LocalUserProgressRepository())

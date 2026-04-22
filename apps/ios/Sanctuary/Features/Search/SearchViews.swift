@@ -13,7 +13,7 @@ struct SaintsSearchView: View {
     init(environment: AppEnvironment) {
         _viewModel = StateObject(
             wrappedValue: SaintsListViewModel(
-                useCase: ListSaintsUseCase(contentRepository: environment.contentRepository)
+                contentRepository: environment.contentRepository
             )
         )
     }
@@ -42,7 +42,7 @@ struct SaintsSearchView: View {
                         LazyVStack(spacing: 10) {
                             ForEach(viewModel.saints) { saint in
                                 NavigationLink {
-                                    SaintDetailView(saint: saint)
+                                    SaintDetailView(contentRepository: viewModel.contentRepository, saint: saint)
                                 } label: {
                                     SearchResultCard(
                                         title: viewModel.displayName(for: saint),

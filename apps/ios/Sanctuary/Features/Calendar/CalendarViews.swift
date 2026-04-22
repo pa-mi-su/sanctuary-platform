@@ -425,9 +425,7 @@ struct SaintsCalendarView: View {
     @State private var selectedSaintSelection: CalendarSelection?
     @State private var tapFeedbackMessage: String?
     @State private var suppressDayTapUntil: Date = .distantPast
-    @State private var saintIDByDay: [Int: String] = [:]
-    @State private var saintNameByDay: [Int: String] = [:]
-    @State private var saintImageURLByDay: [Int: URL] = [:]
+    @State private var saintByDay: [Int: Saint] = [:]
     @State private var showDatePicker = false
 
     // Reuse central liturgical engine for calendar season coloring.
@@ -522,24 +520,21 @@ struct SaintsCalendarView: View {
         }
         .sheet(item: $selectedSaintSelection) { selection in
             SaintDetailView(
-                saint: Saint(
+                contentRepository: environment.contentRepository,
+                saint: saintByDay[selectedDay] ?? Saint(
                     id: selection.id,
                     slug: selection.id,
-                    name: saintNameByDay[selectedDay] ?? localization.t("tab.saints"),
-                    nameByLocale: [
-                        .en: saintNameByDay[selectedDay] ?? localization.t("tab.saints"),
-                        .es: saintNameByDay[selectedDay] ?? localization.t("tab.saints"),
-                        .pl: saintNameByDay[selectedDay] ?? localization.t("tab.saints")
-                    ],
+                    name: localization.t("tab.saints"),
+                    nameByLocale: [.en: localization.t("tab.saints")],
                     feastMonth: selectedMonth,
                     feastDay: selectedDay,
                     imageURL: nil,
                     tags: [],
                     patronages: [],
-                    feastLabelByLocale: [.en: ""],
-                    summaryByLocale: [.en: ""],
-                    biographyByLocale: [.en: ""],
-                    prayersByLocale: [.en: []],
+                    feastLabelByLocale: [:],
+                    summaryByLocale: [:],
+                    biographyByLocale: [:],
+                    prayersByLocale: [:],
                     sources: []
                 ),
                 displayYear: selectedYear,
@@ -563,57 +558,51 @@ struct SaintsCalendarView: View {
     }
 
     private func saintIDForSelectedDay() -> String? {
-        saintIDByDay[selectedDay]
+        saintByDay[selectedDay]?.id
     }
 
     private func selectedSaintNameForDay() -> String {
-        saintNameByDay[selectedDay] ?? localization.t("tab.saints")
+        saintByDay[selectedDay]?.displayName(locale: localization.language.contentLocale) ?? localization.t("tab.saints")
     }
 
     private func saintLabel(for day: Int) -> String {
-        guard let name = saintNameByDay[day] else {
+        guard let name = saintByDay[day]?.displayName(locale: localization.language.contentLocale) else {
             return "·"
         }
         return shortLabel(name)
     }
 
     private func selectedSaintImageURLForDay() -> URL? {
-        saintImageURLByDay[selectedDay]
+        saintByDay[selectedDay]?.imageURL
     }
 
     private func loadSaintLookups() async {
-        let month = selectedMonth
-        let days = daysInMonth(year: selectedYear, month: selectedMonth)
         let locale = localization.language.contentLocale
-        let loaded = await Task.detached(priority: .userInitiated) {
-            var ids: [Int: String] = [:]
-            var names: [Int: String] = [:]
-            var images: [Int: URL] = [:]
-            for day in 1...days {
-                if let id = ContentStore.firstSaintID(onMonth: month, day: day) {
-                    ids[day] = id
-                    if let doc = ContentStore.saint(id: id) {
-                        switch locale {
-                        case .en:
-                            names[day] = doc.name ?? id
-                        case .es:
-                            names[day] = doc.name_es ?? doc.name ?? id
-                        case .pl:
-                            names[day] = doc.name_pl ?? doc.name ?? id
-                        }
-                    }
-                }
-                if let raw = ContentStore.firstSaintPhotoURLString(onMonth: month, day: day),
-                   let url = urlFromString(raw) {
-                    images[day] = url
-                }
-            }
-            return (ids, names, images)
-        }.value
+        let startDate = LiturgicalCalendarEngine.makeDate(year: selectedYear, month: selectedMonth, day: 1)
+        let endDate = LiturgicalCalendarEngine.makeDate(
+            year: selectedYear,
+            month: selectedMonth,
+            day: daysInMonth(year: selectedYear, month: selectedMonth)
+        )
 
-        saintIDByDay = loaded.0
-        saintNameByDay = loaded.1
-        saintImageURLByDay = loaded.2
+        guard let saintRangeRepository = environment.contentRepository as? any SaintRangeRepository else {
+            saintByDay = [:]
+            return
+        }
+
+        do {
+            let saints = try await saintRangeRepository.listSaintsInRange(
+                locale: locale,
+                startDate: startDate,
+                endDate: endDate
+            )
+
+            saintByDay = saints.reduce(into: [:]) { partialResult, saint in
+                partialResult[saint.feastDay] = partialResult[saint.feastDay] ?? saint
+            }
+        } catch {
+            saintByDay = [:]
+        }
     }
 
     private func selectedDate() -> Date {

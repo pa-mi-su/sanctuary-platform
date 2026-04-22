@@ -113,6 +113,30 @@ struct APIUserNovenaCommitmentRequest: Encodable, Sendable {
     let status: String
 }
 
+struct APIContentSaintSummaryResponse: Decodable, Sendable {
+    let id: String
+    let slug: String
+    let name: String
+    let feastMonth: Int
+    let feastDay: Int
+    let feastLabel: String
+    let summary: String?
+    let imageUrl: String?
+}
+
+struct APIContentSaintDetailResponse: Decodable, Sendable {
+    let id: String
+    let slug: String
+    let name: String
+    let feastMonth: Int
+    let feastDay: Int
+    let feastLabel: String
+    let summary: String?
+    let biography: String?
+    let imageUrl: String?
+    let sources: [String]
+}
+
 private struct APIErrorEnvelope: Decodable {
     let message: String
 }
@@ -122,6 +146,7 @@ actor SanctuaryAPIClient {
     private let session: URLSession
     private let decoder: JSONDecoder
     private let encoder: JSONEncoder
+    private let queryDateFormatter: DateFormatter
 
     init(baseURL: URL, session: URLSession = .shared) {
         self.baseURL = baseURL
@@ -134,6 +159,13 @@ actor SanctuaryAPIClient {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         self.encoder = encoder
+
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        formatter.dateFormat = "yyyy-MM-dd"
+        self.queryDateFormatter = formatter
     }
 
     func register(_ request: APIAuthRegisterRequest) async throws -> APIAuthRegistrationResponse {
@@ -184,13 +216,87 @@ actor SanctuaryAPIClient {
         try await performVoidRequest(path: "/me/novena-commitments/\(novenaId)", method: "DELETE", body: Optional<String>.none, token: token)
     }
 
+    func listSaints(
+        locale: ContentLocale,
+        feastDate: FeastDateFilter?,
+        query: String?
+    ) async throws -> [APIContentSaintSummaryResponse] {
+        var queryItems = [URLQueryItem(name: "lang", value: locale.rawValue)]
+        if let feastDate {
+            queryItems.append(URLQueryItem(name: "month", value: String(feastDate.month)))
+            queryItems.append(URLQueryItem(name: "day", value: String(feastDate.day)))
+        }
+        if let query, !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            queryItems.append(URLQueryItem(name: "query", value: query))
+        }
+
+        return try await performRequest(
+            path: "/content/saints",
+            queryItems: queryItems,
+            method: "GET",
+            body: Optional<String>.none,
+            token: nil
+        )
+    }
+
+    func listSaintsInRange(
+        locale: ContentLocale,
+        startDate: Date,
+        endDate: Date
+    ) async throws -> [APIContentSaintSummaryResponse] {
+        let queryItems = [
+            URLQueryItem(name: "lang", value: locale.rawValue),
+            URLQueryItem(name: "start", value: queryDateFormatter.string(from: startDate)),
+            URLQueryItem(name: "end", value: queryDateFormatter.string(from: endDate)),
+        ]
+
+        return try await performRequest(
+            path: "/content/saints/range",
+            queryItems: queryItems,
+            method: "GET",
+            body: Optional<String>.none,
+            token: nil
+        )
+    }
+
+    func fetchSaint(
+        slug: String,
+        locale: ContentLocale
+    ) async throws -> APIContentSaintDetailResponse? {
+        let request = try makeRequest(
+            path: "/content/saints/\(slug)",
+            queryItems: [URLQueryItem(name: "lang", value: locale.rawValue)],
+            method: "GET",
+            body: Optional<String>.none,
+            token: nil
+        )
+        let (data, response) = try await execute(request)
+
+        guard let http = response as? HTTPURLResponse else {
+            throw SanctuaryAPIError.invalidResponse
+        }
+
+        if http.statusCode == 404 {
+            return nil
+        }
+
+        try validate(response: response, data: data)
+
+        do {
+            return try decoder.decode(APIContentSaintDetailResponse.self, from: data)
+        } catch {
+            throw SanctuaryAPIError.decoding(message: "Sanctuary returned saint details we could not read.")
+        }
+    }
+
     private func performRequest<Response: Decodable, Body: Encodable>(
         path: String,
+        queryItems: [URLQueryItem] = [],
         method: String,
         body: Body?,
         token: String?
     ) async throws -> Response {
-        let request = try makeRequest(path: path, method: method, body: body, token: token)
+        let request = try makeRequest(path: path, queryItems: queryItems, method: method, body: body, token: token)
         let (data, response) = try await execute(request)
         try validate(response: response, data: data)
 
@@ -203,22 +309,34 @@ actor SanctuaryAPIClient {
 
     private func performVoidRequest<Body: Encodable>(
         path: String,
+        queryItems: [URLQueryItem] = [],
         method: String,
         body: Body?,
         token: String?
     ) async throws {
-        let request = try makeRequest(path: path, method: method, body: body, token: token)
+        let request = try makeRequest(path: path, queryItems: queryItems, method: method, body: body, token: token)
         let (data, response) = try await execute(request)
         try validate(response: response, data: data)
     }
 
     private func makeRequest<Body: Encodable>(
         path: String,
+        queryItems: [URLQueryItem],
         method: String,
         body: Body?,
         token: String?
     ) throws -> URLRequest {
-        guard let url = URL(string: path, relativeTo: baseURL) else {
+        guard let resolvedURL = URL(string: path, relativeTo: baseURL),
+              var components = URLComponents(url: resolvedURL, resolvingAgainstBaseURL: true)
+        else {
+            throw SanctuaryAPIError.invalidURL
+        }
+
+        if !queryItems.isEmpty {
+            components.queryItems = queryItems
+        }
+
+        guard let url = components.url else {
             throw SanctuaryAPIError.invalidURL
         }
 

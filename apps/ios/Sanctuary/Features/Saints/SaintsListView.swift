@@ -22,7 +22,7 @@ struct SaintsListView: View {
 
                     ForEach(viewModel.saints) { saint in
                         NavigationLink {
-                            SaintDetailView(saint: saint)
+                            SaintDetailView(contentRepository: viewModel.contentRepository, saint: saint)
                         } label: {
                             VStack(alignment: .leading, spacing: 6) {
                                 Text(viewModel.displayName(for: saint))
@@ -84,7 +84,7 @@ struct SaintsListView_Previews: PreviewProvider {
     static var previews: some View {
         let environment = AppEnvironment.local()
         let viewModel = SaintsListViewModel(
-            useCase: ListSaintsUseCase(contentRepository: environment.contentRepository)
+            contentRepository: environment.contentRepository
         )
         SaintsListView(viewModel: viewModel)
     }

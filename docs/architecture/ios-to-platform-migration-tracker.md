@@ -247,7 +247,7 @@ Deliverables:
 Checklist:
 - [x] Introduce API base URL config for iOS environments
 - [x] Introduce auth/session manager for Cognito-backed flows
-- [ ] Introduce content repository protocols backed by API
+- [x] Introduce content repository protocols backed by API
 - [x] Introduce user progress repository backed by API
 - [ ] Introduce feature flags only if needed for incremental cutover
 
@@ -265,6 +265,7 @@ Notes:
   - `/me/novena-commitments`
 - `AccountSessionStore` now persists the signed-in session in the keychain and owns bootstrap, login, register, confirm, resend, refresh, and logout behavior.
 - `RemoteUserProgressRepository` now backs favorites and novena commitments with the real API instead of local-only storage for authenticated flows.
+- `HybridContentRepository` now gives iOS a safe migration path where saints are API-backed first while novenas, prayers, and liturgical data continue to read from the legacy local repositories until their domain migrations are ready.
 - Prod, Dev, and UAT simulator builds all succeed with this new foundation slice in place.
 
 ### Phase 4: Auth And Account Migration
@@ -304,7 +305,7 @@ Notes:
 
 ### Phase 5: User Data Features
 
-Status: `TODO`
+Status: `IN PROGRESS`
 
 Goal:
 - bring iOS user-state behavior in line with web
@@ -316,16 +317,22 @@ Deliverables:
 - synced account preferences
 
 Checklist:
-- [ ] Wire favorite saints to API
-- [ ] Wire favorite novenas to API
-- [ ] Wire novena start / stop / progress to API
-- [ ] Wire Me/profile view to API-backed counts and lists
+- [x] Wire favorite saints to API
+- [x] Wire favorite novenas to API
+- [x] Wire novena start / stop / progress to API
+- [x] Wire Me/profile view to API-backed counts and lists
 - [ ] Remove local-only progress behavior for authenticated flows
 - [ ] Verify cross-device sync between web and iOS
 
+Notes:
+
+- Authenticated favorites and novena commitments are now backed by the real `/me` API surface.
+- `MeView` now refreshes signed-in profile and synced user progress from the API-backed stores instead of relying on a local placeholder state model.
+- Favorite saint rows in `Me` now resolve saint names and detail navigation through the repository layer rather than the bundled saint JSON store.
+
 ### Phase 6: Content Domain Migration
 
-Status: `TODO`
+Status: `IN PROGRESS`
 
 Goal:
 - remove bundled content dependency by domain
@@ -337,12 +344,23 @@ Recommended order:
 4. Prayers
 
 Checklist:
-- [ ] Replace saints local repository with API repository
+- [x] Replace saints local repository with API repository
 - [ ] Replace novenas local repository with API repository
 - [ ] Replace liturgical local/rule logic with API-backed data
 - [ ] Replace prayers local repository with API repository
-- [ ] Verify search and detail screens work from API data
-- [ ] Verify calendar/date-driven screens work from API data
+- [x] Verify search and detail screens work from API data
+- [x] Verify calendar/date-driven screens work from API data
+
+Notes:
+
+- Saints is now the first real content domain migrated off bundled JSON in the runtime path.
+- The following iOS surfaces now source saints from the API-backed repository path:
+  - saints list
+  - saints search
+  - saint detail hydration
+  - saints calendar monthly/day lookup
+  - favorite saint resolution in `Me`
+- Saint detail still keeps local related-novena lookup as a temporary bridge until novenas migrate.
 
 ### Phase 7: Legacy Removal
 
@@ -397,10 +415,10 @@ Checklist:
 
 ## Immediate Next Actions
 
-1. Replace remaining local `Me` content lookups with API-backed account detail models where practical
-2. Continue Phase 5 by validating favorites and novena commitments against live backend data
-3. Start Phase 6 with the first content-domain migration, likely saints or novenas
-4. Verify a real signed archive/upload path from the monorepo once the auth/account foundation is stable
+1. Validate the new saints API-backed flow against the live backend on simulator/device
+2. Continue Phase 6 with novenas as the next content domain migration
+3. Remove remaining local-only authenticated fallback behavior once novenas are on the API
+4. Verify a real signed archive/upload path from the monorepo once the first two content domains are stable
 
 ## Progress Log
 
@@ -412,3 +430,4 @@ Checklist:
 - [x] Add platform-aware iOS environment and API client foundation
 - [x] Add keychain-backed account session flow and API-backed `/me`
 - [x] Add API-backed favorites and novena commitments foundation
+- [x] Migrate saints to the first API-backed content domain across list, search, detail, calendar, and `Me`

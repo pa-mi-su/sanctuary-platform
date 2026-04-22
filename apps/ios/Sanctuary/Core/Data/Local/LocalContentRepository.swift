@@ -1,6 +1,6 @@
 import Foundation
 
-actor LocalContentRepository: ContentRepository {
+actor LocalContentRepository: ContentRepository, SaintRangeRepository {
     private struct SaintIndexEntry: Decodable {
         let id: String
     }
@@ -150,6 +150,27 @@ actor LocalContentRepository: ContentRepository {
     func fetchLiturgicalDay(for date: Date) async throws -> LiturgicalDay? {
         await ensureSupplementaryContentLoaded()
         return LiturgicalCalendarEngine.day(for: date)
+    }
+
+    func listSaintsInRange(
+        locale _: ContentLocale,
+        startDate: Date,
+        endDate: Date
+    ) async throws -> [Saint] {
+        await ensurePrimaryContentLoaded()
+
+        let calendar = Calendar(identifier: .gregorian)
+        let lowerBound = min(startDate, endDate)
+        let upperBound = max(startDate, endDate)
+
+        return saints.filter { saint in
+            var components = calendar.dateComponents([.year], from: lowerBound)
+            components.month = saint.feastMonth
+            components.day = saint.feastDay
+            components.hour = 12
+            guard let feastDate = calendar.date(from: components) else { return false }
+            return feastDate >= lowerBound && feastDate <= upperBound
+        }
     }
 
     private static func dateKey(for date: Date) -> String {
