@@ -416,12 +416,15 @@ struct LiturgicalCalendarView: View {
     }
 
     private func loadLiturgicalLookups() async {
-        let startDate = LiturgicalCalendarEngine.makeDate(year: selectedYear, month: selectedMonth, day: 1)
-        let endDate = LiturgicalCalendarEngine.makeDate(
-            year: selectedYear,
-            month: selectedMonth,
-            day: daysInMonth(year: selectedYear, month: selectedMonth)
-        )
+        guard let startDate = makeCalendarDate(year: selectedYear, month: selectedMonth, day: 1),
+              let endDate = makeCalendarDate(
+                year: selectedYear,
+                month: selectedMonth,
+                day: daysInMonth(year: selectedYear, month: selectedMonth)
+              ) else {
+            liturgicalDayByDay = [:]
+            return
+        }
 
         do {
             let days = try await environment.contentRepository.listLiturgicalDays(
@@ -440,7 +443,7 @@ struct LiturgicalCalendarView: View {
 
     private func selectedDate() -> Date {
         let clampedDay = min(selectedDay, daysInMonth(year: selectedYear, month: selectedMonth))
-        return LiturgicalCalendarEngine.makeDate(year: selectedYear, month: selectedMonth, day: clampedDay)
+        return makeCalendarDate(year: selectedYear, month: selectedMonth, day: clampedDay) ?? Date()
     }
 
     private func apply(date: Date) {
