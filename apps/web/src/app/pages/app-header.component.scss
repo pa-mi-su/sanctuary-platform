@@ -52,6 +52,11 @@
   gap: 10px;
 }
 
+.nav-label--mobile,
+.nav-language-picker__label--mobile {
+  display: none;
+}
+
 .pill-button {
   min-height: 48px;
   border: 1px solid var(--glass-stroke);
@@ -160,8 +165,12 @@
   }
 
   .primary-nav__actions {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
+  }
+
+  .primary-nav__actions--authenticated {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .tab {
@@ -195,8 +204,9 @@
 
   .pill-button {
     min-width: 0;
-    padding: 0 12px;
-    font-size: 0.82rem;
+    padding: 0 10px;
+    font-size: 0.78rem;
+    justify-content: center;
   }
 
   .nav-language-picker {
@@ -210,9 +220,19 @@
     white-space: nowrap;
   }
 
+  .nav-language-picker__label--desktop,
+  .nav-label--desktop {
+    display: none;
+  }
+
+  .nav-language-picker__label--mobile,
+  .nav-label--mobile {
+    display: inline;
+  }
+
   .nav-language-picker__select {
     min-width: 0;
-    max-width: 84px;
+    max-width: 70px;
   }
 }
 

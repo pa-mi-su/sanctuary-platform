@@ -40,7 +40,7 @@ public class SecurityConfig {
 
         http
             .authorizeHttpRequests(requests -> requests
-                .requestMatchers("/health", "/actuator/**", "/calendar/**", "/content/**").permitAll()
+                .requestMatchers("/health", "/actuator/**", "/auth/**", "/calendar/**", "/content/**").permitAll()
                 .requestMatchers("/me/**").authenticated()
                 .anyRequest().denyAll()
             )

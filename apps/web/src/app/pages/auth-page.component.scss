@@ -67,51 +67,9 @@
   line-height: 1.55;
 }
 
-.mode-switch {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  width: 100%;
-  padding: 8px;
-  border-radius: 22px;
-  background: rgba(255, 255, 255, 0.08);
-  margin-bottom: 22px;
-}
-
-.mode-button,
-.primary-action {
-  border: 0;
-  color: #ffffff;
-  cursor: pointer;
-  font: inherit;
-  font-weight: 800;
-}
-
-.mode-button {
-  min-height: 48px;
-  border-radius: 16px;
-  background: transparent;
-  color: rgba(255, 255, 255, 0.72);
-}
-
-.mode-button.active,
-.primary-action {
-  background: linear-gradient(180deg, var(--button-top), var(--button-bottom));
-  color: #ffffff;
-}
-
 .auth-panel {
   border-radius: 24px;
   padding: 24px;
-}
-
-.auth-panel h3 {
-  font-size: 1.6rem;
-}
-
-.legal-copy {
-  margin-bottom: 0;
-  font-size: 0.82rem;
 }
 
 .configuration-copy {
@@ -134,12 +92,127 @@
   padding-left: 20px;
 }
 
-.primary-action {
+.panel-heading {
+  display: grid;
+  gap: 8px;
+}
+
+.panel-heading h3 {
+  margin: 0;
+  font-size: 1.65rem;
+  letter-spacing: -0.04em;
+}
+
+.choice-stack,
+.auth-form {
+  display: grid;
+  gap: 16px;
+}
+
+.choice-card,
+.primary-action,
+.secondary-action,
+.text-button {
+  border: 0;
+  color: #ffffff;
+  cursor: pointer;
+  font: inherit;
+}
+
+.choice-card {
+  display: grid;
+  gap: 8px;
+  text-align: left;
+  min-height: 128px;
+  border-radius: 22px;
+  padding: 22px 20px;
+  background:
+    linear-gradient(180deg, rgba(101, 198, 236, 0.12), rgba(16, 39, 56, 0.28)),
+    rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.choice-card--register {
+  background:
+    linear-gradient(180deg, rgba(237, 204, 112, 0.12), rgba(16, 39, 56, 0.28)),
+    rgba(255, 255, 255, 0.06);
+}
+
+.choice-card strong {
+  font-size: 1.35rem;
+  letter-spacing: -0.03em;
+}
+
+.choice-card small,
+.text-button {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.choice-card__eyebrow {
+  color: rgba(142, 224, 242, 0.82);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.text-button {
+  justify-self: start;
+  padding: 0;
+  background: transparent;
+  margin-bottom: 8px;
+  font-weight: 700;
+}
+
+.field-grid {
+  display: grid;
+  gap: 14px;
+}
+
+.field {
+  display: grid;
+  gap: 8px;
+}
+
+.field span {
+  color: rgba(255, 255, 255, 0.84);
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.field input {
+  min-height: 52px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  padding: 0 16px;
+  font: inherit;
+}
+
+.primary-action,
+.secondary-action {
   min-height: 54px;
   border-radius: 18px;
   padding: 0 22px;
   width: 100%;
-  margin: 16px 0 10px;
+  font-weight: 800;
+}
+
+.primary-action {
+  background: linear-gradient(180deg, var(--button-top), var(--button-bottom));
+}
+
+.secondary-action {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.primary-action:disabled,
+.secondary-action:disabled {
+  opacity: 0.64;
+  cursor: default;
 }
 
 @media (max-width: 900px) {
@@ -160,6 +233,10 @@
     width: min(100%, 520px);
     margin-inline: auto;
   }
+
+  .field-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 640px) {
@@ -174,5 +251,18 @@
 
   .auth-copy h2 {
     font-size: 2.8rem;
+  }
+
+  .auth-panel {
+    padding: 20px;
+  }
+
+  .choice-card {
+    min-height: 110px;
+    padding: 18px;
+  }
+
+  .field-grid {
+    grid-template-columns: 1fr;
   }
 }

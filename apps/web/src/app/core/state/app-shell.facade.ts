@@ -57,7 +57,17 @@ export class AppShellFacade {
   readonly isAuthenticated = computed(() => this.authState().status === 'authenticated');
   readonly authConfigured = computed(() => this.authState().configured);
   readonly authMessage = computed(() => this.authState().message);
-  readonly currentUserName = computed(() => this.userProfile()?.displayName ?? this.authState().displayName);
+  readonly currentUserName = computed(() => {
+    const profile = this.userProfile();
+    const authState = this.authState();
+    const candidate =
+      profile?.displayName ??
+      this.joinNames(profile?.firstName, profile?.lastName) ??
+      authState.displayName ??
+      this.emailName(profile?.email ?? authState.email);
+
+    return this.looksLikeIdentifier(candidate) ? this.emailName(profile?.email ?? authState.email) : candidate;
+  });
   readonly selectedDate = signal(this.formatDateForApi(new Date()));
   readonly saintQuery = signal('');
   readonly prayerQuery = signal('');
@@ -677,20 +687,18 @@ export class AppShellFacade {
   }
 
   localizedSaintsCountLabel(): string {
-    const count = this.selectedSaintGroup()?.saints.length ?? 0;
     return this.translate(
-      `Selected day · ${count} saints`,
-      `Día seleccionado · ${count} santos`,
-      `Wybrany dzien · ${count} swietych`
+      'Selected day · Featured saint',
+      'Día seleccionado · Santo destacado',
+      'Wybrany dzien · Wyrozniony swiety'
     );
   }
 
   localizedNovenasCountLabel(): string {
-    const count = this.selectedNovenas().length;
     return this.translate(
-      `Selected day · ${count} active novenas`,
-      `Día seleccionado · ${count} novenas activas`,
-      `Wybrany dzien · ${count} aktywnych nowenn`
+      'Selected day · Featured novena',
+      'Día seleccionado · Novena destacada',
+      'Wybrany dzien · Wyrozniona nowenna'
     );
   }
 
@@ -704,9 +712,9 @@ export class AppShellFacade {
 
   localizedNoNovenasCopy(): string {
     return this.translate(
-      'No novenas are active for this date.',
-      'No hay novenas activas para esta fecha.',
-      'Brak aktywnych nowenn dla tej daty.'
+      'No novena is assigned to this date.',
+      'No hay una novena asignada a esta fecha.',
+      'Do tej daty nie przypisano nowenny.'
     );
   }
 
@@ -1158,5 +1166,30 @@ export class AppShellFacade {
 
     this.clearErrors();
     this.selectedDate.set(this.formatDateForApi(date));
+  }
+
+  private joinNames(firstName?: string | null, lastName?: string | null): string | null {
+    if (firstName && lastName) {
+      return `${firstName} ${lastName}`;
+    }
+
+    return firstName ?? lastName ?? null;
+  }
+
+  private emailName(email?: string | null): string | null {
+    if (!email) {
+      return null;
+    }
+
+    const localPart = email.split('@')[0];
+    return localPart ? this.toTitleCase(localPart.replace(/[._-]+/g, ' ')) : null;
+  }
+
+  private looksLikeIdentifier(value?: string | null): boolean {
+    if (!value) {
+      return false;
+    }
+
+    return /^[0-9a-f]{8}-[0-9a-f-]{20,}$/i.test(value);
   }
 }

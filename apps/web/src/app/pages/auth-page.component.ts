@@ -1,33 +1,23 @@
-import { Component, input, output, signal } from '@angular/core';
+import { Component, computed, inject, input, output, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+
+import { SanctuaryAuthService } from '../core/auth/sanctuary-auth.service';
 
 type AppLanguage = 'en' | 'es' | 'pl';
-type AuthMode = 'login' | 'register';
+type AuthStep = 'landing' | 'login' | 'register' | 'confirm';
 
 @Component({
   selector: 'app-auth-page',
   standalone: true,
+  imports: [FormsModule],
   styleUrl: './auth-page.component.scss',
   template: `
     <section class="screen-card auth-screen glass-card">
       <div class="auth-layout">
         <div class="auth-copy">
           <p class="eyebrow">{{ t('Sanctuary account', 'Cuenta de Sanctuary', 'Konto Sanctuary') }}</p>
-          <h2>
-            {{
-              mode() === 'login'
-                ? t('Welcome back', 'Bienvenido de nuevo', 'Witaj ponownie')
-                : t('Begin your prayer journey', 'Comienza tu camino de oración', 'Rozpocznij droge modlitwy')
-            }}
-          </h2>
-          <p>
-            {{
-              t(
-                'A free account will keep your novenas, saints, and prayer progress close wherever you open Sanctuary.',
-                'Una cuenta gratuita mantendrá tus novenas, santos y progreso de oración cerca donde abras Sanctuary.',
-                'Darmowe konto zachowa twoje nowenny, swietych i postep modlitwy wszedzie tam, gdzie otworzysz Sanctuary.'
-              )
-            }}
-          </p>
+          <h2>{{ heading() }}</h2>
+          <p>{{ supportingCopy() }}</p>
 
           <ul class="benefit-list">
             <li>{{ t('Track novenas in progress', 'Rastrea novenas en curso', 'Sledz rozpoczete nowenny') }}</li>
@@ -37,63 +27,131 @@ type AuthMode = 'login' | 'register';
         </div>
 
         <article class="auth-panel glass-subtle">
-          <div class="mode-switch" role="tablist" aria-label="Authentication mode">
-            <button class="mode-button" [class.active]="mode() === 'login'" type="button" (click)="mode.set('login')">
-              {{ t('Login', 'Iniciar sesión', 'Logowanie') }}
+          @if (step() !== 'landing') {
+            <button class="text-button" type="button" (click)="goBack()">
+              ← {{ t('Back', 'Atrás', 'Powrót') }}
             </button>
-            <button class="mode-button" [class.active]="mode() === 'register'" type="button" (click)="mode.set('register')">
-              {{ t('Register', 'Registrarse', 'Rejestracja') }}
-            </button>
-          </div>
-
-          <h3>
-            {{
-              mode() === 'login'
-                ? t('Choose how to continue', 'Elige cómo continuar', 'Wybierz, jak kontynuowac')
-                : t('Create your free account', 'Crea tu cuenta gratuita', 'Utworz darmowe konto')
-            }}
-          </h3>
-          <p>
-            {{
-              mode() === 'login'
-                ? t('Sign in to return to your saved prayers and active novenas.', 'Inicia sesión para volver a tus oraciones guardadas y novenas activas.', 'Zaloguj sie, aby wrocic do zapisanych modlitw i aktywnych nowenn.')
-                : t('Register to unlock prayer tracking, saved saints, saved novenas, and future sync.', 'Regístrate para desbloquear seguimiento de oración, santos guardados, novenas guardadas y sincronización futura.', 'Zarejestruj sie, aby wlaczyc sledzenie modlitwy, zapisanych swietych, zapisane nowenny i przyszla synchronizacje.')
-            }}
-          </p>
-
-          <button class="primary-action" type="button" (click)="mode() === 'login' ? login.emit() : register.emit()">
-            {{
-              mode() === 'login'
-                ? t('Continue to my Sanctuary', 'Continuar a mi Sanctuary', 'Przejdz do mojego Sanctuary')
-                : t('Register and continue', 'Registrarse y continuar', 'Zarejestruj i kontynuuj')
-            }}
-          </button>
-
-          @if (!isConfigured()) {
-            <p class="configuration-copy">
-              {{
-                t(
-                  'This environment does not have live account login enabled yet.',
-                  'Este entorno todavía no tiene activado el acceso real de cuenta.',
-                  'To srodowisko nie ma jeszcze wlaczonego prawdziwego logowania konta.'
-                )
-              }}
-            </p>
           }
 
-          @if (authMessage()) {
-            <p class="configuration-copy configuration-copy--warning">{{ authMessage() }}</p>
+          @if (message()) {
+            <p class="configuration-copy">{{ message() }}</p>
           }
 
-          <p class="legal-copy">
-            {{
-              t(
-                'Sanctuary uses secure Hosted UI authentication so your prayer progress and favorites can follow you across devices.',
-                'Sanctuary usa autenticación segura con Hosted UI para que tu progreso de oración y favoritos te sigan entre dispositivos.',
-                'Sanctuary uzywa bezpiecznego logowania Hosted UI, aby postepy modlitwy i ulubione mogly podrozowac z toba miedzy urzadzeniami.'
-              )
-            }}
-          </p>
+          @if (error()) {
+            <p class="configuration-copy configuration-copy--warning">{{ error() }}</p>
+          }
+
+          @if (step() === 'landing') {
+            <div class="choice-stack">
+              <button class="choice-card" type="button" (click)="step.set('login')">
+                <span class="choice-card__eyebrow">{{ t('Returning to Sanctuary', 'Volver a Sanctuary', 'Powrót do Sanctuary') }}</span>
+                <strong>{{ t('Login', 'Iniciar sesión', 'Logowanie') }}</strong>
+                <small>{{ t('Sign in to your saved saints, novenas, and progress.', 'Inicia sesión para volver a tus santos, novenas y progreso.', 'Zaloguj sie do zapisanych swietych, nowenn i postepow.') }}</small>
+              </button>
+
+              <button class="choice-card choice-card--register" type="button" (click)="step.set('register')">
+                <span class="choice-card__eyebrow">{{ t('New to Sanctuary', 'Nuevo en Sanctuary', 'Nowe konto Sanctuary') }}</span>
+                <strong>{{ t('Register', 'Registrarse', 'Rejestracja') }}</strong>
+                <small>{{ t('Create a free account to sync your prayer life beautifully across devices.', 'Crea una cuenta gratuita para sincronizar tu vida de oración entre dispositivos.', 'Utworz darmowe konto, aby pieknie synchronizowac zycie modlitwy miedzy urzadzeniami.') }}</small>
+              </button>
+            </div>
+          }
+
+          @if (step() === 'login') {
+            <form class="auth-form" (ngSubmit)="submitLogin()">
+              <div class="panel-heading">
+                <h3>{{ t('Login', 'Iniciar sesión', 'Logowanie') }}</h3>
+                <p>{{ t('Welcome back. Enter your email and password to continue.', 'Bienvenido de nuevo. Ingresa tu correo y contraseña para continuar.', 'Witaj ponownie. Wpisz email i haslo, aby kontynuowac.') }}</p>
+              </div>
+
+              <label class="field">
+                <span>{{ t('Email', 'Correo', 'Email') }}</span>
+                <input type="email" [(ngModel)]="loginEmail" name="loginEmail" autocomplete="email" />
+              </label>
+
+              <label class="field">
+                <span>{{ t('Password', 'Contraseña', 'Hasło') }}</span>
+                <input type="password" [(ngModel)]="loginPassword" name="loginPassword" autocomplete="current-password" />
+              </label>
+
+              <button class="primary-action" type="submit" [disabled]="pending()">
+                {{ pending() ? t('Signing in…', 'Entrando…', 'Logowanie…') : t('Login', 'Iniciar sesión', 'Zaloguj się') }}
+              </button>
+            </form>
+          }
+
+          @if (step() === 'register') {
+            <form class="auth-form" (ngSubmit)="submitRegister()">
+              <div class="panel-heading">
+                <h3>{{ t('Register', 'Registrarse', 'Rejestracja') }}</h3>
+                <p>{{ t('Create your Sanctuary account with the name people should actually see.', 'Crea tu cuenta de Sanctuary con el nombre que las personas realmente deben ver.', 'Utworz konto Sanctuary z imieniem i nazwiskiem, ktore ludzie naprawde zobacza.') }}</p>
+              </div>
+
+              <div class="field-grid">
+                <label class="field">
+                  <span>{{ t('First name', 'Nombre', 'Imię') }}</span>
+                  <input type="text" [(ngModel)]="registerFirstName" name="registerFirstName" autocomplete="given-name" />
+                </label>
+
+                <label class="field">
+                  <span>{{ t('Last name', 'Apellido', 'Nazwisko') }}</span>
+                  <input type="text" [(ngModel)]="registerLastName" name="registerLastName" autocomplete="family-name" />
+                </label>
+              </div>
+
+              <label class="field">
+                <span>{{ t('Email', 'Correo', 'Email') }}</span>
+                <input type="email" [(ngModel)]="registerEmail" name="registerEmail" autocomplete="email" />
+              </label>
+
+              <div class="field-grid">
+                <label class="field">
+                  <span>{{ t('Password', 'Contraseña', 'Hasło') }}</span>
+                  <input type="password" [(ngModel)]="registerPassword" name="registerPassword" autocomplete="new-password" />
+                </label>
+
+                <label class="field">
+                  <span>{{ t('Confirm password', 'Confirmar contraseña', 'Potwierdź hasło') }}</span>
+                  <input type="password" [(ngModel)]="registerPasswordConfirmation" name="registerPasswordConfirmation" autocomplete="new-password" />
+                </label>
+              </div>
+
+              <button class="primary-action" type="submit" [disabled]="pending()">
+                {{ pending() ? t('Creating account…', 'Creando cuenta…', 'Tworzenie konta…') : t('Create account', 'Crear cuenta', 'Utwórz konto') }}
+              </button>
+            </form>
+          }
+
+          @if (step() === 'confirm') {
+            <form class="auth-form" (ngSubmit)="submitConfirmation()">
+              <div class="panel-heading">
+                <h3>{{ t('Confirm your account', 'Confirma tu cuenta', 'Potwierdź konto') }}</h3>
+                <p>
+                  {{
+                    t(
+                      'We sent a confirmation code to',
+                      'Enviamos un código de confirmación a',
+                      'Wysłaliśmy kod potwierdzający na'
+                    )
+                  }}
+                  <strong>{{ confirmationEmail }}</strong>.
+                </p>
+              </div>
+
+              <label class="field">
+                <span>{{ t('Verification code', 'Código de verificación', 'Kod weryfikacyjny') }}</span>
+                <input type="text" [(ngModel)]="confirmationCode" name="confirmationCode" autocomplete="one-time-code" inputmode="numeric" />
+              </label>
+
+              <button class="primary-action" type="submit" [disabled]="pending()">
+                {{ pending() ? t('Confirming…', 'Confirmando…', 'Potwierdzanie…') : t('Confirm account', 'Confirmar cuenta', 'Potwierdź konto') }}
+              </button>
+
+              <button class="secondary-action" type="button" [disabled]="pending()" (click)="resendCode()">
+                {{ t('Send a new code', 'Enviar un código nuevo', 'Wyślij nowy kod') }}
+              </button>
+            </form>
+          }
         </article>
       </div>
     </section>
@@ -102,11 +160,194 @@ type AuthMode = 'login' | 'register';
 export class AuthPageComponent {
   readonly currentLanguage = input<AppLanguage>('en');
   readonly isConfigured = input<boolean>(false);
-  readonly authMessage = input<string | null>(null);
-  readonly login = output<void>();
-  readonly register = output<void>();
+  readonly authenticated = output<void>();
 
-  protected readonly mode = signal<AuthMode>('login');
+  private readonly auth = inject(SanctuaryAuthService);
+
+  protected readonly step = signal<AuthStep>('landing');
+  protected readonly pending = signal(false);
+  protected readonly error = signal<string | null>(null);
+  protected readonly message = signal<string | null>(null);
+
+  protected loginEmail = '';
+  protected loginPassword = '';
+  protected registerFirstName = '';
+  protected registerLastName = '';
+  protected registerEmail = '';
+  protected registerPassword = '';
+  protected registerPasswordConfirmation = '';
+  protected confirmationCode = '';
+  protected confirmationEmail = '';
+
+  protected readonly heading = computed(() => {
+    switch (this.step()) {
+      case 'login':
+        return this.t('Welcome back', 'Bienvenido de nuevo', 'Witaj ponownie');
+      case 'register':
+        return this.t('Create your Sanctuary account', 'Crea tu cuenta de Sanctuary', 'Utwórz konto Sanctuary');
+      case 'confirm':
+        return this.t('Confirm your account', 'Confirma tu cuenta', 'Potwierdź konto');
+      default:
+        return this.t('Choose your way in', 'Elige cómo entrar', 'Wybierz drogę wejścia');
+    }
+  });
+
+  protected readonly supportingCopy = computed(() => {
+    switch (this.step()) {
+      case 'login':
+        return this.t(
+          'Everything you have saved in Sanctuary should feel close, calm, and ready to continue.',
+          'Todo lo que guardaste en Sanctuary debe sentirse cerca, en calma y listo para continuar.',
+          'Wszystko, co zapisano w Sanctuary, powinno być blisko, spokojne i gotowe do kontynuacji.'
+        );
+      case 'register':
+        return this.t(
+          'A real account gives you a real home for your favorites, novena progress, and future reminders.',
+          'Una cuenta real te da un hogar verdadero para tus favoritos, el progreso de novenas y futuros recordatorios.',
+          'Prawdziwe konto daje prawdziwy dom dla ulubionych, postępów nowenn i przyszłych przypomnień.'
+        );
+      case 'confirm':
+        return this.t(
+          'One more step and your Sanctuary account is ready.',
+          'Un paso más y tu cuenta de Sanctuary estará lista.',
+          'Jeszcze jeden krok i konto Sanctuary będzie gotowe.'
+        );
+      default:
+        return this.t(
+          'Choose login if you already belong here, or register if this is the beginning of your Sanctuary.',
+          'Elige iniciar sesión si ya perteneces aquí, o regístrate si este es el comienzo de tu Sanctuary.',
+          'Wybierz logowanie, jeśli już tu należysz, albo rejestrację, jeśli to początek twojego Sanctuary.'
+        );
+    }
+  });
+
+  protected async submitLogin(): Promise<void> {
+    if (!this.validateConfigured()) {
+      return;
+    }
+
+    if (!this.loginEmail.trim() || !this.loginPassword.trim()) {
+      this.error.set(this.t('Enter your email and password.', 'Ingresa tu correo y contraseña.', 'Wpisz email i hasło.'));
+      return;
+    }
+
+    this.pending.set(true);
+    this.error.set(null);
+    this.message.set(null);
+
+    try {
+      await this.auth.login({
+        email: this.loginEmail.trim(),
+        password: this.loginPassword,
+      });
+      this.pending.set(false);
+      this.authenticated.emit();
+    } catch {
+      this.pending.set(false);
+      this.error.set(this.auth.state().message);
+    }
+  }
+
+  protected async submitRegister(): Promise<void> {
+    if (!this.validateConfigured()) {
+      return;
+    }
+
+    if (!this.registerFirstName.trim() || !this.registerLastName.trim() || !this.registerEmail.trim() || !this.registerPassword) {
+      this.error.set(this.t('Complete every field before creating your account.', 'Completa todos los campos antes de crear tu cuenta.', 'Uzupełnij wszystkie pola przed utworzeniem konta.'));
+      return;
+    }
+
+    if (this.registerPassword !== this.registerPasswordConfirmation) {
+      this.error.set(this.t('Your password confirmation does not match.', 'La confirmación de tu contraseña no coincide.', 'Potwierdzenie hasła nie pasuje.'));
+      return;
+    }
+
+    this.pending.set(true);
+    this.error.set(null);
+    this.message.set(null);
+
+    try {
+      const result = await this.auth.register({
+        firstName: this.registerFirstName.trim(),
+        lastName: this.registerLastName.trim(),
+        email: this.registerEmail.trim(),
+        password: this.registerPassword,
+      });
+      this.pending.set(false);
+      this.confirmationEmail = result.email;
+      this.confirmationCode = '';
+      this.message.set(this.t('Your account is almost ready. Enter the confirmation code we emailed you.', 'Tu cuenta casi está lista. Ingresa el código de confirmación que te enviamos por correo.', 'Twoje konto jest prawie gotowe. Wpisz kod potwierdzający wysłany e-mailem.'));
+      this.step.set('confirm');
+    } catch {
+      this.pending.set(false);
+      this.error.set(this.auth.state().message);
+    }
+  }
+
+  protected async submitConfirmation(): Promise<void> {
+    if (!this.confirmationEmail || !this.confirmationCode.trim()) {
+      this.error.set(this.t('Enter the confirmation code from your email.', 'Ingresa el código de confirmación de tu correo.', 'Wpisz kod potwierdzający z wiadomości e-mail.'));
+      return;
+    }
+
+    this.pending.set(true);
+    this.error.set(null);
+
+    try {
+      const message = await this.auth.confirmRegistration({
+        email: this.confirmationEmail,
+        code: this.confirmationCode.trim(),
+      });
+      this.pending.set(false);
+      this.message.set(message);
+      this.step.set('login');
+      this.loginEmail = this.confirmationEmail;
+      this.loginPassword = '';
+    } catch {
+      this.pending.set(false);
+      this.error.set(this.auth.state().message);
+    }
+  }
+
+  protected async resendCode(): Promise<void> {
+    if (!this.confirmationEmail) {
+      return;
+    }
+
+    this.pending.set(true);
+    this.error.set(null);
+
+    try {
+      const message = await this.auth.resendConfirmation(this.confirmationEmail);
+      this.pending.set(false);
+      this.message.set(message);
+    } catch {
+      this.pending.set(false);
+      this.error.set(this.auth.state().message);
+    }
+  }
+
+  protected goBack(): void {
+    this.error.set(null);
+    this.message.set(null);
+
+    if (this.step() === 'confirm') {
+      this.step.set('register');
+      return;
+    }
+
+    this.step.set('landing');
+  }
+
+  private validateConfigured(): boolean {
+    if (this.isConfigured()) {
+      return true;
+    }
+
+    this.error.set(this.t('Authentication is not configured for this environment yet.', 'La autenticación todavía no está configurada para este entorno.', 'Uwierzytelnianie nie jest jeszcze skonfigurowane dla tego środowiska.'));
+    return false;
+  }
 
   protected t(english: string, spanish: string, polish: string): string {
     switch (this.currentLanguage()) {

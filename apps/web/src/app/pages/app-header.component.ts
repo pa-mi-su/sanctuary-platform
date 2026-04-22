@@ -46,11 +46,12 @@ type AppLanguage = 'en' | 'es' | 'pl';
         </button>
       </div>
 
-      <div class="primary-nav__actions">
+      <div class="primary-nav__actions" [class.primary-nav__actions--authenticated]="isAuthenticated()">
         @if (isAuthenticated()) {
           <button class="pill-button nav-pill-button logout-button" type="button" (click)="logout.emit()">
             <span class="pill-icon">↩</span>
-            <span>{{ t('Logout', 'Salir', 'Wyloguj') }}</span>
+            <span class="nav-label nav-label--desktop">{{ t('Logout', 'Salir', 'Wyloguj') }}</span>
+            <span class="nav-label nav-label--mobile">{{ t('Logout', 'Salir', 'Wyloguj') }}</span>
           </button>
         }
         <button
@@ -60,11 +61,12 @@ type AppLanguage = 'en' | 'es' | 'pl';
           (click)="navigate.emit('about')"
         >
           <span class="pill-icon">◎</span>
-          <span>{{ t('About', 'Acerca de', 'O aplikacji') }}</span>
+          <span class="nav-label">{{ t('About', 'Acerca de', 'O aplikacji') }}</span>
         </button>
         <label class="pill-button nav-pill-button nav-language-picker" for="app-language-select">
           <span class="pill-icon">⌘</span>
-          <span class="nav-language-picker__label">{{ t('Language', 'Idioma', 'Jezyk') }}</span>
+          <span class="nav-language-picker__label nav-language-picker__label--desktop">{{ t('Language', 'Idioma', 'Jezyk') }}</span>
+          <span class="nav-language-picker__label nav-language-picker__label--mobile">{{ t('Lang', 'Idioma', 'Jezyk') }}</span>
           <select
             id="app-language-select"
             class="nav-language-picker__select"

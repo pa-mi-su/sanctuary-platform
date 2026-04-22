@@ -3,6 +3,18 @@ spring:
     url: ${SANCTUARY_DB_URL}
     username: ${SANCTUARY_DB_USERNAME}
     password: ${SANCTUARY_DB_PASSWORD}
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${SANCTUARY_COGNITO_ISSUER_URI:https://cognito-idp.us-east-1.amazonaws.com/us-east-1_syYJKg0NY}
 
 server:
   port: ${SANCTUARY_API_PORT:8080}
+
+sanctuary:
+  auth:
+    enabled: ${SANCTUARY_AUTH_ENABLED:true}
+    audience: ${SANCTUARY_COGNITO_CLIENT_ID:7e3anthnuctm8p9nqck6kesjm9}
+    user-pool-id: ${SANCTUARY_COGNITO_USER_POOL_ID:us-east-1_syYJKg0NY}
+    client-id: ${SANCTUARY_COGNITO_CLIENT_ID:7e3anthnuctm8p9nqck6kesjm9}
