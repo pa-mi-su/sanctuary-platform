@@ -73,9 +73,7 @@
       <app-auth-page
         [currentLanguage]="facade.language()"
         [isConfigured]="facade.authConfigured()"
-        [authMessage]="facade.authMessage()"
-        (login)="facade.loginDemoUser()"
-        (register)="facade.registerDemoUser()"
+        (authenticated)="facade.setTab('me')"
       />
     }
 

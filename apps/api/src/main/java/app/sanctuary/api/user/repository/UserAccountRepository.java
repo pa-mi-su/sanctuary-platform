@@ -17,21 +17,25 @@ public class UserAccountRepository {
         this.jdbcTemplate = jdbcTemplate;
     }
 
-    public UserAccountDto upsert(String cognitoSub, String email, String displayName, String avatarUrl) {
+    public UserAccountDto upsert(String cognitoSub, String email, String firstName, String lastName, String displayName, String avatarUrl) {
         return jdbcTemplate.queryForObject(
             """
                 INSERT INTO users (
                     cognito_sub,
                     email,
+                    first_name,
+                    last_name,
                     display_name,
                     avatar_url,
                     last_sign_in_at,
                     updated_at
                 )
-                VALUES (?, ?, ?, ?, NOW(), NOW())
+                VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())
                 ON CONFLICT (cognito_sub)
                 DO UPDATE SET
                     email = EXCLUDED.email,
+                    first_name = COALESCE(EXCLUDED.first_name, users.first_name),
+                    last_name = COALESCE(EXCLUDED.last_name, users.last_name),
                     display_name = EXCLUDED.display_name,
                     avatar_url = COALESCE(EXCLUDED.avatar_url, users.avatar_url),
                     last_sign_in_at = NOW(),
@@ -40,6 +44,8 @@ public class UserAccountRepository {
                     id,
                     cognito_sub,
                     email,
+                    first_name,
+                    last_name,
                     display_name,
                     preferred_language,
                     avatar_url,
@@ -50,6 +56,8 @@ public class UserAccountRepository {
                 rs.getObject("id", UUID.class),
                 rs.getString("cognito_sub"),
                 rs.getString("email"),
+                rs.getString("first_name"),
+                rs.getString("last_name"),
                 rs.getString("display_name"),
                 rs.getString("preferred_language"),
                 rs.getString("avatar_url"),
@@ -58,6 +66,8 @@ public class UserAccountRepository {
             ),
             cognitoSub,
             emptyToNull(email),
+            emptyToNull(firstName),
+            emptyToNull(lastName),
             emptyToNull(displayName),
             emptyToNull(avatarUrl)
         );
@@ -70,6 +80,8 @@ public class UserAccountRepository {
                     id,
                     cognito_sub,
                     email,
+                    first_name,
+                    last_name,
                     display_name,
                     preferred_language,
                     avatar_url,
@@ -82,6 +94,8 @@ public class UserAccountRepository {
                 rs.getObject("id", UUID.class),
                 rs.getString("cognito_sub"),
                 rs.getString("email"),
+                rs.getString("first_name"),
+                rs.getString("last_name"),
                 rs.getString("display_name"),
                 rs.getString("preferred_language"),
                 rs.getString("avatar_url"),
@@ -104,6 +118,8 @@ public class UserAccountRepository {
                     id,
                     cognito_sub,
                     email,
+                    first_name,
+                    last_name,
                     display_name,
                     preferred_language,
                     avatar_url,
@@ -114,6 +130,8 @@ public class UserAccountRepository {
                 rs.getObject("id", UUID.class),
                 rs.getString("cognito_sub"),
                 rs.getString("email"),
+                rs.getString("first_name"),
+                rs.getString("last_name"),
                 rs.getString("display_name"),
                 rs.getString("preferred_language"),
                 rs.getString("avatar_url"),

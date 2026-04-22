@@ -3,6 +3,8 @@ package app.sanctuary.api.user.dto;
 public record UserProfileDto(
     String userId,
     String email,
+    String firstName,
+    String lastName,
     String displayName,
     String preferredLanguage,
     String avatarUrl,
@@ -29,6 +31,8 @@ public record UserProfileDto(
         return new UserProfileDto(
             account.id().toString(),
             account.email(),
+            account.firstName(),
+            account.lastName(),
             account.displayName(),
             account.preferredLanguage(),
             account.avatarUrl(),

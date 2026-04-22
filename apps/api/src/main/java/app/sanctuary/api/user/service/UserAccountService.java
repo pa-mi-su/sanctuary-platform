@@ -23,6 +23,8 @@ public class UserAccountService {
         return repository.upsert(
             currentUser.cognitoSub(),
             currentUser.email(),
+            currentUser.firstName(),
+            currentUser.lastName(),
             currentUser.displayName(),
             currentUser.avatarUrl()
         );

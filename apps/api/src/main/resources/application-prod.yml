@@ -16,3 +16,5 @@ sanctuary:
   auth:
     enabled: ${SANCTUARY_AUTH_ENABLED:false}
     audience: ${SANCTUARY_COGNITO_CLIENT_ID:}
+    user-pool-id: ${SANCTUARY_COGNITO_USER_POOL_ID:us-east-1_syYJKg0NY}
+    client-id: ${SANCTUARY_COGNITO_CLIENT_ID:7e3anthnuctm8p9nqck6kesjm9}
