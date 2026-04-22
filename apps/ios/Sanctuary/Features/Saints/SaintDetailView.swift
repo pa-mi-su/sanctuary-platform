@@ -11,8 +11,6 @@ struct SaintDetailView: View {
     @EnvironmentObject private var localization: LocalizationManager
     @EnvironmentObject private var progressStore: UserProgressStore
     @State private var isFavorite = false
-    @State private var relatedNovenas: [RelatedNovena] = []
-    @State private var selectedNovenaSelection: IDSelection?
     @State private var detailedSaint: Saint?
 
     init(
@@ -209,32 +207,6 @@ struct SaintDetailView: View {
                             }
                         }
                     }
-
-                    if allowsRelatedNavigation && !relatedNovenas.isEmpty {
-                        DetailCard(title: localization.t("detail.relatedNovenas")) {
-                            VStack(alignment: .leading, spacing: 10) {
-                                ForEach(relatedNovenas) { novena in
-                                    Button {
-                                        selectedNovenaSelection = IDSelection(id: novena.id)
-                                    } label: {
-                                        HStack {
-                                            Text(novena.title)
-                                                .font(AppTheme.rounded(18, weight: .semibold))
-                                                .foregroundStyle(.white)
-                                                .multilineTextAlignment(.leading)
-                                            Spacer()
-                                            Image(systemName: "arrow.up.right")
-                                                .font(.system(size: 13, weight: .bold))
-                                                .foregroundStyle(.white.opacity(0.7))
-                                        }
-                                        .padding(.horizontal, 16)
-                                        .padding(.vertical, 15)
-                                    }
-                                    .buttonStyle(RelatedLinkButtonStyle())
-                                }
-                            }
-                        }
-                    }
                 }
                 .padding(.horizontal, 16)
                 .padding(.bottom, 26)
@@ -242,34 +214,11 @@ struct SaintDetailView: View {
         }
         .toolbar(.hidden, for: .navigationBar)
         .task {
-            let saintID = saint.id
             async let loadedSaint: Saint? = Task.detached(priority: .userInitiated) {
                 try? await contentRepository.fetchSaint(slug: saint.slug, locale: locale)
             }.value
-            async let loadedRelated: [RelatedNovena] = Task.detached(priority: .userInitiated) {
-                RelationResolver.relatedNovenas(forSaintID: saintID)
-            }.value
             detailedSaint = await loadedSaint
-            relatedNovenas = await loadedRelated
             isFavorite = progressStore.isFavorite(itemType: .saint, itemID: saint.id)
-        }
-        .sheet(item: $selectedNovenaSelection) { selection in
-            NovenaDetailView(
-                contentRepository: contentRepository,
-                novena: Novena(
-                    id: selection.id,
-                    slug: selection.id,
-                    titleByLocale: [.en: relatedNovenas.first(where: { $0.id == selection.id })?.title ?? selection.id],
-                    descriptionByLocale: [.en: ""],
-                    durationDays: 9,
-                    tags: [],
-                    imageURL: nil,
-                    days: []
-                ),
-                displayYear: displayYear,
-                allowsRelatedNavigation: false,
-                onClose: { selectedNovenaSelection = nil }
-            )
         }
     }
 
@@ -299,75 +248,6 @@ struct SaintDetailView: View {
     private var sources: [String] {
         currentSaint.sources
     }
-
-    private func urlFromString(_ raw: String?) -> URL? {
-        guard let raw, !raw.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            return nil
-        }
-        if let direct = URL(string: raw) { return direct }
-        return raw.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed).flatMap(URL.init(string:))
-    }
-
-    private func mapSourceNovena(_ doc: NovenaDocument) -> Novena {
-        let titleByLocale: [ContentLocale: String] = [
-            .en: doc.title ?? doc.id,
-            .es: doc.title_es ?? doc.title ?? doc.id,
-            .pl: doc.title_pl ?? doc.title ?? doc.id,
-        ]
-        let descriptionByLocale: [ContentLocale: String] = [
-            .en: doc.description ?? "",
-            .es: doc.description_es ?? doc.description ?? "",
-            .pl: doc.description_pl ?? doc.description ?? "",
-        ]
-        let days = (doc.days ?? []).map { d in
-            let title: [ContentLocale: String] = [
-                .en: d.title ?? "",
-                .es: d.title_es ?? d.title ?? "",
-                .pl: d.title_pl ?? d.title ?? "",
-            ]
-            let scripture: [ContentLocale: String] = [
-                .en: d.scripture ?? "",
-                .es: d.scripture_es ?? d.scripture ?? "",
-                .pl: d.scripture_pl ?? d.scripture ?? "",
-            ]
-            let prayer: [ContentLocale: String] = [
-                .en: d.prayer ?? "",
-                .es: d.prayer_es ?? d.prayer ?? "",
-                .pl: d.prayer_pl ?? d.prayer ?? "",
-            ]
-            let reflection: [ContentLocale: String] = [
-                .en: d.reflection ?? "",
-                .es: d.reflection_es ?? d.reflection ?? "",
-                .pl: d.reflection_pl ?? d.reflection ?? "",
-            ]
-            return NovenaDay(
-                dayNumber: d.day ?? 1,
-                titleByLocale: title,
-                scriptureByLocale: scripture,
-                prayerByLocale: prayer,
-                reflectionByLocale: reflection,
-                bodyByLocale: [
-                    .en: [title[.en], scripture[.en], prayer[.en], reflection[.en]].compactMap { $0 }.joined(separator: "\n\n"),
-                    .es: [title[.es], scripture[.es], prayer[.es], reflection[.es]].compactMap { $0 }.joined(separator: "\n\n"),
-                    .pl: [title[.pl], scripture[.pl], prayer[.pl], reflection[.pl]].compactMap { $0 }.joined(separator: "\n\n"),
-                ]
-            )
-        }
-        return Novena(
-            id: doc.id,
-            slug: doc.id,
-            titleByLocale: titleByLocale,
-            descriptionByLocale: descriptionByLocale,
-            durationDays: doc.durationDays ?? max(1, days.count),
-            tags: doc.tags ?? [],
-            imageURL: urlFromString(doc.image),
-            days: days
-        )
-    }
-}
-
-private struct IDSelection: Identifiable {
-    let id: String
 }
 
 private struct DetailCard<Content: View>: View {
@@ -440,20 +320,6 @@ private struct RemoteHeroImage: View {
         )
         .allowsHitTesting(false)
         .shadow(color: Color.black.opacity(0.22), radius: 18, x: 0, y: 10)
-    }
-}
-
-private struct RelatedLinkButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .frame(maxWidth: .infinity)
-            .background(AppTheme.cardBackgroundSoft.opacity(configuration.isPressed ? 0.9 : 1))
-            .overlay(
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .stroke(Color.white.opacity(0.12), lineWidth: 1)
-            )
-            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-            .scaleEffect(configuration.isPressed ? 0.985 : 1.0)
     }
 }
 

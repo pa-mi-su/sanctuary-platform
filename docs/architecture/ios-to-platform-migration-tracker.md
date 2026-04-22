@@ -379,8 +379,8 @@ Notes:
   - prayers search list
   - prayer detail hydration
 - Saint, novena, and liturgical calendar runtime state no longer depends on the old `LiturgicalLookup` helper in the active UI path; those views now derive season state from repository-backed liturgical day data and use plain calendar date construction instead of the old liturgical engine helper.
-- Saint detail still keeps local related-novena lookup as a temporary bridge until saints and novenas can share a backend-driven relation model.
-- Novena detail still keeps local related-saint lookup as a temporary bridge until saints and novenas can share a backend-driven relation model.
+- Saint detail no longer shows a bundled related-novenas bridge; that legacy relation panel was removed until the backend exposes a real relation model.
+- Novena detail no longer shows a bundled related-saints bridge; that legacy relation panel was removed until the backend exposes a real relation model.
 
 ### Phase 7: Legacy Removal
 
@@ -399,6 +399,7 @@ Checklist:
 Notes:
 - First cleanup pass is underway: the active saint/novena calendar UI no longer uses the local liturgical season lookup helper for border coloring.
 - The active liturgical calendar UI now uses the same plain calendar date helper as the other calendar surfaces instead of constructing runtime dates through the old liturgical engine.
+- The bundled `RelationResolver` bridge has been removed from the active app after saint and novena detail screens stopped depending on local related-content JSON.
 
 ### Phase 8: App Store And Delivery Hardening
 
@@ -460,3 +461,4 @@ Checklist:
 - [x] Migrate prayers to the fourth API-backed content domain across search and detail flows
 - [x] Remove legacy liturgical season lookup from the active saint/novena calendar UI path
 - [x] Remove remaining active liturgical engine date construction from the calendar UI path
+- [x] Remove bundled saint/novena relation panels and the legacy `RelationResolver` bridge from the active runtime path

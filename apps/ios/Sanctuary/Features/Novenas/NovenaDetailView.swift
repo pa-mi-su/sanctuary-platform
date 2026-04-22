@@ -14,8 +14,6 @@ struct NovenaDetailView: View {
 
     @State private var selectedDay = 1
     @State private var isFavorite = false
-    @State private var relatedSaints: [RelatedSaint] = []
-    @State private var selectedSaintSelection: IDSelection?
     @State private var hydratedNovena: Novena?
     @State private var showCompletionModal = false
     @State private var servingWindow: NovenaServingWindowInfo?
@@ -320,32 +318,6 @@ struct NovenaDetailView: View {
                         .disabled(latestCommitment?.status == .completed)
                         .padding(.top, 4)
                     }
-
-                    if allowsRelatedNavigation && !relatedSaints.isEmpty {
-                        DetailCard(title: localization.t("detail.relatedSaints")) {
-                            VStack(alignment: .leading, spacing: 10) {
-                                ForEach(relatedSaints) { saint in
-                                    Button {
-                                        selectedSaintSelection = IDSelection(id: saint.id)
-                                    } label: {
-                                        HStack {
-                                            Text(saint.name)
-                                                .font(AppTheme.rounded(18, weight: .semibold))
-                                                .foregroundStyle(.white)
-                                                .multilineTextAlignment(.leading)
-                                            Spacer()
-                                            Image(systemName: "arrow.up.right")
-                                                .font(.system(size: 13, weight: .bold))
-                                                .foregroundStyle(.white.opacity(0.7))
-                                        }
-                                        .padding(.horizontal, 16)
-                                        .padding(.vertical, 15)
-                                    }
-                                    .buttonStyle(RelatedLinkButtonStyle())
-                                }
-                            }
-                        }
-                    }
                 }
                 .padding(.horizontal, 16)
                 .padding(.bottom, 26)
@@ -373,35 +345,6 @@ struct NovenaDetailView: View {
                 hydratedNovena = loadedNovena
             }
             servingWindow = try? await loadedWindow
-            await loadRelatedSaints()
-        }
-        .sheet(item: $selectedSaintSelection) { selection in
-            SaintDetailView(
-                contentRepository: contentRepository,
-                saint: Saint(
-                    id: selection.id,
-                    slug: selection.id,
-                    name: relatedSaints.first(where: { $0.id == selection.id })?.name ?? selection.id,
-                    nameByLocale: [
-                        .en: relatedSaints.first(where: { $0.id == selection.id })?.name ?? selection.id,
-                        .es: relatedSaints.first(where: { $0.id == selection.id })?.name ?? selection.id,
-                        .pl: relatedSaints.first(where: { $0.id == selection.id })?.name ?? selection.id
-                    ],
-                    feastMonth: 1,
-                    feastDay: 1,
-                    imageURL: nil,
-                    tags: [],
-                    patronages: [],
-                    feastLabelByLocale: [.en: ""],
-                    summaryByLocale: [.en: ""],
-                    biographyByLocale: [.en: ""],
-                    prayersByLocale: [.en: []],
-                    sources: []
-                ),
-                displayYear: displayYear,
-                allowsRelatedNavigation: false,
-                onClose: { selectedSaintSelection = nil }
-            )
         }
         .alert(localization.t("novena.completedTitle"), isPresented: $showCompletionModal) {
             Button(localization.t("common.done")) {
@@ -434,61 +377,6 @@ struct NovenaDetailView: View {
         .clipShape(Capsule())
     }
 
-    private func loadRelatedSaints() async {
-        let id = effectiveNovena.id
-        let related = await Task.detached(priority: .userInitiated) {
-            RelationResolver.relatedSaints(forNovenaID: id)
-        }.value
-        relatedSaints = related
-    }
-
-    private func mapSourceSaint(_ doc: SaintDocument) -> Saint {
-        let mmdd = doc.mmdd ?? "01-01"
-        let parts = mmdd.split(separator: "-")
-        let month = parts.count == 2 ? Int(parts[0]) ?? 1 : 1
-        let day = parts.count == 2 ? Int(parts[1]) ?? 1 : 1
-        let nameByLocale: [ContentLocale: String] = [
-            .en: doc.name ?? doc.id,
-            .es: doc.name_es ?? doc.name ?? doc.id,
-            .pl: doc.name_pl ?? doc.name ?? doc.id
-        ]
-        return Saint(
-            id: doc.id,
-            slug: doc.id,
-            name: nameByLocale[.en] ?? doc.id,
-            nameByLocale: nameByLocale,
-            feastMonth: month,
-            feastDay: day,
-            imageURL: urlFromString(doc.photoUrl),
-            tags: [],
-            patronages: [],
-            feastLabelByLocale: [
-                .en: doc.feast ?? "",
-                .es: doc.feast_es ?? doc.feast ?? "",
-                .pl: doc.feast_pl ?? doc.feast ?? "",
-            ],
-            summaryByLocale: [
-                .en: doc.summary ?? "",
-                .es: doc.summary_es ?? doc.summary ?? "",
-                .pl: doc.summary_pl ?? doc.summary ?? "",
-            ],
-            biographyByLocale: [
-                .en: doc.biography ?? "",
-                .es: doc.biography_es ?? doc.biography ?? "",
-                .pl: doc.biography_pl ?? doc.biography ?? "",
-            ],
-            prayersByLocale: [.en: doc.prayers ?? [], .es: doc.prayers ?? [], .pl: doc.prayers ?? []],
-            sources: doc.sources ?? []
-        )
-    }
-
-    private func urlFromString(_ raw: String?) -> URL? {
-        guard let raw, !raw.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            return nil
-        }
-        if let direct = URL(string: raw) { return direct }
-        return raw.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed).flatMap(URL.init(string:))
-    }
 }
 
 private struct NovenaIndexCache {
@@ -537,10 +425,6 @@ private struct NovenaIndexCache {
         }
         return NovenaIndexCache(fixedFeastDateByID: map)
     }
-}
-
-private struct IDSelection: Identifiable {
-    let id: String
 }
 
 private struct DetailCard<Content: View>: View {
@@ -613,20 +497,6 @@ private struct RemoteHeroImage: View {
                 .stroke(Color.white.opacity(0.24), lineWidth: 1.5)
         )
         .allowsHitTesting(false)
-    }
-}
-
-private struct RelatedLinkButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .frame(maxWidth: .infinity)
-            .background(AppTheme.cardBackgroundSoft.opacity(configuration.isPressed ? 0.9 : 1))
-            .overlay(
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .stroke(Color.white.opacity(0.12), lineWidth: 1)
-            )
-            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-            .scaleEffect(configuration.isPressed ? 0.985 : 1.0)
     }
 }
 
