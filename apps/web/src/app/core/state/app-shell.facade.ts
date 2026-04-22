@@ -57,7 +57,17 @@ export class AppShellFacade {
   readonly isAuthenticated = computed(() => this.authState().status === 'authenticated');
   readonly authConfigured = computed(() => this.authState().configured);
   readonly authMessage = computed(() => this.authState().message);
-  readonly currentUserName = computed(() => this.userProfile()?.displayName ?? this.authState().displayName);
+  readonly currentUserName = computed(() => {
+    const profile = this.userProfile();
+    const authState = this.authState();
+    const candidate =
+      profile?.displayName ??
+      this.joinNames(profile?.firstName, profile?.lastName) ??
+      authState.displayName ??
+      this.emailName(profile?.email ?? authState.email);
+
+    return this.looksLikeIdentifier(candidate) ? this.emailName(profile?.email ?? authState.email) : candidate;
+  });
   readonly selectedDate = signal(this.formatDateForApi(new Date()));
   readonly saintQuery = signal('');
   readonly prayerQuery = signal('');
@@ -1158,5 +1168,30 @@ export class AppShellFacade {
 
     this.clearErrors();
     this.selectedDate.set(this.formatDateForApi(date));
+  }
+
+  private joinNames(firstName?: string | null, lastName?: string | null): string | null {
+    if (firstName && lastName) {
+      return `${firstName} ${lastName}`;
+    }
+
+    return firstName ?? lastName ?? null;
+  }
+
+  private emailName(email?: string | null): string | null {
+    if (!email) {
+      return null;
+    }
+
+    const localPart = email.split('@')[0];
+    return localPart ? this.toTitleCase(localPart.replace(/[._-]+/g, ' ')) : null;
+  }
+
+  private looksLikeIdentifier(value?: string | null): boolean {
+    if (!value) {
+      return false;
+    }
+
+    return /^[0-9a-f]{8}-[0-9a-f-]{20,}$/i.test(value);
   }
 }

@@ -96,19 +96,6 @@
   text-transform: uppercase;
 }
 
-.logout-button {
-  min-height: 44px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 16px;
-  padding: 0 16px;
-  color: #ffffff;
-  background: rgba(255, 255, 255, 0.1);
-  cursor: pointer;
-  font: inherit;
-  font-weight: 800;
-  flex-shrink: 0;
-}
-
 .me-header p,
 .panel-card p {
   margin: 6px 0 0;
@@ -137,6 +124,31 @@
 .panel-card {
   border-radius: 24px;
   padding: 18px 16px;
+}
+
+.member-card {
+  min-width: 220px;
+  display: grid;
+  gap: 6px;
+  align-content: start;
+}
+
+.member-card__label {
+  color: rgba(142, 224, 242, 0.82);
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.member-card strong {
+  font-size: 1.5rem;
+  letter-spacing: -0.04em;
+}
+
+.member-card small {
+  color: rgba(255, 255, 255, 0.66);
+  line-height: 1.4;
 }
 
 .stat-card {
@@ -247,41 +259,6 @@
   color: rgba(255, 255, 255, 0.9);
 }
 
-.toggle-list {
-  display: grid;
-  gap: 12px;
-  margin-top: 18px;
-}
-
-.toggle-row {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 12px;
-  align-items: start;
-}
-
-.toggle-row input {
-  margin-top: 3px;
-  width: 18px;
-  height: 18px;
-  accent-color: rgba(101, 198, 236, 1);
-}
-
-.toggle-row span {
-  display: grid;
-  gap: 4px;
-}
-
-.toggle-row strong {
-  font-size: 0.95rem;
-}
-
-.toggle-row small {
-  color: rgba(255, 255, 255, 0.64);
-  font-size: 0.84rem;
-  line-height: 1.4;
-}
-
 .settings-footer {
   display: grid;
   gap: 14px;
@@ -336,10 +313,6 @@
     align-items: start;
   }
 
-  .logout-button {
-    width: 100%;
-  }
-
   .stats-grid {
     grid-template-columns: 1fr;
   }
@@ -348,5 +321,9 @@
     width: 60px;
     height: 60px;
     border-radius: 18px;
+  }
+
+  .member-card {
+    min-width: 0;
   }
 }

@@ -95,6 +95,8 @@ export interface NovenaCalendarDateResponse {
 export interface UserProfile {
   userId: string;
   email: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
   displayName: string | null;
   avatarUrl?: string | null;
   preferredLanguage?: 'en' | 'es' | 'pl' | null;
@@ -120,6 +122,47 @@ export interface UserPreferencesUpdateRequest {
   feastRemindersEnabled: boolean;
   emailUpdatesEnabled: boolean;
   onboardingCompleted: boolean;
+}
+
+export interface AuthLoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface AuthRegisterRequest {
+  firstName: string;
+  lastName: string;
+  email: string;
+  password: string;
+}
+
+export interface AuthConfirmRegistrationRequest {
+  email: string;
+  code: string;
+}
+
+export interface AuthResendCodeRequest {
+  email: string;
+}
+
+export interface AuthRegistrationResponse {
+  email: string;
+  displayName: string;
+  confirmationRequired: boolean;
+}
+
+export interface AuthStatusResponse {
+  message: string;
+}
+
+export interface AuthSessionResponse {
+  accessToken: string;
+  idToken: string;
+  refreshToken?: string | null;
+  tokenType: string;
+  expiresIn: number;
+  email: string;
+  displayName: string;
 }
 
 export interface UserFavorite {
@@ -237,6 +280,22 @@ export class SanctuaryApiService {
 
   getMe(): Observable<UserProfile> {
     return this.http.get<UserProfile>(`${this.apiBaseUrl}/me`);
+  }
+
+  register(request: AuthRegisterRequest): Observable<AuthRegistrationResponse> {
+    return this.http.post<AuthRegistrationResponse>(`${this.apiBaseUrl}/auth/register`, request);
+  }
+
+  confirmRegistration(request: AuthConfirmRegistrationRequest): Observable<AuthStatusResponse> {
+    return this.http.post<AuthStatusResponse>(`${this.apiBaseUrl}/auth/confirm`, request);
+  }
+
+  resendConfirmation(request: AuthResendCodeRequest): Observable<AuthStatusResponse> {
+    return this.http.post<AuthStatusResponse>(`${this.apiBaseUrl}/auth/resend-confirmation`, request);
+  }
+
+  login(request: AuthLoginRequest): Observable<AuthSessionResponse> {
+    return this.http.post<AuthSessionResponse>(`${this.apiBaseUrl}/auth/login`, request);
   }
 
   updateMePreferences(request: UserPreferencesUpdateRequest): Observable<UserProfile> {
