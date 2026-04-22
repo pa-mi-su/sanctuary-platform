@@ -8,6 +8,8 @@ out
 .env.*
 .DS_Store
 .idea/
+*.xcuserstate
+xcuserdata/
 apps/api/.env
 apps/api/target
 backups
