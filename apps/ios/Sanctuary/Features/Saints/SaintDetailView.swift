@@ -14,7 +14,7 @@ struct SaintDetailView: View {
     @State private var detailedSaint: Saint?
 
     init(
-        contentRepository: any ContentRepository = LocalContentRepository(),
+        contentRepository: any ContentRepository,
         saint: Saint,
         displayYear: Int? = nil,
         allowsRelatedNavigation: Bool = true,
@@ -324,15 +324,31 @@ private struct RemoteHeroImage: View {
 }
 
 struct SaintDetailView_Previews: PreviewProvider {
+    private static let previewSaint = Saint(
+        id: "saint-joseph",
+        slug: "saint-joseph",
+        name: "Saint Joseph",
+        nameByLocale: [.en: "Saint Joseph"],
+        feastMonth: 3,
+        feastDay: 19,
+        imageURL: nil,
+        tags: ["guardian", "family"],
+        patronages: ["Fathers", "Workers"],
+        feastLabelByLocale: [.en: "March 19"],
+        summaryByLocale: [.en: "Guardian of the Holy Family and a steady patron for daily life."],
+        biographyByLocale: [.en: "Saint Joseph is honored as the faithful guardian of Jesus and Mary, a model of quiet obedience and trust."],
+        prayersByLocale: [.en: ["Saint Joseph, pray for us."]],
+        sources: []
+    )
+
     static var previews: some View {
-        SaintDetailView(contentRepository: LocalContentRepository(), saint: previewSaint)
+        SaintDetailView(
+            contentRepository: PreviewContentRepository(saints: [previewSaint]),
+            saint: previewSaint
+        )
             .environmentObject(LocalizationManager())
             .environmentObject(
                 UserProgressStore(userProgressRepository: LocalUserProgressRepository())
             )
-    }
-
-    private static var previewSaint: Saint {
-        LocalSeedData.saints[0]
     }
 }

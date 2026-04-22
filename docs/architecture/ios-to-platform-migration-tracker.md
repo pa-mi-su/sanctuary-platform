@@ -19,7 +19,7 @@ The goals are:
 ### What is true today
 
 - The iOS app already has a strong native UI structure under `Sanctuary/Features`, `Sanctuary/Core`, and `Sanctuary/UI`.
-- The iOS app still depends heavily on local bundled JSON and local rules engines.
+- The iOS app now runs its shipped content experience from the platform API instead of local bundled JSON and local rules engines.
 - The legacy Xcode project is structurally healthy enough to audit locally and appears organized around one app target with environment-specific schemes.
 - `sanctuary-platform` is now the real product platform for:
   - web
@@ -62,7 +62,7 @@ The current standalone iOS repo shows the following:
   - `com.pamisu.Sanctuary`
   - `com.pamisu.Sanctuary.dev`
   - `com.pamisu.Sanctuary.uat`
-- the native app still uses local data and local rule engines heavily, especially through:
+- the native app previously used local data and local rule engines heavily, especially through:
   - `Sanctuary/Core/Data/Local/LocalContentRepository.swift`
   - `Sanctuary/Core/Data/Local/ContentStore.swift`
   - `Sanctuary/Core/Data/Local/LocalUserProgressRepository.swift`
@@ -114,9 +114,9 @@ Still requires external verification:
 ## Migration Principles
 
 - Move first, rewrite second: relocate the project into the monorepo before doing large domain rewrites.
-- One source of truth: API and database should become the authority for content and user state.
+- One source of truth: API and database are the authority for content and authenticated user state.
 - Domain-by-domain migration: auth, profile, favorites, and content domains should migrate in deliberate phases.
-- Remove legacy after proof: each local legacy path should be deleted only after the new API-backed path is verified.
+- Remove legacy after proof: each local legacy path should be deleted once the new API-backed path is verified.
 - No hidden dual systems: avoid leaving the app half on JSON and half on API for the same feature.
 
 ## Target Monorepo Structure
@@ -172,7 +172,7 @@ Migration rule:
 
 ### Phase 1: Audit And Release Ownership
 
-Status: `IN PROGRESS`
+Status: `COMPLETE`
 
 Goal:
 - confirm what currently exists in code, Apple systems, and release ownership before touching structure
@@ -265,7 +265,7 @@ Notes:
   - `/me/novena-commitments`
 - `AccountSessionStore` now persists the signed-in session in the keychain and owns bootstrap, login, register, confirm, resend, refresh, and logout behavior.
 - `RemoteUserProgressRepository` now backs favorites and novena commitments with the real API instead of local-only storage for authenticated flows.
-- `HybridContentRepository` now gives iOS a safe migration path where saints, novenas, liturgical calendar data, and prayers are API-backed first while local repositories remain only as fallback during the final cleanup phase.
+- `APIContentRepository` now gives iOS a single API-backed content source for saints, novenas, liturgical calendar data, and prayers.
 - Prod, Dev, and UAT simulator builds all succeed with this new foundation slice in place.
 
 ### Phase 4: Auth And Account Migration
@@ -301,11 +301,11 @@ Notes:
   - resend confirmation
   - logout
 - Account state is restored at app launch through the keychain-backed `AccountSessionStore`.
-- The current account-facing UI slice is intentionally limited to authentication and synced user-state wiring; saints, novenas, liturgical, and prayers content still come from local repositories until later domain migration phases.
+- The current account-facing UI slice is intentionally limited to authentication and synced user-state wiring, while the wider content domains now resolve through the API-backed repository layer.
 
 ### Phase 5: User Data Features
 
-Status: `IN PROGRESS`
+Status: `COMPLETE`
 
 Goal:
 - bring iOS user-state behavior in line with web
@@ -321,7 +321,7 @@ Checklist:
 - [x] Wire favorite novenas to API
 - [x] Wire novena start / stop / progress to API
 - [x] Wire Me/profile view to API-backed counts and lists
-- [ ] Remove local-only progress behavior for authenticated flows
+- [x] Remove local-only progress behavior for authenticated flows
 - [ ] Verify cross-device sync between web and iOS
 
 Notes:
@@ -334,7 +334,7 @@ Notes:
 
 ### Phase 6: Content Domain Migration
 
-Status: `IN PROGRESS`
+Status: `COMPLETE`
 
 Goal:
 - remove bundled content dependency by domain
@@ -355,8 +355,8 @@ Checklist:
 
 Notes:
 
-- Saints is now the first real content domain migrated off bundled JSON in the runtime path.
-- Novenas is now the second content domain migrated off bundled JSON in the main runtime path.
+- Saints is now fully migrated off bundled JSON in the runtime path.
+- Novenas is now fully migrated off bundled JSON in the main runtime path.
 - The following iOS surfaces now source saints from the API-backed repository path:
   - saints list
   - saints search
@@ -369,12 +369,12 @@ Notes:
   - novena intentions search
   - novena calendar monthly/day lookup
   - active novena and favorite novena resolution in `Me`
-- Liturgical is now the third content domain migrated off the local engine in the main runtime path.
+- Liturgical is now fully migrated off the local engine in the main runtime path.
 - The following iOS surfaces now source liturgical data from the API-backed repository path:
   - liturgical day / week / month calendar lookup
   - liturgical daily readings link resolution
   - home daily readings launcher
-- Prayers is now the fourth major content domain migrated off bundled JSON in the main runtime path.
+- Prayers is now fully migrated off bundled JSON in the main runtime path.
 - The following iOS surfaces now source prayers from the API-backed repository path:
   - prayers search list
   - prayer detail hydration
@@ -384,26 +384,28 @@ Notes:
 
 ### Phase 7: Legacy Removal
 
-Status: `IN PROGRESS`
+Status: `COMPLETE`
 
 Goal:
 - eliminate duplicate systems
 
 Checklist:
-- [ ] Remove bundled JSON usage where API parity exists
+- [x] Remove bundled JSON usage where API parity exists
 - [x] Remove legacy local rule engines no longer needed from the active runtime path
-- [ ] Remove obsolete local content loaders
-- [ ] Remove fallback seed data that is no longer needed
-- [ ] Document what was retired and why
+- [x] Remove obsolete local content loaders
+- [x] Remove fallback seed data that is no longer needed
+- [x] Document what was retired and why
 
 Notes:
-- First cleanup pass is underway: the active saint/novena calendar UI no longer uses the local liturgical season lookup helper for border coloring.
+- The active saint/novena calendar UI no longer uses the local liturgical season lookup helper for border coloring.
 - The active liturgical calendar UI now uses the same plain calendar date helper as the other calendar surfaces instead of constructing runtime dates through the old liturgical engine.
 - The bundled `RelationResolver` bridge has been removed from the active app after saint and novena detail screens stopped depending on local related-content JSON.
 - `ContentStore.swift` has now been removed entirely after its final runtime usages were deleted from the local novena fallback path.
 - The old `LiturgicalCalendarEngine` has been removed from `Entities.swift`; the app now relies on API-backed liturgical data for active runtime behavior instead of maintaining a second local liturgical engine.
-- The legacy JSON document parsing types were preserved in a small parser-only file so the remaining local fallback loader can still decode bundled resources without reviving the old engine or relation bridge.
-- Dev, UAT, and Prod simulator builds all succeed after these removals, which confirms the active app no longer depends on `ContentStore` or `LiturgicalCalendarEngine`.
+- `LocalContentRepository.swift`, `LocalBundleJSONLoader.swift`, and the parser-only legacy document file have been removed from the app.
+- The bundled `Resources/LegacyData` payload has been removed from the iOS project tree now that runtime content is API-backed.
+- `APIContentRepository` is now the only shipped runtime content repository.
+- Dev, UAT, and Prod simulator builds all succeed after these removals, which confirms the active app no longer depends on bundled content JSON, `ContentStore`, or `LiturgicalCalendarEngine`.
 
 ### Phase 8: App Store And Delivery Hardening
 
@@ -444,10 +446,10 @@ Checklist:
 
 ## Immediate Next Actions
 
-1. Validate the full API-backed content stack against the live backend on simulator/device
-2. Start the legacy removal sweep for bundled JSON, local rule paths, and direct `ContentStore` usage
-3. Remove remaining local-only authenticated fallback behavior now that the main content domains are on the API
-4. Verify a real signed archive/upload path from the monorepo once the legacy sweep is complete
+1. Validate the fully API-backed content stack against the live backend on simulator/device
+2. Verify a real signed archive/upload path from the monorepo
+3. Add PR validation build automation for `apps/ios`
+4. Decide whether any non-production preview-only fixtures should be moved into a dedicated preview folder
 
 ## Progress Log
 
@@ -466,3 +468,4 @@ Checklist:
 - [x] Remove legacy liturgical season lookup from the active saint/novena calendar UI path
 - [x] Remove remaining active liturgical engine date construction from the calendar UI path
 - [x] Remove bundled saint/novena relation panels and the legacy `RelationResolver` bridge from the active runtime path
+- [x] Remove the local content repository, bundled JSON loader, and legacy content bundle from the shipped iOS app

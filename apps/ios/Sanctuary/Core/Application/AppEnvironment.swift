@@ -13,13 +13,7 @@ struct AppEnvironment {
     static func current() -> AppEnvironment {
         let platformConfiguration = PlatformConfiguration.current()
         let apiClient = SanctuaryAPIClient(baseURL: platformConfiguration.apiBaseURL)
-        let localContentRepository = LocalContentRepository(fallbackToSeed: false)
-
-        // Saints now come from the API first while legacy domains continue to read locally.
-        let contentRepository = HybridContentRepository(
-            apiClient: apiClient,
-            localRepository: localContentRepository
-        )
+        let contentRepository = APIContentRepository(apiClient: apiClient)
         let searchRepository = LocalSearchRepository(contentRepository: contentRepository)
 
         return AppEnvironment(

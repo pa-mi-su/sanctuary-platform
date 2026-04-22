@@ -452,8 +452,31 @@ private struct RemoteHeroImage: View {
 }
 
 struct NovenaDetailView_Previews: PreviewProvider {
+    private static let previewNovena = Novena(
+        id: "st-joseph-novena",
+        slug: "st-joseph-novena",
+        titleByLocale: [.en: "Saint Joseph Novena"],
+        descriptionByLocale: [.en: "A simple novena asking Saint Joseph to guide families, work, and discernment."],
+        durationDays: 9,
+        tags: ["family", "work"],
+        imageURL: nil,
+        days: [
+            NovenaDay(
+                dayNumber: 1,
+                titleByLocale: [.en: "Day One"],
+                scriptureByLocale: [.en: "Matthew 1:20-21"],
+                prayerByLocale: [.en: "Saint Joseph, guardian of the Redeemer, pray for us."],
+                reflectionByLocale: [.en: "Ask for Joseph's quiet trust."],
+                bodyByLocale: [.en: "Matthew 1:20-21\n\nSaint Joseph, guardian of the Redeemer, pray for us.\n\nAsk for Joseph's quiet trust."]
+            )
+        ]
+    )
+
     static var previews: some View {
-        NovenaDetailView(contentRepository: LocalContentRepository(), novena: LocalSeedData.novenas[0])
+        NovenaDetailView(
+            contentRepository: PreviewContentRepository(novenas: [previewNovena]),
+            novena: previewNovena
+        )
             .environmentObject(LocalizationManager())
             .environmentObject(
                 UserProgressStore(userProgressRepository: LocalUserProgressRepository())
