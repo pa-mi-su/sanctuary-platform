@@ -687,11 +687,10 @@ export class AppShellFacade {
   }
 
   localizedSaintsCountLabel(): string {
-    const count = this.selectedSaintGroup()?.saints.length ?? 0;
     return this.translate(
-      `Selected day · ${count} saints`,
-      `Día seleccionado · ${count} santos`,
-      `Wybrany dzien · ${count} swietych`
+      'Selected day · Featured saint',
+      'Día seleccionado · Santo destacado',
+      'Wybrany dzien · Wyrozniony swiety'
     );
   }
 

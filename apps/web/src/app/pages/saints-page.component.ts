@@ -124,7 +124,6 @@ type AppLanguage = 'en' | 'es' | 'pl';
                 <h3>{{ previewTodayTitle() }}</h3>
                 <p>{{ todayPreviewLabel() }}</p>
               </div>
-              <span class="content-tag">{{ todaySaints().length }} {{ t('saints', 'santos', 'swietych') }}</span>
             </div>
 
             @if (saintsLoadFailed()) {
@@ -156,9 +155,6 @@ type AppLanguage = 'en' | 'es' | 'pl';
                 <h3>{{ previewSelectedTitle() }}</h3>
                 <p>{{ selectedPreviewLabel() }}</p>
               </div>
-              @if (!isSelectedDateToday()) {
-                <span class="content-tag">{{ selectedSaints().length }} {{ t('saints', 'santos', 'swietych') }}</span>
-              }
             </div>
 
             @if (saintsLoadFailed()) {
