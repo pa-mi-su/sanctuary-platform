@@ -43,6 +43,26 @@ type AppLanguage = 'en' | 'es' | 'pl';
           </a>
         </article>
 
+        <article class="download-card glass-subtle">
+          <div>
+            <p class="eyebrow">{{ t('Android app', 'App para Android', 'Aplikacja na Androida') }}</p>
+            <h3>{{ t('Download Sanctuary on Google Play', 'Descarga Sanctuary en Google Play', 'Pobierz Sanctuary w Google Play') }}</h3>
+            <p>
+              {{
+                t(
+                  'Sanctuary for Android is on the roadmap so the same prayer companion can travel across more devices soon.',
+                  'Sanctuary para Android está en la hoja de ruta para que el mismo acompañante de oración pueda llegar pronto a más dispositivos.',
+                  'Sanctuary na Androida jest w planach, aby ten sam towarzysz modlitwy mógł wkrótce trafić na kolejne urządzenia.'
+                )
+              }}
+            </p>
+          </div>
+          <span class="app-store-action app-store-action--disabled" aria-disabled="true">
+            <span>{{ t('Google Play', 'Google Play', 'Google Play') }}</span>
+            <strong>{{ t('Coming soon', 'Muy pronto', 'Wkrótce') }}</strong>
+          </span>
+        </article>
+
         <article class="about-card glass-subtle">
           <h3>{{ t('What Sanctuary includes', 'Qué incluye Sanctuary', 'Co zawiera Sanctuary') }}</h3>
           <ul>

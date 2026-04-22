@@ -18,11 +18,9 @@ public class UserProgressService {
     private static final Set<String> SUPPORTED_COMMITMENT_STATUSES = Set.of("active", "paused", "completed");
 
     private final UserProgressRepository repository;
-    private final UserActivityService userActivityService;
 
-    public UserProgressService(UserProgressRepository repository, UserActivityService userActivityService) {
+    public UserProgressService(UserProgressRepository repository) {
         this.repository = repository;
-        this.userActivityService = userActivityService;
     }
 
     public List<UserFavoriteDto> favorites(UUID userId) {
@@ -50,9 +48,7 @@ public class UserProgressService {
         if (!SUPPORTED_COMMITMENT_STATUSES.contains(request.status())) {
             throw new IllegalArgumentException("Unsupported commitment status: " + request.status());
         }
-        UserNovenaCommitmentDto commitment = repository.saveNovenaCommitment(userId, novenaId, request);
-        userActivityService.recordNovenaProgressActivity(userId, novenaId, request.reminderTimeZoneId());
-        return commitment;
+        return repository.saveNovenaCommitment(userId, novenaId, request);
     }
 
     public void deleteNovenaCommitment(UUID userId, String novenaId) {

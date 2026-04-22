@@ -110,9 +110,6 @@ export interface UserProfile {
   favoritePrayerCount?: number;
   activeNovenaCount?: number;
   completedNovenaCount?: number;
-  currentStreakDays?: number;
-  longestStreakDays?: number;
-  lastActiveDate?: string | null;
 }
 
 export interface UserPreferencesUpdateRequest {

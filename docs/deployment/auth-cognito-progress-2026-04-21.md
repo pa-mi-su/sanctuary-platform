@@ -30,12 +30,12 @@ Implemented:
 - `user_preferences`
 - richer `/me` response model
 - `PUT /me/preferences`
-- activity/streak groundwork
+- account activity groundwork for future features
 - favorites/progress tied to internal `users.id`
 
 Long-term benefit:
 
-- we can support profile fields, reminders, streaks, saved content, and future premium/user features without redesigning the data model later
+- we can support profile fields, reminders, saved content, and future premium/user features without redesigning the data model later
 
 ## 3. Cognito Production Configuration
 
@@ -258,7 +258,7 @@ Implemented and deployed:
 
 - real auth/profile foundation
 - user preferences foundation
-- streak/activity groundwork
+- activity groundwork
 - repaired deploy-on-main behavior
 - repaired ECS/API secret handling
 
