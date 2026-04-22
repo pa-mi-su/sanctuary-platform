@@ -1300,6 +1300,7 @@ private struct ReadingSelection: Identifiable {
     let url: URL
 }
 
+@MainActor
 private func localizedLiturgicalRank(_ raw: String, localization: LocalizationManager) -> String {
     switch localization.language {
     case .en:
