@@ -5,7 +5,7 @@ import { SanctuaryAuthService } from './sanctuary-auth.service';
 
 export const authTokenInterceptor: HttpInterceptorFn = (request, next) => {
   const auth = inject(SanctuaryAuthService);
-  const token = auth.state().accessToken;
+  const token = auth.state().idToken ?? auth.state().accessToken;
 
   if (!token || !request.url.includes('/me')) {
     return next(request);

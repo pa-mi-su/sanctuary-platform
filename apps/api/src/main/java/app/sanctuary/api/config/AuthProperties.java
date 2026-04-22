@@ -5,6 +5,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "sanctuary.auth")
 public record AuthProperties(
     boolean enabled,
-    String audience
+    String audience,
+    String userPoolId,
+    String clientId
 ) {
 }

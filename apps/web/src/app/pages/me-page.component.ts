@@ -28,14 +28,16 @@ type AppLanguage = 'en' | 'es' | 'pl';
             <div>
               <h2>{{ userName || t('Me', 'Yo', 'Ja') }}</h2>
               <p class="identity-email">{{ profile?.email ?? t('Authenticated with Sanctuary account', 'Autenticado con tu cuenta de Sanctuary', 'Zalogowano do konta Sanctuary') }}</p>
-              <p>{{ t('Your progress, favorites, and account settings sync here.', 'Tu progreso, favoritos y configuración se sincronizan aquí.', 'Tutaj synchronizuja sie twoje postepy, ulubione i ustawienia konta.') }}</p>
+              <p>{{ t('Your favorites, active novenas, and future account settings live here.', 'Aquí viven tus favoritos, novenas activas y la futura configuración de tu cuenta.', 'Tutaj znajdują się ulubione, aktywne nowenny i przyszłe ustawienia konta.') }}</p>
             </div>
           </div>
         </div>
 
-        <button class="logout-button" type="button" (click)="logout.emit()">
-          {{ t('Logout', 'Salir', 'Wyloguj') }}
-        </button>
+        <article class="panel-card glass-subtle member-card">
+          <span class="member-card__label">{{ t('Current streak', 'Racha actual', 'Aktualna passa') }}</span>
+          <strong>{{ profile?.currentStreakDays ?? 0 }} {{ t('days', 'días', 'dni') }}</strong>
+          <small>{{ t('Quiet consistency matters more than speed.', 'La constancia tranquila importa más que la velocidad.', 'Spokojna konsekwencja liczy się bardziej niż tempo.') }}</small>
+        </article>
       </div>
 
       <section class="stats-grid">
@@ -70,26 +72,22 @@ type AppLanguage = 'en' | 'es' | 'pl';
           <div class="panel-heading">
             <div>
               <h3>{{ t('Profile', 'Perfil', 'Profil') }}</h3>
-              <p>{{ t('Identity and synced account context.', 'Identidad y contexto sincronizado de la cuenta.', 'Tozsamosc i zsynchronizowany kontekst konta.') }}</p>
+              <p>{{ t('Identity details that make your Sanctuary account feel human.', 'Detalles de identidad que hacen que tu cuenta de Sanctuary se sienta humana.', 'Szczegóły tożsamości, dzięki którym konto Sanctuary jest naprawdę twoje.') }}</p>
             </div>
           </div>
 
           <dl class="info-list">
             <div>
+              <dt>{{ t('Name', 'Nombre', 'Imię i nazwisko') }}</dt>
+              <dd>{{ userName || t('Sanctuary member', 'Miembro de Sanctuary', 'Członek Sanctuary') }}</dd>
+            </div>
+            <div>
               <dt>{{ t('Email', 'Correo', 'Email') }}</dt>
               <dd>{{ profile?.email ?? '—' }}</dd>
             </div>
             <div>
-              <dt>{{ t('Preferred language', 'Idioma preferido', 'Preferowany jezyk') }}</dt>
-              <dd>{{ languageLabel(formPreferredLanguage) }}</dd>
-            </div>
-            <div>
               <dt>{{ t('Time zone', 'Zona horaria', 'Strefa czasowa') }}</dt>
               <dd>{{ formTimeZoneId || browserTimeZone }}</dd>
-            </div>
-            <div>
-              <dt>{{ t('Prayer reminders', 'Recordatorios de oración', 'Przypomnienia o modlitwie') }}</dt>
-              <dd>{{ formNovenaRemindersEnabled ? t('Enabled', 'Activados', 'Wlaczone') : t('Off', 'Desactivados', 'Wylaczone') }}</dd>
             </div>
             <div>
               <dt>{{ t('Longest streak', 'Racha más larga', 'Najdluzsza passa') }}</dt>
@@ -101,21 +99,12 @@ type AppLanguage = 'en' | 'es' | 'pl';
         <article class="panel-card glass-subtle settings-card">
           <div class="panel-heading">
             <div>
-              <h3>{{ t('Settings', 'Configuración', 'Ustawienia') }}</h3>
-              <p>{{ t('Save the account defaults you want Sanctuary to remember across devices.', 'Guarda los ajustes de cuenta que quieres que Sanctuary recuerde en todos tus dispositivos.', 'Zapisz ustawienia konta, ktore Sanctuary ma pamietac na wszystkich urzadzeniach.') }}</p>
+              <h3>{{ t('Account settings', 'Configuración de cuenta', 'Ustawienia konta') }}</h3>
+              <p>{{ t('We are keeping this section focused for now while reminders and notifications are still being built.', 'Por ahora mantenemos esta sección enfocada mientras recordatorios y notificaciones aún se están construyendo.', 'Na razie utrzymujemy tę sekcję w prostocie, dopóki przypomnienia i powiadomienia nie będą gotowe.') }}</p>
             </div>
           </div>
 
           <div class="field-grid">
-            <label class="field">
-              <span>{{ t('Language', 'Idioma', 'Jezyk') }}</span>
-              <select [(ngModel)]="formPreferredLanguage">
-                <option value="en">English</option>
-                <option value="es">Español</option>
-                <option value="pl">Polski</option>
-              </select>
-            </label>
-
             <label class="field">
               <span>{{ t('Time zone', 'Zona horaria', 'Strefa czasowa') }}</span>
               <input
@@ -133,40 +122,14 @@ type AppLanguage = 'en' | 'es' | 'pl';
             {{ t('Use browser time zone', 'Usar la zona horaria del navegador', 'Uzyj strefy czasowej przegladarki') }}
           </button>
 
-          <div class="toggle-list">
-            <label class="toggle-row">
-              <input type="checkbox" [(ngModel)]="formNovenaRemindersEnabled" />
-              <span>
-                <strong>{{ t('Novena reminders', 'Recordatorios de novenas', 'Przypomnienia o nowennach') }}</strong>
-                <small>{{ t('Prepare your account for synced daily reminder schedules.', 'Prepara tu cuenta para horarios diarios sincronizados.', 'Przygotuj konto do zsynchronizowanych codziennych przypomnien.') }}</small>
-              </span>
-            </label>
-
-            <label class="toggle-row">
-              <input type="checkbox" [(ngModel)]="formFeastRemindersEnabled" />
-              <span>
-                <strong>{{ t('Saint and feast reminders', 'Recordatorios de santos y fiestas', 'Przypomnienia o swietych i swietach') }}</strong>
-                <small>{{ t('Keep room for feast day nudges as they come online.', 'Mantén espacio para avisos de fiestas cuando se activen.', 'Zostaw miejsce na przypomnienia o swietach, gdy beda gotowe.') }}</small>
-              </span>
-            </label>
-
-            <label class="toggle-row">
-              <input type="checkbox" [(ngModel)]="formEmailUpdatesEnabled" />
-              <span>
-                <strong>{{ t('Product updates', 'Novedades del producto', 'Aktualnosci o produkcie') }}</strong>
-                <small>{{ t('Opt in for occasional launch and feature updates.', 'Activa avisos ocasionales sobre lanzamientos y funciones.', 'Otrzymuj okazjonalne wiadomosci o premierach i funkcjach.') }}</small>
-              </span>
-            </label>
-          </div>
-
           <div class="settings-footer">
             <p class="status-copy" [class.status-copy--error]="saveError">
               {{
                 saveMessage ??
                 t(
-                  'These settings belong to your Sanctuary account and are designed to travel with you.',
-                  'Estos ajustes pertenecen a tu cuenta de Sanctuary y están pensados para acompañarte.',
-                  'Te ustawienia naleza do twojego konta Sanctuary i maja podrozowac razem z toba.'
+                  'Time zone is the only saved account setting here right now. Reminders and notifications will come later.',
+                  'La zona horaria es la única configuración guardada aquí por ahora. Los recordatorios y notificaciones llegarán después.',
+                  'Na razie zapisujemy tutaj tylko strefę czasową. Przypomnienia i powiadomienia pojawią się później.'
                 )
               }}
             </p>
@@ -242,7 +205,7 @@ export class MePageComponent implements OnChanges {
 
   protected submitPreferences(): void {
     this.savePreferences.emit({
-      preferredLanguage: this.formPreferredLanguage,
+      preferredLanguage: this.currentLanguage,
       timeZoneId: this.formTimeZoneId.trim() || this.browserTimeZone,
       novenaRemindersEnabled: this.formNovenaRemindersEnabled,
       feastRemindersEnabled: this.formFeastRemindersEnabled,
