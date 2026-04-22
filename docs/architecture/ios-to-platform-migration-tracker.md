@@ -378,6 +378,7 @@ Notes:
 - The following iOS surfaces now source prayers from the API-backed repository path:
   - prayers search list
   - prayer detail hydration
+- Saint and novena calendar season coloring no longer depends on the old `LiturgicalLookup` helper in the active runtime path; both views now derive season state from repository-backed liturgical day data.
 - Saint detail still keeps local related-novena lookup as a temporary bridge until saints and novenas can share a backend-driven relation model.
 - Novena detail still keeps local related-saint lookup as a temporary bridge until saints and novenas can share a backend-driven relation model.
 
@@ -394,6 +395,9 @@ Checklist:
 - [ ] Remove obsolete local content loaders
 - [ ] Remove fallback seed data that is no longer needed
 - [ ] Document what was retired and why
+
+Notes:
+- First cleanup pass is underway: the active saint/novena calendar UI no longer uses the local liturgical season lookup helper for border coloring.
 
 ### Phase 8: App Store And Delivery Hardening
 
@@ -453,3 +457,4 @@ Checklist:
 - [x] Migrate novenas to the second API-backed content domain across list, detail, intentions search, calendar, and `Me`
 - [x] Migrate liturgical to the third API-backed content domain across calendar and home daily readings flows
 - [x] Migrate prayers to the fourth API-backed content domain across search and detail flows
+- [x] Remove legacy liturgical season lookup from the active saint/novena calendar UI path

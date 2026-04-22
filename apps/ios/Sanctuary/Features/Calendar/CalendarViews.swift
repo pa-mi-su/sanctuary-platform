@@ -33,11 +33,10 @@ struct NovenasCalendarView: View {
     @State private var novenaIDByDay: [Int: String] = [:]
     @State private var novenaTitleByDay: [Int: String] = [:]
     @State private var novenaImageURLByDay: [Int: URL] = [:]
+    @State private var seasonByDay: [Int: LiturgicalSeason] = [:]
 
-    // Reuse central liturgical engine for calendar season coloring.
     private var displayedSeason: LiturgicalSeason {
-        LiturgicalLookup.day(forYear: selectedYear, month: selectedMonth, day: selectedDay)?.season
-            ?? LiturgicalCalendarEngine.day(for: selectedDate()).season
+        seasonByDay[selectedDay] ?? .ordinary
     }
 
     private var displayedSeasonBorderColor: Color {
@@ -45,7 +44,7 @@ struct NovenasCalendarView: View {
     }
 
     private func borderColor(for day: Int) -> Color {
-        guard let season = LiturgicalLookup.day(forYear: selectedYear, month: selectedMonth, day: day)?.season else {
+        guard let season = seasonByDay[day] else {
             return displayedSeasonBorderColor
         }
         return AppTheme.liturgicalBorderColor(for: season)
@@ -118,6 +117,7 @@ struct NovenasCalendarView: View {
             }
         }
         .task(id: "\(selectedYear)-\(selectedMonth)") {
+            await loadSeasonLookups()
             await loadNovenaLookups()
         }
         .sheet(isPresented: $showSearch) {
@@ -183,12 +183,7 @@ struct NovenasCalendarView: View {
 
     private func loadNovenaLookups() async {
         let calendar = Calendar(identifier: .gregorian)
-        var components = DateComponents()
-        components.year = selectedYear
-        components.month = selectedMonth
-        components.day = 1
-        components.hour = 12
-        guard let monthStart = calendar.date(from: components) else { return }
+        guard let monthStart = makeCalendarDate(year: selectedYear, month: selectedMonth, day: 1) else { return }
         guard let monthEnd = calendar.date(byAdding: DateComponents(month: 1, day: -1), to: monthStart) else { return }
 
         do {
@@ -225,9 +220,35 @@ struct NovenasCalendarView: View {
         }
     }
 
+    private func loadSeasonLookups() async {
+        guard let startDate = makeCalendarDate(year: selectedYear, month: selectedMonth, day: 1),
+              let endDate = makeCalendarDate(
+                year: selectedYear,
+                month: selectedMonth,
+                day: daysInMonth(year: selectedYear, month: selectedMonth)
+              ) else {
+            seasonByDay = [:]
+            return
+        }
+
+        do {
+            let days = try await environment.contentRepository.listLiturgicalDays(
+                startDate: startDate,
+                endDate: endDate
+            )
+
+            seasonByDay = days.reduce(into: [:]) { partialResult, day in
+                let dayNumber = liturgicalUICalendar.component(.day, from: day.date)
+                partialResult[dayNumber] = day.season
+            }
+        } catch {
+            seasonByDay = [:]
+        }
+    }
+
     private func selectedDate() -> Date {
         let clampedDay = min(selectedDay, daysInMonth(year: selectedYear, month: selectedMonth))
-        return LiturgicalCalendarEngine.makeDate(year: selectedYear, month: selectedMonth, day: clampedDay)
+        return makeCalendarDate(year: selectedYear, month: selectedMonth, day: clampedDay) ?? Date()
     }
 
     private func apply(date: Date) {
@@ -469,11 +490,10 @@ struct SaintsCalendarView: View {
     @State private var suppressDayTapUntil: Date = .distantPast
     @State private var saintByDay: [Int: Saint] = [:]
     @State private var showDatePicker = false
+    @State private var seasonByDay: [Int: LiturgicalSeason] = [:]
 
-    // Reuse central liturgical engine for calendar season coloring.
     private var displayedSeason: LiturgicalSeason {
-        LiturgicalLookup.day(forYear: selectedYear, month: selectedMonth, day: selectedDay)?.season
-            ?? LiturgicalCalendarEngine.day(for: selectedDate()).season
+        seasonByDay[selectedDay] ?? .ordinary
     }
 
     private var displayedSeasonBorderColor: Color {
@@ -481,7 +501,7 @@ struct SaintsCalendarView: View {
     }
 
     private func borderColor(for day: Int) -> Color {
-        guard let season = LiturgicalLookup.day(forYear: selectedYear, month: selectedMonth, day: day)?.season else {
+        guard let season = seasonByDay[day] else {
             return displayedSeasonBorderColor
         }
         return AppTheme.liturgicalBorderColor(for: season)
@@ -555,6 +575,7 @@ struct SaintsCalendarView: View {
             }
         }
         .task(id: "\(selectedYear)-\(selectedMonth)") {
+            await loadSeasonLookups()
             await loadSaintLookups()
         }
         .sheet(isPresented: $showSearch) {
@@ -620,12 +641,15 @@ struct SaintsCalendarView: View {
 
     private func loadSaintLookups() async {
         let locale = localization.language.contentLocale
-        let startDate = LiturgicalCalendarEngine.makeDate(year: selectedYear, month: selectedMonth, day: 1)
-        let endDate = LiturgicalCalendarEngine.makeDate(
+        guard let startDate = makeCalendarDate(year: selectedYear, month: selectedMonth, day: 1),
+              let endDate = makeCalendarDate(
             year: selectedYear,
             month: selectedMonth,
             day: daysInMonth(year: selectedYear, month: selectedMonth)
-        )
+              ) else {
+            saintByDay = [:]
+            return
+        }
 
         guard let saintRangeRepository = environment.contentRepository as? any SaintRangeRepository else {
             saintByDay = [:]
@@ -647,9 +671,35 @@ struct SaintsCalendarView: View {
         }
     }
 
+    private func loadSeasonLookups() async {
+        guard let startDate = makeCalendarDate(year: selectedYear, month: selectedMonth, day: 1),
+              let endDate = makeCalendarDate(
+                year: selectedYear,
+                month: selectedMonth,
+                day: daysInMonth(year: selectedYear, month: selectedMonth)
+              ) else {
+            seasonByDay = [:]
+            return
+        }
+
+        do {
+            let days = try await environment.contentRepository.listLiturgicalDays(
+                startDate: startDate,
+                endDate: endDate
+            )
+
+            seasonByDay = days.reduce(into: [:]) { partialResult, day in
+                let dayNumber = liturgicalUICalendar.component(.day, from: day.date)
+                partialResult[dayNumber] = day.season
+            }
+        } catch {
+            seasonByDay = [:]
+        }
+    }
+
     private func selectedDate() -> Date {
         let clampedDay = min(selectedDay, daysInMonth(year: selectedYear, month: selectedMonth))
-        return LiturgicalCalendarEngine.makeDate(year: selectedYear, month: selectedMonth, day: clampedDay)
+        return makeCalendarDate(year: selectedYear, month: selectedMonth, day: clampedDay) ?? Date()
     }
 
     private func apply(date: Date) {
@@ -1172,7 +1222,9 @@ private struct WeekGrid: View {
 }
 
 private func monthGridDates(year: Int, month: Int, daysInMonth: Int) -> [Date?] {
-    let firstDay = LiturgicalCalendarEngine.makeDate(year: year, month: month, day: 1)
+    guard let firstDay = makeCalendarDate(year: year, month: month, day: 1) else {
+        return []
+    }
     let weekday = liturgicalUICalendar.component(.weekday, from: firstDay)
     let leadingEmptyCells = (weekday - liturgicalUICalendar.firstWeekday + 7) % 7
 
@@ -1180,14 +1232,16 @@ private func monthGridDates(year: Int, month: Int, daysInMonth: Int) -> [Date?] 
     cells.reserveCapacity(leadingEmptyCells + daysInMonth)
 
     for day in 1...daysInMonth {
-        cells.append(LiturgicalCalendarEngine.makeDate(year: year, month: month, day: day))
+        cells.append(makeCalendarDate(year: year, month: month, day: day))
     }
 
     return cells
 }
 
 private func weekGridDates(year: Int, month: Int, selectedDay: Int) -> [Date?] {
-    let selectedDate = LiturgicalCalendarEngine.makeDate(year: year, month: month, day: selectedDay)
+    guard let selectedDate = makeCalendarDate(year: year, month: month, day: selectedDay) else {
+        return Array(repeating: nil, count: 7)
+    }
     let weekday = liturgicalUICalendar.component(.weekday, from: selectedDate)
     let daysFromWeekStart = (weekday - liturgicalUICalendar.firstWeekday + 7) % 7
     guard let weekStart = liturgicalUICalendar.date(byAdding: .day, value: -daysFromWeekStart, to: selectedDate) else {
@@ -1205,6 +1259,15 @@ private func weekGridDates(year: Int, month: Int, selectedDay: Int) -> [Date?] {
         }
         return date
     }
+}
+
+private func makeCalendarDate(year: Int, month: Int, day: Int) -> Date? {
+    var components = DateComponents()
+    components.year = year
+    components.month = month
+    components.day = day
+    components.hour = 12
+    return liturgicalUICalendar.date(from: components)
 }
 
 private func mapSourceSaint(_ doc: SaintDocument) -> Saint {
@@ -1336,26 +1399,6 @@ private func daysInMonth(year: Int, month: Int) -> Int {
         return 31
     }
     return range.count
-}
-
-private enum LiturgicalLookup {
-    struct Entry: Hashable {
-        let date: String
-        let rank: String
-        let readingURL: String?
-        let season: LiturgicalSeason
-    }
-
-    static func day(forYear year: Int, month: Int, day: Int) -> Entry? {
-        let date = LiturgicalCalendarEngine.makeDate(year: year, month: month, day: day)
-        let liturgicalDay = LiturgicalCalendarEngine.day(for: date)
-        return Entry(
-            date: String(format: "%04d-%02d-%02d", year, month, day),
-            rank: liturgicalDay.rank,
-            readingURL: liturgicalDay.readingURL?.absoluteString,
-            season: liturgicalDay.season
-        )
-    }
 }
 
 private struct ReadingSelection: Identifiable {
