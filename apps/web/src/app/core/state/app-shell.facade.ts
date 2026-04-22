@@ -29,6 +29,13 @@ export type SaintsMode = 'calendar' | 'list';
 export type NovenasMode = 'calendar' | 'list' | 'intentions';
 export type AppLanguage = 'en' | 'es' | 'pl';
 export type LegalDocumentType = 'support' | 'privacy';
+export interface MeLinkedItem {
+  id: string;
+  slug: string;
+  title: string;
+  subtitle: string;
+  imageUrl: string | null;
+}
 export interface LocalNovenaProgress {
   novenaId: string;
   startedAt: string;
@@ -88,6 +95,7 @@ export class AppShellFacade {
   readonly novenasLoadFailed = signal(false);
   readonly prayersLoadFailed = signal(false);
   private readonly userProfileReloadToken = signal(0);
+  private readonly userCollectionsReloadToken = signal(0);
   private readonly userProfileOverride = signal<UserProfile | null>(null);
 
   readonly liturgicalRange = toSignal(
@@ -261,17 +269,39 @@ export class AppShellFacade {
   readonly userProfile = computed(() => this.userProfileOverride() ?? this.userProfileResponse());
 
   readonly userFavorites = toSignal(
-    toObservable(this.authState).pipe(
-      switchMap((authState) => authState.status === 'authenticated' ? this.api.listFavorites() : of<UserFavorite[]>([])),
+    combineLatest([toObservable(this.authState), toObservable(this.userCollectionsReloadToken)]).pipe(
+      switchMap(([authState]) => authState.status === 'authenticated' ? this.api.listFavorites() : of<UserFavorite[]>([])),
       catchError(() => of<UserFavorite[]>([])),
     ),
     { initialValue: [] },
   );
 
   readonly userNovenaCommitments = toSignal(
-    toObservable(this.authState).pipe(
-      switchMap((authState) => authState.status === 'authenticated' ? this.api.listNovenaCommitments() : of<UserNovenaCommitment[]>([])),
+    combineLatest([toObservable(this.authState), toObservable(this.userCollectionsReloadToken)]).pipe(
+      switchMap(([authState]) => authState.status === 'authenticated' ? this.api.listNovenaCommitments() : of<UserNovenaCommitment[]>([])),
       catchError(() => of<UserNovenaCommitment[]>([])),
+    ),
+    { initialValue: [] },
+  );
+
+  readonly meSaintCatalog = toSignal(
+    toObservable(this.language).pipe(
+      switchMap((language) =>
+        this.api.listSaints(this.apiLanguage(language), '').pipe(
+          catchError(() => of<SaintSummary[]>([])),
+        ),
+      ),
+    ),
+    { initialValue: [] },
+  );
+
+  readonly meNovenaCatalog = toSignal(
+    toObservable(this.language).pipe(
+      switchMap((language) =>
+        this.api.listNovenas(this.apiLanguage(language), '').pipe(
+          catchError(() => of<NovenaSummary[]>([])),
+        ),
+      ),
     ),
     { initialValue: [] },
   );
@@ -283,6 +313,71 @@ export class AppShellFacade {
       ? this.userNovenaCommitments().filter((commitment) => commitment.status === 'active').length
       : 0
   );
+  readonly meActiveNovenaItems = computed(() => {
+    if (!this.isAuthenticated()) {
+      return [];
+    }
+
+    const novenasById = new Map(this.meNovenaCatalog().map((novena) => [novena.id, novena] as const));
+    return this.userNovenaCommitments()
+      .filter((commitment) => commitment.status === 'active')
+      .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))
+      .map((commitment) => novenasById.get(commitment.novenaId))
+      .filter((novena): novena is NovenaSummary => Boolean(novena))
+      .map((novena) => ({
+        id: novena.id,
+        slug: novena.slug,
+        title: novena.title,
+        subtitle: this.translate(
+          `${novena.durationDays}-day novena`,
+          `Novena de ${novena.durationDays} días`,
+          `${novena.durationDays}-dniowa nowenna`,
+        ),
+        imageUrl: novena.imageUrl,
+      }));
+  });
+  readonly meFavoriteNovenaItems = computed(() => {
+    if (!this.isAuthenticated()) {
+      return [];
+    }
+
+    const novenasById = new Map(this.meNovenaCatalog().map((novena) => [novena.id, novena] as const));
+    return this.userFavorites()
+      .filter((favorite) => favorite.itemType === 'novena')
+      .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
+      .map((favorite) => novenasById.get(favorite.itemId))
+      .filter((novena): novena is NovenaSummary => Boolean(novena))
+      .map((novena) => ({
+        id: novena.id,
+        slug: novena.slug,
+        title: novena.title,
+        subtitle: this.translate(
+          `${novena.durationDays}-day novena`,
+          `Novena de ${novena.durationDays} días`,
+          `${novena.durationDays}-dniowa nowenna`,
+        ),
+        imageUrl: novena.imageUrl,
+      }));
+  });
+  readonly meFavoriteSaintItems = computed(() => {
+    if (!this.isAuthenticated()) {
+      return [];
+    }
+
+    const saintsById = new Map(this.meSaintCatalog().map((saint) => [saint.id, saint] as const));
+    return this.userFavorites()
+      .filter((favorite) => favorite.itemType === 'saint')
+      .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
+      .map((favorite) => saintsById.get(favorite.itemId))
+      .filter((saint): saint is SaintSummary => Boolean(saint))
+      .map((saint) => ({
+        id: saint.id,
+        slug: saint.slug,
+        title: saint.name,
+        subtitle: saint.feastLabel,
+        imageUrl: saint.imageUrl,
+      }));
+  });
   readonly selectedNovenaProgress = computed(() => {
     if (!this.isAuthenticated()) {
       return null;
@@ -379,6 +474,9 @@ export class AppShellFacade {
 
   setTab(tab: AppTab): void {
     this.currentTab.set(tab);
+    if (tab === 'me' && this.isAuthenticated()) {
+      this.refreshUserCollections();
+    }
   }
 
   handlePrimaryNavigate(tab: AppTab): void {
@@ -415,6 +513,7 @@ export class AppShellFacade {
 
   logout(): void {
     this.userProfileOverride.set(null);
+    this.favoriteOverrides.set({});
     this.savePreferencesMessage.set(null);
     this.savePreferencesError.set(false);
     this.auth.logout();
@@ -595,7 +694,12 @@ export class AppShellFacade {
       this.persistLocalNovenaProgress(next);
       return next;
     });
-    this.api.deleteNovenaCommitment(detail.id).subscribe({ error: () => undefined });
+    this.api.deleteNovenaCommitment(detail.id).subscribe({
+      next: () => {
+        this.refreshUserCollections();
+      },
+      error: () => undefined,
+    });
   }
 
   completeSelectedNovenaDay(): void {
@@ -941,7 +1045,12 @@ export class AppShellFacade {
     const request = currentlyFavorite
       ? this.api.deleteFavorite(itemType, itemId)
       : this.api.saveFavorite(itemType, itemId);
-    request.subscribe({ error: () => undefined });
+    request.subscribe({
+      next: () => {
+        this.refreshUserCollections();
+      },
+      error: () => undefined,
+    });
   }
 
   private favoriteCount(itemType: 'saint' | 'novena' | 'prayer'): number {
@@ -989,7 +1098,41 @@ export class AppShellFacade {
       reminderTimeZoneId: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
       status: progress.status,
     };
-    this.api.saveNovenaCommitment(progress.novenaId, request).subscribe({ error: () => undefined });
+    this.api.saveNovenaCommitment(progress.novenaId, request).subscribe({
+      next: () => {
+        this.refreshUserCollections();
+      },
+      error: () => undefined,
+    });
+  }
+
+  openMeActiveNovena(item: MeLinkedItem): void {
+    const novena = this.meNovenaCatalog().find((entry) => entry.id === item.id || entry.slug === item.slug);
+    if (novena) {
+      this.setTab('novenas');
+      this.openNovenaDetail(novena);
+    }
+  }
+
+  openMeFavoriteNovena(item: MeLinkedItem): void {
+    const novena = this.meNovenaCatalog().find((entry) => entry.id === item.id || entry.slug === item.slug);
+    if (novena) {
+      this.setTab('novenas');
+      this.openNovenaDetail(novena);
+    }
+  }
+
+  openMeFavoriteSaint(item: MeLinkedItem): void {
+    const saint = this.meSaintCatalog().find((entry) => entry.id === item.id || entry.slug === item.slug);
+    if (saint) {
+      this.openSaintDetail(saint);
+      this.setTab('saints');
+    }
+  }
+
+  private refreshUserCollections(): void {
+    this.userProfileReloadToken.update((value) => value + 1);
+    this.userCollectionsReloadToken.update((value) => value + 1);
   }
 
   private loadLocalNovenaProgress(): Record<string, LocalNovenaProgress> {

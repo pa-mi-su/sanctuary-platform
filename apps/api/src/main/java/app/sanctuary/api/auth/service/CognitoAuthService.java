@@ -66,7 +66,10 @@ public class CognitoAuthService {
         } catch (UsernameExistsException exception) {
             throw new AuthFlowException(HttpStatus.CONFLICT, "An account with this email already exists.");
         } catch (InvalidPasswordException exception) {
-            throw new AuthFlowException(HttpStatus.BAD_REQUEST, "Choose a stronger password with at least 8 characters.");
+            throw new AuthFlowException(
+                HttpStatus.BAD_REQUEST,
+                "Choose a password with at least 8 characters, plus uppercase, lowercase, number, and special character."
+            );
         } catch (TooManyRequestsException exception) {
             throw new AuthFlowException(HttpStatus.TOO_MANY_REQUESTS, "Too many attempts. Please wait a moment and try again.");
         } catch (CodeDeliveryFailureException exception) {
@@ -213,6 +216,11 @@ public class CognitoAuthService {
     private String friendlyMessage(String rawMessage, String fallback) {
         if (rawMessage == null || rawMessage.isBlank()) {
             return fallback;
+        }
+
+        String normalized = rawMessage.toLowerCase();
+        if (normalized.contains("password")) {
+            return "Choose a password with at least 8 characters, plus uppercase, lowercase, number, and special character.";
         }
 
         return rawMessage;
