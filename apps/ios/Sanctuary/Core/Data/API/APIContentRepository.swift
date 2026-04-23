@@ -28,12 +28,15 @@ actor APIContentRepository: ContentRepository, SaintRangeRepository {
         startDate: Date,
         endDate: Date
     ) async throws -> [Saint] {
-        let remoteSaints = try await apiClient.listSaintsInRange(
+        let remoteGroups = try await apiClient.listSaintsInRange(
             locale: locale,
             startDate: startDate,
             endDate: endDate
         )
-        return remoteSaints.map { mapSaintSummary($0, locale: locale) }
+        return remoteGroups.flatMap { group in
+            let feastDate = date(from: group.date)
+            return group.saints.map { mapSaintSummary($0, locale: locale, feastDateOverride: feastDate) }
+        }
     }
 
     func listNovenas(
@@ -149,14 +152,21 @@ actor APIContentRepository: ContentRepository, SaintRangeRepository {
         mapLiturgicalDay(try await apiClient.fetchLiturgicalDay(date: date))
     }
 
-    private func mapSaintSummary(_ response: APIContentSaintSummaryResponse, locale: ContentLocale) -> Saint {
-        Saint(
+    private func mapSaintSummary(
+        _ response: APIContentSaintSummaryResponse,
+        locale: ContentLocale,
+        feastDateOverride: Date? = nil
+    ) -> Saint {
+        let feastMonth = feastDateOverride.map { Calendar(identifier: .gregorian).component(.month, from: $0) } ?? response.feastMonth
+        let feastDay = feastDateOverride.map { Calendar(identifier: .gregorian).component(.day, from: $0) } ?? response.feastDay
+
+        return Saint(
             id: response.id,
             slug: response.slug,
             name: response.name,
             nameByLocale: localizedValueMap(value: response.name, locale: locale),
-            feastMonth: response.feastMonth,
-            feastDay: response.feastDay,
+            feastMonth: feastMonth,
+            feastDay: feastDay,
             imageURL: url(from: response.imageUrl),
             tags: [],
             patronages: [],

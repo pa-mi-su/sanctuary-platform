@@ -124,6 +124,11 @@ struct APIContentSaintSummaryResponse: Decodable, Sendable {
     let imageUrl: String?
 }
 
+struct APIContentSaintRangeDateResponse: Decodable, Sendable {
+    let date: String
+    let saints: [APIContentSaintSummaryResponse]
+}
+
 struct APIContentSaintDetailResponse: Decodable, Sendable {
     let id: String
     let slug: String
@@ -317,7 +322,7 @@ actor SanctuaryAPIClient {
         locale: ContentLocale,
         startDate: Date,
         endDate: Date
-    ) async throws -> [APIContentSaintSummaryResponse] {
+    ) async throws -> [APIContentSaintRangeDateResponse] {
         let queryItems = [
             URLQueryItem(name: "lang", value: locale.rawValue),
             URLQueryItem(name: "start", value: queryDateFormatter.string(from: startDate)),
