@@ -44,6 +44,35 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Select latest installed Xcode
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          SELECTED_XCODE="$(ruby <<'RUBY'
+          apps = Dir["/Applications/Xcode*.app"]
+          parsed = apps.filter_map do |path|
+            name = File.basename(path)
+            next unless name =~ /^Xcode_(\d+)(?:\.(\d+))?(?:\.(\d+))?\.app$/
+
+            [
+              [
+                Regexp.last_match(1).to_i,
+                Regexp.last_match(2).to_i,
+                Regexp.last_match(3).to_i
+              ],
+              path
+            ]
+          end
+
+          best = parsed.max_by(&:first)
+          puts(best ? best.last : "/Applications/Xcode.app")
+          RUBY
+          )"
+
+          sudo xcode-select -s "${SELECTED_XCODE}"
+          xcodebuild -version
+
       - name: Detect iOS changes
         id: changes
         shell: bash
@@ -130,6 +159,35 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
+
+      - name: Select latest installed Xcode
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          SELECTED_XCODE="$(ruby <<'RUBY'
+          apps = Dir["/Applications/Xcode*.app"]
+          parsed = apps.filter_map do |path|
+            name = File.basename(path)
+            next unless name =~ /^Xcode_(\d+)(?:\.(\d+))?(?:\.(\d+))?\.app$/
+
+            [
+              [
+                Regexp.last_match(1).to_i,
+                Regexp.last_match(2).to_i,
+                Regexp.last_match(3).to_i
+              ],
+              path
+            ]
+          end
+
+          best = parsed.max_by(&:first)
+          puts(best ? best.last : "/Applications/Xcode.app")
+          RUBY
+          )"
+
+          sudo xcode-select -s "${SELECTED_XCODE}"
+          xcodebuild -version
 
       - name: Upload Sanctuary-Dev to TestFlight
         shell: bash
@@ -358,6 +416,35 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v5
 
+      - name: Select latest installed Xcode
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          SELECTED_XCODE="$(ruby <<'RUBY'
+          apps = Dir["/Applications/Xcode*.app"]
+          parsed = apps.filter_map do |path|
+            name = File.basename(path)
+            next unless name =~ /^Xcode_(\d+)(?:\.(\d+))?(?:\.(\d+))?\.app$/
+
+            [
+              [
+                Regexp.last_match(1).to_i,
+                Regexp.last_match(2).to_i,
+                Regexp.last_match(3).to_i
+              ],
+              path
+            ]
+          end
+
+          best = parsed.max_by(&:first)
+          puts(best ? best.last : "/Applications/Xcode.app")
+          RUBY
+          )"
+
+          sudo xcode-select -s "${SELECTED_XCODE}"
+          xcodebuild -version
+
       - name: Upload Sanctuary-UAT to TestFlight
         shell: bash
         run: |
@@ -584,6 +671,35 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
+
+      - name: Select latest installed Xcode
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          SELECTED_XCODE="$(ruby <<'RUBY'
+          apps = Dir["/Applications/Xcode*.app"]
+          parsed = apps.filter_map do |path|
+            name = File.basename(path)
+            next unless name =~ /^Xcode_(\d+)(?:\.(\d+))?(?:\.(\d+))?\.app$/
+
+            [
+              [
+                Regexp.last_match(1).to_i,
+                Regexp.last_match(2).to_i,
+                Regexp.last_match(3).to_i
+              ],
+              path
+            ]
+          end
+
+          best = parsed.max_by(&:first)
+          puts(best ? best.last : "/Applications/Xcode.app")
+          RUBY
+          )"
+
+          sudo xcode-select -s "${SELECTED_XCODE}"
+          xcodebuild -version
 
       - name: Upload Sanctuary-Prod to App Store Connect
         shell: bash
