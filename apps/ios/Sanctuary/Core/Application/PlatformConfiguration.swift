@@ -61,12 +61,6 @@ struct PlatformConfiguration: Sendable {
             return url
         }
 
-        if environment == .prod {
-            return URL(string: productionAPIBaseURL)!
-        }
-
-        // Dev and UAT should never silently fall back to production. By default
-        // they talk to a local backend, which in turn can use local Postgres.
-        return URL(string: "http://localhost:8080")!
+        return URL(string: productionAPIBaseURL)!
     }
 }

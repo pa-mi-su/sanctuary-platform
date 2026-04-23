@@ -11,7 +11,6 @@ struct HomeView: View {
     @State private var showSaintsSearch = false
     @State private var showNovenasSearch = false
     @State private var showIntentionsSearch = false
-    @State private var showParishFinder = false
     @State private var showDailyReadings = false
     @State private var dailyReadingsURLOverride: URL?
 
@@ -21,23 +20,50 @@ struct HomeView: View {
 
     private var primaryActions: [HomeAction] {
         [
-            HomeAction(title: localization.t("home.saints"), icon: "person.3.fill", tint: AppTheme.glowGold) {
+            HomeAction(
+                title: localization.t("home.saints"),
+                subtitle: localization.t("home.saintsSubtitle"),
+                icon: "person.3.fill",
+                tint: AppTheme.glowGold,
+                illustrationAssetName: "HomeCardSaints"
+            ) {
                 showSaintsSearch = true
             },
-            HomeAction(title: localization.t("tab.novenas"), icon: "book.closed.fill", tint: AppTheme.glowBlue) {
+            HomeAction(
+                title: localization.t("tab.novenas"),
+                subtitle: localization.t("home.novenasSubtitle"),
+                icon: "book.closed.fill",
+                tint: AppTheme.glowBlue,
+                illustrationAssetName: "HomeCardNovenas"
+            ) {
                 showNovenasSearch = true
             },
-            HomeAction(title: localization.t("home.prayers"), icon: "hands.sparkles.fill", tint: AppTheme.glowRose) {
+            HomeAction(
+                title: localization.t("home.prayers"),
+                subtitle: localization.t("home.prayersSubtitle"),
+                icon: "hands.sparkles.fill",
+                tint: AppTheme.glowRose,
+                illustrationAssetName: "HomeCardPrayers"
+            ) {
                 showPrayersSearch = true
             },
-            HomeAction(title: localization.t("home.daily"), icon: "sun.max.fill", tint: AppTheme.todayHighlight) {
+            HomeAction(
+                title: localization.t("home.daily"),
+                subtitle: localization.t("home.dailySubtitle"),
+                icon: "sun.max.fill",
+                tint: AppTheme.todayHighlight,
+                illustrationAssetName: "HomeCardDailyReadings"
+            ) {
                 showDailyReadings = true
             },
-            HomeAction(title: localization.t("home.intentions"), icon: "heart.text.square.fill", tint: AppTheme.glowRose) {
+            HomeAction(
+                title: localization.t("home.intentions"),
+                subtitle: localization.t("home.intentionsSubtitle"),
+                icon: "heart.text.square.fill",
+                tint: AppTheme.glowRose,
+                illustrationAssetName: "HomeCardIntentions"
+            ) {
                 showIntentionsSearch = true
-            },
-            HomeAction(title: localization.t("home.parish"), icon: "location.fill", tint: AppTheme.glowBlue) {
-                showParishFinder = true
             }
         ]
     }
@@ -68,6 +94,12 @@ struct HomeView: View {
                             .offset(y: revealContent ? 0 : -8)
 
                             VStack(spacing: 16 * scale) {
+                                Text(localization.t("home.eyebrow"))
+                                    .font(AppTheme.rounded(13 * scale, weight: .bold))
+                                    .tracking(1.8 * scale)
+                                    .foregroundStyle(AppTheme.heroEyebrow)
+                                    .multilineTextAlignment(.center)
+
                                 ZStack {
                                     Circle()
                                         .fill(AppTheme.glowGold.opacity(0.22))
@@ -112,10 +144,12 @@ struct HomeView: View {
                             .opacity(revealContent ? 1 : 0)
                             .offset(y: revealContent ? 0 : 14)
 
-                            VStack(spacing: 14 * scale) {
+                            VStack(spacing: 16 * scale) {
                                 ForEach(Array(primaryActions.enumerated()), id: \.offset) { index, action in
-                                    Button(action.title, action: action.action)
-                                        .buttonStyle(HomePrimaryButtonStyle(icon: action.icon, accent: action.tint))
+                                    Button(action: action.action) {
+                                        HomeFeatureCard(action: action, scale: scale)
+                                    }
+                                    .buttonStyle(.plain)
                                         .opacity(revealContent ? 1 : 0)
                                         .offset(y: revealContent ? 0 : CGFloat(18 + (index * 5)))
                                         .animation(
@@ -162,9 +196,6 @@ struct HomeView: View {
             .sheet(isPresented: $showIntentionsSearch) {
                 NovenasSearchView(environment: environment, mode: .intentions)
             }
-            .sheet(isPresented: $showParishFinder) {
-                ParishFinderView()
-            }
             .sheet(isPresented: $showDailyReadings) {
                 DailyReadingsView(url: dailyReadingsURL)
             }
@@ -185,54 +216,6 @@ struct HomeView: View {
         } catch {
             dailyReadingsURLOverride = localization.language.dailyReadingsLandingURL
         }
-    }
-}
-
-private struct HomePrimaryButtonStyle: ButtonStyle {
-    let icon: String
-    let accent: Color
-
-    func makeBody(configuration: Configuration) -> some View {
-        HStack(spacing: 14) {
-            ZStack {
-                Circle()
-                    .fill(accent.opacity(0.22))
-                    .frame(width: 40, height: 40)
-                Image(systemName: icon)
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(accent)
-            }
-
-            configuration.label
-                .font(AppTheme.rounded(18, weight: .bold))
-                .foregroundStyle(.white)
-
-            Spacer()
-
-            Image(systemName: "arrow.up.right")
-                .font(.system(size: 14, weight: .bold))
-                .foregroundStyle(Color.white.opacity(0.72))
-        }
-        .padding(.horizontal, 18)
-        .padding(.vertical, 17)
-        .background(
-            RoundedRectangle(cornerRadius: 26, style: .continuous)
-                .fill(AppTheme.cardBackground)
-                .overlay(
-                    LinearGradient(
-                        colors: [Color.white.opacity(0.08), Color.white.opacity(0.02)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 26, style: .continuous)
-                        .stroke(Color.white.opacity(0.12), lineWidth: 1)
-                )
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
-        .scaleEffect(configuration.isPressed ? 0.985 : 1.0)
-        .shadow(color: Color.black.opacity(configuration.isPressed ? 0.16 : 0.24), radius: 18, x: 0, y: 10)
     }
 }
 
@@ -275,9 +258,139 @@ private struct LanguagePickerSheet: View {
 
 private struct HomeAction {
     let title: String
+    let subtitle: String
     let icon: String
     let tint: Color
+    let illustrationAssetName: String
     let action: () -> Void
+}
+
+private struct HomeFeatureCard: View {
+    let action: HomeAction
+    let scale: CGFloat
+
+    var body: some View {
+        ZStack(alignment: .bottomLeading) {
+            RoundedRectangle(cornerRadius: 28 * scale, style: .continuous)
+                .fill(cardGradient)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 28 * scale, style: .continuous)
+                        .fill(
+                            LinearGradient(
+                                colors: [Color.white.opacity(0.06), Color.clear, Color.black.opacity(0.18)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 28 * scale, style: .continuous)
+                        .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                )
+
+            VStack(alignment: .leading, spacing: 14 * scale) {
+                Spacer(minLength: 0)
+
+                HStack(alignment: .center, spacing: 14 * scale) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 14 * scale, style: .continuous)
+                            .fill(Color.white.opacity(0.12))
+                            .frame(width: 42 * scale, height: 42 * scale)
+
+                        Image(systemName: action.icon)
+                            .font(.system(size: 18 * scale, weight: .semibold))
+                            .foregroundStyle(action.tint)
+                    }
+
+                    VStack(alignment: .leading, spacing: 4 * scale) {
+                        Text(action.title)
+                            .font(AppTheme.rounded(22 * scale, weight: .bold))
+                            .foregroundStyle(.white)
+                        Text(action.subtitle)
+                            .font(AppTheme.rounded(14 * scale, weight: .medium))
+                            .foregroundStyle(Color.white.opacity(0.78))
+                            .multilineTextAlignment(.leading)
+                    }
+
+                    Spacer(minLength: 0)
+
+                    ZStack {
+                        Circle()
+                            .fill(Color.white.opacity(0.12))
+                            .frame(width: 32 * scale, height: 32 * scale)
+
+                        Image(systemName: "arrow.up.right")
+                            .font(.system(size: 12 * scale, weight: .bold))
+                            .foregroundStyle(Color.white.opacity(0.78))
+                    }
+                }
+            }
+            .padding(.horizontal, 22 * scale)
+            .padding(.vertical, 20 * scale)
+
+            VStack {
+                HStack {
+                    Spacer()
+
+                    Image(action.illustrationAssetName)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 156 * scale, height: 108 * scale)
+                        .clipShape(RoundedRectangle(cornerRadius: 22 * scale, style: .continuous))
+                        .shadow(color: Color.black.opacity(0.24), radius: 18 * scale, x: 0, y: 10 * scale)
+                }
+
+                Spacer()
+            }
+            .padding(.top, 16 * scale)
+            .padding(.trailing, 16 * scale)
+            .allowsHitTesting(false)
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: 188 * scale)
+        .shadow(color: Color.black.opacity(0.24), radius: 18 * scale, x: 0, y: 10 * scale)
+    }
+
+    private var cardGradient: LinearGradient {
+        switch action.illustrationAssetName {
+        case "HomeCardSaints":
+            return LinearGradient(
+                colors: [Color(hex: "#153646").opacity(0.92), Color(hex: "#1C5461").opacity(0.76)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        case "HomeCardNovenas":
+            return LinearGradient(
+                colors: [Color(hex: "#0D2535").opacity(0.94), Color(hex: "#1B576C").opacity(0.72)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        case "HomeCardPrayers":
+            return LinearGradient(
+                colors: [Color(hex: "#2C3144").opacity(0.9), Color(hex: "#15424D").opacity(0.72)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        case "HomeCardDailyReadings":
+            return LinearGradient(
+                colors: [Color(hex: "#1C514C").opacity(0.9), Color(hex: "#143B4D").opacity(0.74)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        case "HomeCardIntentions":
+            return LinearGradient(
+                colors: [Color(hex: "#4C3B56").opacity(0.9), Color(hex: "#15404B").opacity(0.74)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        default:
+            return LinearGradient(
+                colors: [AppTheme.cardBackground, AppTheme.cardBackground.opacity(0.76)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        }
+    }
 }
 
 struct HomeView_Previews: PreviewProvider {

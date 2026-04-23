@@ -41,14 +41,14 @@ apps/ios/
 ## Environment Routing
 
 - `Sanctuary-Prod` points to the production API.
-- `Sanctuary-Dev` points to `http://localhost:8080` by default.
-- `Sanctuary-UAT` points to `http://localhost:8080` by default.
+- `Sanctuary-Dev` points to the production API.
+- `Sanctuary-UAT` points to the production API.
 
 Important:
 
 - iOS never talks directly to PostgreSQL or RDS.
-- Dev and UAT now point to a local backend by default, and that backend can use your local Postgres instance.
-- For real-device testing, `localhost` means the device itself, not your Mac. In that case, override `SANCTUARY_API_BASE_URL` to your Mac's LAN IP or a tunnel URL.
+- All environments now point at the production AWS API, and that API is backed by the production RDS instance.
+- You can still override `SANCTUARY_API_BASE_URL` explicitly when you need to test against another backend.
 
 ## Remaining Verification
 
