@@ -17,6 +17,7 @@ enum AppTheme {
     static let cardBackgroundSoft = Color.white.opacity(0.08)
     static let cardText = Color.white
     static let subtitleText = Color.white.opacity(0.74)
+    static let heroEyebrow = Color(hex: "#8BD7EC")
 
     static let tabBackground = Color(hex: "#08131D").opacity(0.86)
     static let tabBorder = Color(hex: "#2A5B70")

@@ -94,6 +94,12 @@ struct HomeView: View {
                             .offset(y: revealContent ? 0 : -8)
 
                             VStack(spacing: 16 * scale) {
+                                Text(localization.t("home.eyebrow"))
+                                    .font(AppTheme.rounded(13 * scale, weight: .bold))
+                                    .tracking(1.8 * scale)
+                                    .foregroundStyle(AppTheme.heroEyebrow)
+                                    .multilineTextAlignment(.center)
+
                                 ZStack {
                                     Circle()
                                         .fill(AppTheme.glowGold.opacity(0.22))
