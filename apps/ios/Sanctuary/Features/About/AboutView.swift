@@ -4,7 +4,7 @@ struct AboutView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var localization: LocalizationManager
 
-    private let appStoreURL = "https://apps.apple.com/us/app/sanctuary-prayer-peace/id6759986068?uo=4"
+    private let desktopURL = "https://mydailysanctuary.com"
     private let supportEmail = "mailto:info@mydailysanctuary.com"
     private let usccbURL = "https://bible.usccb.org/daily-bible-reading"
     private let wikipediaURL = "https://www.wikipedia.org/"
@@ -32,14 +32,9 @@ struct AboutView: View {
                             }
                         }
 
-                        AboutCard(title: localization.t("about.iosDownload")) {
-                            Text(localization.t("about.iosBody"))
-                            LinkButton(title: localization.t("about.link.appStore"), url: appStoreURL)
-                        }
-
-                        AboutCard(title: localization.t("about.androidDownload")) {
-                            Text(localization.t("about.androidBody"))
-                            DisabledButton(title: localization.t("about.link.googlePlaySoon"))
+                        AboutCard(title: localization.t("about.desktopVersion")) {
+                            Text(localization.t("about.desktopBody"))
+                            LinkButton(title: localization.t("about.link.desktop"), url: desktopURL)
                         }
 
                         AboutCard(title: localization.t("about.whatsInApp")) {
