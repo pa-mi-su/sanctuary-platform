@@ -188,12 +188,7 @@ struct HomeView: View {
                 PrayersSearchView(environment: environment)
             }
             .sheet(isPresented: $showSaintsList) {
-                SaintsListView(
-                    viewModel: SaintsListViewModel(
-                        contentRepository: environment.contentRepository,
-                        locale: localization.language.contentLocale
-                    )
-                )
+                SaintsSearchView(environment: environment)
             }
             .sheet(isPresented: $showNovenasSearch) {
                 NovenasSearchView(environment: environment)
