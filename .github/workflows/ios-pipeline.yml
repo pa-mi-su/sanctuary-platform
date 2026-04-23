@@ -7,9 +7,6 @@ on:
       - uat
       - prod
       - main
-    paths:
-      - "apps/ios/**"
-      - ".github/workflows/ios-pipeline.yml"
   push:
     branches:
       - main
@@ -38,10 +35,33 @@ jobs:
   validate:
     name: Validate iOS Build
     runs-on: macos-15
+    outputs:
+      has_ios_changes: ${{ steps.changes.outputs.has_ios_changes }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Detect iOS changes
+        id: changes
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "${GITHUB_EVENT_NAME}" != "pull_request" ]]; then
+            echo "has_ios_changes=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
+
+          if git diff --quiet FETCH_HEAD...HEAD -- apps/ios .github/workflows/ios-pipeline.yml; then
+            echo "has_ios_changes=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_ios_changes=true" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Resolve validation target
         id: resolve
@@ -75,6 +95,11 @@ jobs:
 
       - name: Build iOS app for simulator
         run: |
+          if [[ "${{ steps.changes.outputs.has_ios_changes }}" != "true" ]]; then
+            echo "No iOS changes detected for this PR. Validation passes without building."
+            exit 0
+          fi
+
           xcodebuild \
             -project apps/ios/Sanctuary.xcodeproj \
             -scheme "${{ steps.resolve.outputs.scheme }}" \
@@ -109,6 +134,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+
+          if [[ "${{ needs.validate.outputs.has_ios_changes }}" != "true" ]]; then
+            echo "No iOS changes detected for this PR. Dev TestFlight upload is not needed."
+            exit 0
+          fi
 
           required_vars=(
             IOS_SCHEME
@@ -328,6 +358,11 @@ jobs:
         run: |
           set -euo pipefail
 
+          if [[ "${{ needs.validate.outputs.has_ios_changes }}" != "true" ]]; then
+            echo "No iOS changes detected for this PR. UAT TestFlight upload is not needed."
+            exit 0
+          fi
+
           required_vars=(
             IOS_SCHEME
             IOS_CONFIGURATION
@@ -544,6 +579,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+
+          if [[ "${{ needs.validate.outputs.has_ios_changes }}" != "true" ]]; then
+            echo "No iOS changes detected for this run. Production upload is not needed."
+            exit 0
+          fi
 
           required_vars=(
             IOS_SCHEME
