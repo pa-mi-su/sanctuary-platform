@@ -156,6 +156,7 @@ jobs:
           echo "${IOS_DISTRIBUTION_CERTIFICATE_P12_BASE64}" | base64 --decode > "${CERT_PATH}"
           echo "${IOS_PROVISIONING_PROFILE_DEV_BASE64}" | base64 --decode > "${PROFILE_PATH}"
           cp "${API_KEY_PATH}" "${APP_STORE_CONNECT_PRIVATE_KEYS_DIR}/AuthKey_${APP_STORE_CONNECT_API_KEY_ID}.p8"
+          export API_KEY_PATH
 
           generate_app_store_connect_token() {
             ruby <<'RUBY'
@@ -373,6 +374,7 @@ jobs:
           echo "${IOS_DISTRIBUTION_CERTIFICATE_P12_BASE64}" | base64 --decode > "${CERT_PATH}"
           echo "${IOS_PROVISIONING_PROFILE_UAT_BASE64}" | base64 --decode > "${PROFILE_PATH}"
           cp "${API_KEY_PATH}" "${APP_STORE_CONNECT_PRIVATE_KEYS_DIR}/AuthKey_${APP_STORE_CONNECT_API_KEY_ID}.p8"
+          export API_KEY_PATH
 
           generate_app_store_connect_token() {
             ruby <<'RUBY'
@@ -585,6 +587,7 @@ jobs:
           echo "${APP_STORE_CONNECT_API_PRIVATE_KEY_BASE64}" | base64 --decode > "${API_KEY_PATH}"
           echo "${IOS_DISTRIBUTION_CERTIFICATE_P12_BASE64}" | base64 --decode > "${CERT_PATH}"
           cp "${API_KEY_PATH}" "${APP_STORE_CONNECT_PRIVATE_KEYS_DIR}/AuthKey_${APP_STORE_CONNECT_API_KEY_ID}.p8"
+          export API_KEY_PATH
 
           generate_app_store_connect_token() {
             ruby <<'RUBY'
