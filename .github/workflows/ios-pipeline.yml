@@ -123,6 +123,7 @@ jobs:
       APP_STORE_CONNECT_API_PRIVATE_KEY_BASE64: ${{ secrets.IOS_APP_STORE_CONNECT_API_PRIVATE_KEY_BASE64 }}
       IOS_DISTRIBUTION_CERTIFICATE_P12_BASE64: ${{ secrets.IOS_DISTRIBUTION_CERTIFICATE_P12_BASE64 }}
       IOS_DISTRIBUTION_CERTIFICATE_PASSWORD: ${{ secrets.IOS_DISTRIBUTION_CERTIFICATE_PASSWORD }}
+      IOS_PROVISIONING_PROFILE_PROD_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_PROD_BASE64 }}
       IOS_PROVISIONING_PROFILE_UAT_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_UAT_BASE64 }}
       IOS_PROVISIONING_PROFILE_DEV_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_DEV_BASE64 }}
 
@@ -578,6 +579,7 @@ jobs:
       APP_STORE_CONNECT_API_PRIVATE_KEY_BASE64: ${{ secrets.IOS_APP_STORE_CONNECT_API_PRIVATE_KEY_BASE64 }}
       IOS_DISTRIBUTION_CERTIFICATE_P12_BASE64: ${{ secrets.IOS_DISTRIBUTION_CERTIFICATE_P12_BASE64 }}
       IOS_DISTRIBUTION_CERTIFICATE_PASSWORD: ${{ secrets.IOS_DISTRIBUTION_CERTIFICATE_PASSWORD }}
+      IOS_PROVISIONING_PROFILE_PROD_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_PROD_BASE64 }}
 
     steps:
       - name: Checkout repository
@@ -603,6 +605,7 @@ jobs:
             APP_STORE_CONNECT_API_PRIVATE_KEY_BASE64
             IOS_DISTRIBUTION_CERTIFICATE_P12_BASE64
             IOS_DISTRIBUTION_CERTIFICATE_PASSWORD
+            IOS_PROVISIONING_PROFILE_PROD_BASE64
           )
 
           for var_name in "${required_vars[@]}"; do
@@ -620,11 +623,13 @@ jobs:
           API_KEY_PATH="${RUNNER_TEMP}/AuthKey_${APP_STORE_CONNECT_API_KEY_ID}.p8"
           APP_STORE_CONNECT_PRIVATE_KEYS_DIR="${HOME}/.appstoreconnect/private_keys"
           CERT_PATH="${RUNNER_TEMP}/ios_distribution.p12"
+          PROFILE_PATH="${RUNNER_TEMP}/Sanctuary-Prod.mobileprovision"
           EXPORT_OPTIONS_PATH="${RUNNER_TEMP}/ExportOptions.plist"
+          PROVISIONING_PROFILE_DIR="${HOME}/Library/MobileDevice/Provisioning Profiles"
 
           cleanup() {
             security delete-keychain "${KEYCHAIN_PATH}" >/dev/null 2>&1 || true
-            rm -f "${API_KEY_PATH}" "${CERT_PATH}" "${EXPORT_OPTIONS_PATH}" "${APP_STORE_CONNECT_PRIVATE_KEYS_DIR}/AuthKey_${APP_STORE_CONNECT_API_KEY_ID}.p8" >/dev/null 2>&1 || true
+            rm -f "${API_KEY_PATH}" "${CERT_PATH}" "${PROFILE_PATH}" "${EXPORT_OPTIONS_PATH}" "${APP_STORE_CONNECT_PRIVATE_KEYS_DIR}/AuthKey_${APP_STORE_CONNECT_API_KEY_ID}.p8" >/dev/null 2>&1 || true
           }
 
           trap cleanup EXIT
@@ -634,6 +639,7 @@ jobs:
 
           echo "${APP_STORE_CONNECT_API_PRIVATE_KEY_BASE64}" | base64 --decode > "${API_KEY_PATH}"
           echo "${IOS_DISTRIBUTION_CERTIFICATE_P12_BASE64}" | base64 --decode > "${CERT_PATH}"
+          echo "${IOS_PROVISIONING_PROFILE_PROD_BASE64}" | base64 --decode > "${PROFILE_PATH}"
           cp "${API_KEY_PATH}" "${APP_STORE_CONNECT_PRIVATE_KEYS_DIR}/AuthKey_${APP_STORE_CONNECT_API_KEY_ID}.p8"
           export API_KEY_PATH
 
@@ -711,6 +717,9 @@ jobs:
             -k "${KEYCHAIN_PASSWORD}" \
             "${KEYCHAIN_PATH}" >/dev/null
 
+          mkdir -p "${PROVISIONING_PROFILE_DIR}"
+          cp "${PROFILE_PATH}" "${PROVISIONING_PROFILE_DIR}/Sanctuary-Prod.mobileprovision"
+
           cat > "${EXPORT_OPTIONS_PATH}" <<EOF
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -718,10 +727,17 @@ jobs:
           <dict>
             <key>method</key>
             <string>app-store-connect</string>
+            <key>signingCertificate</key>
+            <string>Apple Distribution</string>
             <key>signingStyle</key>
-            <string>automatic</string>
+            <string>manual</string>
             <key>teamID</key>
             <string>${IOS_TEAM_ID}</string>
+            <key>provisioningProfiles</key>
+            <dict>
+              <key>com.pamisu.Sanctuary</key>
+              <string>Sanctuary Prod App Store</string>
+            </dict>
             <key>stripSwiftSymbols</key>
             <true/>
             <key>uploadSymbols</key>
@@ -736,6 +752,10 @@ jobs:
             -configuration "${IOS_CONFIGURATION}" \
             -archivePath "${ARCHIVE_PATH}" \
             -destination "generic/platform=iOS" \
+            CODE_SIGN_STYLE=Manual \
+            DEVELOPMENT_TEAM="${IOS_TEAM_ID}" \
+            CODE_SIGN_IDENTITY="Apple Distribution" \
+            PROVISIONING_PROFILE_SPECIFIER="Sanctuary Prod App Store" \
             -allowProvisioningUpdates \
             -authenticationKeyPath "${API_KEY_PATH}" \
             -authenticationKeyID "${APP_STORE_CONNECT_API_KEY_ID}" \
