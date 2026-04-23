@@ -49,7 +49,8 @@ struct SaintsSearchView: View {
                                         subtitle: viewModel.summary(for: saint),
                                         meta: "\(localization.t("saints.feastShort")): \(saint.feastMonth)/\(saint.feastDay)",
                                         accent: AppTheme.glowGold,
-                                        icon: "person.fill"
+                                        icon: "person.fill",
+                                        imageURL: saint.imageURL
                                     )
                                 }
                                 .buttonStyle(.plain)
@@ -128,7 +129,8 @@ struct NovenasSearchView: View {
                                             subtitle: item.subtitle,
                                             meta: item.meta,
                                             accent: AppTheme.glowRose,
-                                            icon: "heart.text.square.fill"
+                                            icon: "heart.text.square.fill",
+                                            imageURL: item.novena.imageURL
                                         )
                                     }
                                     .buttonStyle(.plain)
@@ -157,7 +159,8 @@ struct NovenasSearchView: View {
                                             subtitle: viewModel.summary(for: novena),
                                             meta: viewModel.dayText(for: novena),
                                             accent: AppTheme.glowBlue,
-                                            icon: "book.closed.fill"
+                                            icon: "book.closed.fill",
+                                            imageURL: novena.imageURL
                                         )
                                     }
                                     .buttonStyle(.plain)
@@ -208,7 +211,15 @@ struct NovenasSearchView: View {
 
     private func rebuildIntentionItems() async {
         let locale = localization.language.contentLocale
-        let results = (try? await environment.contentRepository.searchNovenasByIntentions(locale: locale, query: intentionsQuery)) ?? []
+        let trimmedQuery = intentionsQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        let results: [Novena]
+
+        if trimmedQuery.isEmpty, !viewModel.novenas.isEmpty {
+            results = viewModel.novenas
+        } else {
+            results = (try? await environment.contentRepository.searchNovenasByIntentions(locale: locale, query: intentionsQuery)) ?? []
+        }
+
         intentionItems = results.map { novena in
             let title = viewModel.title(for: novena)
             let summary = viewModel.summary(for: novena)
@@ -331,22 +342,27 @@ private struct SearchResultsCount: View {
     }
 }
 
-private struct SearchResultCard: View {
+struct SearchResultCard: View {
     let title: String
     let subtitle: String
     let meta: String?
     let accent: Color
     let icon: String
+    var imageURL: URL? = nil
 
     var body: some View {
         HStack(alignment: .top, spacing: 14) {
-            ZStack {
-                Circle()
-                    .fill(accent.opacity(0.18))
-                    .frame(width: 42, height: 42)
-                Image(systemName: icon)
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(accent)
+            if let imageURL {
+                SearchResultThumbnail(imageURL: imageURL, accent: accent, icon: icon)
+            } else {
+                ZStack {
+                    Circle()
+                        .fill(accent.opacity(0.18))
+                        .frame(width: 42, height: 42)
+                    Image(systemName: icon)
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(accent)
+                }
             }
 
             VStack(alignment: .leading, spacing: 6) {
@@ -380,5 +396,36 @@ private struct SearchResultCard: View {
         .padding(.vertical, 15)
         .appGlassCard(cornerRadius: 24)
         .contentShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+    }
+}
+
+private struct SearchResultThumbnail: View {
+    let imageURL: URL
+    let accent: Color
+    let icon: String
+
+    var body: some View {
+        AsyncImage(url: imageURL) { phase in
+            switch phase {
+            case .success(let image):
+                image
+                    .resizable()
+                    .scaledToFill()
+            default:
+                ZStack {
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .fill(accent.opacity(0.16))
+                    Image(systemName: icon)
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(accent)
+                }
+            }
+        }
+        .frame(width: 64, height: 88)
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+        )
     }
 }
