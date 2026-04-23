@@ -8,7 +8,7 @@ struct HomeView: View {
     @State private var showLanguageDialog = false
     @State private var showAbout = false
     @State private var showPrayersSearch = false
-    @State private var showSaintsSearch = false
+    @State private var showSaintsList = false
     @State private var showNovenasSearch = false
     @State private var showIntentionsSearch = false
     @State private var showDailyReadings = false
@@ -27,7 +27,7 @@ struct HomeView: View {
                 tint: AppTheme.glowGold,
                 illustrationAssetName: "HomeCardSaints"
             ) {
-                showSaintsSearch = true
+                showSaintsList = true
             },
             HomeAction(
                 title: localization.t("tab.novenas"),
@@ -187,8 +187,13 @@ struct HomeView: View {
             .sheet(isPresented: $showPrayersSearch) {
                 PrayersSearchView(environment: environment)
             }
-            .sheet(isPresented: $showSaintsSearch) {
-                SaintsSearchView(environment: environment)
+            .sheet(isPresented: $showSaintsList) {
+                SaintsListView(
+                    viewModel: SaintsListViewModel(
+                        contentRepository: environment.contentRepository,
+                        locale: localization.language.contentLocale
+                    )
+                )
             }
             .sheet(isPresented: $showNovenasSearch) {
                 NovenasSearchView(environment: environment)
