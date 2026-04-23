@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 260" role="img" aria-label="Saint icon illustration">
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#5fb0c7"/>
+      <stop offset="1" stop-color="#17394a"/>
+    </linearGradient>
+    <radialGradient id="halo" cx="50%" cy="34%" r="34%">
+      <stop offset="0" stop-color="#f7df91" stop-opacity=".9"/>
+      <stop offset=".42" stop-color="#f7df91" stop-opacity=".24"/>
+      <stop offset="1" stop-color="#f7df91" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="420" height="260" rx="28" fill="url(#bg)"/>
+  <circle cx="250" cy="98" r="88" fill="url(#halo)"/>
+  <path d="M124 214c18-56 62-82 126-82s108 26 126 82" fill="#102e3d" opacity=".72"/>
+  <circle cx="250" cy="102" r="45" fill="#d9c49b"/>
+  <path d="M207 98c14-44 71-50 90-8-20 7-48 8-90 8z" fill="#243949"/>
+  <path d="M248 52v62M218 83h62" stroke="#f7df91" stroke-width="10" stroke-linecap="round"/>
+  <path d="M148 220c26-38 60-56 102-56s76 18 102 56" fill="#2a5e72"/>
+  <path d="M64 208c42-21 80-28 116-22" stroke="#8ee0f2" stroke-width="10" stroke-linecap="round" opacity=".45"/>
+  <path d="M310 186c34-8 64-2 92 20" stroke="#f7df91" stroke-width="10" stroke-linecap="round" opacity=".38"/>
+</svg>

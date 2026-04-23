@@ -88,7 +88,7 @@ struct MeView: View {
     }
 
     private var accountHeader: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 14) {
             Text(localization.t("tab.me"))
                 .font(AppTheme.rounded(42, weight: .bold))
                 .foregroundStyle(.white)
@@ -97,16 +97,55 @@ struct MeView: View {
                 .font(AppTheme.rounded(18, weight: .medium))
                 .foregroundStyle(AppTheme.subtitleText)
 
-            VStack(alignment: .leading, spacing: 8) {
-                Text(accountStore.profile?.displayName ?? accountStore.session?.displayName ?? "Sanctuary")
-                    .font(AppTheme.rounded(28, weight: .bold))
-                    .foregroundStyle(.white)
+            VStack(alignment: .leading, spacing: 18) {
+                Text(localization.t("me.signedIn"))
+                    .font(AppTheme.rounded(13, weight: .bold))
+                    .tracking(1.6)
+                    .foregroundStyle(AppTheme.heroEyebrow)
 
-                if let email = accountStore.profile?.email ?? accountStore.session?.email, !email.isEmpty {
-                    Text(email)
-                        .font(AppTheme.rounded(16, weight: .medium))
-                        .foregroundStyle(AppTheme.subtitleText)
+                HStack(alignment: .top, spacing: 14) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 22, style: .continuous)
+                            .fill(
+                                LinearGradient(
+                                    colors: [Color.white.opacity(0.12), Color.white.opacity(0.02)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .frame(width: 64, height: 64)
+
+                        Text(initials)
+                            .font(AppTheme.rounded(22, weight: .bold))
+                            .foregroundStyle(.white)
+                    }
+
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(resolvedDisplayName)
+                            .font(AppTheme.rounded(30, weight: .bold))
+                            .foregroundStyle(.white)
+                            .multilineTextAlignment(.leading)
+
+                        if let email = resolvedEmail {
+                            Text(email)
+                                .font(AppTheme.rounded(16, weight: .medium))
+                                .foregroundStyle(AppTheme.subtitleText)
+                                .textSelection(.enabled)
+                        }
+
+                        Text(localization.t("me.identitySupport"))
+                            .font(AppTheme.rounded(15, weight: .medium))
+                            .foregroundStyle(AppTheme.subtitleText)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+
+                    Spacer(minLength: 0)
                 }
+
+                Button(localization.t("me.logout")) {
+                    accountStore.logout()
+                }
+                .buttonStyle(SecondaryPillButtonStyle())
             }
             .padding(18)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -239,6 +278,51 @@ struct MeView: View {
 
     private var favoriteSaints: [UserFavorite] {
         progressStore.favorites(for: .saint)
+    }
+
+    private var resolvedDisplayName: String {
+        let firstAndLast = [
+            accountStore.profile?.firstName?.trimmingCharacters(in: .whitespacesAndNewlines),
+            accountStore.profile?.lastName?.trimmingCharacters(in: .whitespacesAndNewlines)
+        ]
+            .compactMap { $0 }
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        return [
+            firstAndLast,
+            accountStore.profile?.displayName,
+            accountStore.session?.displayName,
+            accountStore.profile?.email,
+            accountStore.session?.email,
+            localization.t("me.fallbackName")
+        ]
+        .compactMap { value in
+            let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines)
+            return (trimmed?.isEmpty == false) ? trimmed : nil
+        }
+        .first ?? localization.t("me.fallbackName")
+    }
+
+    private var resolvedEmail: String? {
+        let email = accountStore.profile?.email ?? accountStore.session?.email
+        let trimmed = email?.trimmingCharacters(in: .whitespacesAndNewlines)
+        return (trimmed?.isEmpty == false) ? trimmed : nil
+    }
+
+    private var initials: String {
+        let parts = resolvedDisplayName
+            .split(whereSeparator: \.isWhitespace)
+            .map(String.init)
+            .filter { !$0.isEmpty }
+
+        if parts.isEmpty {
+            return "S"
+        }
+
+        let collected = parts.prefix(2).compactMap { $0.first?.uppercased() }.joined()
+        return collected.isEmpty ? "S" : collected
     }
 
     private func saintName(for id: String) -> String {

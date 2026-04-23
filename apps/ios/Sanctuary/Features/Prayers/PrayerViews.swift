@@ -178,19 +178,14 @@ struct PrayersSearchView: View {
                                 NavigationLink {
                                     PrayerDetailView(contentRepository: environment.contentRepository, prayer: prayer)
                                 } label: {
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text(viewModel.title(for: prayer, locale: locale))
-                                            .font(AppTheme.rounded(20, weight: .bold))
-                                            .foregroundStyle(AppTheme.cardText)
-                                        Text(viewModel.subtitle(for: prayer, locale: locale))
-                                            .font(AppTheme.rounded(15, weight: .medium))
-                                            .foregroundStyle(AppTheme.cardText.opacity(0.8))
-                                            .lineLimit(2)
-                                    }
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .padding(.horizontal, 16)
-                                    .padding(.vertical, 14)
-                                    .appGlassCard(cornerRadius: 22)
+                                    SearchResultCard(
+                                        title: viewModel.title(for: prayer, locale: locale),
+                                        subtitle: viewModel.subtitle(for: prayer, locale: locale),
+                                        meta: prayer.category,
+                                        accent: AppTheme.glowRose,
+                                        icon: "hands.sparkles.fill",
+                                        imageURL: prayer.imageURL
+                                    )
                                 }
                                 .buttonStyle(.plain)
                             }

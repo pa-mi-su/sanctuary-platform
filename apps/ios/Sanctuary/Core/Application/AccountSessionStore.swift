@@ -236,13 +236,16 @@ final class AccountSessionStore: ObservableObject {
         _ response: APIUserProfileResponse,
         fallbackSession: AccountSession?
     ) -> UserAccountProfile {
+        let firstAndLastName = [response.firstName?.trimmed, response.lastName?.trimmed]
+            .compactMap { $0 }
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
+            .trimmed
+
         let resolvedDisplayName = [
-            response.displayName?.trimmed,
-            [response.firstName?.trimmed, response.lastName?.trimmed]
-                .compactMap { $0 }
-                .filter { !$0.isEmpty }
-                .joined(separator: " ")
-                .trimmed,
+            firstAndLastName,
+            sanitizedDisplayName(response.displayName),
+            sanitizedDisplayName(fallbackSession?.displayName),
             fallbackSession?.displayName.trimmed,
             response.email?.trimmed,
             fallbackSession?.email.trimmed,
@@ -270,6 +273,19 @@ final class AccountSessionStore: ObservableObject {
             activeNovenaCount: response.activeNovenaCount,
             completedNovenaCount: response.completedNovenaCount
         )
+    }
+
+    private func sanitizedDisplayName(_ value: String?) -> String? {
+        guard let trimmed = value?.trimmed, !trimmed.isEmpty else {
+            return nil
+        }
+
+        let uuidPattern = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/
+        if trimmed.contains(uuidPattern) {
+            return nil
+        }
+
+        return trimmed
     }
 
     private func placeholderProfile(from session: AccountSession) -> UserAccountProfile {

@@ -10,7 +10,7 @@ type AppLanguage = 'en' | 'es' | 'pl';
       <section class="hero glass-card">
         <div class="hero-stack">
           <p class="eyebrow">
-            {{ t('Catholic prayer companion', 'Compañero católico de oración', 'Katolicki towarzysz modlitwy') }}
+            {{ t('#1 Catholic prayer companion', '#1 Compañero católico de oración', '#1 Katolicki towarzysz modlitwy') }}
           </p>
 
           <div class="logo-wrap">
