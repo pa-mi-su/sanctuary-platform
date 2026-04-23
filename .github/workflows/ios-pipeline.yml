@@ -1,0 +1,772 @@
+name: iOS Pipeline
+
+on:
+  pull_request:
+    branches:
+      - dev
+      - uat
+      - prod
+      - main
+  push:
+    branches:
+      - main
+    paths:
+      - "apps/ios/**"
+      - ".github/workflows/ios-pipeline.yml"
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Pipeline target to run"
+        required: true
+        type: choice
+        options:
+          - dev
+          - uat
+          - prod
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-pipeline-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate iOS Build
+    runs-on: macos-15
+    outputs:
+      has_ios_changes: ${{ steps.changes.outputs.has_ios_changes }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Detect iOS changes
+        id: changes
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "${GITHUB_EVENT_NAME}" != "pull_request" ]]; then
+            echo "has_ios_changes=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
+
+          if git diff --quiet FETCH_HEAD...HEAD -- apps/ios .github/workflows/ios-pipeline.yml; then
+            echo "has_ios_changes=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_ios_changes=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Resolve validation target
+        id: resolve
+        run: |
+          if [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
+            target="${{ github.base_ref }}"
+          elif [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            target="${{ inputs.target }}"
+          else
+            target="main"
+          fi
+
+          case "$target" in
+            dev)
+              echo "scheme=Sanctuary-Dev" >> "$GITHUB_OUTPUT"
+              echo "configuration=Debug-Dev" >> "$GITHUB_OUTPUT"
+              ;;
+            uat)
+              echo "scheme=Sanctuary-UAT" >> "$GITHUB_OUTPUT"
+              echo "configuration=Debug-UAT" >> "$GITHUB_OUTPUT"
+              ;;
+            prod|main)
+              echo "scheme=Sanctuary-Prod" >> "$GITHUB_OUTPUT"
+              echo "configuration=Debug" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "::error::Unsupported target '$target' for iOS validation."
+              exit 1
+              ;;
+          esac
+
+      - name: Build iOS app for simulator
+        run: |
+          if [[ "${{ steps.changes.outputs.has_ios_changes }}" != "true" ]]; then
+            echo "No iOS changes detected for this PR. Validation passes without building."
+            exit 0
+          fi
+
+          xcodebuild \
+            -project apps/ios/Sanctuary.xcodeproj \
+            -scheme "${{ steps.resolve.outputs.scheme }}" \
+            -configuration "${{ steps.resolve.outputs.configuration }}" \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+  upload-dev:
+    name: Upload Dev TestFlight Build
+    needs: validate
+    if: >
+      (github.event_name == 'pull_request' && github.base_ref == 'dev') ||
+      (github.event_name == 'workflow_dispatch' && inputs.target == 'dev')
+    runs-on: macos-15
+    environment: dev
+    env:
+      IOS_TEAM_ID: ${{ vars.IOS_TEAM_ID || 'Z9L9BZFYLS' }}
+      APP_STORE_CONNECT_API_KEY_ID: ${{ vars.IOS_APP_STORE_CONNECT_API_KEY_ID }}
+      APP_STORE_CONNECT_API_ISSUER_ID: ${{ vars.IOS_APP_STORE_CONNECT_API_ISSUER_ID }}
+      APP_STORE_CONNECT_API_PRIVATE_KEY_BASE64: ${{ secrets.IOS_APP_STORE_CONNECT_API_PRIVATE_KEY_BASE64 }}
+      IOS_DISTRIBUTION_CERTIFICATE_P12_BASE64: ${{ secrets.IOS_DISTRIBUTION_CERTIFICATE_P12_BASE64 }}
+      IOS_DISTRIBUTION_CERTIFICATE_PASSWORD: ${{ secrets.IOS_DISTRIBUTION_CERTIFICATE_PASSWORD }}
+      IOS_PROVISIONING_PROFILE_UAT_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_UAT_BASE64 }}
+      IOS_PROVISIONING_PROFILE_DEV_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_DEV_BASE64 }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Upload Sanctuary-Dev to TestFlight
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "${{ needs.validate.outputs.has_ios_changes }}" != "true" ]]; then
+            echo "No iOS changes detected for this PR. Dev TestFlight upload is not needed."
+            exit 0
+          fi
+
+          required_vars=(
+            IOS_SCHEME
+            IOS_CONFIGURATION
+            IOS_TEAM_ID
+            APP_BUNDLE_ID
+            APP_STORE_CONNECT_API_KEY_ID
+            APP_STORE_CONNECT_API_ISSUER_ID
+            APP_STORE_CONNECT_API_PRIVATE_KEY_BASE64
+            IOS_DISTRIBUTION_CERTIFICATE_P12_BASE64
+            IOS_DISTRIBUTION_CERTIFICATE_PASSWORD
+            IOS_PROVISIONING_PROFILE_DEV_BASE64
+          )
+
+          for var_name in "${required_vars[@]}"; do
+            if [[ -z "${!var_name:-}" ]]; then
+              echo "::error::Missing required environment variable: ${var_name}"
+              exit 1
+            fi
+          done
+
+          PROJECT_PATH="apps/ios/Sanctuary.xcodeproj"
+          ARCHIVE_PATH="${RUNNER_TEMP}/${IOS_SCHEME}.xcarchive"
+          EXPORT_PATH="${RUNNER_TEMP}/${IOS_SCHEME}-export"
+          KEYCHAIN_PATH="${RUNNER_TEMP}/sanctuary-build.keychain-db"
+          KEYCHAIN_PASSWORD="$(uuidgen)"
+          API_KEY_PATH="${RUNNER_TEMP}/AuthKey_${APP_STORE_CONNECT_API_KEY_ID}.p8"
+          APP_STORE_CONNECT_PRIVATE_KEYS_DIR="${HOME}/.appstoreconnect/private_keys"
+          CERT_PATH="${RUNNER_TEMP}/ios_distribution.p12"
+          PROFILE_PATH="${RUNNER_TEMP}/Sanctuary-Dev.mobileprovision"
+          EXPORT_OPTIONS_PATH="${RUNNER_TEMP}/ExportOptions.plist"
+          PROVISIONING_PROFILE_DIR="${HOME}/Library/MobileDevice/Provisioning Profiles"
+
+          cleanup() {
+            security delete-keychain "${KEYCHAIN_PATH}" >/dev/null 2>&1 || true
+            rm -f "${API_KEY_PATH}" "${CERT_PATH}" "${PROFILE_PATH}" "${EXPORT_OPTIONS_PATH}" "${APP_STORE_CONNECT_PRIVATE_KEYS_DIR}/AuthKey_${APP_STORE_CONNECT_API_KEY_ID}.p8" >/dev/null 2>&1 || true
+          }
+
+          trap cleanup EXIT
+
+          mkdir -p "${EXPORT_PATH}"
+          mkdir -p "${APP_STORE_CONNECT_PRIVATE_KEYS_DIR}"
+
+          echo "${APP_STORE_CONNECT_API_PRIVATE_KEY_BASE64}" | base64 --decode > "${API_KEY_PATH}"
+          echo "${IOS_DISTRIBUTION_CERTIFICATE_P12_BASE64}" | base64 --decode > "${CERT_PATH}"
+          echo "${IOS_PROVISIONING_PROFILE_DEV_BASE64}" | base64 --decode > "${PROFILE_PATH}"
+          cp "${API_KEY_PATH}" "${APP_STORE_CONNECT_PRIVATE_KEYS_DIR}/AuthKey_${APP_STORE_CONNECT_API_KEY_ID}.p8"
+          export API_KEY_PATH
+
+          generate_app_store_connect_token() {
+            ruby <<'RUBY'
+          require "json"
+          require "openssl"
+
+          def base64url(value)
+            [value].pack("m0").tr("+/", "-_").delete("=")
+          end
+
+          key_id = ENV.fetch("APP_STORE_CONNECT_API_KEY_ID")
+          issuer_id = ENV.fetch("APP_STORE_CONNECT_API_ISSUER_ID")
+          key_path = ENV.fetch("API_KEY_PATH")
+
+          header = { alg: "ES256", kid: key_id, typ: "JWT" }
+          payload = { iss: issuer_id, aud: "appstoreconnect-v1", exp: Time.now.to_i + 1200 }
+
+          signing_input = "#{base64url(header.to_json)}.#{base64url(payload.to_json)}"
+          key = OpenSSL::PKey.read(File.read(key_path))
+          der_signature = key.dsa_sign_asn1(OpenSSL::Digest::SHA256.digest(signing_input))
+          asn1 = OpenSSL::ASN1.decode(der_signature)
+          raw_signature = asn1.value.map { |value| value.value.to_s(16).rjust(64, "0") }.join
+
+          puts "#{signing_input}.#{base64url([raw_signature].pack('H*'))}"
+          RUBY
+          }
+
+          resolve_next_build_number() {
+            local token app_response app_id latest_build_response latest_build_number
+
+            token="$(generate_app_store_connect_token)"
+            app_response="$(curl -fsSL \
+              -H "Authorization: Bearer ${token}" \
+              "https://api.appstoreconnect.apple.com/v1/apps?filter%5BbundleId%5D=${APP_BUNDLE_ID}")"
+
+            app_id="$(printf '%s' "${app_response}" | ruby -rjson -e 'payload = JSON.parse(STDIN.read); puts payload.fetch("data", []).dig(0, "id").to_s')"
+
+            if [[ -z "${app_id}" ]]; then
+              echo "::error::Unable to resolve App Store Connect app for bundle id ${APP_BUNDLE_ID}."
+              exit 1
+            fi
+
+            latest_build_response="$(curl -fsSL \
+              -H "Authorization: Bearer ${token}" \
+              "https://api.appstoreconnect.apple.com/v1/builds?filter%5Bapp%5D=${app_id}&limit=1&sort=-uploadedDate")"
+
+            latest_build_number="$(printf '%s' "${latest_build_response}" | ruby -rjson -e 'payload = JSON.parse(STDIN.read); puts payload.fetch("data", []).dig(0, "attributes", "version").to_s')"
+
+            if [[ -z "${latest_build_number}" ]]; then
+              echo "1"
+            else
+              ruby -e 'puts Integer(ARGV[0]) + 1' "${latest_build_number}"
+            fi
+          }
+
+          BUILD_NUMBER="$(resolve_next_build_number)"
+          echo "Using App Store Connect build number ${BUILD_NUMBER} for ${APP_BUNDLE_ID}."
+
+          security create-keychain -p "${KEYCHAIN_PASSWORD}" "${KEYCHAIN_PATH}"
+          security set-keychain-settings -lut 21600 "${KEYCHAIN_PATH}"
+          security unlock-keychain -p "${KEYCHAIN_PASSWORD}" "${KEYCHAIN_PATH}"
+          security list-keychains -d user -s "${KEYCHAIN_PATH}" login.keychain-db
+
+          security import "${CERT_PATH}" \
+            -k "${KEYCHAIN_PATH}" \
+            -P "${IOS_DISTRIBUTION_CERTIFICATE_PASSWORD}" \
+            -T /usr/bin/codesign \
+            -T /usr/bin/security
+
+          security set-key-partition-list \
+            -S apple-tool:,apple: \
+            -s \
+            -k "${KEYCHAIN_PASSWORD}" \
+            "${KEYCHAIN_PATH}" >/dev/null
+
+          mkdir -p "${PROVISIONING_PROFILE_DIR}"
+          cp "${PROFILE_PATH}" "${PROVISIONING_PROFILE_DIR}/Sanctuary-Dev.mobileprovision"
+
+          cat > "${EXPORT_OPTIONS_PATH}" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>app-store-connect</string>
+            <key>signingStyle</key>
+            <string>manual</string>
+            <key>teamID</key>
+            <string>${IOS_TEAM_ID}</string>
+            <key>signingCertificate</key>
+            <string>Apple Distribution</string>
+            <key>provisioningProfiles</key>
+            <dict>
+              <key>com.pamisu.Sanctuary.dev</key>
+              <string>Sanctuary Dev App Store</string>
+            </dict>
+            <key>stripSwiftSymbols</key>
+            <true/>
+            <key>uploadSymbols</key>
+            <true/>
+          </dict>
+          </plist>
+          EOF
+
+          xcodebuild \
+            -project "${PROJECT_PATH}" \
+            -scheme "${IOS_SCHEME}" \
+            -configuration "${IOS_CONFIGURATION}" \
+            -archivePath "${ARCHIVE_PATH}" \
+            -destination "generic/platform=iOS" \
+            CODE_SIGN_STYLE=Manual \
+            DEVELOPMENT_TEAM="${IOS_TEAM_ID}" \
+            CODE_SIGN_IDENTITY="Apple Distribution" \
+            PROVISIONING_PROFILE_SPECIFIER="Sanctuary Dev App Store" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "${API_KEY_PATH}" \
+            -authenticationKeyID "${APP_STORE_CONNECT_API_KEY_ID}" \
+            -authenticationKeyIssuerID "${APP_STORE_CONNECT_API_ISSUER_ID}" \
+            CURRENT_PROJECT_VERSION="${BUILD_NUMBER}" \
+            archive
+
+          xcodebuild \
+            -exportArchive \
+            -archivePath "${ARCHIVE_PATH}" \
+            -exportPath "${EXPORT_PATH}" \
+            -exportOptionsPlist "${EXPORT_OPTIONS_PATH}" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "${API_KEY_PATH}" \
+            -authenticationKeyID "${APP_STORE_CONNECT_API_KEY_ID}" \
+            -authenticationKeyIssuerID "${APP_STORE_CONNECT_API_ISSUER_ID}"
+
+          IPA_PATH="$(find "${EXPORT_PATH}" -maxdepth 1 -name '*.ipa' | head -n 1)"
+
+          if [[ -z "${IPA_PATH}" ]]; then
+            echo "::error::No IPA was produced for ${IOS_SCHEME}."
+            exit 1
+          fi
+
+          xcrun altool \
+            --upload-app \
+            --type ios \
+            --file "${IPA_PATH}" \
+            --apiKey "${APP_STORE_CONNECT_API_KEY_ID}" \
+            --apiIssuer "${APP_STORE_CONNECT_API_ISSUER_ID}"
+        env:
+          IOS_SCHEME: Sanctuary-Dev
+          IOS_CONFIGURATION: Release-Dev
+          APP_BUNDLE_ID: com.pamisu.Sanctuary.dev
+
+  upload-uat:
+    name: Upload UAT TestFlight Build
+    needs: validate
+    if: >
+      (github.event_name == 'pull_request' && github.base_ref == 'uat') ||
+      (github.event_name == 'workflow_dispatch' && inputs.target == 'uat')
+    runs-on: macos-15
+    environment: uat
+    env:
+      IOS_TEAM_ID: ${{ vars.IOS_TEAM_ID || 'Z9L9BZFYLS' }}
+      APP_STORE_CONNECT_API_KEY_ID: ${{ vars.IOS_APP_STORE_CONNECT_API_KEY_ID }}
+      APP_STORE_CONNECT_API_ISSUER_ID: ${{ vars.IOS_APP_STORE_CONNECT_API_ISSUER_ID }}
+      APP_STORE_CONNECT_API_PRIVATE_KEY_BASE64: ${{ secrets.IOS_APP_STORE_CONNECT_API_PRIVATE_KEY_BASE64 }}
+      IOS_DISTRIBUTION_CERTIFICATE_P12_BASE64: ${{ secrets.IOS_DISTRIBUTION_CERTIFICATE_P12_BASE64 }}
+      IOS_DISTRIBUTION_CERTIFICATE_PASSWORD: ${{ secrets.IOS_DISTRIBUTION_CERTIFICATE_PASSWORD }}
+      IOS_PROVISIONING_PROFILE_UAT_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_UAT_BASE64 }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Upload Sanctuary-UAT to TestFlight
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "${{ needs.validate.outputs.has_ios_changes }}" != "true" ]]; then
+            echo "No iOS changes detected for this PR. UAT TestFlight upload is not needed."
+            exit 0
+          fi
+
+          required_vars=(
+            IOS_SCHEME
+            IOS_CONFIGURATION
+            IOS_TEAM_ID
+            APP_BUNDLE_ID
+            APP_STORE_CONNECT_API_KEY_ID
+            APP_STORE_CONNECT_API_ISSUER_ID
+            APP_STORE_CONNECT_API_PRIVATE_KEY_BASE64
+            IOS_DISTRIBUTION_CERTIFICATE_P12_BASE64
+            IOS_DISTRIBUTION_CERTIFICATE_PASSWORD
+            IOS_PROVISIONING_PROFILE_UAT_BASE64
+          )
+
+          for var_name in "${required_vars[@]}"; do
+            if [[ -z "${!var_name:-}" ]]; then
+              echo "::error::Missing required environment variable: ${var_name}"
+              exit 1
+            fi
+          done
+
+          PROJECT_PATH="apps/ios/Sanctuary.xcodeproj"
+          ARCHIVE_PATH="${RUNNER_TEMP}/${IOS_SCHEME}.xcarchive"
+          EXPORT_PATH="${RUNNER_TEMP}/${IOS_SCHEME}-export"
+          KEYCHAIN_PATH="${RUNNER_TEMP}/sanctuary-build.keychain-db"
+          KEYCHAIN_PASSWORD="$(uuidgen)"
+          API_KEY_PATH="${RUNNER_TEMP}/AuthKey_${APP_STORE_CONNECT_API_KEY_ID}.p8"
+          APP_STORE_CONNECT_PRIVATE_KEYS_DIR="${HOME}/.appstoreconnect/private_keys"
+          CERT_PATH="${RUNNER_TEMP}/ios_distribution.p12"
+          PROFILE_PATH="${RUNNER_TEMP}/Sanctuary-UAT.mobileprovision"
+          EXPORT_OPTIONS_PATH="${RUNNER_TEMP}/ExportOptions.plist"
+          PROVISIONING_PROFILE_DIR="${HOME}/Library/MobileDevice/Provisioning Profiles"
+
+          cleanup() {
+            security delete-keychain "${KEYCHAIN_PATH}" >/dev/null 2>&1 || true
+            rm -f "${API_KEY_PATH}" "${CERT_PATH}" "${PROFILE_PATH}" "${EXPORT_OPTIONS_PATH}" "${APP_STORE_CONNECT_PRIVATE_KEYS_DIR}/AuthKey_${APP_STORE_CONNECT_API_KEY_ID}.p8" >/dev/null 2>&1 || true
+          }
+
+          trap cleanup EXIT
+
+          mkdir -p "${EXPORT_PATH}"
+          mkdir -p "${APP_STORE_CONNECT_PRIVATE_KEYS_DIR}"
+
+          echo "${APP_STORE_CONNECT_API_PRIVATE_KEY_BASE64}" | base64 --decode > "${API_KEY_PATH}"
+          echo "${IOS_DISTRIBUTION_CERTIFICATE_P12_BASE64}" | base64 --decode > "${CERT_PATH}"
+          echo "${IOS_PROVISIONING_PROFILE_UAT_BASE64}" | base64 --decode > "${PROFILE_PATH}"
+          cp "${API_KEY_PATH}" "${APP_STORE_CONNECT_PRIVATE_KEYS_DIR}/AuthKey_${APP_STORE_CONNECT_API_KEY_ID}.p8"
+          export API_KEY_PATH
+
+          generate_app_store_connect_token() {
+            ruby <<'RUBY'
+          require "json"
+          require "openssl"
+
+          def base64url(value)
+            [value].pack("m0").tr("+/", "-_").delete("=")
+          end
+
+          key_id = ENV.fetch("APP_STORE_CONNECT_API_KEY_ID")
+          issuer_id = ENV.fetch("APP_STORE_CONNECT_API_ISSUER_ID")
+          key_path = ENV.fetch("API_KEY_PATH")
+
+          header = { alg: "ES256", kid: key_id, typ: "JWT" }
+          payload = { iss: issuer_id, aud: "appstoreconnect-v1", exp: Time.now.to_i + 1200 }
+
+          signing_input = "#{base64url(header.to_json)}.#{base64url(payload.to_json)}"
+          key = OpenSSL::PKey.read(File.read(key_path))
+          der_signature = key.dsa_sign_asn1(OpenSSL::Digest::SHA256.digest(signing_input))
+          asn1 = OpenSSL::ASN1.decode(der_signature)
+          raw_signature = asn1.value.map { |value| value.value.to_s(16).rjust(64, "0") }.join
+
+          puts "#{signing_input}.#{base64url([raw_signature].pack('H*'))}"
+          RUBY
+          }
+
+          resolve_next_build_number() {
+            local token app_response app_id latest_build_response latest_build_number
+
+            token="$(generate_app_store_connect_token)"
+            app_response="$(curl -fsSL \
+              -H "Authorization: Bearer ${token}" \
+              "https://api.appstoreconnect.apple.com/v1/apps?filter%5BbundleId%5D=${APP_BUNDLE_ID}")"
+
+            app_id="$(printf '%s' "${app_response}" | ruby -rjson -e 'payload = JSON.parse(STDIN.read); puts payload.fetch("data", []).dig(0, "id").to_s')"
+
+            if [[ -z "${app_id}" ]]; then
+              echo "::error::Unable to resolve App Store Connect app for bundle id ${APP_BUNDLE_ID}."
+              exit 1
+            fi
+
+            latest_build_response="$(curl -fsSL \
+              -H "Authorization: Bearer ${token}" \
+              "https://api.appstoreconnect.apple.com/v1/builds?filter%5Bapp%5D=${app_id}&limit=1&sort=-uploadedDate")"
+
+            latest_build_number="$(printf '%s' "${latest_build_response}" | ruby -rjson -e 'payload = JSON.parse(STDIN.read); puts payload.fetch("data", []).dig(0, "attributes", "version").to_s')"
+
+            if [[ -z "${latest_build_number}" ]]; then
+              echo "1"
+            else
+              ruby -e 'puts Integer(ARGV[0]) + 1' "${latest_build_number}"
+            fi
+          }
+
+          BUILD_NUMBER="$(resolve_next_build_number)"
+          echo "Using App Store Connect build number ${BUILD_NUMBER} for ${APP_BUNDLE_ID}."
+
+          security create-keychain -p "${KEYCHAIN_PASSWORD}" "${KEYCHAIN_PATH}"
+          security set-keychain-settings -lut 21600 "${KEYCHAIN_PATH}"
+          security unlock-keychain -p "${KEYCHAIN_PASSWORD}" "${KEYCHAIN_PATH}"
+          security list-keychains -d user -s "${KEYCHAIN_PATH}" login.keychain-db
+
+          security import "${CERT_PATH}" \
+            -k "${KEYCHAIN_PATH}" \
+            -P "${IOS_DISTRIBUTION_CERTIFICATE_PASSWORD}" \
+            -T /usr/bin/codesign \
+            -T /usr/bin/security
+
+          security set-key-partition-list \
+            -S apple-tool:,apple: \
+            -s \
+            -k "${KEYCHAIN_PASSWORD}" \
+            "${KEYCHAIN_PATH}" >/dev/null
+
+          mkdir -p "${PROVISIONING_PROFILE_DIR}"
+          cp "${PROFILE_PATH}" "${PROVISIONING_PROFILE_DIR}/Sanctuary-UAT.mobileprovision"
+
+          cat > "${EXPORT_OPTIONS_PATH}" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>app-store-connect</string>
+            <key>teamID</key>
+            <string>${IOS_TEAM_ID}</string>
+            <key>signingStyle</key>
+            <string>manual</string>
+            <key>signingCertificate</key>
+            <string>Apple Distribution</string>
+            <key>provisioningProfiles</key>
+            <dict>
+              <key>com.pamisu.Sanctuary.uat</key>
+              <string>Sanctuary UAT App Store</string>
+            </dict>
+            <key>stripSwiftSymbols</key>
+            <true/>
+            <key>uploadSymbols</key>
+            <true/>
+          </dict>
+          </plist>
+          EOF
+
+          xcodebuild \
+            -project "${PROJECT_PATH}" \
+            -scheme "${IOS_SCHEME}" \
+            -configuration "${IOS_CONFIGURATION}" \
+            -archivePath "${ARCHIVE_PATH}" \
+            -destination "generic/platform=iOS" \
+            CODE_SIGN_STYLE=Manual \
+            DEVELOPMENT_TEAM="${IOS_TEAM_ID}" \
+            CODE_SIGN_IDENTITY="Apple Distribution" \
+            PROVISIONING_PROFILE_SPECIFIER="Sanctuary UAT App Store" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "${API_KEY_PATH}" \
+            -authenticationKeyID "${APP_STORE_CONNECT_API_KEY_ID}" \
+            -authenticationKeyIssuerID "${APP_STORE_CONNECT_API_ISSUER_ID}" \
+            CURRENT_PROJECT_VERSION="${BUILD_NUMBER}" \
+            archive
+
+          xcodebuild \
+            -exportArchive \
+            -archivePath "${ARCHIVE_PATH}" \
+            -exportPath "${EXPORT_PATH}" \
+            -exportOptionsPlist "${EXPORT_OPTIONS_PATH}" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "${API_KEY_PATH}" \
+            -authenticationKeyID "${APP_STORE_CONNECT_API_KEY_ID}" \
+            -authenticationKeyIssuerID "${APP_STORE_CONNECT_API_ISSUER_ID}"
+
+          IPA_PATH="$(find "${EXPORT_PATH}" -maxdepth 1 -name '*.ipa' | head -n 1)"
+
+          if [[ -z "${IPA_PATH}" ]]; then
+            echo "::error::No IPA was produced for ${IOS_SCHEME}."
+            exit 1
+          fi
+
+          xcrun altool \
+            --upload-app \
+            --type ios \
+            --file "${IPA_PATH}" \
+            --apiKey "${APP_STORE_CONNECT_API_KEY_ID}" \
+            --apiIssuer "${APP_STORE_CONNECT_API_ISSUER_ID}"
+        env:
+          IOS_SCHEME: Sanctuary-UAT
+          IOS_CONFIGURATION: Release-UAT
+          APP_BUNDLE_ID: com.pamisu.Sanctuary.uat
+
+  upload-prod:
+    name: Upload Production Build To App Store Connect
+    needs: validate
+    if: >
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_dispatch' && inputs.target == 'prod')
+    runs-on: macos-15
+    environment: prod
+    env:
+      IOS_TEAM_ID: ${{ vars.IOS_TEAM_ID || 'Z9L9BZFYLS' }}
+      APP_STORE_CONNECT_API_KEY_ID: ${{ vars.IOS_APP_STORE_CONNECT_API_KEY_ID }}
+      APP_STORE_CONNECT_API_ISSUER_ID: ${{ vars.IOS_APP_STORE_CONNECT_API_ISSUER_ID }}
+      APP_STORE_CONNECT_API_PRIVATE_KEY_BASE64: ${{ secrets.IOS_APP_STORE_CONNECT_API_PRIVATE_KEY_BASE64 }}
+      IOS_DISTRIBUTION_CERTIFICATE_P12_BASE64: ${{ secrets.IOS_DISTRIBUTION_CERTIFICATE_P12_BASE64 }}
+      IOS_DISTRIBUTION_CERTIFICATE_PASSWORD: ${{ secrets.IOS_DISTRIBUTION_CERTIFICATE_PASSWORD }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Upload Sanctuary-Prod to App Store Connect
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "${{ needs.validate.outputs.has_ios_changes }}" != "true" ]]; then
+            echo "No iOS changes detected for this run. Production upload is not needed."
+            exit 0
+          fi
+
+          required_vars=(
+            IOS_SCHEME
+            IOS_CONFIGURATION
+            IOS_TEAM_ID
+            APP_BUNDLE_ID
+            APP_STORE_CONNECT_API_KEY_ID
+            APP_STORE_CONNECT_API_ISSUER_ID
+            APP_STORE_CONNECT_API_PRIVATE_KEY_BASE64
+            IOS_DISTRIBUTION_CERTIFICATE_P12_BASE64
+            IOS_DISTRIBUTION_CERTIFICATE_PASSWORD
+          )
+
+          for var_name in "${required_vars[@]}"; do
+            if [[ -z "${!var_name:-}" ]]; then
+              echo "::error::Missing required environment variable: ${var_name}"
+              exit 1
+            fi
+          done
+
+          PROJECT_PATH="apps/ios/Sanctuary.xcodeproj"
+          ARCHIVE_PATH="${RUNNER_TEMP}/${IOS_SCHEME}.xcarchive"
+          EXPORT_PATH="${RUNNER_TEMP}/${IOS_SCHEME}-export"
+          KEYCHAIN_PATH="${RUNNER_TEMP}/sanctuary-build.keychain-db"
+          KEYCHAIN_PASSWORD="$(uuidgen)"
+          API_KEY_PATH="${RUNNER_TEMP}/AuthKey_${APP_STORE_CONNECT_API_KEY_ID}.p8"
+          APP_STORE_CONNECT_PRIVATE_KEYS_DIR="${HOME}/.appstoreconnect/private_keys"
+          CERT_PATH="${RUNNER_TEMP}/ios_distribution.p12"
+          EXPORT_OPTIONS_PATH="${RUNNER_TEMP}/ExportOptions.plist"
+
+          cleanup() {
+            security delete-keychain "${KEYCHAIN_PATH}" >/dev/null 2>&1 || true
+            rm -f "${API_KEY_PATH}" "${CERT_PATH}" "${EXPORT_OPTIONS_PATH}" "${APP_STORE_CONNECT_PRIVATE_KEYS_DIR}/AuthKey_${APP_STORE_CONNECT_API_KEY_ID}.p8" >/dev/null 2>&1 || true
+          }
+
+          trap cleanup EXIT
+
+          mkdir -p "${EXPORT_PATH}"
+          mkdir -p "${APP_STORE_CONNECT_PRIVATE_KEYS_DIR}"
+
+          echo "${APP_STORE_CONNECT_API_PRIVATE_KEY_BASE64}" | base64 --decode > "${API_KEY_PATH}"
+          echo "${IOS_DISTRIBUTION_CERTIFICATE_P12_BASE64}" | base64 --decode > "${CERT_PATH}"
+          cp "${API_KEY_PATH}" "${APP_STORE_CONNECT_PRIVATE_KEYS_DIR}/AuthKey_${APP_STORE_CONNECT_API_KEY_ID}.p8"
+          export API_KEY_PATH
+
+          generate_app_store_connect_token() {
+            ruby <<'RUBY'
+          require "json"
+          require "openssl"
+
+          def base64url(value)
+            [value].pack("m0").tr("+/", "-_").delete("=")
+          end
+
+          key_id = ENV.fetch("APP_STORE_CONNECT_API_KEY_ID")
+          issuer_id = ENV.fetch("APP_STORE_CONNECT_API_ISSUER_ID")
+          key_path = ENV.fetch("API_KEY_PATH")
+
+          header = { alg: "ES256", kid: key_id, typ: "JWT" }
+          payload = { iss: issuer_id, aud: "appstoreconnect-v1", exp: Time.now.to_i + 1200 }
+
+          signing_input = "#{base64url(header.to_json)}.#{base64url(payload.to_json)}"
+          key = OpenSSL::PKey.read(File.read(key_path))
+          der_signature = key.dsa_sign_asn1(OpenSSL::Digest::SHA256.digest(signing_input))
+          asn1 = OpenSSL::ASN1.decode(der_signature)
+          raw_signature = asn1.value.map { |value| value.value.to_s(16).rjust(64, "0") }.join
+
+          puts "#{signing_input}.#{base64url([raw_signature].pack('H*'))}"
+          RUBY
+          }
+
+          resolve_next_build_number() {
+            local token app_response app_id latest_build_response latest_build_number
+
+            token="$(generate_app_store_connect_token)"
+            app_response="$(curl -fsSL \
+              -H "Authorization: Bearer ${token}" \
+              "https://api.appstoreconnect.apple.com/v1/apps?filter%5BbundleId%5D=${APP_BUNDLE_ID}")"
+
+            app_id="$(printf '%s' "${app_response}" | ruby -rjson -e 'payload = JSON.parse(STDIN.read); puts payload.fetch("data", []).dig(0, "id").to_s')"
+
+            if [[ -z "${app_id}" ]]; then
+              echo "::error::Unable to resolve App Store Connect app for bundle id ${APP_BUNDLE_ID}."
+              exit 1
+            fi
+
+            latest_build_response="$(curl -fsSL \
+              -H "Authorization: Bearer ${token}" \
+              "https://api.appstoreconnect.apple.com/v1/builds?filter%5Bapp%5D=${app_id}&limit=1&sort=-uploadedDate")"
+
+            latest_build_number="$(printf '%s' "${latest_build_response}" | ruby -rjson -e 'payload = JSON.parse(STDIN.read); puts payload.fetch("data", []).dig(0, "attributes", "version").to_s')"
+
+            if [[ -z "${latest_build_number}" ]]; then
+              echo "1"
+            else
+              ruby -e 'puts Integer(ARGV[0]) + 1' "${latest_build_number}"
+            fi
+          }
+
+          BUILD_NUMBER="$(resolve_next_build_number)"
+          echo "Using App Store Connect build number ${BUILD_NUMBER} for ${APP_BUNDLE_ID}."
+
+          security create-keychain -p "${KEYCHAIN_PASSWORD}" "${KEYCHAIN_PATH}"
+          security set-keychain-settings -lut 21600 "${KEYCHAIN_PATH}"
+          security unlock-keychain -p "${KEYCHAIN_PASSWORD}" "${KEYCHAIN_PATH}"
+          security list-keychains -d user -s "${KEYCHAIN_PATH}" login.keychain-db
+
+          security import "${CERT_PATH}" \
+            -k "${KEYCHAIN_PATH}" \
+            -P "${IOS_DISTRIBUTION_CERTIFICATE_PASSWORD}" \
+            -T /usr/bin/codesign \
+            -T /usr/bin/security
+
+          security set-key-partition-list \
+            -S apple-tool:,apple: \
+            -s \
+            -k "${KEYCHAIN_PASSWORD}" \
+            "${KEYCHAIN_PATH}" >/dev/null
+
+          cat > "${EXPORT_OPTIONS_PATH}" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>app-store-connect</string>
+            <key>signingStyle</key>
+            <string>automatic</string>
+            <key>teamID</key>
+            <string>${IOS_TEAM_ID}</string>
+            <key>stripSwiftSymbols</key>
+            <true/>
+            <key>uploadSymbols</key>
+            <true/>
+          </dict>
+          </plist>
+          EOF
+
+          xcodebuild \
+            -project "${PROJECT_PATH}" \
+            -scheme "${IOS_SCHEME}" \
+            -configuration "${IOS_CONFIGURATION}" \
+            -archivePath "${ARCHIVE_PATH}" \
+            -destination "generic/platform=iOS" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "${API_KEY_PATH}" \
+            -authenticationKeyID "${APP_STORE_CONNECT_API_KEY_ID}" \
+            -authenticationKeyIssuerID "${APP_STORE_CONNECT_API_ISSUER_ID}" \
+            CURRENT_PROJECT_VERSION="${BUILD_NUMBER}" \
+            archive
+
+          xcodebuild \
+            -exportArchive \
+            -archivePath "${ARCHIVE_PATH}" \
+            -exportPath "${EXPORT_PATH}" \
+            -exportOptionsPlist "${EXPORT_OPTIONS_PATH}" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "${API_KEY_PATH}" \
+            -authenticationKeyID "${APP_STORE_CONNECT_API_KEY_ID}" \
+            -authenticationKeyIssuerID "${APP_STORE_CONNECT_API_ISSUER_ID}"
+
+          IPA_PATH="$(find "${EXPORT_PATH}" -maxdepth 1 -name '*.ipa' | head -n 1)"
+
+          if [[ -z "${IPA_PATH}" ]]; then
+            echo "::error::No IPA was produced for ${IOS_SCHEME}."
+            exit 1
+          fi
+
+          xcrun altool \
+            --upload-app \
+            --type ios \
+            --file "${IPA_PATH}" \
+            --apiKey "${APP_STORE_CONNECT_API_KEY_ID}" \
+            --apiIssuer "${APP_STORE_CONNECT_API_ISSUER_ID}"
+        env:
+          IOS_SCHEME: Sanctuary-Prod
+          IOS_CONFIGURATION: Release
+          APP_BUNDLE_ID: com.pamisu.Sanctuary

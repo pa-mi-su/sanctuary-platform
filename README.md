@@ -6,13 +6,10 @@ This repository is where the modern platform lives:
 
 - a responsive **Angular** web app
 - a **Spring Boot** API
+- a native **iOS** app
 - a **PostgreSQL** data model
 - a production path for **AWS** deployment
-- a backend designed to support **web now** and **mobile clients later**
-
-The legacy native iOS app continues to live separately in:
-
-- [`/Users/pms/repos/Sanctuary`](/Users/pms/repos/Sanctuary)
+- a backend designed to support **web and native clients together**
 
 ## Why This Project Exists
 
@@ -49,6 +46,15 @@ The Java backend for:
 - Cognito-backed authentication flows
 - Flyway-managed schema migrations
 
+### `apps/ios`
+
+The native iOS app for:
+
+- the shipped App Store experience
+- TestFlight Dev and UAT builds
+- platform-backed account, favorites, and novena progress
+- API-backed saints, novenas, liturgical calendar, and prayers
+
 ### `docs`
 
 Architecture, deployment, local development, schema, and production setup notes.
@@ -62,6 +68,7 @@ Sanctuary Platform currently supports:
 - novenas by date, list, and intention search
 - prayers and devotional content
 - responsive layouts for desktop and mobile browsers
+- a native iOS app inside the same monorepo
 - Cognito-backed account creation and login
 - synced user profile data
 - favorites and novena progress foundations
@@ -95,6 +102,7 @@ Sanctuary Platform currently supports:
 - AWS ECS / ECR for API deployment
 - AWS RDS for PostgreSQL
 - GitHub Actions for CI/CD
+- App Store Connect / TestFlight for iOS distribution
 
 ## Repo Layout
 
@@ -102,6 +110,7 @@ Sanctuary Platform currently supports:
 sanctuary-platform/
 ├── apps/
 │   ├── api/        # Spring Boot API
+│   ├── ios/        # Native iOS app
 │   └── web/        # Angular frontend
 ├── docs/
 │   ├── architecture/
@@ -116,7 +125,7 @@ sanctuary-platform/
 The major design choices in this repo are intentional:
 
 - **Monorepo** for the platform, so web and API evolve together
-- **Separate legacy iOS repo**, so the new platform can grow without tangling release histories
+- **Single monorepo for web, API, and iOS**, so clients evolve against the same backend and release story
 - **PostgreSQL as source of truth**, because Sanctuary content and user data are relational
 - **Cognito for identity**, while Sanctuary owns the long-term application user/profile model
 - **Flyway for schema management**, so production evolution is repeatable and auditable
@@ -202,6 +211,12 @@ cd /Users/pms/repos/sanctuary-platform/apps/api
 JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home PATH=/opt/homebrew/opt/openjdk@21/bin:$PATH mvn -q test
 ```
 
+### iOS simulator validation
+
+```bash
+xcodebuild -project /Users/pms/repos/sanctuary-platform/apps/ios/Sanctuary.xcodeproj -scheme Sanctuary-Prod -configuration Debug -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
+```
+
 ## Authentication Model
 
 Sanctuary now uses a hybrid auth model:
@@ -241,6 +256,13 @@ That gives us room for:
 - schema managed by Flyway
 - production content loaded separately from schema migrations
 
+### iOS
+
+- validate iOS builds on promotion PRs
+- upload Dev and UAT builds to TestFlight
+- upload production builds to App Store Connect on `main`
+- keep final App Store release approval manual
+
 ## Branch / Promotion Flow
 
 This repo uses a promotion model:
@@ -252,6 +274,19 @@ This repo uses a promotion model:
 - `prod -> main`
 
 CI validates pull requests through the promotion path, and production deploys are triggered from `main`.
+
+For iOS specifically:
+
+- `feature -> dev` uploads a Dev TestFlight build
+- `dev -> uat` uploads a UAT TestFlight build
+- `uat -> prod` validates iOS but does not upload production yet
+- `prod -> main` uploads a Prod build to App Store Connect on the merge to `main`
+
+Helpful iOS docs:
+
+- [`/Users/pms/repos/sanctuary-platform/apps/ios/README.md`](/Users/pms/repos/sanctuary-platform/apps/ios/README.md)
+- [`/Users/pms/repos/sanctuary-platform/docs/architecture/ios-to-platform-migration-tracker.md`](/Users/pms/repos/sanctuary-platform/docs/architecture/ios-to-platform-migration-tracker.md)
+- [`/Users/pms/repos/sanctuary-platform/docs/deployment/ios-app-store-verification-checklist.md`](/Users/pms/repos/sanctuary-platform/docs/deployment/ios-app-store-verification-checklist.md)
 
 ## Why Recruiters / Engineers Should Care
 
