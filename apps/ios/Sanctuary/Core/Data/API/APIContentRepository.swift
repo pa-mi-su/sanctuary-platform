@@ -190,7 +190,9 @@ actor APIContentRepository: ContentRepository, SaintRangeRepository {
     private func localizedValueMap(value: String, locale: ContentLocale) -> [ContentLocale: String] {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return [:] }
-        return [.en: trimmed, locale: trimmed]
+        var values: [ContentLocale: String] = [.en: trimmed]
+        values[locale] = trimmed
+        return values
     }
 
     private func mapNovenaSummary(_ response: APIContentNovenaSummaryResponse, locale: ContentLocale) -> Novena {
