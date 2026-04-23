@@ -64,7 +64,15 @@ actor APIContentRepository: ContentRepository, SaintRangeRepository {
         locale: ContentLocale,
         query: String
     ) async throws -> [Novena] {
-        let summaries = try await apiClient.searchNovenasByIntentions(locale: locale, query: query)
+        let normalizedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        let summaries: [APIContentNovenaSummaryResponse]
+
+        if normalizedQuery.isEmpty {
+            summaries = try await apiClient.listNovenas(locale: locale, query: nil)
+        } else {
+            summaries = try await apiClient.searchNovenasByIntentions(locale: locale, query: normalizedQuery)
+        }
+
         var results: [Novena] = []
         for summary in summaries {
             if let detail = try? await apiClient.fetchNovena(slug: summary.slug, locale: locale) {

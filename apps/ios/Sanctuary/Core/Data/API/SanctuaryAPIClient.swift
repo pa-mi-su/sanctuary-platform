@@ -301,16 +301,20 @@ actor SanctuaryAPIClient {
         query: String?
     ) async throws -> [APIContentSaintSummaryResponse] {
         var queryItems = [URLQueryItem(name: "lang", value: locale.rawValue)]
+        let path: String
         if let feastDate {
+            path = "/content/saints"
             queryItems.append(URLQueryItem(name: "month", value: String(feastDate.month)))
             queryItems.append(URLQueryItem(name: "day", value: String(feastDate.day)))
-        }
-        if let query, !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            queryItems.append(URLQueryItem(name: "query", value: query))
+        } else {
+            path = "/content/saints/search"
+            if let query {
+                queryItems.append(URLQueryItem(name: "query", value: query))
+            }
         }
 
         return try await performRequest(
-            path: "/content/saints",
+            path: path,
             queryItems: queryItems,
             method: "GET",
             body: Optional<String>.none,
