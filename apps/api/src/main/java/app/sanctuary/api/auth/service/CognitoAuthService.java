@@ -7,9 +7,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import app.sanctuary.api.auth.dto.AuthConfirmRegistrationRequest;
+import app.sanctuary.api.auth.dto.AuthForgotPasswordRequest;
 import app.sanctuary.api.auth.dto.AuthLoginRequest;
 import app.sanctuary.api.auth.dto.AuthRegisterRequest;
 import app.sanctuary.api.auth.dto.AuthRegistrationResponse;
+import app.sanctuary.api.auth.dto.AuthResetPasswordRequest;
 import app.sanctuary.api.auth.dto.AuthSessionResponse;
 import app.sanctuary.api.auth.dto.AuthStatusResponse;
 import app.sanctuary.api.config.AuthProperties;
@@ -18,8 +20,10 @@ import software.amazon.awssdk.services.cognitoidentityprovider.model.AttributeTy
 import software.amazon.awssdk.services.cognitoidentityprovider.model.AuthFlowType;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.CodeDeliveryFailureException;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.CodeMismatchException;
+import software.amazon.awssdk.services.cognitoidentityprovider.model.ConfirmForgotPasswordRequest;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.ConfirmSignUpRequest;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.ExpiredCodeException;
+import software.amazon.awssdk.services.cognitoidentityprovider.model.ForgotPasswordRequest;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.InitiateAuthRequest;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.InvalidPasswordException;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.InvalidParameterException;
@@ -113,6 +117,58 @@ public class CognitoAuthService {
             throw new AuthFlowException(HttpStatus.NOT_FOUND, "We could not find an account for that email.");
         } catch (TooManyRequestsException exception) {
             throw new AuthFlowException(HttpStatus.TOO_MANY_REQUESTS, "Too many requests. Please wait a moment and try again.");
+        }
+    }
+
+    public AuthStatusResponse forgotPassword(AuthForgotPasswordRequest request) {
+        validateConfigured();
+
+        try {
+            cognitoClient.forgotPassword(ForgotPasswordRequest.builder()
+                .clientId(authProperties.clientId())
+                .username(normalizedEmail(request.email()))
+                .build());
+        } catch (UserNotConfirmedException exception) {
+            throw new AuthFlowException(HttpStatus.CONFLICT, "Please confirm your account before resetting your password.");
+        } catch (TooManyRequestsException exception) {
+            throw new AuthFlowException(HttpStatus.TOO_MANY_REQUESTS, "Too many requests. Please wait a moment and try again.");
+        } catch (CodeDeliveryFailureException exception) {
+            throw new AuthFlowException(HttpStatus.BAD_GATEWAY, "We could not send a password reset code right now.");
+        } catch (InvalidParameterException exception) {
+            throw new AuthFlowException(HttpStatus.BAD_REQUEST, friendlyMessage(exception.getMessage(), "We could not start password reset."));
+        } catch (UserNotFoundException exception) {
+            // Return the same professional response instead of exposing whether the account exists.
+        }
+
+        return new AuthStatusResponse("If that email belongs to a Sanctuary account, a password reset code is on the way.");
+    }
+
+    public AuthStatusResponse resetPassword(AuthResetPasswordRequest request) {
+        validateConfigured();
+
+        try {
+            cognitoClient.confirmForgotPassword(ConfirmForgotPasswordRequest.builder()
+                .clientId(authProperties.clientId())
+                .username(normalizedEmail(request.email()))
+                .confirmationCode(cleaned(request.code()))
+                .password(request.newPassword())
+                .build());
+            return new AuthStatusResponse("Your password is updated. Please sign in to continue.");
+        } catch (CodeMismatchException exception) {
+            throw new AuthFlowException(HttpStatus.BAD_REQUEST, "That reset code does not match. Please try again.");
+        } catch (ExpiredCodeException exception) {
+            throw new AuthFlowException(HttpStatus.BAD_REQUEST, "That reset code has expired. Please request a new one.");
+        } catch (InvalidPasswordException exception) {
+            throw new AuthFlowException(
+                HttpStatus.BAD_REQUEST,
+                "Choose a password with at least 8 characters, plus uppercase, lowercase, number, and special character."
+            );
+        } catch (TooManyRequestsException exception) {
+            throw new AuthFlowException(HttpStatus.TOO_MANY_REQUESTS, "Too many attempts. Please wait a moment and try again.");
+        } catch (UserNotFoundException exception) {
+            throw new AuthFlowException(HttpStatus.NOT_FOUND, "We could not find an account for that email.");
+        } catch (InvalidParameterException exception) {
+            throw new AuthFlowException(HttpStatus.BAD_REQUEST, friendlyMessage(exception.getMessage(), "We could not reset this password."));
         }
     }
 

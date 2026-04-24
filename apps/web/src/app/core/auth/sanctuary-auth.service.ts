@@ -3,8 +3,10 @@ import { firstValueFrom } from 'rxjs';
 
 import {
   AuthConfirmRegistrationRequest,
+  AuthForgotPasswordRequest,
   AuthLoginRequest,
   AuthRegisterRequest,
+  AuthResetPasswordRequest,
   SanctuaryApiService,
 } from '../api/sanctuary-api.service';
 import { SANCTUARY_AUTH_CONFIG } from './sanctuary-auth.config';
@@ -118,6 +120,36 @@ export class SanctuaryAuthService {
     } catch (error) {
       this.state.update((current) => ({ ...current, status: 'error' }));
       const message = this.extractMessage(error, 'We could not send another confirmation code.');
+      this.setError(message);
+      throw error;
+    }
+  }
+
+  async forgotPassword(request: AuthForgotPasswordRequest): Promise<string> {
+    this.state.update((current) => ({ ...current, status: 'loading', message: null }));
+
+    try {
+      const response = await firstValueFrom(this.api.forgotPassword(request));
+      this.state.update((current) => ({ ...current, status: 'signed-out', message: response.message }));
+      return response.message;
+    } catch (error) {
+      this.state.update((current) => ({ ...current, status: 'error' }));
+      const message = this.extractMessage(error, 'We could not start password reset.');
+      this.setError(message);
+      throw error;
+    }
+  }
+
+  async resetPassword(request: AuthResetPasswordRequest): Promise<string> {
+    this.state.update((current) => ({ ...current, status: 'loading', message: null }));
+
+    try {
+      const response = await firstValueFrom(this.api.resetPassword(request));
+      this.state.update((current) => ({ ...current, status: 'signed-out', message: response.message }));
+      return response.message;
+    } catch (error) {
+      this.state.update((current) => ({ ...current, status: 'error' }));
+      const message = this.extractMessage(error, 'We could not reset your password.');
       this.setError(message);
       throw error;
     }

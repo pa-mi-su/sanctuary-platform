@@ -6,6 +6,8 @@ private enum AccountAccessStep {
     case login
     case register
     case confirm
+    case forgotPassword
+    case resetPassword
 }
 
 struct AccountAccessView: View {
@@ -21,6 +23,10 @@ struct AccountAccessView: View {
     @State private var registerPassword = ""
     @State private var registerPasswordConfirmation = ""
     @State private var confirmationCode = ""
+    @State private var forgotPasswordEmail = ""
+    @State private var resetPasswordCode = ""
+    @State private var resetPassword = ""
+    @State private var resetPasswordConfirmation = ""
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
@@ -111,6 +117,15 @@ struct AccountAccessView: View {
             VStack(alignment: .leading, spacing: 14) {
                 authTextField(title: copy("Email", "Correo", "Email"), text: $loginEmail, keyboardType: .emailAddress, textContentType: .emailAddress)
                 authSecureField(title: copy("Password", "Contraseña", "Hasło"), text: $loginPassword, textContentType: .password)
+                Button(copy("Forgot password?", "¿Olvidaste tu contraseña?", "Nie pamiętasz hasła?")) {
+                    forgotPasswordEmail = loginEmail.trimmed
+                    step = .forgotPassword
+                    accountStore.clearTransientMessage()
+                }
+                .buttonStyle(.plain)
+                .font(AppTheme.rounded(15, weight: .semibold))
+                .foregroundStyle(AppTheme.tabActive)
+
                 Button(copy("Login", "Iniciar sesión", "Zaloguj się")) {
                     Task {
                         await accountStore.login(email: loginEmail.trimmed, password: loginPassword)
@@ -207,6 +222,87 @@ struct AccountAccessView: View {
                 .disabled(accountStore.status == .loading)
             }
 
+        case .forgotPassword:
+            VStack(alignment: .leading, spacing: 14) {
+                authTextField(title: copy("Email", "Correo", "Email"), text: $forgotPasswordEmail, keyboardType: .emailAddress, textContentType: .emailAddress)
+
+                Button(copy("Send reset code", "Enviar código", "Wyślij kod")) {
+                    Task {
+                        let email = forgotPasswordEmail.trimmed
+                        await accountStore.forgotPassword(email: email)
+                        if accountStore.isErrorMessage == false {
+                            forgotPasswordEmail = email
+                            resetPasswordCode = ""
+                            resetPassword = ""
+                            resetPasswordConfirmation = ""
+                            step = .resetPassword
+                        }
+                    }
+                }
+                .buttonStyle(PrimaryPillButtonStyle())
+                .disabled(accountStore.status == .loading || forgotPasswordEmail.trimmed.isEmpty)
+            }
+
+        case .resetPassword:
+            VStack(alignment: .leading, spacing: 14) {
+                Text(
+                    "\(copy("We sent a reset code to", "Enviamos un código de restablecimiento a", "Wysłaliśmy kod resetujący na")) \(accountStore.pendingPasswordResetEmail ?? forgotPasswordEmail.trimmed)."
+                )
+                .font(AppTheme.rounded(16, weight: .medium))
+                .foregroundStyle(AppTheme.subtitleText)
+
+                authTextField(
+                    title: copy("Reset code", "Código de restablecimiento", "Kod resetujący"),
+                    text: $resetPasswordCode,
+                    keyboardType: .numberPad,
+                    textContentType: .oneTimeCode
+                )
+
+                authSecureField(title: copy("New password", "Nueva contraseña", "Nowe hasło"), text: $resetPassword, textContentType: .newPassword)
+                authSecureField(title: copy("Confirm new password", "Confirmar nueva contraseña", "Potwierdź nowe hasło"), text: $resetPasswordConfirmation, textContentType: .newPassword)
+
+                passwordPanel(
+                    password: resetPassword,
+                    confirmation: resetPasswordConfirmation,
+                    confirmationWarning: copy(
+                        "Passwords must match before you can save the new password.",
+                        "Las contraseñas deben coincidir antes de guardar la nueva contraseña.",
+                        "Hasła muszą się zgadzać przed zapisaniem nowego hasła."
+                    )
+                )
+
+                Button(copy("Save new password", "Guardar nueva contraseña", "Zapisz nowe hasło")) {
+                    Task {
+                        let email = accountStore.pendingPasswordResetEmail ?? forgotPasswordEmail.trimmed
+                        let reset = await accountStore.resetPassword(
+                            email: email,
+                            code: resetPasswordCode.trimmed,
+                            newPassword: resetPassword
+                        )
+
+                        guard reset else { return }
+
+                        loginEmail = email
+                        loginPassword = ""
+                        resetPasswordCode = ""
+                        resetPassword = ""
+                        resetPasswordConfirmation = ""
+                        step = .login
+                    }
+                }
+                .buttonStyle(PrimaryPillButtonStyle())
+                .disabled(accountStore.status == .loading || resetPasswordCode.trimmed.isEmpty || !isPasswordReady(resetPassword) || !passwordsMatch(resetPassword, resetPasswordConfirmation))
+
+                Button(copy("Send a new reset code", "Enviar un nuevo código", "Wyślij nowy kod resetujący")) {
+                    Task {
+                        let email = accountStore.pendingPasswordResetEmail ?? forgotPasswordEmail.trimmed
+                        await accountStore.forgotPassword(email: email)
+                    }
+                }
+                .buttonStyle(SecondaryPillButtonStyle())
+                .disabled(accountStore.status == .loading)
+            }
+
         case .landing:
             EmptyView()
         }
@@ -220,6 +316,10 @@ struct AccountAccessView: View {
             return copy("Create your Sanctuary account", "Crea tu cuenta de Sanctuary", "Utwórz konto Sanctuary")
         case .confirm:
             return copy("Confirm your account", "Confirma tu cuenta", "Potwierdź konto")
+        case .forgotPassword:
+            return copy("Reset your password calmly", "Restablece tu contraseña con calma", "Spokojnie zresetuj hasło")
+        case .resetPassword:
+            return copy("Choose a secure new password", "Elige una nueva contraseña segura", "Wybierz bezpieczne nowe hasło")
         case .landing:
             return copy("Choose your way in", "Elige cómo entrar", "Wybierz drogę wejścia")
         }
@@ -245,6 +345,18 @@ struct AccountAccessView: View {
                 "Un paso más y tu cuenta de Sanctuary estará lista.",
                 "Jeszcze jeden krok i konto Sanctuary będzie gotowe."
             )
+        case .forgotPassword:
+            return copy(
+                "We will send a reset code so you can get back into Sanctuary without losing your place.",
+                "Te enviaremos un código para que vuelvas a Sanctuary sin perder tu lugar.",
+                "Wyślemy kod resetujący, abyś mógł wrócić do Sanctuary bez utraty swojego miejsca."
+            )
+        case .resetPassword:
+            return copy(
+                "Choose a strong password and we will bring you back into Sanctuary cleanly.",
+                "Elige una contraseña segura y te llevaremos de vuelta a Sanctuary sin fricción.",
+                "Wybierz silne hasło, a płynnie wrócisz do Sanctuary."
+            )
         case .landing:
             return copy(
                 "Choose login if you already belong here, or register if this is the beginning of your Sanctuary.",
@@ -255,12 +367,20 @@ struct AccountAccessView: View {
     }
 
     private var passwordRules: [(label: String, met: Bool)] {
+        passwordRules(for: registerPassword)
+    }
+
+    private var resetPasswordRules: [(label: String, met: Bool)] {
+        passwordRules(for: resetPassword)
+    }
+
+    private func passwordRules(for password: String) -> [(label: String, met: Bool)] {
         [
-            (copy("At least 8 characters", "Al menos 8 caracteres", "Co najmniej 8 znaków"), registerPassword.count >= 8),
-            (copy("One uppercase letter", "Una letra mayúscula", "Jedna wielka litera"), registerPassword.range(of: "[A-Z]", options: .regularExpression) != nil),
-            (copy("One lowercase letter", "Una letra minúscula", "Jedna mała litera"), registerPassword.range(of: "[a-z]", options: .regularExpression) != nil),
-            (copy("One number", "Un número", "Jedna cyfra"), registerPassword.range(of: "\\d", options: .regularExpression) != nil),
-            (copy("One special character", "Un carácter especial", "Jeden znak specjalny"), registerPassword.range(of: "[^A-Za-z0-9]", options: .regularExpression) != nil),
+            (copy("At least 8 characters", "Al menos 8 caracteres", "Co najmniej 8 znaków"), password.count >= 8),
+            (copy("One uppercase letter", "Una letra mayúscula", "Jedna wielka litera"), password.range(of: "[A-Z]", options: .regularExpression) != nil),
+            (copy("One lowercase letter", "Una letra minúscula", "Jedna mała litera"), password.range(of: "[a-z]", options: .regularExpression) != nil),
+            (copy("One number", "Un número", "Jedna cyfra"), password.range(of: "\\d", options: .regularExpression) != nil),
+            (copy("One special character", "Un carácter especial", "Jeden znak specjalny"), password.range(of: "[^A-Za-z0-9]", options: .regularExpression) != nil),
         ]
     }
 
@@ -268,9 +388,21 @@ struct AccountAccessView: View {
         !registerPasswordConfirmation.isEmpty && registerPassword == registerPasswordConfirmation
     }
 
+    private func passwordsMatch(_ password: String, _ confirmation: String) -> Bool {
+        !confirmation.isEmpty && password == confirmation
+    }
+
     private var passwordStrengthLabel: String {
-        let metCount = passwordRules.filter(\.met).count
-        if metCount == passwordRules.count {
+        passwordStrengthLabel(for: passwordRules)
+    }
+
+    private var resetPasswordStrengthLabel: String {
+        passwordStrengthLabel(for: resetPasswordRules)
+    }
+
+    private func passwordStrengthLabel(for rules: [(label: String, met: Bool)]) -> String {
+        let metCount = rules.filter(\.met).count
+        if metCount == rules.count {
             return copy("Ready", "Lista", "Gotowe")
         }
         if metCount >= 4 {
@@ -290,20 +422,43 @@ struct AccountAccessView: View {
         passwordsMatch
     }
 
+    private func isPasswordReady(_ password: String) -> Bool {
+        passwordRules(for: password).allSatisfy(\.met)
+    }
+
     private var passwordPanel: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        passwordPanel(
+            password: registerPassword,
+            confirmation: registerPasswordConfirmation,
+            confirmationWarning: copy(
+                "Passwords must match before you can create the account.",
+                "Las contraseñas deben coincidir antes de crear la cuenta.",
+                "Hasła muszą się zgadzać przed utworzeniem konta."
+            )
+        )
+    }
+
+    private func passwordPanel(
+        password: String,
+        confirmation: String,
+        confirmationWarning: String
+    ) -> some View {
+        let rules = passwordRules(for: password)
+        let matches = passwordsMatch(password, confirmation)
+
+        return VStack(alignment: .leading, spacing: 10) {
             HStack {
                 Text(copy("Password strength", "Seguridad de contraseña", "Siła hasła"))
                     .font(AppTheme.rounded(15, weight: .bold))
                     .foregroundStyle(.white)
                 Spacer()
-                Text(passwordStrengthLabel)
+                Text(passwordStrengthLabel(for: rules))
                     .font(AppTheme.rounded(14, weight: .semibold))
-                    .foregroundStyle(passwordRules.allSatisfy(\.met) ? AppTheme.tabActive : AppTheme.subtitleText)
+                    .foregroundStyle(rules.allSatisfy(\.met) ? AppTheme.tabActive : AppTheme.subtitleText)
             }
 
             VStack(alignment: .leading, spacing: 8) {
-                ForEach(Array(passwordRules.enumerated()), id: \.offset) { _, rule in
+                ForEach(Array(rules.enumerated()), id: \.offset) { _, rule in
                     HStack(spacing: 8) {
                         Text(rule.met ? "✓" : "•")
                             .font(AppTheme.rounded(14, weight: .bold))
@@ -316,12 +471,12 @@ struct AccountAccessView: View {
             }
 
             Text(
-                passwordsMatch
+                matches
                     ? copy("Passwords match.", "Las contraseñas coinciden.", "Hasła są zgodne.")
-                    : copy("Passwords must match before you can create the account.", "Las contraseñas deben coincidir antes de crear la cuenta.", "Hasła muszą się zgadzać przed utworzeniem konta.")
+                    : confirmationWarning
             )
             .font(AppTheme.rounded(14, weight: .medium))
-            .foregroundStyle(passwordsMatch ? AppTheme.tabActive : AppTheme.subtitleText)
+            .foregroundStyle(matches ? AppTheme.tabActive : AppTheme.subtitleText)
         }
         .padding(14)
         .background(
@@ -431,6 +586,10 @@ struct AccountAccessView: View {
         accountStore.clearTransientMessage()
         if step == .confirm {
             step = .register
+        } else if step == .resetPassword {
+            step = .forgotPassword
+        } else if step == .forgotPassword {
+            step = .login
         } else {
             step = .landing
         }

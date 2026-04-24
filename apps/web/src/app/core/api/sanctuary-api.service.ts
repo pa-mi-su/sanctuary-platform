@@ -143,6 +143,16 @@ export interface AuthResendCodeRequest {
   email: string;
 }
 
+export interface AuthForgotPasswordRequest {
+  email: string;
+}
+
+export interface AuthResetPasswordRequest {
+  email: string;
+  code: string;
+  newPassword: string;
+}
+
 export interface AuthRegistrationResponse {
   email: string;
   displayName: string;
@@ -290,6 +300,14 @@ export class SanctuaryApiService {
 
   resendConfirmation(request: AuthResendCodeRequest): Observable<AuthStatusResponse> {
     return this.http.post<AuthStatusResponse>(`${this.apiBaseUrl}/auth/resend-confirmation`, request);
+  }
+
+  forgotPassword(request: AuthForgotPasswordRequest): Observable<AuthStatusResponse> {
+    return this.http.post<AuthStatusResponse>(`${this.apiBaseUrl}/auth/forgot-password`, request);
+  }
+
+  resetPassword(request: AuthResetPasswordRequest): Observable<AuthStatusResponse> {
+    return this.http.post<AuthStatusResponse>(`${this.apiBaseUrl}/auth/reset-password`, request);
   }
 
   login(request: AuthLoginRequest): Observable<AuthSessionResponse> {
