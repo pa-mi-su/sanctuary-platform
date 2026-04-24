@@ -49,6 +49,7 @@ struct Novena: Codable, Identifiable, Hashable, Sendable {
     let descriptionByLocale: [ContentLocale: String]
     let durationDays: Int
     let tags: [String]
+    let intentions: [String]
     let imageURL: URL?
     let days: [NovenaDay]
 }

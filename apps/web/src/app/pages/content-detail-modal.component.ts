@@ -49,19 +49,6 @@ interface NovenaProgress {
             <h3>Biography</h3>
             <p>{{ saintDetail()!.biography }}</p>
           </section>
-          @if (saintDetail()!.sources.length) {
-            <section class="detail-section">
-              <h3>Sources</h3>
-              @for (source of saintDetail()!.sources; track source.text) {
-                <div class="detail-list-row">
-                  <span>{{ source.text }}</span>
-                  @if (source.url) {
-                    <a class="text-link" [href]="source.url" target="_blank" rel="noreferrer">Open</a>
-                  }
-                </div>
-              }
-            </section>
-          }
         </div>
       }
 
@@ -70,7 +57,9 @@ interface NovenaProgress {
           <div class="detail-hero">
             <div class="detail-image prayer-image" [style.background-image]="imageStyle(prayerDetail()!.imageUrl)"></div>
             <div class="detail-meta">
-              <span class="content-tag">{{ prayerDetail()!.category }}</span>
+              @if (visibleCategory(prayerDetail()!.category); as category) {
+                <span class="content-tag">{{ category }}</span>
+              }
               <p>{{ prayerDetail()!.alternateTitle }}</p>
             </div>
           </div>
@@ -149,6 +138,9 @@ interface NovenaProgress {
                 }
               </div>
             </section>
+            @if (!isAuthenticated()) {
+              <p class="complete-note">Log in or register to start this novena and track your progress.</p>
+            }
             @if (selectedNovenaDay()) {
               <section class="detail-section">
                 <h3>{{ selectedNovenaDay()!.title }}</h3>
@@ -162,15 +154,13 @@ interface NovenaProgress {
                 @if (selectedNovenaDay()!.prayer) {
                   <p class="detail-copy"><strong>Prayer:</strong> {{ selectedNovenaDay()!.prayer }}</p>
                 }
-                @if (!isAuthenticated()) {
-                  <p class="complete-note">Log in or register to start this novena and track your progress.</p>
-                } @else if (novenaProgress() && !isDayCompleted(selectedNovenaDay()!.dayNumber)) {
+                @if (novenaProgress() && !isDayCompleted(selectedNovenaDay()!.dayNumber)) {
                   <button class="primary-action" type="button" (click)="completeNovenaDay.emit()">
                     Mark Day {{ selectedNovenaDay()!.dayNumber }} Complete
                   </button>
                 } @else if (novenaProgress()) {
                   <p class="complete-note">This day is complete.</p>
-                } @else {
+                } @else if (isAuthenticated()) {
                   <p class="complete-note">Start this novena to track daily progress.</p>
                 }
               </section>
@@ -195,6 +185,19 @@ export class ContentDetailModalComponent {
   readonly selectNovenaDay = output<number>();
   readonly startNovena = output<void>();
   readonly stopNovena = output<void>();
+
+  protected visibleCategory(category: string | null | undefined): string | null {
+    if (!category) {
+      return null;
+    }
+
+    const normalized = category.trim();
+    if (!normalized || normalized.toLowerCase() === 'user_provided') {
+      return null;
+    }
+
+    return normalized;
+  }
   readonly completeNovenaDay = output<void>();
   readonly toggleSaintFavorite = output<void>();
   readonly toggleNovenaFavorite = output<void>();

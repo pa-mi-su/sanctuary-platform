@@ -47,7 +47,7 @@ struct SaintsSearchView: View {
                                     SearchResultCard(
                                         title: viewModel.displayName(for: saint),
                                         subtitle: viewModel.summary(for: saint),
-                                        meta: "\(localization.t("saints.feastShort")): \(saint.feastMonth)/\(saint.feastDay)",
+                                        meta: feastLabel(for: saint),
                                         accent: AppTheme.glowGold,
                                         icon: "person.fill",
                                         imageURL: saint.imageURL
@@ -77,6 +77,12 @@ struct SaintsSearchView: View {
                 Task { await viewModel.search() }
             }
         }
+    }
+
+    private func feastLabel(for saint: Saint) -> String {
+        saint.feastLabelByLocale[localization.language.contentLocale]
+            ?? saint.feastLabelByLocale[.en]
+            ?? localization.formatMonthDay(month: saint.feastMonth, day: saint.feastDay)
     }
 }
 
@@ -223,21 +229,31 @@ struct NovenasSearchView: View {
         intentionItems = results.map { novena in
             let title = viewModel.title(for: novena)
             let summary = viewModel.summary(for: novena)
+            let intentionsSummary = formattedIntentions(for: novena)
             let document = SearchMatcher.Document(
                 itemID: novena.id,
                 primaryText: title,
-                secondaryText: "\(novena.slug) \((novena.tags).joined(separator: " "))",
-                auxiliaryText: summary
+                secondaryText: "\(novena.slug) \((novena.tags).joined(separator: " ")) \((novena.intentions).joined(separator: " "))",
+                auxiliaryText: "\(summary) \(intentionsSummary)"
             )
             return IntentionSearchItem(
                 id: novena.id,
                 novena: novena,
                 title: title,
-                subtitle: summary.isEmpty ? localization.t("search.intentionsLabel") : summary,
-                meta: localization.t("search.intentionsLabel"),
+                subtitle: summary,
+                meta: intentionsSummary,
                 document: document
             )
         }
+    }
+
+    private func formattedIntentions(for novena: Novena) -> String {
+        let cleaned = novena.intentions
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+
+        guard !cleaned.isEmpty else { return "" }
+        return Array(cleaned.prefix(3)).joined(separator: " • ")
     }
 
     private func normalized(_ value: String) -> String {

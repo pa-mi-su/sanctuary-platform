@@ -67,11 +67,7 @@ actor APIContentRepository: ContentRepository, SaintRangeRepository {
         let normalizedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
         let summaries: [APIContentNovenaSummaryResponse]
 
-        if normalizedQuery.isEmpty {
-            summaries = try await apiClient.listNovenas(locale: locale, query: nil)
-        } else {
-            summaries = try await apiClient.searchNovenasByIntentions(locale: locale, query: normalizedQuery)
-        }
+        summaries = try await apiClient.searchNovenasByIntentions(locale: locale, query: normalizedQuery)
 
         var results: [Novena] = []
         for summary in summaries {
@@ -221,6 +217,7 @@ actor APIContentRepository: ContentRepository, SaintRangeRepository {
             descriptionByLocale: localizedValueMap(value: response.description, locale: locale),
             durationDays: response.durationDays,
             tags: [],
+            intentions: response.intentions ?? [],
             imageURL: url(from: response.imageUrl),
             days: []
         )
@@ -255,6 +252,7 @@ actor APIContentRepository: ContentRepository, SaintRangeRepository {
             descriptionByLocale: localizedValueMap(value: response.description, locale: locale),
             durationDays: response.durationDays,
             tags: response.tags,
+            intentions: response.intentions,
             imageURL: url(from: response.imageUrl),
             days: days
         )

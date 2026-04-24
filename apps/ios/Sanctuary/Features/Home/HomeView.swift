@@ -181,22 +181,22 @@ struct HomeView: View {
                 LanguagePickerSheet()
                     .presentationDetents([.medium])
             }
-            .sheet(isPresented: $showAbout) {
+            .fullScreenCover(isPresented: $showAbout) {
                 AboutView()
             }
-            .sheet(isPresented: $showPrayersSearch) {
+            .fullScreenCover(isPresented: $showPrayersSearch) {
                 PrayersSearchView(environment: environment)
             }
-            .sheet(isPresented: $showSaintsList) {
+            .fullScreenCover(isPresented: $showSaintsList) {
                 SaintsSearchView(environment: environment)
             }
-            .sheet(isPresented: $showNovenasSearch) {
+            .fullScreenCover(isPresented: $showNovenasSearch) {
                 NovenasSearchView(environment: environment)
             }
-            .sheet(isPresented: $showIntentionsSearch) {
+            .fullScreenCover(isPresented: $showIntentionsSearch) {
                 NovenasSearchView(environment: environment, mode: .intentions)
             }
-            .sheet(isPresented: $showDailyReadings) {
+            .fullScreenCover(isPresented: $showDailyReadings) {
                 DailyReadingsView(url: dailyReadingsURL)
             }
             .toolbar(.hidden)

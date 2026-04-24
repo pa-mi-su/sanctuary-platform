@@ -1,6 +1,6 @@
 import { Component, input, output } from '@angular/core';
 
-type AppTab = 'home' | 'novenas' | 'liturgical' | 'saints' | 'prayers' | 'about' | 'auth' | 'me';
+type AppTab = 'home' | 'novenas' | 'intentions' | 'liturgical' | 'saints' | 'prayers' | 'about' | 'auth' | 'me';
 type AppLanguage = 'en' | 'es' | 'pl';
 
 @Component({

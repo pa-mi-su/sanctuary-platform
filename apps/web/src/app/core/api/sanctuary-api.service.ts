@@ -68,6 +68,7 @@ export interface NovenaSummary {
   title: string;
   description: string;
   durationDays: number;
+  intentions?: string[];
   imageUrl: string | null;
 }
 
@@ -140,6 +141,16 @@ export interface AuthConfirmRegistrationRequest {
 
 export interface AuthResendCodeRequest {
   email: string;
+}
+
+export interface AuthForgotPasswordRequest {
+  email: string;
+}
+
+export interface AuthResetPasswordRequest {
+  email: string;
+  code: string;
+  newPassword: string;
 }
 
 export interface AuthRegistrationResponse {
@@ -289,6 +300,14 @@ export class SanctuaryApiService {
 
   resendConfirmation(request: AuthResendCodeRequest): Observable<AuthStatusResponse> {
     return this.http.post<AuthStatusResponse>(`${this.apiBaseUrl}/auth/resend-confirmation`, request);
+  }
+
+  forgotPassword(request: AuthForgotPasswordRequest): Observable<AuthStatusResponse> {
+    return this.http.post<AuthStatusResponse>(`${this.apiBaseUrl}/auth/forgot-password`, request);
+  }
+
+  resetPassword(request: AuthResetPasswordRequest): Observable<AuthStatusResponse> {
+    return this.http.post<AuthStatusResponse>(`${this.apiBaseUrl}/auth/reset-password`, request);
   }
 
   login(request: AuthLoginRequest): Observable<AuthSessionResponse> {

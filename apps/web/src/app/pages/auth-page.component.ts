@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { SanctuaryAuthService } from '../core/auth/sanctuary-auth.service';
 
 type AppLanguage = 'en' | 'es' | 'pl';
-type AuthStep = 'landing' | 'login' | 'register' | 'confirm';
+type AuthStep = 'landing' | 'login' | 'register' | 'confirm' | 'forgot' | 'reset';
 
 @Component({
   selector: 'app-auth-page',
@@ -73,6 +73,10 @@ type AuthStep = 'landing' | 'login' | 'register' | 'confirm';
                 <span>{{ t('Password', 'Contraseña', 'Hasło') }}</span>
                 <input type="password" [(ngModel)]="loginPassword" name="loginPassword" autocomplete="current-password" />
               </label>
+
+              <button class="text-button" type="button" (click)="openForgotPassword()">
+                {{ t('Forgot password?', '¿Olvidaste tu contraseña?', 'Nie pamiętasz hasła?') }}
+              </button>
 
               <button class="primary-action" type="submit" [disabled]="pending()">
                 {{ pending() ? t('Signing in…', 'Entrando…', 'Logowanie…') : t('Login', 'Iniciar sesión', 'Zaloguj się') }}
@@ -176,6 +180,91 @@ type AuthStep = 'landing' | 'login' | 'register' | 'confirm';
               </button>
             </form>
           }
+
+          @if (step() === 'forgot') {
+            <form class="auth-form" (ngSubmit)="submitForgotPassword()">
+              <div class="panel-heading">
+                <h3>{{ t('Reset your password', 'Restablece tu contraseña', 'Zresetuj hasło') }}</h3>
+                <p>{{ t('Enter your email and we will send a reset code you can use right away.', 'Ingresa tu correo y enviaremos un código de restablecimiento que podrás usar enseguida.', 'Wpisz email, a wyślemy kod resetujący, którego możesz od razu użyć.') }}</p>
+              </div>
+
+              <label class="field">
+                <span>{{ t('Email', 'Correo', 'Email') }}</span>
+                <input type="email" [(ngModel)]="forgotEmail" name="forgotEmail" autocomplete="email" />
+              </label>
+
+              <button class="primary-action" type="submit" [disabled]="pending()">
+                {{ pending() ? t('Sending code…', 'Enviando código…', 'Wysyłanie kodu…') : t('Send reset code', 'Enviar código', 'Wyślij kod') }}
+              </button>
+            </form>
+          }
+
+          @if (step() === 'reset') {
+            <form class="auth-form" (ngSubmit)="submitResetPassword()">
+              <div class="panel-heading">
+                <h3>{{ t('Choose a new password', 'Elige una nueva contraseña', 'Wybierz nowe hasło') }}</h3>
+                <p>
+                  {{
+                    t(
+                      'Enter the reset code we sent to',
+                      'Ingresa el código que enviamos a',
+                      'Wpisz kod resetujący wysłany na'
+                    )
+                  }}
+                  <strong>{{ resetEmail }}</strong>.
+                </p>
+              </div>
+
+              <label class="field">
+                <span>{{ t('Reset code', 'Código de restablecimiento', 'Kod resetujący') }}</span>
+                <input type="text" [(ngModel)]="resetCode" name="resetCode" autocomplete="one-time-code" inputmode="numeric" />
+              </label>
+
+              <div class="field-grid">
+                <label class="field">
+                  <span>{{ t('New password', 'Nueva contraseña', 'Nowe hasło') }}</span>
+                  <input type="password" [(ngModel)]="resetPassword" name="resetPassword" autocomplete="new-password" />
+                </label>
+
+                <label class="field">
+                  <span>{{ t('Confirm new password', 'Confirmar nueva contraseña', 'Potwierdź nowe hasło') }}</span>
+                  <input type="password" [(ngModel)]="resetPasswordConfirmation" name="resetPasswordConfirmation" autocomplete="new-password" />
+                </label>
+              </div>
+
+              <section class="password-panel glass-subtle" [class.password-panel--ready]="isResetPasswordReady()">
+                <div class="password-panel__header">
+                  <strong>{{ t('Password strength', 'Seguridad de contraseña', 'Siła hasła') }}</strong>
+                  <span [class.password-score--ready]="isResetPasswordReady()">{{ resetPasswordStrengthLabel() }}</span>
+                </div>
+
+                <div class="password-checklist">
+                  @for (rule of resetPasswordRules(); track rule.label) {
+                    <div class="password-check" [class.password-check--met]="rule.met">
+                      <span class="password-check__icon">{{ rule.met ? '✓' : '•' }}</span>
+                      <span>{{ rule.label }}</span>
+                    </div>
+                  }
+                </div>
+
+                <div class="password-match" [class.password-match--ready]="resetPasswordsMatch() && !!resetPasswordConfirmation">
+                  {{
+                    resetPasswordsMatch() && resetPasswordConfirmation
+                      ? t('Passwords match.', 'Las contraseñas coinciden.', 'Hasła są zgodne.')
+                      : t('Passwords must match before you can save the new password.', 'Las contraseñas deben coincidir antes de guardar la nueva contraseña.', 'Hasła muszą się zgadzać przed zapisaniem nowego hasła.')
+                  }}
+                </div>
+              </section>
+
+              <button class="primary-action" type="submit" [disabled]="pending() || !isResetPasswordReady() || !resetPasswordsMatch() || !resetCode.trim()">
+                {{ pending() ? t('Updating password…', 'Actualizando contraseña…', 'Aktualizowanie hasła…') : t('Save new password', 'Guardar nueva contraseña', 'Zapisz nowe hasło') }}
+              </button>
+
+              <button class="secondary-action" type="button" [disabled]="pending()" (click)="resendResetCode()">
+                {{ t('Send a new reset code', 'Enviar un nuevo código', 'Wyślij nowy kod resetujący') }}
+              </button>
+            </form>
+          }
         </article>
       </div>
     </section>
@@ -202,9 +291,21 @@ export class AuthPageComponent {
   protected registerPasswordConfirmation = '';
   protected confirmationCode = '';
   protected confirmationEmail = '';
+  protected forgotEmail = '';
+  protected resetEmail = '';
+  protected resetCode = '';
+  protected resetPassword = '';
+  protected resetPasswordConfirmation = '';
 
   protected passwordRules(): Array<{ label: string; met: boolean }> {
-    const password = this.registerPassword;
+    return this.passwordRulesFor(this.registerPassword);
+  }
+
+  protected resetPasswordRules(): Array<{ label: string; met: boolean }> {
+    return this.passwordRulesFor(this.resetPassword);
+  }
+
+  private passwordRulesFor(password: string): Array<{ label: string; met: boolean }> {
     return [
       {
         label: this.t('At least 8 characters', 'Al menos 8 caracteres', 'Co najmniej 8 znaków'),
@@ -233,13 +334,29 @@ export class AuthPageComponent {
     return this.registerPassword === this.registerPasswordConfirmation;
   }
 
+  protected resetPasswordsMatch(): boolean {
+    return this.resetPassword === this.resetPasswordConfirmation;
+  }
+
   protected isPasswordReady(): boolean {
     return this.passwordRules().every((rule) => rule.met);
   }
 
+  protected isResetPasswordReady(): boolean {
+    return this.resetPasswordRules().every((rule) => rule.met);
+  }
+
   protected passwordStrengthLabel(): string {
-    const metCount = this.passwordRules().filter((rule) => rule.met).length;
-    if (metCount === this.passwordRules().length) {
+    return this.passwordStrengthLabelFor(this.passwordRules());
+  }
+
+  protected resetPasswordStrengthLabel(): string {
+    return this.passwordStrengthLabelFor(this.resetPasswordRules());
+  }
+
+  private passwordStrengthLabelFor(rules: Array<{ label: string; met: boolean }>): string {
+    const metCount = rules.filter((rule) => rule.met).length;
+    if (metCount === rules.length) {
       return this.t('Ready', 'Lista', 'Gotowe');
     }
     if (metCount >= 4) {
@@ -283,6 +400,18 @@ export class AuthPageComponent {
           'One more step and your Sanctuary account is ready.',
           'Un paso más y tu cuenta de Sanctuary estará lista.',
           'Jeszcze jeden krok i konto Sanctuary będzie gotowe.'
+        );
+      case 'forgot':
+        return this.t(
+          'Reset your password calmly',
+          'Restablece tu contraseña con calma',
+          'Spokojnie zresetuj hasło'
+        );
+      case 'reset':
+        return this.t(
+          'Choose a secure new password',
+          'Elige una nueva contraseña segura',
+          'Wybierz bezpieczne nowe hasło'
         );
       default:
         return this.t(
@@ -378,15 +507,40 @@ export class AuthPageComponent {
     this.error.set(null);
 
     try {
-      const message = await this.auth.confirmRegistration({
+      await this.auth.confirmRegistration({
         email: this.confirmationEmail,
         code: this.confirmationCode.trim(),
       });
+      const email = this.confirmationEmail;
+      const password = this.registerPassword;
+
+      if (password) {
+        try {
+          await this.auth.login({
+            email,
+            password,
+          });
+          this.pending.set(false);
+          this.message.set(null);
+          this.authenticated.emit();
+          return;
+        } catch {
+          // Fall back to the login screen with the confirmed email prefilled.
+        }
+      }
+
       this.pending.set(false);
-      this.message.set(message);
+      this.message.set(
+        this.t(
+          'Your account is confirmed. Please sign in to continue.',
+          'Tu cuenta está confirmada. Inicia sesión para continuar.',
+          'Twoje konto zostało potwierdzone. Zaloguj się, aby kontynuować.'
+        )
+      );
       this.step.set('login');
-      this.loginEmail = this.confirmationEmail;
+      this.loginEmail = email;
       this.loginPassword = '';
+      this.confirmationCode = '';
     } catch {
       this.pending.set(false);
       this.error.set(this.auth.state().message);
@@ -411,12 +565,124 @@ export class AuthPageComponent {
     }
   }
 
+  protected openForgotPassword(): void {
+    this.error.set(null);
+    this.message.set(null);
+    this.forgotEmail = this.loginEmail.trim();
+    this.step.set('forgot');
+  }
+
+  protected async submitForgotPassword(): Promise<void> {
+    if (!this.validateConfigured()) {
+      return;
+    }
+
+    if (!this.forgotEmail.trim()) {
+      this.error.set(this.t('Enter your email so we know where to send the reset code.', 'Ingresa tu correo para saber dónde enviar el código.', 'Wpisz email, abyśmy wiedzieli, gdzie wysłać kod resetujący.'));
+      return;
+    }
+
+    this.pending.set(true);
+    this.error.set(null);
+    this.message.set(null);
+
+    try {
+      const email = this.forgotEmail.trim();
+      const message = await this.auth.forgotPassword({ email });
+      this.pending.set(false);
+      this.message.set(message);
+      this.resetEmail = email;
+      this.resetCode = '';
+      this.resetPassword = '';
+      this.resetPasswordConfirmation = '';
+      this.step.set('reset');
+    } catch {
+      this.pending.set(false);
+      this.error.set(this.auth.state().message);
+    }
+  }
+
+  protected async resendResetCode(): Promise<void> {
+    if (!this.resetEmail.trim()) {
+      return;
+    }
+
+    this.pending.set(true);
+    this.error.set(null);
+
+    try {
+      const message = await this.auth.forgotPassword({ email: this.resetEmail.trim() });
+      this.pending.set(false);
+      this.message.set(message);
+    } catch {
+      this.pending.set(false);
+      this.error.set(this.auth.state().message);
+    }
+  }
+
+  protected async submitResetPassword(): Promise<void> {
+    if (!this.resetEmail.trim() || !this.resetCode.trim()) {
+      this.error.set(this.t('Enter the reset code from your email.', 'Ingresa el código de restablecimiento de tu correo.', 'Wpisz kod resetujący z wiadomości e-mail.'));
+      return;
+    }
+
+    if (!this.isResetPasswordReady()) {
+      this.error.set(
+        this.t(
+          'Choose a password that matches every requirement below before saving it.',
+          'Elige una contraseña que cumpla todos los requisitos antes de guardarla.',
+          'Wybierz hasło spełniające wszystkie wymagania poniżej przed zapisaniem.'
+        )
+      );
+      return;
+    }
+
+    if (!this.resetPasswordsMatch()) {
+      this.error.set(this.t('Your password confirmation does not match.', 'La confirmación de tu contraseña no coincide.', 'Potwierdzenie hasła nie pasuje.'));
+      return;
+    }
+
+    this.pending.set(true);
+    this.error.set(null);
+
+    try {
+      const email = this.resetEmail.trim();
+      const message = await this.auth.resetPassword({
+        email,
+        code: this.resetCode.trim(),
+        newPassword: this.resetPassword,
+      });
+      this.pending.set(false);
+      this.message.set(message);
+      this.loginEmail = email;
+      this.loginPassword = '';
+      this.resetCode = '';
+      this.resetPassword = '';
+      this.resetPasswordConfirmation = '';
+      this.forgotEmail = email;
+      this.step.set('login');
+    } catch {
+      this.pending.set(false);
+      this.error.set(this.auth.state().message);
+    }
+  }
+
   protected goBack(): void {
     this.error.set(null);
     this.message.set(null);
 
     if (this.step() === 'confirm') {
       this.step.set('register');
+      return;
+    }
+
+    if (this.step() === 'reset') {
+      this.step.set('forgot');
+      return;
+    }
+
+    if (this.step() === 'forgot') {
+      this.step.set('login');
       return;
     }
 

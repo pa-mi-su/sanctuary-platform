@@ -48,7 +48,7 @@
         [currentLanguage]="facade.language()"
         (openSaints)="facade.openSaintsList()"
         (openNovenas)="facade.openNovenasList()"
-        (openPrayers)="facade.setTab('prayers')"
+        (openPrayers)="facade.openPrayersList()"
         (openDaily)="facade.showDailyTab()"
         (openIntentions)="facade.openIntentions()"
       />
@@ -93,11 +93,11 @@
       />
     }
 
-    @if (facade.currentTab() === 'novenas') {
+    @if (facade.currentTab() === 'novenas' || facade.currentTab() === 'intentions') {
       <app-novenas-page
         [isEnglish]="facade.isEnglish()"
         [currentLanguage]="facade.language()"
-        [mode]="facade.novenasMode()"
+        [mode]="facade.currentTab() === 'intentions' ? 'intentions' : facade.novenasMode()"
         [query]="facade.novenaQuery()"
         [selectedDate]="facade.selectedDate()"
         [todayDate]="facade.todayDate()"

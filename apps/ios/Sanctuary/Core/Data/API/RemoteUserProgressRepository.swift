@@ -10,7 +10,7 @@ actor RemoteUserProgressRepository: UserProgressRepository {
     }
 
     func listFavorites(userID: String) async throws -> [UserFavorite] {
-        let token = try await accessToken()
+        let token = try await profileToken()
         let favorites = try await apiClient.favorites(token: token)
         return favorites.compactMap { favorite in
             guard let itemType = FavoriteItemType(rawValue: favorite.itemType.lowercased()) else {
@@ -27,17 +27,17 @@ actor RemoteUserProgressRepository: UserProgressRepository {
     }
 
     func addFavorite(userID: String, itemType: FavoriteItemType, itemID: String) async throws {
-        let token = try await accessToken()
+        let token = try await profileToken()
         try await apiClient.saveFavorite(itemType: itemType.rawValue, itemId: itemID, token: token)
     }
 
     func removeFavorite(userID: String, itemType: FavoriteItemType, itemID: String) async throws {
-        let token = try await accessToken()
+        let token = try await profileToken()
         try await apiClient.deleteFavorite(itemType: itemType.rawValue, itemId: itemID, token: token)
     }
 
     func listNovenaCommitments(userID: String) async throws -> [UserNovenaCommitment] {
-        let token = try await accessToken()
+        let token = try await profileToken()
         let commitments = try await apiClient.novenaCommitments(token: token)
         return commitments.compactMap { dto in
             guard let status = CommitmentStatus(rawValue: dto.status.lowercased()) else {
@@ -63,7 +63,7 @@ actor RemoteUserProgressRepository: UserProgressRepository {
     }
 
     func upsertNovenaCommitment(_ commitment: UserNovenaCommitment) async throws {
-        let token = try await accessToken()
+        let token = try await profileToken()
         _ = try await apiClient.saveNovenaCommitment(
             novenaId: commitment.novenaID,
             request: APIUserNovenaCommitmentRequest(
@@ -108,12 +108,12 @@ actor RemoteUserProgressRepository: UserProgressRepository {
     }
 
     func removeNovenaCommitment(userID: String, novenaID: String) async throws {
-        let token = try await accessToken()
+        let token = try await profileToken()
         try await apiClient.deleteNovenaCommitment(novenaId: novenaID, token: token)
     }
 
-    private func accessToken() async throws -> String {
-        let token = await MainActor.run { sessionStore.accessToken }
+    private func profileToken() async throws -> String {
+        let token = await MainActor.run { sessionStore.idToken ?? sessionStore.accessToken }
         guard let token, !token.isEmpty else {
             throw SanctuaryAPIError.missingAccessToken
         }
