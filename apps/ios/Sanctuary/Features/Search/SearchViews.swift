@@ -47,7 +47,7 @@ struct SaintsSearchView: View {
                                     SearchResultCard(
                                         title: viewModel.displayName(for: saint),
                                         subtitle: viewModel.summary(for: saint),
-                                        meta: "\(localization.t("saints.feastShort")): \(saint.feastMonth)/\(saint.feastDay)",
+                                        meta: feastLabel(for: saint),
                                         accent: AppTheme.glowGold,
                                         icon: "person.fill",
                                         imageURL: saint.imageURL
@@ -77,6 +77,12 @@ struct SaintsSearchView: View {
                 Task { await viewModel.search() }
             }
         }
+    }
+
+    private func feastLabel(for saint: Saint) -> String {
+        saint.feastLabelByLocale[localization.language.contentLocale]
+            ?? saint.feastLabelByLocale[.en]
+            ?? localization.formatMonthDay(month: saint.feastMonth, day: saint.feastDay)
     }
 }
 

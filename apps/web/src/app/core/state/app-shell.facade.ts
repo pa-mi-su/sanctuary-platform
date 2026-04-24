@@ -479,6 +479,19 @@ export class AppShellFacade {
     }
   }
 
+  private resetViewportToTop(): void {
+    const scroll = () => {
+      if (typeof window !== 'undefined') {
+        window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+      }
+    };
+
+    scroll();
+    if (typeof requestAnimationFrame === 'function') {
+      requestAnimationFrame(scroll);
+    }
+  }
+
   handlePrimaryNavigate(tab: AppTab): void {
     if (tab === 'novenas') {
       this.browseNovenas();
@@ -757,7 +770,14 @@ export class AppShellFacade {
   }
 
   showDailyTab(): void {
+    const todayReadingsUrl = this.todayLiturgicalDay()?.readingsUrl ?? null;
+    if (todayReadingsUrl && typeof window !== 'undefined') {
+      window.open(todayReadingsUrl, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
     this.setTab('liturgical');
+    this.resetViewportToTop();
   }
 
   openIntentions(): void {
@@ -765,6 +785,7 @@ export class AppShellFacade {
     this.novenasMode.set('intentions');
     this.novenaQuery.set('');
     this.novenasLoadFailed.set(false);
+    this.resetViewportToTop();
   }
 
   browseNovenas(): void {
@@ -777,6 +798,8 @@ export class AppShellFacade {
     this.setTab('novenas');
     this.novenasMode.set('list');
     this.novenaQuery.set('');
+    this.novenasLoadFailed.set(false);
+    this.resetViewportToTop();
   }
 
   browseSaintsCalendar(): void {
@@ -788,6 +811,15 @@ export class AppShellFacade {
     this.setTab('saints');
     this.saintsMode.set('list');
     this.saintQuery.set('');
+    this.saintsLoadFailed.set(false);
+    this.resetViewportToTop();
+  }
+
+  openPrayersList(): void {
+    this.setTab('prayers');
+    this.prayerQuery.set('');
+    this.prayersLoadFailed.set(false);
+    this.resetViewportToTop();
   }
 
   localizedSaintsCountLabel(): string {
