@@ -21,7 +21,7 @@ import {
 } from '../api/sanctuary-api.service';
 import { SanctuaryAuthService } from '../auth/sanctuary-auth.service';
 
-export type AppTab = 'home' | 'novenas' | 'liturgical' | 'saints' | 'prayers' | 'about' | 'auth' | 'me';
+export type AppTab = 'home' | 'novenas' | 'intentions' | 'liturgical' | 'saints' | 'prayers' | 'about' | 'auth' | 'me';
 export type CalendarView = 'day' | 'week' | 'month';
 export type SeasonKey = 'ADVENT' | 'CHRISTMAS' | 'LENT' | 'EASTER' | 'ORDINARY';
 export type CalendarCell = { date: string | null; dayNumber: number | null; label: string; seasonKey?: SeasonKey | null };
@@ -781,7 +781,7 @@ export class AppShellFacade {
   }
 
   openIntentions(): void {
-    this.setTab('novenas');
+    this.setTab('intentions');
     this.novenasMode.set('intentions');
     this.novenaQuery.set('');
     this.novenasLoadFailed.set(false);

@@ -68,6 +68,7 @@ export interface NovenaSummary {
   title: string;
   description: string;
   durationDays: number;
+  intentions?: string[];
   imageUrl: string | null;
 }
 

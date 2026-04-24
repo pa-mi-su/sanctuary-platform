@@ -229,21 +229,31 @@ struct NovenasSearchView: View {
         intentionItems = results.map { novena in
             let title = viewModel.title(for: novena)
             let summary = viewModel.summary(for: novena)
+            let intentionsSummary = formattedIntentions(for: novena)
             let document = SearchMatcher.Document(
                 itemID: novena.id,
                 primaryText: title,
-                secondaryText: "\(novena.slug) \((novena.tags).joined(separator: " "))",
-                auxiliaryText: summary
+                secondaryText: "\(novena.slug) \((novena.tags).joined(separator: " ")) \((novena.intentions).joined(separator: " "))",
+                auxiliaryText: "\(summary) \(intentionsSummary)"
             )
             return IntentionSearchItem(
                 id: novena.id,
                 novena: novena,
                 title: title,
-                subtitle: summary.isEmpty ? localization.t("search.intentionsLabel") : summary,
-                meta: localization.t("search.intentionsLabel"),
+                subtitle: intentionsSummary.isEmpty ? summary : intentionsSummary,
+                meta: viewModel.dayText(for: novena),
                 document: document
             )
         }
+    }
+
+    private func formattedIntentions(for novena: Novena) -> String {
+        let cleaned = novena.intentions
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+
+        guard !cleaned.isEmpty else { return "" }
+        return Array(cleaned.prefix(3)).joined(separator: " • ")
     }
 
     private func normalized(_ value: String) -> String {

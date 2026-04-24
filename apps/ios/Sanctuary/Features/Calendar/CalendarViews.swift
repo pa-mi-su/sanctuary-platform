@@ -136,6 +136,7 @@ struct NovenasCalendarView: View {
                     descriptionByLocale: [.en: ""],
                     durationDays: 1,
                     tags: [],
+                    intentions: [],
                     imageURL: novenaImageURLByDay[selectedDay],
                     days: []
                 ),

@@ -148,6 +148,7 @@ struct APIContentNovenaSummaryResponse: Decodable, Sendable {
     let title: String
     let description: String
     let durationDays: Int
+    let intentions: [String]?
     let imageUrl: String?
 }
 
