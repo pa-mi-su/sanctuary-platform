@@ -65,19 +65,8 @@ actor APIContentRepository: ContentRepository, SaintRangeRepository {
         query: String
     ) async throws -> [Novena] {
         let normalizedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        let summaries: [APIContentNovenaSummaryResponse]
-
-        summaries = try await apiClient.searchNovenasByIntentions(locale: locale, query: normalizedQuery)
-
-        var results: [Novena] = []
-        for summary in summaries {
-            if let detail = try? await apiClient.fetchNovena(slug: summary.slug, locale: locale) {
-                results.append(mapNovenaDetail(detail, locale: locale))
-            } else {
-                results.append(mapNovenaSummary(summary, locale: locale))
-            }
-        }
-        return results
+        let summaries = try await apiClient.searchNovenasByIntentions(locale: locale, query: normalizedQuery)
+        return summaries.map { mapNovenaSummary($0, locale: locale) }
     }
 
     func listNovenaCalendarDays(
