@@ -41,7 +41,7 @@ struct MeView: View {
         .task(id: novenaLookupKey) {
             await loadNovenaDetails()
         }
-        .sheet(item: $selectedRoute) { route in
+        .fullScreenCover(item: $selectedRoute) { route in
             switch route {
             case .saint(let id):
                 SaintDetailView(
@@ -78,6 +78,7 @@ struct MeView: View {
                         descriptionByLocale: [.en: ""],
                         durationDays: novenaDuration(for: id),
                         tags: [],
+                        intentions: [],
                         imageURL: nil,
                         days: []
                     ),

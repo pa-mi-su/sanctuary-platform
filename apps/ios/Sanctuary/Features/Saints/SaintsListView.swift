@@ -32,7 +32,7 @@ struct SaintsListView: View {
                                     .font(AppTheme.rounded(15, weight: .medium))
                                     .foregroundStyle(AppTheme.cardText.opacity(0.8))
                                     .lineLimit(2)
-                                Text("\(localization.t("saints.feastShort")): \(saint.feastMonth)/\(saint.feastDay)")
+                                Text(feastLabel(for: saint))
                                     .font(AppTheme.rounded(12, weight: .semibold))
                                     .foregroundStyle(.white.opacity(0.68))
                                     .padding(.horizontal, 10)
@@ -77,6 +77,12 @@ struct SaintsListView: View {
                 }
             }
         }
+    }
+
+    private func feastLabel(for saint: Saint) -> String {
+        saint.feastLabelByLocale[localization.language.contentLocale]
+            ?? saint.feastLabelByLocale[.en]
+            ?? localization.formatMonthDay(month: saint.feastMonth, day: saint.feastDay)
     }
 }
 
