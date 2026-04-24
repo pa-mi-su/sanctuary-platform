@@ -94,7 +94,7 @@ struct NovenasSearchView: View {
     let mode: NovenaSearchMode
     @State private var intentionsQuery = ""
     @State private var intentionItems: [IntentionSearchItem] = []
-    @State private var isIntentionsLoading = false
+    @State private var hasLoadedIntentions = false
 
     init(environment: AppEnvironment, mode: NovenaSearchMode = .standard) {
         self.environment = environment
@@ -123,17 +123,7 @@ struct NovenasSearchView: View {
                             text: $intentionsQuery
                         )
 
-                        if isIntentionsLoading {
-                            HStack(spacing: 10) {
-                                ProgressView()
-                                    .tint(AppTheme.glowRose)
-                                Text(localization.t("common.loading"))
-                                    .font(.subheadline.weight(.semibold))
-                                    .foregroundStyle(AppTheme.subtitleText)
-                                Spacer()
-                            }
-                            .padding(.vertical, 6)
-                        } else {
+                        if hasLoadedIntentions {
                             SearchResultsCount(count: filteredIntentionItems.count)
 
                             ScrollView(showsIndicators: false) {
@@ -191,6 +181,7 @@ struct NovenasSearchView: View {
                 }
                 .padding(.horizontal, 14)
                 .padding(.bottom, 10)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             }
             .toolbar(.hidden, for: .navigationBar)
             .task {
@@ -232,9 +223,6 @@ struct NovenasSearchView: View {
 
     private func rebuildIntentionItems() async {
         let locale = localization.language.contentLocale
-        isIntentionsLoading = true
-        defer { isIntentionsLoading = false }
-
         let results = (try? await environment.contentRepository.searchNovenasByIntentions(locale: locale, query: intentionsQuery)) ?? []
 
         intentionItems = results.map { novena in
@@ -256,6 +244,7 @@ struct NovenasSearchView: View {
                 document: document
             )
         }
+        hasLoadedIntentions = true
     }
 
     private func formattedIntentions(for novena: Novena) -> String {
