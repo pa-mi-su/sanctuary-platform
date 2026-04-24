@@ -487,6 +487,7 @@ struct NovenaDetailView_Previews: PreviewProvider {
         descriptionByLocale: [.en: "A simple novena asking Saint Joseph to guide families, work, and discernment."],
         durationDays: 9,
         tags: ["family", "work"],
+        intentions: ["family", "work", "discernment"],
         imageURL: nil,
         days: [
             NovenaDay(

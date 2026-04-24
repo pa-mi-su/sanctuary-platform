@@ -78,6 +78,7 @@ struct MeView: View {
                         descriptionByLocale: [.en: ""],
                         durationDays: novenaDuration(for: id),
                         tags: [],
+                        intentions: [],
                         imageURL: nil,
                         days: []
                     ),

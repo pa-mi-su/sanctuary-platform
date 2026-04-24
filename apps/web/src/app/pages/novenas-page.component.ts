@@ -103,7 +103,7 @@ type AppLanguage = 'en' | 'es' | 'pl';
                 <div class="content-card__body">
                   <h3>{{ novena.title }}</h3>
                   <p>{{ novena.description }}</p>
-                  <span class="content-tag">{{ novenaDayCountLabel(novena) }}</span>
+                  <span class="content-tag">{{ mode() === 'intentions' ? intentionsSummary(novena) : novenaDayCountLabel(novena) }}</span>
                 </div>
               </button>
             }
@@ -265,6 +265,18 @@ export class NovenasPageComponent {
     }
 
     return `linear-gradient(180deg, rgba(6, 12, 18, 0.05), rgba(6, 12, 18, 0.28)), url(${imageUrl})`;
+  }
+
+  protected intentionsSummary(novena: NovenaSummary): string {
+    const cleaned = (novena.intentions ?? [])
+      .map((intention) => intention.trim())
+      .filter(Boolean);
+
+    if (!cleaned.length) {
+      return this.t('Intentions', 'Intenciones', 'Intencje');
+    }
+
+    return cleaned.slice(0, 3).join(' • ');
   }
 
   protected t(english: string, spanish: string, polish: string): string {

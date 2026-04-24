@@ -14,9 +14,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import app.sanctuary.api.auth.dto.AuthConfirmRegistrationRequest;
+import app.sanctuary.api.auth.dto.AuthForgotPasswordRequest;
 import app.sanctuary.api.auth.dto.AuthLoginRequest;
 import app.sanctuary.api.auth.dto.AuthRegisterRequest;
 import app.sanctuary.api.auth.dto.AuthRegistrationResponse;
+import app.sanctuary.api.auth.dto.AuthResetPasswordRequest;
 import app.sanctuary.api.auth.dto.AuthResendCodeRequest;
 import app.sanctuary.api.auth.dto.AuthSessionResponse;
 import app.sanctuary.api.auth.dto.AuthStatusResponse;
@@ -51,6 +53,16 @@ public class AuthController {
     @PostMapping("/login")
     public AuthSessionResponse login(@Valid @RequestBody AuthLoginRequest request) {
         return cognitoAuthService.login(request);
+    }
+
+    @PostMapping("/forgot-password")
+    public AuthStatusResponse forgotPassword(@Valid @RequestBody AuthForgotPasswordRequest request) {
+        return cognitoAuthService.forgotPassword(request);
+    }
+
+    @PostMapping("/reset-password")
+    public AuthStatusResponse resetPassword(@Valid @RequestBody AuthResetPasswordRequest request) {
+        return cognitoAuthService.resetPassword(request);
     }
 
     @ExceptionHandler(AuthFlowException.class)

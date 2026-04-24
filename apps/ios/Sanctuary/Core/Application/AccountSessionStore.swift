@@ -46,6 +46,7 @@ final class AccountSessionStore: ObservableObject {
     @Published private(set) var session: AccountSession?
     @Published private(set) var profile: UserAccountProfile?
     @Published private(set) var pendingConfirmationEmail: String?
+    @Published private(set) var pendingPasswordResetEmail: String?
     @Published private(set) var message: String?
     @Published private(set) var isErrorMessage = false
 
@@ -176,6 +177,48 @@ final class AccountSessionStore: ObservableObject {
         }
     }
 
+    func forgotPassword(email: String) async {
+        guard isConfigured else {
+            setMessage("Authentication is not configured for this environment yet.", isError: true)
+            return
+        }
+
+        status = .loading
+        clearMessage()
+
+        do {
+            let response = try await apiClient.forgotPassword(email: email)
+            pendingPasswordResetEmail = email
+            status = .signedOut
+            setMessage(response.message, isError: false)
+        } catch {
+            status = .failed
+            setMessage(error.localizedDescription, isError: true)
+        }
+    }
+
+    func resetPassword(email: String, code: String, newPassword: String) async -> Bool {
+        guard isConfigured else {
+            setMessage("Authentication is not configured for this environment yet.", isError: true)
+            return false
+        }
+
+        status = .loading
+        clearMessage()
+
+        do {
+            let response = try await apiClient.resetPassword(email: email, code: code, newPassword: newPassword)
+            pendingPasswordResetEmail = nil
+            status = .signedOut
+            setMessage(response.message, isError: false)
+            return true
+        } catch {
+            status = .failed
+            setMessage(error.localizedDescription, isError: true)
+            return false
+        }
+    }
+
     func login(email: String, password: String) async {
         guard isConfigured else {
             setMessage("Authentication is not configured for this environment yet.", isError: true)
@@ -198,6 +241,7 @@ final class AccountSessionStore: ObservableObject {
             )
             self.session = session
             pendingConfirmationEmail = nil
+            pendingPasswordResetEmail = nil
             try persist(session)
             await refreshProfile(fallbackSession: session)
         } catch {
@@ -348,6 +392,7 @@ final class AccountSessionStore: ObservableObject {
         session = nil
         profile = nil
         pendingConfirmationEmail = nil
+        pendingPasswordResetEmail = nil
         status = .signedOut
         clearMessage()
     }

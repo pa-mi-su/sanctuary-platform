@@ -43,6 +43,16 @@ struct APIAuthResendRequest: Encodable, Sendable {
     let email: String
 }
 
+struct APIAuthForgotPasswordRequest: Encodable, Sendable {
+    let email: String
+}
+
+struct APIAuthResetPasswordRequest: Encodable, Sendable {
+    let email: String
+    let code: String
+    let newPassword: String
+}
+
 struct APIAuthRegistrationResponse: Decodable, Sendable {
     let email: String
     let displayName: String
@@ -148,6 +158,7 @@ struct APIContentNovenaSummaryResponse: Decodable, Sendable {
     let title: String
     let description: String
     let durationDays: Int
+    let intentions: [String]?
     let imageUrl: String?
 }
 
@@ -257,6 +268,19 @@ actor SanctuaryAPIClient {
 
     func resendConfirmation(email: String) async throws -> APIAuthStatusResponse {
         try await performRequest(path: "/auth/resend-confirmation", method: "POST", body: APIAuthResendRequest(email: email), token: nil)
+    }
+
+    func forgotPassword(email: String) async throws -> APIAuthStatusResponse {
+        try await performRequest(path: "/auth/forgot-password", method: "POST", body: APIAuthForgotPasswordRequest(email: email), token: nil)
+    }
+
+    func resetPassword(email: String, code: String, newPassword: String) async throws -> APIAuthStatusResponse {
+        try await performRequest(
+            path: "/auth/reset-password",
+            method: "POST",
+            body: APIAuthResetPasswordRequest(email: email, code: code, newPassword: newPassword),
+            token: nil
+        )
     }
 
     func login(_ request: APIAuthLoginRequest) async throws -> APIAuthSessionResponse {
