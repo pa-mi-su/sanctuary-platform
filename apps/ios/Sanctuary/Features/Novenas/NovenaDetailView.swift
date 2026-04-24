@@ -90,7 +90,7 @@ struct NovenaDetailView: View {
     }
 
     private var canStartNovena: Bool {
-        currentCommitment == nil && latestCommitment?.status != .completed
+        progressStore.isAuthenticated && currentCommitment == nil && latestCommitment?.status != .completed
     }
 
     private var hasActiveNovena: Bool {
@@ -225,7 +225,20 @@ struct NovenaDetailView: View {
                     .padding(14)
                     .appGlassCard(cornerRadius: 28)
 
-                    if hasActiveNovena {
+                    if !progressStore.isAuthenticated {
+                        Text(localization.t("novena.loginPrompt"))
+                            .font(AppTheme.rounded(17, weight: .semibold))
+                            .foregroundStyle(.white.opacity(0.88))
+                            .padding(.horizontal, 18)
+                            .padding(.vertical, 14)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(AppTheme.cardBackgroundSoft)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                    .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                            )
+                            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    } else if hasActiveNovena {
                         Button(localization.t("novena.stop")) {
                             Task {
                                 await progressStore.stopNovena(novenaID: effectiveNovena.id)
@@ -294,7 +307,7 @@ struct NovenaDetailView: View {
                         }
                     }
 
-                    if currentCommitment != nil || latestCommitment?.status == .completed {
+                    if progressStore.isAuthenticated && (currentCommitment != nil || latestCommitment?.status == .completed) {
                         Button(completionButtonTitle) {
                             Task {
                                 guard let active = currentCommitment else { return }
