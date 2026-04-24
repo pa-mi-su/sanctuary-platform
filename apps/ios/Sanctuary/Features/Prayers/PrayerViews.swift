@@ -181,7 +181,7 @@ struct PrayersSearchView: View {
                                     SearchResultCard(
                                         title: viewModel.title(for: prayer, locale: locale),
                                         subtitle: viewModel.subtitle(for: prayer, locale: locale),
-                                        meta: prayer.category,
+                                        meta: nil,
                                         accent: AppTheme.glowRose,
                                         icon: "hands.sparkles.fill",
                                         imageURL: prayer.imageURL
