@@ -161,7 +161,38 @@ struct AccountAccessView: View {
 
                 Button(copy("Confirm account", "Confirmar cuenta", "Potwierdź konto")) {
                     Task {
-                        await accountStore.confirmRegistration(code: confirmationCode.trimmed)
+                        let email = accountStore.pendingConfirmationEmail ?? registerEmail.trimmed
+                        let password = registerPassword
+                        let confirmed = await accountStore.confirmRegistration(code: confirmationCode.trimmed)
+
+                        guard confirmed else { return }
+
+                        confirmationCode = ""
+
+                        if !email.isEmpty && !password.isEmpty {
+                            await accountStore.login(email: email, password: password)
+
+                            if accountStore.isAuthenticated {
+                                step = .landing
+                                loginEmail = ""
+                                loginPassword = ""
+                                registerFirstName = ""
+                                registerLastName = ""
+                                registerEmail = ""
+                                registerPassword = ""
+                                registerPasswordConfirmation = ""
+                            } else {
+                                loginEmail = email
+                                loginPassword = ""
+                                accountStore.setConfirmedPrompt()
+                                step = .login
+                            }
+                        } else {
+                            loginEmail = email
+                            loginPassword = ""
+                            accountStore.setConfirmedPrompt()
+                            step = .login
+                        }
                     }
                 }
                 .buttonStyle(PrimaryPillButtonStyle())
