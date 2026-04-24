@@ -133,10 +133,10 @@ final class AccountSessionStore: ObservableObject {
         }
     }
 
-    func confirmRegistration(code: String) async {
+    func confirmRegistration(code: String) async -> Bool {
         guard let email = pendingConfirmationEmail, !email.isEmpty else {
             setMessage("We need the email address you used to register.", isError: true)
-            return
+            return false
         }
 
         status = .loading
@@ -146,11 +146,14 @@ final class AccountSessionStore: ObservableObject {
             let response = try await apiClient.confirm(
                 APIAuthConfirmRequest(email: email, code: code)
             )
+            pendingConfirmationEmail = nil
             status = .signedOut
             setMessage(response.message, isError: false)
+            return true
         } catch {
             status = .failed
             setMessage(error.localizedDescription, isError: true)
+            return false
         }
     }
 
@@ -234,6 +237,11 @@ final class AccountSessionStore: ObservableObject {
 
     func clearTransientMessage() {
         clearMessage()
+    }
+
+    func setConfirmedPrompt() {
+        status = .signedOut
+        setMessage("Your account is confirmed. Please sign in to continue.", isError: false)
     }
 
     private func mapProfile(

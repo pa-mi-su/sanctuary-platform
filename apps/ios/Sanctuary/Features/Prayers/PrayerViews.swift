@@ -181,7 +181,7 @@ struct PrayersSearchView: View {
                                     SearchResultCard(
                                         title: viewModel.title(for: prayer, locale: locale),
                                         subtitle: viewModel.subtitle(for: prayer, locale: locale),
-                                        meta: prayer.category,
+                                        meta: nil,
                                         accent: AppTheme.glowRose,
                                         icon: "hands.sparkles.fill",
                                         imageURL: prayer.imageURL
@@ -383,52 +383,67 @@ private struct PrayerHeroImage: View {
     let url: URL
 
     var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .fill(AppTheme.cardBackground)
+        GeometryReader { proxy in
+            let containerSize = proxy.size
+            let outerShape = RoundedRectangle(cornerRadius: 28, style: .continuous)
+            let innerShape = RoundedRectangle(cornerRadius: 18, style: .continuous)
 
-            AsyncImage(url: url) { phase in
-                switch phase {
-                case .empty:
-                    ProgressView().tint(.white)
-                case .success(let image):
-                    ZStack {
-                        image
-                            .resizable()
-                            .scaledToFill()
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            .blur(radius: 26)
-                            .saturation(0.7)
-                            .opacity(0.78)
+            ZStack {
+                outerShape
+                    .fill(AppTheme.cardBackground)
 
-                        image
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            .padding(12)
-                            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                    .stroke(Color.white.opacity(0.34), lineWidth: 1)
-                            )
-                            .padding(2)
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .empty:
+                        ProgressView().tint(.white)
+                    case .success(let image):
+                        ZStack {
+                            image
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: containerSize.width, height: containerSize.height)
+                                .clipped()
+                                .blur(radius: 26)
+                                .saturation(0.7)
+                                .opacity(0.78)
+
+                            image
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(
+                                    width: max(containerSize.width - 24, 0),
+                                    height: max(containerSize.height - 24, 0)
+                                )
+                                .frame(width: max(containerSize.width - 24, 0), height: max(containerSize.height - 24, 0))
+                                .clipped()
+                                .clipShape(innerShape)
+                                .overlay(
+                                    innerShape
+                                        .stroke(Color.white.opacity(0.34), lineWidth: 1)
+                                )
+                        }
+                        .frame(width: containerSize.width, height: containerSize.height)
+                        .clipped()
+                    case .failure:
+                        Image(systemName: "photo")
+                            .font(.system(size: 46))
+                            .foregroundStyle(.white.opacity(0.7))
+                    @unknown default:
+                        EmptyView()
                     }
-                case .failure:
-                    Image(systemName: "photo")
-                        .font(.system(size: 46))
-                        .foregroundStyle(.white.opacity(0.7))
-                @unknown default:
-                    EmptyView()
                 }
+                .frame(width: containerSize.width, height: containerSize.height)
             }
+            .frame(width: containerSize.width, height: containerSize.height)
+            .clipShape(outerShape)
+            .overlay(
+                outerShape
+                    .stroke(Color.white.opacity(0.16), lineWidth: 1.5)
+            )
         }
         .frame(maxWidth: .infinity)
         .frame(height: 280)
-        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .stroke(Color.white.opacity(0.16), lineWidth: 1.5)
-        )
+        .clipped()
         .allowsHitTesting(false)
         .shadow(color: Color.black.opacity(0.22), radius: 18, x: 0, y: 10)
     }

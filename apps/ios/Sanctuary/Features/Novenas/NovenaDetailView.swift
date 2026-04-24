@@ -90,7 +90,7 @@ struct NovenaDetailView: View {
     }
 
     private var canStartNovena: Bool {
-        currentCommitment == nil && latestCommitment?.status != .completed
+        progressStore.isAuthenticated && currentCommitment == nil && latestCommitment?.status != .completed
     }
 
     private var hasActiveNovena: Bool {
@@ -225,7 +225,20 @@ struct NovenaDetailView: View {
                     .padding(14)
                     .appGlassCard(cornerRadius: 28)
 
-                    if hasActiveNovena {
+                    if !progressStore.isAuthenticated {
+                        Text(localization.t("novena.loginPrompt"))
+                            .font(AppTheme.rounded(17, weight: .semibold))
+                            .foregroundStyle(.white.opacity(0.88))
+                            .padding(.horizontal, 18)
+                            .padding(.vertical, 14)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(AppTheme.cardBackgroundSoft)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                    .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                            )
+                            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    } else if hasActiveNovena {
                         Button(localization.t("novena.stop")) {
                             Task {
                                 await progressStore.stopNovena(novenaID: effectiveNovena.id)
@@ -294,7 +307,7 @@ struct NovenaDetailView: View {
                         }
                     }
 
-                    if currentCommitment != nil || latestCommitment?.status == .completed {
+                    if progressStore.isAuthenticated && (currentCommitment != nil || latestCommitment?.status == .completed) {
                         Button(completionButtonTitle) {
                             Task {
                                 guard let active = currentCommitment else { return }
@@ -403,50 +416,65 @@ private struct RemoteHeroImage: View {
     let url: URL
 
     var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .fill(Color.white.opacity(0.12))
+        GeometryReader { proxy in
+            let containerSize = proxy.size
+            let outerShape = RoundedRectangle(cornerRadius: 20, style: .continuous)
+            let innerShape = RoundedRectangle(cornerRadius: 14, style: .continuous)
 
-            AsyncImage(url: url) { phase in
-                switch phase {
-                case .empty:
-                    ProgressView().tint(.white)
-                case .success(let image):
-                    ZStack {
-                        image
-                            .resizable()
-                            .scaledToFill()
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            .blur(radius: 22)
-                            .saturation(0.7)
-                            .opacity(0.82)
+            ZStack {
+                outerShape
+                    .fill(Color.white.opacity(0.12))
 
-                        image
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            .padding(10)
-                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                    .stroke(Color.white.opacity(0.34), lineWidth: 1)
-                            )
-                            .padding(2)
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .empty:
+                        ProgressView().tint(.white)
+                    case .success(let image):
+                        ZStack {
+                            image
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: containerSize.width, height: containerSize.height)
+                                .clipped()
+                                .blur(radius: 22)
+                                .saturation(0.7)
+                                .opacity(0.82)
+
+                            image
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(
+                                    width: max(containerSize.width - 20, 0),
+                                    height: max(containerSize.height - 20, 0)
+                                )
+                                .frame(width: max(containerSize.width - 20, 0), height: max(containerSize.height - 20, 0))
+                                .clipped()
+                                .clipShape(innerShape)
+                                .overlay(
+                                    innerShape
+                                        .stroke(Color.white.opacity(0.34), lineWidth: 1)
+                                )
+                        }
+                        .frame(width: containerSize.width, height: containerSize.height)
+                        .clipped()
+                    case .failure:
+                        Color.gray.opacity(0.25)
+                    @unknown default:
+                        Color.gray.opacity(0.25)
                     }
-                case .failure:
-                    Color.gray.opacity(0.25)
-                @unknown default:
-                    Color.gray.opacity(0.25)
                 }
+                .frame(width: containerSize.width, height: containerSize.height)
             }
+            .frame(width: containerSize.width, height: containerSize.height)
+            .clipShape(outerShape)
+            .overlay(
+                outerShape
+                    .stroke(Color.white.opacity(0.24), lineWidth: 1.5)
+            )
         }
         .frame(maxWidth: .infinity)
         .frame(height: 260)
-        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .stroke(Color.white.opacity(0.24), lineWidth: 1.5)
-        )
+        .clipped()
         .allowsHitTesting(false)
     }
 }
