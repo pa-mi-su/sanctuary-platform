@@ -120,13 +120,13 @@ struct NovenasCalendarView: View {
             await loadSeasonLookups()
             await loadNovenaLookups()
         }
-        .sheet(isPresented: $showSearch) {
+        .fullScreenCover(isPresented: $showSearch) {
             NovenasSearchView(environment: environment)
         }
-        .sheet(isPresented: $showIntentionsSearch) {
+        .fullScreenCover(isPresented: $showIntentionsSearch) {
             NovenasSearchView(environment: environment, mode: .intentions)
         }
-        .sheet(item: $selectedNovenaSelection) { selection in
+        .fullScreenCover(item: $selectedNovenaSelection) { selection in
             NovenaDetailView(
                 contentRepository: environment.contentRepository,
                 novena: Novena(
@@ -379,10 +379,10 @@ struct LiturgicalCalendarView: View {
         .task(id: "\(selectedYear)-\(selectedMonth)") {
             await loadLiturgicalLookups()
         }
-        .sheet(isPresented: $showSearch) {
+        .fullScreenCover(isPresented: $showSearch) {
             GlobalSearchView(environment: environment)
         }
-        .sheet(item: $selectedReadingSelection) { selection in
+        .fullScreenCover(item: $selectedReadingSelection) { selection in
             DailyReadingsView(url: selection.url)
         }
         .sheet(isPresented: $showDatePicker) {
@@ -581,10 +581,10 @@ struct SaintsCalendarView: View {
             await loadSeasonLookups()
             await loadSaintLookups()
         }
-        .sheet(isPresented: $showSearch) {
+        .fullScreenCover(isPresented: $showSearch) {
             SaintsSearchView(environment: environment)
         }
-        .sheet(item: $selectedSaintSelection) { selection in
+        .fullScreenCover(item: $selectedSaintSelection) { selection in
             SaintDetailView(
                 contentRepository: environment.contentRepository,
                 saint: saintByDay[selectedDay] ?? Saint(
