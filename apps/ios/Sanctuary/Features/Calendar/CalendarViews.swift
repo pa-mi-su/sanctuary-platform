@@ -120,13 +120,13 @@ struct NovenasCalendarView: View {
             await loadSeasonLookups()
             await loadNovenaLookups()
         }
-        .sheet(isPresented: $showSearch) {
+        .fullScreenCover(isPresented: $showSearch) {
             NovenasSearchView(environment: environment)
         }
-        .sheet(isPresented: $showIntentionsSearch) {
+        .fullScreenCover(isPresented: $showIntentionsSearch) {
             NovenasSearchView(environment: environment, mode: .intentions)
         }
-        .sheet(item: $selectedNovenaSelection) { selection in
+        .fullScreenCover(item: $selectedNovenaSelection) { selection in
             NovenaDetailView(
                 contentRepository: environment.contentRepository,
                 novena: Novena(
@@ -136,6 +136,7 @@ struct NovenasCalendarView: View {
                     descriptionByLocale: [.en: ""],
                     durationDays: 1,
                     tags: [],
+                    intentions: [],
                     imageURL: novenaImageURLByDay[selectedDay],
                     days: []
                 ),
@@ -292,7 +293,6 @@ struct LiturgicalCalendarView: View {
     @State private var selectedDay = currentLiturgicalDateComponents().day ?? 1
     @State private var selectedMonth = currentLiturgicalDateComponents().month ?? 1
     @State private var selectedYear = currentLiturgicalDateComponents().year ?? 2000
-    @State private var showSearch = false
     @State private var suppressDayTapUntil: Date = .distantPast
     @State private var selectedReadingSelection: ReadingSelection?
     @State private var showDatePicker = false
@@ -321,9 +321,9 @@ struct LiturgicalCalendarView: View {
                 : localization.formatMonthYear(month: selectedMonth, year: selectedYear),
             subtitle: localization.t("calendar.subtitle.liturgical"),
             mode: $mode,
-            searchTitle: localization.t("calendar.search"),
+            searchTitle: nil,
             secondarySearchTitle: nil,
-            onSearchTap: { showSearch = true },
+            onSearchTap: nil,
             onSecondarySearchTap: nil,
             onPrev: { goPrevious() },
             onNext: { goNext() },
@@ -379,10 +379,7 @@ struct LiturgicalCalendarView: View {
         .task(id: "\(selectedYear)-\(selectedMonth)") {
             await loadLiturgicalLookups()
         }
-        .sheet(isPresented: $showSearch) {
-            GlobalSearchView(environment: environment)
-        }
-        .sheet(item: $selectedReadingSelection) { selection in
+        .fullScreenCover(item: $selectedReadingSelection) { selection in
             DailyReadingsView(url: selection.url)
         }
         .sheet(isPresented: $showDatePicker) {
@@ -581,10 +578,10 @@ struct SaintsCalendarView: View {
             await loadSeasonLookups()
             await loadSaintLookups()
         }
-        .sheet(isPresented: $showSearch) {
+        .fullScreenCover(isPresented: $showSearch) {
             SaintsSearchView(environment: environment)
         }
-        .sheet(item: $selectedSaintSelection) { selection in
+        .fullScreenCover(item: $selectedSaintSelection) { selection in
             SaintDetailView(
                 contentRepository: environment.contentRepository,
                 saint: saintByDay[selectedDay] ?? Saint(
@@ -744,9 +741,9 @@ private struct CalendarScaffold<Content: View>: View {
     let headerTitle: String
     let subtitle: String
     @Binding var mode: CalendarMode
-    let searchTitle: String
+    let searchTitle: String?
     let secondarySearchTitle: String?
-    let onSearchTap: () -> Void
+    let onSearchTap: (() -> Void)?
     let onSecondarySearchTap: (() -> Void)?
     let onPrev: () -> Void
     let onNext: () -> Void
@@ -838,9 +835,11 @@ private struct CalendarScaffold<Content: View>: View {
 
                     Spacer(minLength: 6 * scale)
 
-                    Button(searchTitle, action: onSearchTap)
-                        .buttonStyle(PrimaryPillButtonStyle())
-                        .padding(.horizontal, 12 * scale)
+                    if let searchTitle {
+                        Button(searchTitle) { onSearchTap?() }
+                            .buttonStyle(PrimaryPillButtonStyle())
+                            .padding(.horizontal, 12 * scale)
+                    }
 
                     if let secondarySearchTitle {
                         Button(secondarySearchTitle) { onSecondarySearchTap?() }

@@ -66,7 +66,8 @@ public class NovenaCalendarContentRepository {
                 rs.getString("title"),
                 rs.getString("description"),
                 rs.getInt("duration_days"),
-                rs.getString("image_url")
+                rs.getString("image_url"),
+                List.of()
             ),
             filter,
             likeQuery,
@@ -97,14 +98,18 @@ public class NovenaCalendarContentRepository {
 
         return jdbcTemplate.query(
             sql,
-            (rs, rowNum) -> new NovenaSummaryDto(
-                rs.getString("id"),
-                rs.getString("slug"),
-                rs.getString("title"),
-                rs.getString("description"),
-                rs.getInt("duration_days"),
-                rs.getString("image_url")
-            ),
+            (rs, rowNum) -> {
+                String novenaId = rs.getString("id");
+                return new NovenaSummaryDto(
+                    novenaId,
+                    rs.getString("slug"),
+                    rs.getString("title"),
+                    rs.getString("description"),
+                    rs.getInt("duration_days"),
+                    rs.getString("image_url"),
+                    fetchIntentions(novenaId, locale)
+                );
+            },
             locale,
             filter,
             likeQuery,
@@ -271,11 +276,26 @@ public class NovenaCalendarContentRepository {
                 rs.getString("title"),
                 rs.getString("description"),
                 rs.getInt("duration_days"),
-                rs.getString("image_url")
+                rs.getString("image_url"),
+                List.of()
             ),
             novenaId
         );
 
         return results.isEmpty() ? null : results.getFirst();
+    }
+
+    private List<String> fetchIntentions(String novenaId, String locale) {
+        return jdbcTemplate.query(
+            """
+                SELECT intention_text
+                FROM novena_intentions
+                WHERE novena_id = ? AND locale = ?
+                ORDER BY sort_order, id
+                """,
+            (rs, rowNum) -> rs.getString("intention_text"),
+            novenaId,
+            locale
+        );
     }
 }

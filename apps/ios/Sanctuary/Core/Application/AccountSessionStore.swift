@@ -46,6 +46,7 @@ final class AccountSessionStore: ObservableObject {
     @Published private(set) var session: AccountSession?
     @Published private(set) var profile: UserAccountProfile?
     @Published private(set) var pendingConfirmationEmail: String?
+    @Published private(set) var pendingPasswordResetEmail: String?
     @Published private(set) var message: String?
     @Published private(set) var isErrorMessage = false
 
@@ -74,6 +75,10 @@ final class AccountSessionStore: ObservableObject {
 
     var accessToken: String? {
         session?.accessToken
+    }
+
+    var idToken: String? {
+        session?.idToken
     }
 
     func bootstrap() async {
@@ -129,10 +134,10 @@ final class AccountSessionStore: ObservableObject {
         }
     }
 
-    func confirmRegistration(code: String) async {
+    func confirmRegistration(code: String) async -> Bool {
         guard let email = pendingConfirmationEmail, !email.isEmpty else {
             setMessage("We need the email address you used to register.", isError: true)
-            return
+            return false
         }
 
         status = .loading
@@ -142,11 +147,14 @@ final class AccountSessionStore: ObservableObject {
             let response = try await apiClient.confirm(
                 APIAuthConfirmRequest(email: email, code: code)
             )
+            pendingConfirmationEmail = nil
             status = .signedOut
             setMessage(response.message, isError: false)
+            return true
         } catch {
             status = .failed
             setMessage(error.localizedDescription, isError: true)
+            return false
         }
     }
 
@@ -166,6 +174,48 @@ final class AccountSessionStore: ObservableObject {
         } catch {
             status = .failed
             setMessage(error.localizedDescription, isError: true)
+        }
+    }
+
+    func forgotPassword(email: String) async {
+        guard isConfigured else {
+            setMessage("Authentication is not configured for this environment yet.", isError: true)
+            return
+        }
+
+        status = .loading
+        clearMessage()
+
+        do {
+            let response = try await apiClient.forgotPassword(email: email)
+            pendingPasswordResetEmail = email
+            status = .signedOut
+            setMessage(response.message, isError: false)
+        } catch {
+            status = .failed
+            setMessage(error.localizedDescription, isError: true)
+        }
+    }
+
+    func resetPassword(email: String, code: String, newPassword: String) async -> Bool {
+        guard isConfigured else {
+            setMessage("Authentication is not configured for this environment yet.", isError: true)
+            return false
+        }
+
+        status = .loading
+        clearMessage()
+
+        do {
+            let response = try await apiClient.resetPassword(email: email, code: code, newPassword: newPassword)
+            pendingPasswordResetEmail = nil
+            status = .signedOut
+            setMessage(response.message, isError: false)
+            return true
+        } catch {
+            status = .failed
+            setMessage(error.localizedDescription, isError: true)
+            return false
         }
     }
 
@@ -191,6 +241,7 @@ final class AccountSessionStore: ObservableObject {
             )
             self.session = session
             pendingConfirmationEmail = nil
+            pendingPasswordResetEmail = nil
             try persist(session)
             await refreshProfile(fallbackSession: session)
         } catch {
@@ -201,7 +252,7 @@ final class AccountSessionStore: ObservableObject {
     }
 
     func refreshProfile(fallbackSession: AccountSession? = nil) async {
-        guard let token = session?.accessToken ?? fallbackSession?.accessToken else {
+        guard let token = session?.idToken ?? fallbackSession?.idToken ?? session?.accessToken ?? fallbackSession?.accessToken else {
             clearStoredSession()
             return
         }
@@ -230,6 +281,11 @@ final class AccountSessionStore: ObservableObject {
 
     func clearTransientMessage() {
         clearMessage()
+    }
+
+    func setConfirmedPrompt() {
+        status = .signedOut
+        setMessage("Your account is confirmed. Please sign in to continue.", isError: false)
     }
 
     private func mapProfile(
@@ -336,6 +392,7 @@ final class AccountSessionStore: ObservableObject {
         session = nil
         profile = nil
         pendingConfirmationEmail = nil
+        pendingPasswordResetEmail = nil
         status = .signedOut
         clearMessage()
     }
