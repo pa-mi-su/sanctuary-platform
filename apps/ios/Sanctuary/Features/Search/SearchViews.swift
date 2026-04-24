@@ -36,27 +36,34 @@ struct SaintsSearchView: View {
                         Task { await viewModel.search() }
                     }
 
-                    SearchResultsCount(count: viewModel.saints.count)
+                    if viewModel.isLoading {
+                        SanctuaryLoadingCard(
+                            title: localization.t("common.loading"),
+                            detail: localization.t("common.loadingDetail")
+                        )
+                    } else {
+                        SearchResultsCount(count: viewModel.saints.count)
 
-                    ScrollView(showsIndicators: false) {
-                        LazyVStack(spacing: 10) {
-                            ForEach(viewModel.saints) { saint in
-                                NavigationLink {
-                                    SaintDetailView(contentRepository: viewModel.contentRepository, saint: saint)
-                                } label: {
-                                    SearchResultCard(
-                                        title: viewModel.displayName(for: saint),
-                                        subtitle: viewModel.summary(for: saint),
-                                        meta: feastLabel(for: saint),
-                                        accent: AppTheme.glowGold,
-                                        icon: "person.fill",
-                                        imageURL: saint.imageURL
-                                    )
+                        ScrollView(showsIndicators: false) {
+                            LazyVStack(spacing: 10) {
+                                ForEach(viewModel.saints) { saint in
+                                    NavigationLink {
+                                        SaintDetailView(contentRepository: viewModel.contentRepository, saint: saint)
+                                    } label: {
+                                        SearchResultCard(
+                                            title: viewModel.displayName(for: saint),
+                                            subtitle: viewModel.summary(for: saint),
+                                            meta: feastLabel(for: saint),
+                                            accent: AppTheme.glowGold,
+                                            icon: "person.fill",
+                                            imageURL: saint.imageURL
+                                        )
+                                    }
+                                    .buttonStyle(.plain)
                                 }
-                                .buttonStyle(.plain)
                             }
+                            .padding(.bottom, 24)
                         }
-                        .padding(.bottom, 24)
                     }
                 }
                 .padding(.horizontal, 14)
@@ -95,6 +102,7 @@ struct NovenasSearchView: View {
     @State private var intentionsQuery = ""
     @State private var intentionItems: [IntentionSearchItem] = []
     @State private var isIntentionsLoading = false
+    @State private var hasLoadedIntentions = false
 
     init(environment: AppEnvironment, mode: NovenaSearchMode = .standard) {
         self.environment = environment
@@ -124,16 +132,11 @@ struct NovenasSearchView: View {
                         )
 
                         if isIntentionsLoading {
-                            HStack(spacing: 10) {
-                                ProgressView()
-                                    .tint(AppTheme.glowRose)
-                                Text(localization.t("common.loading"))
-                                    .font(.subheadline.weight(.semibold))
-                                    .foregroundStyle(AppTheme.subtitleText)
-                                Spacer()
-                            }
-                            .padding(.vertical, 6)
-                        } else {
+                            SanctuaryLoadingCard(
+                                title: localization.t("common.loading"),
+                                detail: localization.t("common.loadingDetail")
+                            )
+                        } else if hasLoadedIntentions {
                             SearchResultsCount(count: filteredIntentionItems.count)
 
                             ScrollView(showsIndicators: false) {
@@ -165,32 +168,40 @@ struct NovenasSearchView: View {
                             Task { await viewModel.search() }
                         }
 
-                        SearchResultsCount(count: viewModel.novenas.count)
+                        if viewModel.isLoading {
+                            SanctuaryLoadingCard(
+                                title: localization.t("common.loading"),
+                                detail: localization.t("common.loadingDetail")
+                            )
+                        } else {
+                            SearchResultsCount(count: viewModel.novenas.count)
 
-                        ScrollView(showsIndicators: false) {
-                            LazyVStack(spacing: 10) {
-                                ForEach(viewModel.novenas) { novena in
-                                    NavigationLink {
-                                        NovenaDetailView(contentRepository: environment.contentRepository, novena: novena)
-                                    } label: {
-                                        SearchResultCard(
-                                            title: viewModel.title(for: novena),
-                                            subtitle: viewModel.summary(for: novena),
-                                            meta: viewModel.dayText(for: novena),
-                                            accent: AppTheme.glowBlue,
-                                            icon: "book.closed.fill",
-                                            imageURL: novena.imageURL
-                                        )
+                            ScrollView(showsIndicators: false) {
+                                LazyVStack(spacing: 10) {
+                                    ForEach(viewModel.novenas) { novena in
+                                        NavigationLink {
+                                            NovenaDetailView(contentRepository: environment.contentRepository, novena: novena)
+                                        } label: {
+                                            SearchResultCard(
+                                                title: viewModel.title(for: novena),
+                                                subtitle: viewModel.summary(for: novena),
+                                                meta: viewModel.dayText(for: novena),
+                                                accent: AppTheme.glowBlue,
+                                                icon: "book.closed.fill",
+                                                imageURL: novena.imageURL
+                                            )
+                                        }
+                                        .buttonStyle(.plain)
                                     }
-                                    .buttonStyle(.plain)
                                 }
+                                .padding(.bottom, 24)
                             }
-                            .padding(.bottom, 24)
                         }
                     }
                 }
                 .padding(.horizontal, 14)
                 .padding(.bottom, 10)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             }
             .toolbar(.hidden, for: .navigationBar)
             .task {
@@ -231,10 +242,10 @@ struct NovenasSearchView: View {
     }
 
     private func rebuildIntentionItems() async {
-        let locale = localization.language.contentLocale
         isIntentionsLoading = true
         defer { isIntentionsLoading = false }
 
+        let locale = localization.language.contentLocale
         let results = (try? await environment.contentRepository.searchNovenasByIntentions(locale: locale, query: intentionsQuery)) ?? []
 
         intentionItems = results.map { novena in
@@ -256,6 +267,7 @@ struct NovenasSearchView: View {
                 document: document
             )
         }
+        hasLoadedIntentions = true
     }
 
     private func formattedIntentions(for novena: Novena) -> String {

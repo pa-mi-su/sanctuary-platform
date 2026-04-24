@@ -56,9 +56,14 @@ struct SaintsListView: View {
             .listRowBackground(Color.clear)
             .listRowSeparator(.hidden)
             .listSectionSeparator(.hidden)
-            .overlay {
+            .overlay(alignment: .top) {
                 if viewModel.isLoading {
-                    ProgressView().tint(.white)
+                    SanctuaryLoadingCard(
+                        title: localization.t("common.loading"),
+                        detail: localization.t("common.loadingDetail")
+                    )
+                    .padding(.horizontal, 16)
+                    .padding(.top, 16)
                 }
             }
             .navigationTitle(localization.t("tab.saints"))
