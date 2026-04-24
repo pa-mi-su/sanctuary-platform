@@ -165,40 +165,43 @@ struct PrayersSearchView: View {
                     .padding(.vertical, 14)
                     .appGlassCard(cornerRadius: 28)
 
-                    HStack {
-                        Text("\(viewModel.prayers.count) \(localization.t("search.results"))")
-                            .font(AppTheme.rounded(17, weight: .medium))
-                            .foregroundStyle(.white.opacity(0.92))
-                        Spacer()
-                    }
-
-                    ScrollView(showsIndicators: false) {
-                        LazyVStack(spacing: 10) {
-                            ForEach(viewModel.prayers) { prayer in
-                                NavigationLink {
-                                    PrayerDetailView(contentRepository: environment.contentRepository, prayer: prayer)
-                                } label: {
-                                    SearchResultCard(
-                                        title: viewModel.title(for: prayer, locale: locale),
-                                        subtitle: viewModel.subtitle(for: prayer, locale: locale),
-                                        meta: nil,
-                                        accent: AppTheme.glowRose,
-                                        icon: "hands.sparkles.fill",
-                                        imageURL: prayer.imageURL
-                                    )
-                                }
-                                .buttonStyle(.plain)
-                            }
+                    if viewModel.isLoading {
+                        SanctuaryLoadingCard(
+                            title: localization.t("common.loading"),
+                            detail: localization.t("common.loadingDetail")
+                        )
+                    } else {
+                        HStack {
+                            Text("\(viewModel.prayers.count) \(localization.t("search.results"))")
+                                .font(AppTheme.rounded(17, weight: .medium))
+                                .foregroundStyle(.white.opacity(0.92))
+                            Spacer()
                         }
-                        .padding(.bottom, 24)
+
+                        ScrollView(showsIndicators: false) {
+                            LazyVStack(spacing: 10) {
+                                ForEach(viewModel.prayers) { prayer in
+                                    NavigationLink {
+                                        PrayerDetailView(contentRepository: environment.contentRepository, prayer: prayer)
+                                    } label: {
+                                        SearchResultCard(
+                                            title: viewModel.title(for: prayer, locale: locale),
+                                            subtitle: viewModel.subtitle(for: prayer, locale: locale),
+                                            meta: nil,
+                                            accent: AppTheme.glowRose,
+                                            icon: "hands.sparkles.fill",
+                                            imageURL: prayer.imageURL
+                                        )
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
+                            .padding(.bottom, 24)
+                        }
                     }
                 }
                 .padding(.horizontal, 14)
                 .padding(.bottom, 10)
-
-                if viewModel.isLoading {
-                    ProgressView().tint(.white)
-                }
             }
             .toolbar(.hidden, for: .navigationBar)
         }
