@@ -141,32 +141,34 @@ struct NovenaDetailView: View {
                             .minimumScaleFactor(0.58)
                             .foregroundStyle(.white)
 
-                        HStack(spacing: 10) {
-                            Button {
-                                Task {
-                                    await progressStore.toggleFavorite(itemType: .novena, itemID: effectiveNovena.id)
-                                    isFavorite = progressStore.isFavorite(itemType: .novena, itemID: effectiveNovena.id)
+                        if progressStore.isAuthenticated {
+                            HStack(spacing: 10) {
+                                Button {
+                                    Task {
+                                        await progressStore.toggleFavorite(itemType: .novena, itemID: effectiveNovena.id)
+                                        isFavorite = progressStore.isFavorite(itemType: .novena, itemID: effectiveNovena.id)
+                                    }
+                                } label: {
+                                    HStack(spacing: 10) {
+                                        Image(systemName: isFavorite ? "heart.fill" : "heart")
+                                        Text(isFavorite ? localization.t("detail.savedFavorites") : localization.t("detail.addFavorites"))
+                                    }
+                                    .font(AppTheme.rounded(16, weight: .semibold))
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 18)
+                                    .padding(.vertical, 12)
+                                    .background(isFavorite ? AnyShapeStyle(AppTheme.primaryButtonGradient) : AnyShapeStyle(AppTheme.cardBackgroundSoft))
+                                    .overlay(
+                                        Capsule()
+                                            .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                                    )
+                                    .clipShape(Capsule())
                                 }
-                            } label: {
-                                HStack(spacing: 10) {
-                                    Image(systemName: isFavorite ? "heart.fill" : "heart")
-                                    Text(isFavorite ? localization.t("detail.savedFavorites") : localization.t("detail.addFavorites"))
-                                }
-                                .font(AppTheme.rounded(16, weight: .semibold))
-                                .foregroundStyle(.white)
-                                .padding(.horizontal, 18)
-                                .padding(.vertical, 12)
-                                .background(isFavorite ? AnyShapeStyle(AppTheme.primaryButtonGradient) : AnyShapeStyle(AppTheme.cardBackgroundSoft))
-                                .overlay(
-                                    Capsule()
-                                        .stroke(Color.white.opacity(0.12), lineWidth: 1)
-                                )
-                                .clipShape(Capsule())
-                            }
-                            .buttonStyle(.plain)
-                            .animation(.spring(response: 0.32, dampingFraction: 0.82), value: isFavorite)
+                                .buttonStyle(.plain)
+                                .animation(.spring(response: 0.32, dampingFraction: 0.82), value: isFavorite)
 
-                            Spacer()
+                                Spacer()
+                            }
                         }
 
                         VStack(alignment: .leading, spacing: 10) {

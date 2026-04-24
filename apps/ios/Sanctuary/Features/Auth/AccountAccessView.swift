@@ -28,6 +28,10 @@ struct AccountAccessView: View {
     @State private var resetPassword = ""
     @State private var resetPasswordConfirmation = ""
 
+    private var isBusy: Bool {
+        accountStore.status == .loading
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             Text(copy("Sanctuary account", "Cuenta de Sanctuary", "Konto Sanctuary"))
@@ -90,6 +94,7 @@ struct AccountAccessView: View {
                         .foregroundStyle(AppTheme.tabActive)
                 }
                 .buttonStyle(.plain)
+                .disabled(isBusy)
 
                 formBody
             }
@@ -125,14 +130,21 @@ struct AccountAccessView: View {
                 .buttonStyle(.plain)
                 .font(AppTheme.rounded(15, weight: .semibold))
                 .foregroundStyle(AppTheme.tabActive)
+                .disabled(isBusy)
 
-                Button(copy("Login", "Iniciar sesión", "Zaloguj się")) {
+                Button {
+                    guard !isBusy else { return }
                     Task {
                         await accountStore.login(email: loginEmail.trimmed, password: loginPassword)
                     }
+                } label: {
+                    authActionLabel(
+                        idleTitle: copy("Login", "Iniciar sesión", "Zaloguj się"),
+                        busyTitle: copy("Signing in…", "Entrando…", "Logowanie…")
+                    )
                 }
                 .buttonStyle(PrimaryPillButtonStyle())
-                .disabled(accountStore.status == .loading || loginEmail.trimmed.isEmpty || loginPassword.isEmpty)
+                .disabled(isBusy || loginEmail.trimmed.isEmpty || loginPassword.isEmpty)
             }
 
         case .register:
@@ -145,7 +157,8 @@ struct AccountAccessView: View {
 
                 passwordPanel
 
-                Button(copy("Create account", "Crear cuenta", "Utwórz konto")) {
+                Button {
+                    guard !isBusy else { return }
                     Task {
                         await accountStore.register(
                             firstName: registerFirstName.trimmed,
@@ -154,9 +167,14 @@ struct AccountAccessView: View {
                             password: registerPassword
                         )
                     }
+                } label: {
+                    authActionLabel(
+                        idleTitle: copy("Create account", "Crear cuenta", "Utwórz konto"),
+                        busyTitle: copy("Creating account…", "Creando cuenta…", "Tworzenie konta…")
+                    )
                 }
                 .buttonStyle(PrimaryPillButtonStyle())
-                .disabled(accountStore.status == .loading || !canSubmitRegistration)
+                .disabled(isBusy || !canSubmitRegistration)
             }
 
         case .confirm:
@@ -174,7 +192,8 @@ struct AccountAccessView: View {
                     textContentType: .oneTimeCode
                 )
 
-                Button(copy("Confirm account", "Confirmar cuenta", "Potwierdź konto")) {
+                Button {
+                    guard !isBusy else { return }
                     Task {
                         let email = accountStore.pendingConfirmationEmail ?? registerEmail.trimmed
                         let password = registerPassword
@@ -209,24 +228,36 @@ struct AccountAccessView: View {
                             step = .login
                         }
                     }
+                } label: {
+                    authActionLabel(
+                        idleTitle: copy("Confirm account", "Confirmar cuenta", "Potwierdź konto"),
+                        busyTitle: copy("Confirming…", "Confirmando…", "Potwierdzanie…")
+                    )
                 }
                 .buttonStyle(PrimaryPillButtonStyle())
-                .disabled(accountStore.status == .loading || confirmationCode.trimmed.isEmpty)
+                .disabled(isBusy || confirmationCode.trimmed.isEmpty)
 
-                Button(copy("Send a new code", "Enviar un código nuevo", "Wyślij nowy kod")) {
+                Button {
+                    guard !isBusy else { return }
                     Task {
                         await accountStore.resendConfirmation()
                     }
+                } label: {
+                    authSecondaryActionLabel(
+                        idleTitle: copy("Send a new code", "Enviar un código nuevo", "Wyślij nowy kod"),
+                        busyTitle: copy("Sending…", "Enviando…", "Wysyłanie…")
+                    )
                 }
                 .buttonStyle(SecondaryPillButtonStyle())
-                .disabled(accountStore.status == .loading)
+                .disabled(isBusy)
             }
 
         case .forgotPassword:
             VStack(alignment: .leading, spacing: 14) {
                 authTextField(title: copy("Email", "Correo", "Email"), text: $forgotPasswordEmail, keyboardType: .emailAddress, textContentType: .emailAddress)
 
-                Button(copy("Send reset code", "Enviar código", "Wyślij kod")) {
+                Button {
+                    guard !isBusy else { return }
                     Task {
                         let email = forgotPasswordEmail.trimmed
                         await accountStore.forgotPassword(email: email)
@@ -238,9 +269,14 @@ struct AccountAccessView: View {
                             step = .resetPassword
                         }
                     }
+                } label: {
+                    authActionLabel(
+                        idleTitle: copy("Send reset code", "Enviar código", "Wyślij kod"),
+                        busyTitle: copy("Sending code…", "Enviando código…", "Wysyłanie kodu…")
+                    )
                 }
                 .buttonStyle(PrimaryPillButtonStyle())
-                .disabled(accountStore.status == .loading || forgotPasswordEmail.trimmed.isEmpty)
+                .disabled(isBusy || forgotPasswordEmail.trimmed.isEmpty)
             }
 
         case .resetPassword:
@@ -271,7 +307,8 @@ struct AccountAccessView: View {
                     )
                 )
 
-                Button(copy("Save new password", "Guardar nueva contraseña", "Zapisz nowe hasło")) {
+                Button {
+                    guard !isBusy else { return }
                     Task {
                         let email = accountStore.pendingPasswordResetEmail ?? forgotPasswordEmail.trimmed
                         let reset = await accountStore.resetPassword(
@@ -289,18 +326,29 @@ struct AccountAccessView: View {
                         resetPasswordConfirmation = ""
                         step = .login
                     }
+                } label: {
+                    authActionLabel(
+                        idleTitle: copy("Save new password", "Guardar nueva contraseña", "Zapisz nowe hasło"),
+                        busyTitle: copy("Updating password…", "Actualizando contraseña…", "Aktualizowanie hasła…")
+                    )
                 }
                 .buttonStyle(PrimaryPillButtonStyle())
-                .disabled(accountStore.status == .loading || resetPasswordCode.trimmed.isEmpty || !isPasswordReady(resetPassword) || !passwordsMatch(resetPassword, resetPasswordConfirmation))
+                .disabled(isBusy || resetPasswordCode.trimmed.isEmpty || !isPasswordReady(resetPassword) || !passwordsMatch(resetPassword, resetPasswordConfirmation))
 
-                Button(copy("Send a new reset code", "Enviar un nuevo código", "Wyślij nowy kod resetujący")) {
+                Button {
+                    guard !isBusy else { return }
                     Task {
                         let email = accountStore.pendingPasswordResetEmail ?? forgotPasswordEmail.trimmed
                         await accountStore.forgotPassword(email: email)
                     }
+                } label: {
+                    authSecondaryActionLabel(
+                        idleTitle: copy("Send a new reset code", "Enviar un nuevo código", "Wyślij nowy kod resetujący"),
+                        busyTitle: copy("Sending…", "Enviando…", "Wysyłanie…")
+                    )
                 }
                 .buttonStyle(SecondaryPillButtonStyle())
-                .disabled(accountStore.status == .loading)
+                .disabled(isBusy)
             }
 
         case .landing:
@@ -512,6 +560,33 @@ struct AccountAccessView: View {
             .appGlassCard(cornerRadius: 22)
         }
         .buttonStyle(.plain)
+        .disabled(isBusy)
+    }
+
+    private func authActionLabel(idleTitle: String, busyTitle: String) -> some View {
+        HStack(spacing: 10) {
+            if isBusy {
+                ProgressView()
+                    .progressViewStyle(.circular)
+                    .tint(.white)
+                    .scaleEffect(0.9)
+            }
+            Text(isBusy ? busyTitle : idleTitle)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private func authSecondaryActionLabel(idleTitle: String, busyTitle: String) -> some View {
+        HStack(spacing: 10) {
+            if isBusy {
+                ProgressView()
+                    .progressViewStyle(.circular)
+                    .tint(AppTheme.tabActive)
+                    .scaleEffect(0.9)
+            }
+            Text(isBusy ? busyTitle : idleTitle)
+        }
+        .frame(maxWidth: .infinity)
     }
 
     private func authTextField(

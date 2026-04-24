@@ -28,7 +28,7 @@ type AuthStep = 'landing' | 'login' | 'register' | 'confirm' | 'forgot' | 'reset
 
         <article class="auth-panel glass-subtle">
           @if (step() !== 'landing') {
-            <button class="text-button" type="button" (click)="goBack()">
+            <button class="text-button" type="button" [disabled]="pending()" (click)="goBack()">
               ← {{ t('Back', 'Atrás', 'Powrót') }}
             </button>
           }
@@ -43,13 +43,13 @@ type AuthStep = 'landing' | 'login' | 'register' | 'confirm' | 'forgot' | 'reset
 
           @if (step() === 'landing') {
             <div class="choice-stack">
-              <button class="choice-card" type="button" (click)="step.set('login')">
+              <button class="choice-card" type="button" [disabled]="pending()" (click)="step.set('login')">
                 <span class="choice-card__eyebrow">{{ t('Returning to Sanctuary', 'Volver a Sanctuary', 'Powrót do Sanctuary') }}</span>
                 <strong>{{ t('Login', 'Iniciar sesión', 'Logowanie') }}</strong>
                 <small>{{ t('Sign in to your saved saints, novenas, and progress.', 'Inicia sesión para volver a tus santos, novenas y progreso.', 'Zaloguj sie do zapisanych swietych, nowenn i postepow.') }}</small>
               </button>
 
-              <button class="choice-card choice-card--register" type="button" (click)="step.set('register')">
+              <button class="choice-card choice-card--register" type="button" [disabled]="pending()" (click)="step.set('register')">
                 <span class="choice-card__eyebrow">{{ t('New to Sanctuary', 'Nuevo en Sanctuary', 'Nowe konto Sanctuary') }}</span>
                 <strong>{{ t('Register', 'Registrarse', 'Rejestracja') }}</strong>
                 <small>{{ t('Create a free account to sync your prayer life beautifully across devices.', 'Crea una cuenta gratuita para sincronizar tu vida de oración entre dispositivos.', 'Utworz darmowe konto, aby pieknie synchronizowac zycie modlitwy miedzy urzadzeniami.') }}</small>
@@ -74,12 +74,15 @@ type AuthStep = 'landing' | 'login' | 'register' | 'confirm' | 'forgot' | 'reset
                 <input type="password" [(ngModel)]="loginPassword" name="loginPassword" autocomplete="current-password" />
               </label>
 
-              <button class="text-button" type="button" (click)="openForgotPassword()">
+              <button class="text-button" type="button" [disabled]="pending()" (click)="openForgotPassword()">
                 {{ t('Forgot password?', '¿Olvidaste tu contraseña?', 'Nie pamiętasz hasła?') }}
               </button>
 
               <button class="primary-action" type="submit" [disabled]="pending()">
-                {{ pending() ? t('Signing in…', 'Entrando…', 'Logowanie…') : t('Login', 'Iniciar sesión', 'Zaloguj się') }}
+                @if (pending()) {
+                  <span class="button-spinner" aria-hidden="true"></span>
+                }
+                <span>{{ pending() ? t('Signing in…', 'Entrando…', 'Logowanie…') : t('Login', 'Iniciar sesión', 'Zaloguj się') }}</span>
               </button>
             </form>
           }
@@ -145,7 +148,10 @@ type AuthStep = 'landing' | 'login' | 'register' | 'confirm' | 'forgot' | 'reset
               </section>
 
               <button class="primary-action" type="submit" [disabled]="pending() || !isPasswordReady() || !passwordsMatch()">
-                {{ pending() ? t('Creating account…', 'Creando cuenta…', 'Tworzenie konta…') : t('Create account', 'Crear cuenta', 'Utwórz konto') }}
+                @if (pending()) {
+                  <span class="button-spinner" aria-hidden="true"></span>
+                }
+                <span>{{ pending() ? t('Creating account…', 'Creando cuenta…', 'Tworzenie konta…') : t('Create account', 'Crear cuenta', 'Utwórz konto') }}</span>
               </button>
             </form>
           }
@@ -172,11 +178,17 @@ type AuthStep = 'landing' | 'login' | 'register' | 'confirm' | 'forgot' | 'reset
               </label>
 
               <button class="primary-action" type="submit" [disabled]="pending()">
-                {{ pending() ? t('Confirming…', 'Confirmando…', 'Potwierdzanie…') : t('Confirm account', 'Confirmar cuenta', 'Potwierdź konto') }}
+                @if (pending()) {
+                  <span class="button-spinner" aria-hidden="true"></span>
+                }
+                <span>{{ pending() ? t('Confirming…', 'Confirmando…', 'Potwierdzanie…') : t('Confirm account', 'Confirmar cuenta', 'Potwierdź konto') }}</span>
               </button>
 
               <button class="secondary-action" type="button" [disabled]="pending()" (click)="resendCode()">
-                {{ t('Send a new code', 'Enviar un código nuevo', 'Wyślij nowy kod') }}
+                @if (pending()) {
+                  <span class="button-spinner button-spinner--subtle" aria-hidden="true"></span>
+                }
+                <span>{{ pending() ? t('Sending…', 'Enviando…', 'Wysyłanie…') : t('Send a new code', 'Enviar un código nuevo', 'Wyślij nowy kod') }}</span>
               </button>
             </form>
           }
@@ -194,7 +206,10 @@ type AuthStep = 'landing' | 'login' | 'register' | 'confirm' | 'forgot' | 'reset
               </label>
 
               <button class="primary-action" type="submit" [disabled]="pending()">
-                {{ pending() ? t('Sending code…', 'Enviando código…', 'Wysyłanie kodu…') : t('Send reset code', 'Enviar código', 'Wyślij kod') }}
+                @if (pending()) {
+                  <span class="button-spinner" aria-hidden="true"></span>
+                }
+                <span>{{ pending() ? t('Sending code…', 'Enviando código…', 'Wysyłanie kodu…') : t('Send reset code', 'Enviar código', 'Wyślij kod') }}</span>
               </button>
             </form>
           }
@@ -257,11 +272,17 @@ type AuthStep = 'landing' | 'login' | 'register' | 'confirm' | 'forgot' | 'reset
               </section>
 
               <button class="primary-action" type="submit" [disabled]="pending() || !isResetPasswordReady() || !resetPasswordsMatch() || !resetCode.trim()">
-                {{ pending() ? t('Updating password…', 'Actualizando contraseña…', 'Aktualizowanie hasła…') : t('Save new password', 'Guardar nueva contraseña', 'Zapisz nowe hasło') }}
+                @if (pending()) {
+                  <span class="button-spinner" aria-hidden="true"></span>
+                }
+                <span>{{ pending() ? t('Updating password…', 'Actualizando contraseña…', 'Aktualizowanie hasła…') : t('Save new password', 'Guardar nueva contraseña', 'Zapisz nowe hasło') }}</span>
               </button>
 
               <button class="secondary-action" type="button" [disabled]="pending()" (click)="resendResetCode()">
-                {{ t('Send a new reset code', 'Enviar un nuevo código', 'Wyślij nowy kod resetujący') }}
+                @if (pending()) {
+                  <span class="button-spinner button-spinner--subtle" aria-hidden="true"></span>
+                }
+                <span>{{ pending() ? t('Sending…', 'Enviando…', 'Wysyłanie…') : t('Send a new reset code', 'Enviar un nuevo código', 'Wyślij nowy kod resetujący') }}</span>
               </button>
             </form>
           }
@@ -423,6 +444,10 @@ export class AuthPageComponent {
   });
 
   protected async submitLogin(): Promise<void> {
+    if (this.pending()) {
+      return;
+    }
+
     if (!this.validateConfigured()) {
       return;
     }
@@ -450,6 +475,10 @@ export class AuthPageComponent {
   }
 
   protected async submitRegister(): Promise<void> {
+    if (this.pending()) {
+      return;
+    }
+
     if (!this.validateConfigured()) {
       return;
     }
@@ -498,6 +527,10 @@ export class AuthPageComponent {
   }
 
   protected async submitConfirmation(): Promise<void> {
+    if (this.pending()) {
+      return;
+    }
+
     if (!this.confirmationEmail || !this.confirmationCode.trim()) {
       this.error.set(this.t('Enter the confirmation code from your email.', 'Ingresa el código de confirmación de tu correo.', 'Wpisz kod potwierdzający z wiadomości e-mail.'));
       return;
@@ -548,6 +581,10 @@ export class AuthPageComponent {
   }
 
   protected async resendCode(): Promise<void> {
+    if (this.pending()) {
+      return;
+    }
+
     if (!this.confirmationEmail) {
       return;
     }
@@ -566,6 +603,10 @@ export class AuthPageComponent {
   }
 
   protected openForgotPassword(): void {
+    if (this.pending()) {
+      return;
+    }
+
     this.error.set(null);
     this.message.set(null);
     this.forgotEmail = this.loginEmail.trim();
@@ -573,6 +614,10 @@ export class AuthPageComponent {
   }
 
   protected async submitForgotPassword(): Promise<void> {
+    if (this.pending()) {
+      return;
+    }
+
     if (!this.validateConfigured()) {
       return;
     }
@@ -603,6 +648,10 @@ export class AuthPageComponent {
   }
 
   protected async resendResetCode(): Promise<void> {
+    if (this.pending()) {
+      return;
+    }
+
     if (!this.resetEmail.trim()) {
       return;
     }
@@ -621,6 +670,10 @@ export class AuthPageComponent {
   }
 
   protected async submitResetPassword(): Promise<void> {
+    if (this.pending()) {
+      return;
+    }
+
     if (!this.resetEmail.trim() || !this.resetCode.trim()) {
       this.error.set(this.t('Enter the reset code from your email.', 'Ingresa el código de restablecimiento de tu correo.', 'Wpisz kod resetujący z wiadomości e-mail.'));
       return;
@@ -668,6 +721,10 @@ export class AuthPageComponent {
   }
 
   protected goBack(): void {
+    if (this.pending()) {
+      return;
+    }
+
     this.error.set(null);
     this.message.set(null);
 
