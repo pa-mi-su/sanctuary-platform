@@ -94,6 +94,7 @@ struct NovenasSearchView: View {
     let mode: NovenaSearchMode
     @State private var intentionsQuery = ""
     @State private var intentionItems: [IntentionSearchItem] = []
+    @State private var isIntentionsLoading = false
 
     init(environment: AppEnvironment, mode: NovenaSearchMode = .standard) {
         self.environment = environment
@@ -122,27 +123,39 @@ struct NovenasSearchView: View {
                             text: $intentionsQuery
                         )
 
-                        SearchResultsCount(count: filteredIntentionItems.count)
-
-                        ScrollView(showsIndicators: false) {
-                            LazyVStack(spacing: 10) {
-                                ForEach(filteredIntentionItems) { item in
-                                    NavigationLink {
-                                        NovenaDetailView(contentRepository: environment.contentRepository, novena: item.novena)
-                                    } label: {
-                                        SearchResultCard(
-                                            title: item.title,
-                                            subtitle: item.subtitle,
-                                            meta: item.meta,
-                                            accent: AppTheme.glowRose,
-                                            icon: "heart.text.square.fill",
-                                            imageURL: item.novena.imageURL
-                                        )
-                                    }
-                                    .buttonStyle(.plain)
-                                }
+                        if isIntentionsLoading {
+                            HStack(spacing: 10) {
+                                ProgressView()
+                                    .tint(AppTheme.glowRose)
+                                Text(localization.t("common.loading"))
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(AppTheme.subtitleText)
+                                Spacer()
                             }
-                            .padding(.bottom, 24)
+                            .padding(.vertical, 6)
+                        } else {
+                            SearchResultsCount(count: filteredIntentionItems.count)
+
+                            ScrollView(showsIndicators: false) {
+                                LazyVStack(spacing: 10) {
+                                    ForEach(filteredIntentionItems) { item in
+                                        NavigationLink {
+                                            NovenaDetailView(contentRepository: environment.contentRepository, novena: item.novena)
+                                        } label: {
+                                            SearchResultCard(
+                                                title: item.title,
+                                                subtitle: item.subtitle,
+                                                meta: item.meta,
+                                                accent: AppTheme.glowRose,
+                                                icon: "heart.text.square.fill",
+                                                imageURL: item.novena.imageURL
+                                            )
+                                        }
+                                        .buttonStyle(.plain)
+                                    }
+                                }
+                                .padding(.bottom, 24)
+                            }
                         }
                     } else {
                         SearchField(
@@ -181,18 +194,20 @@ struct NovenasSearchView: View {
             }
             .toolbar(.hidden, for: .navigationBar)
             .task {
-                viewModel.setLocale(localization.language.contentLocale)
-                await viewModel.load()
                 if mode == .intentions {
                     await rebuildIntentionItems()
+                } else {
+                    viewModel.setLocale(localization.language.contentLocale)
+                    await viewModel.load()
                 }
             }
             .onChange(of: localization.language) { newValue in
                 Task {
-                    viewModel.setLocale(newValue.contentLocale)
-                    await viewModel.load()
                     if mode == .intentions {
                         await rebuildIntentionItems()
+                    } else {
+                        viewModel.setLocale(newValue.contentLocale)
+                        await viewModel.load()
                     }
                 }
             }
@@ -217,11 +232,14 @@ struct NovenasSearchView: View {
 
     private func rebuildIntentionItems() async {
         let locale = localization.language.contentLocale
+        isIntentionsLoading = true
+        defer { isIntentionsLoading = false }
+
         let results = (try? await environment.contentRepository.searchNovenasByIntentions(locale: locale, query: intentionsQuery)) ?? []
 
         intentionItems = results.map { novena in
-            let title = viewModel.title(for: novena)
-            let summary = viewModel.summary(for: novena)
+            let title = novena.titleByLocale[locale] ?? novena.titleByLocale[.en] ?? novena.slug
+            let summary = novena.descriptionByLocale[locale] ?? novena.descriptionByLocale[.en] ?? ""
             let intentionsSummary = formattedIntentions(for: novena)
             let document = SearchMatcher.Document(
                 itemID: novena.id,
