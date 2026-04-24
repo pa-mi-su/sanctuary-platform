@@ -41,7 +41,7 @@ struct MeView: View {
         .task(id: novenaLookupKey) {
             await loadNovenaDetails()
         }
-        .sheet(item: $selectedRoute) { route in
+        .fullScreenCover(item: $selectedRoute) { route in
             switch route {
             case .saint(let id):
                 SaintDetailView(
