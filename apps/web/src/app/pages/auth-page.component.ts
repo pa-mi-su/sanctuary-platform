@@ -378,15 +378,40 @@ export class AuthPageComponent {
     this.error.set(null);
 
     try {
-      const message = await this.auth.confirmRegistration({
+      await this.auth.confirmRegistration({
         email: this.confirmationEmail,
         code: this.confirmationCode.trim(),
       });
+      const email = this.confirmationEmail;
+      const password = this.registerPassword;
+
+      if (password) {
+        try {
+          await this.auth.login({
+            email,
+            password,
+          });
+          this.pending.set(false);
+          this.message.set(null);
+          this.authenticated.emit();
+          return;
+        } catch {
+          // Fall back to the login screen with the confirmed email prefilled.
+        }
+      }
+
       this.pending.set(false);
-      this.message.set(message);
+      this.message.set(
+        this.t(
+          'Your account is confirmed. Please sign in to continue.',
+          'Tu cuenta está confirmada. Inicia sesión para continuar.',
+          'Twoje konto zostało potwierdzone. Zaloguj się, aby kontynuować.'
+        )
+      );
       this.step.set('login');
-      this.loginEmail = this.confirmationEmail;
+      this.loginEmail = email;
       this.loginPassword = '';
+      this.confirmationCode = '';
     } catch {
       this.pending.set(false);
       this.error.set(this.auth.state().message);
