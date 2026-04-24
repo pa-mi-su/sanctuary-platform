@@ -49,19 +49,6 @@ interface NovenaProgress {
             <h3>Biography</h3>
             <p>{{ saintDetail()!.biography }}</p>
           </section>
-          @if (saintDetail()!.sources.length) {
-            <section class="detail-section">
-              <h3>Sources</h3>
-              @for (source of saintDetail()!.sources; track source.text) {
-                <div class="detail-list-row">
-                  <span>{{ source.text }}</span>
-                  @if (source.url) {
-                    <a class="text-link" [href]="source.url" target="_blank" rel="noreferrer">Open</a>
-                  }
-                </div>
-              }
-            </section>
-          }
         </div>
       }
 
