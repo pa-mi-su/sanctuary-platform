@@ -240,8 +240,8 @@ struct NovenasSearchView: View {
                 id: novena.id,
                 novena: novena,
                 title: title,
-                subtitle: intentionsSummary.isEmpty ? summary : intentionsSummary,
-                meta: viewModel.dayText(for: novena),
+                subtitle: summary,
+                meta: intentionsSummary,
                 document: document
             )
         }

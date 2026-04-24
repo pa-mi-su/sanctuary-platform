@@ -102,8 +102,8 @@ type AppLanguage = 'en' | 'es' | 'pl';
                 </div>
                 <div class="content-card__body">
                   <h3>{{ novena.title }}</h3>
-                  <p>{{ mode() === 'intentions' ? intentionsSummary(novena) : novena.description }}</p>
-                  <span class="content-tag">{{ novenaDayCountLabel(novena) }}</span>
+                  <p>{{ novena.description }}</p>
+                  <span class="content-tag">{{ mode() === 'intentions' ? intentionsSummary(novena) : novenaDayCountLabel(novena) }}</span>
                 </div>
               </button>
             }
@@ -273,7 +273,7 @@ export class NovenasPageComponent {
       .filter(Boolean);
 
     if (!cleaned.length) {
-      return novena.description;
+      return this.t('Intentions', 'Intenciones', 'Intencje');
     }
 
     return cleaned.slice(0, 3).join(' • ');
