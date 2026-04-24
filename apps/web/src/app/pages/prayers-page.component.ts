@@ -44,7 +44,9 @@ type AppLanguage = 'en' | 'es' | 'pl';
               <div class="content-card__body">
                 <h3>{{ prayer.title }}</h3>
                 <p>{{ prayerPreviewLabel(prayer) }}</p>
-                <span class="content-tag">{{ prayer.category }}</span>
+                @if (visibleCategory(prayer.category); as category) {
+                  <span class="content-tag">{{ category }}</span>
+                }
               </div>
             </button>
           }
@@ -68,6 +70,19 @@ export class PrayersPageComponent {
 
   protected prayerPreviewLabel(prayer: PrayerSummary): string {
     return prayer.bodyPreview;
+  }
+
+  protected visibleCategory(category: string | null | undefined): string | null {
+    if (!category) {
+      return null;
+    }
+
+    const normalized = category.trim();
+    if (!normalized || normalized.toLowerCase() === 'user_provided') {
+      return null;
+    }
+
+    return normalized;
   }
 
   protected cardImageStyle(imageUrl: string | null | undefined): string | null {

@@ -57,7 +57,9 @@ interface NovenaProgress {
           <div class="detail-hero">
             <div class="detail-image prayer-image" [style.background-image]="imageStyle(prayerDetail()!.imageUrl)"></div>
             <div class="detail-meta">
-              <span class="content-tag">{{ prayerDetail()!.category }}</span>
+              @if (visibleCategory(prayerDetail()!.category); as category) {
+                <span class="content-tag">{{ category }}</span>
+              }
               <p>{{ prayerDetail()!.alternateTitle }}</p>
             </div>
           </div>
@@ -183,6 +185,19 @@ export class ContentDetailModalComponent {
   readonly selectNovenaDay = output<number>();
   readonly startNovena = output<void>();
   readonly stopNovena = output<void>();
+
+  protected visibleCategory(category: string | null | undefined): string | null {
+    if (!category) {
+      return null;
+    }
+
+    const normalized = category.trim();
+    if (!normalized || normalized.toLowerCase() === 'user_provided') {
+      return null;
+    }
+
+    return normalized;
+  }
   readonly completeNovenaDay = output<void>();
   readonly toggleSaintFavorite = output<void>();
   readonly toggleNovenaFavorite = output<void>();
