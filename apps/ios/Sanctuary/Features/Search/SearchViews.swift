@@ -217,14 +217,7 @@ struct NovenasSearchView: View {
 
     private func rebuildIntentionItems() async {
         let locale = localization.language.contentLocale
-        let trimmedQuery = intentionsQuery.trimmingCharacters(in: .whitespacesAndNewlines)
-        let results: [Novena]
-
-        if trimmedQuery.isEmpty, !viewModel.novenas.isEmpty {
-            results = viewModel.novenas
-        } else {
-            results = (try? await environment.contentRepository.searchNovenasByIntentions(locale: locale, query: intentionsQuery)) ?? []
-        }
+        let results = (try? await environment.contentRepository.searchNovenasByIntentions(locale: locale, query: intentionsQuery)) ?? []
 
         intentionItems = results.map { novena in
             let title = viewModel.title(for: novena)
