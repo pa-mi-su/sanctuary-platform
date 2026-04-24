@@ -76,6 +76,10 @@ final class AccountSessionStore: ObservableObject {
         session?.accessToken
     }
 
+    var idToken: String? {
+        session?.idToken
+    }
+
     func bootstrap() async {
         guard isConfigured else {
             setMessage("Authentication is not configured for this environment yet.", isError: true)
@@ -204,7 +208,7 @@ final class AccountSessionStore: ObservableObject {
     }
 
     func refreshProfile(fallbackSession: AccountSession? = nil) async {
-        guard let token = session?.accessToken ?? fallbackSession?.accessToken else {
+        guard let token = session?.idToken ?? fallbackSession?.idToken ?? session?.accessToken ?? fallbackSession?.accessToken else {
             clearStoredSession()
             return
         }
