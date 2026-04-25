@@ -9,6 +9,8 @@ interface NovenaProgress {
   status: 'active' | 'paused' | 'completed';
 }
 
+type AppLanguage = 'en' | 'es' | 'pl';
+
 @Component({
   selector: 'app-content-detail-modal',
   standalone: true,
@@ -41,6 +43,7 @@ interface NovenaProgress {
           <div class="detail-hero">
             <div class="detail-image" [style.background-image]="imageStyle(saintDetail()!.imageUrl)"></div>
             <div class="detail-meta">
+              <span class="content-tag">{{ saintFeastDateLabel(saintDetail()!) }}</span>
               <span class="content-tag">{{ saintDetail()!.feastLabel }}</span>
               <p>{{ saintDetail()!.summary }}</p>
             </div>
@@ -172,6 +175,7 @@ interface NovenaProgress {
   `,
 })
 export class ContentDetailModalComponent {
+  readonly currentLanguage = input<AppLanguage>('en');
   readonly saintDetail = input<SaintDetail | null>(null);
   readonly prayerDetail = input<PrayerDetail | null>(null);
   readonly novenaDetail = input<NovenaDetail | null>(null);
@@ -214,6 +218,18 @@ export class ContentDetailModalComponent {
     return `${novena.days.length}-day novena`;
   }
 
+  protected saintFeastDateLabel(saint: SaintDetail): string {
+    const year = new Date().getFullYear();
+    const date = new Date(year, saint.feastMonth - 1, saint.feastDay);
+
+    const formatted = new Intl.DateTimeFormat(this.dateLocale(), {
+      month: 'short',
+      day: 'numeric',
+    }).format(date);
+
+    return `${this.t('Feast date', 'Fecha de fiesta', 'Data swieta')}: ${formatted}`;
+  }
+
   protected isDayCompleted(dayNumber: number): boolean {
     return this.novenaProgress()?.completedDays.includes(dayNumber) ?? false;
   }
@@ -228,5 +244,27 @@ export class ContentDetailModalComponent {
 
   protected novenaProgressLabel(novena: NovenaDetail, progress: NovenaProgress): string {
     return `${progress.completedDays.length} of ${novena.days.length} days complete`;
+  }
+
+  protected t(english: string, spanish: string, polish: string): string {
+    switch (this.currentLanguage()) {
+      case 'es':
+        return spanish;
+      case 'pl':
+        return polish;
+      default:
+        return english;
+    }
+  }
+
+  private dateLocale(): string {
+    switch (this.currentLanguage()) {
+      case 'es':
+        return 'es-ES';
+      case 'pl':
+        return 'pl-PL';
+      default:
+        return 'en-US';
+    }
   }
 }
