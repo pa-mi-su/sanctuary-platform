@@ -1,7 +1,6 @@
-import { ChangeDetectionStrategy, Component, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output } from '@angular/core';
 
-import { UserPreferencesUpdateRequest, UserProfile } from '../core/api/sanctuary-api.service';
+import { UserProfile } from '../core/api/sanctuary-api.service';
 import { MeLinkedItem } from '../core/state/app-shell.facade';
 
 type AppLanguage = 'en' | 'es' | 'pl';
@@ -9,7 +8,6 @@ type AppLanguage = 'en' | 'es' | 'pl';
 @Component({
   selector: 'app-me-page',
   standalone: true,
-  imports: [FormsModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './me-page.component.scss',
   template: `
@@ -174,65 +172,13 @@ type AppLanguage = 'en' | 'es' | 'pl';
               <dt>{{ t('Email', 'Correo', 'Email') }}</dt>
               <dd>{{ profile?.email ?? '—' }}</dd>
             </div>
-            <div>
-              <dt>{{ t('Time zone', 'Zona horaria', 'Strefa czasowa') }}</dt>
-              <dd>{{ formTimeZoneId || browserTimeZone }}</dd>
-            </div>
           </dl>
-        </article>
-
-        <article class="panel-card glass-subtle settings-card">
-          <div class="panel-heading">
-            <div>
-              <h3>{{ t('Account settings', 'Configuración de cuenta', 'Ustawienia konta') }}</h3>
-              <p>{{ t('We are keeping this section focused for now while reminders and notifications are still being built.', 'Por ahora mantenemos esta sección enfocada mientras recordatorios y notificaciones aún se están construyendo.', 'Na razie utrzymujemy tę sekcję w prostocie, dopóki przypomnienia i powiadomienia nie będą gotowe.') }}</p>
-            </div>
-          </div>
-
-          <div class="field-grid">
-            <label class="field">
-              <span>{{ t('Time zone', 'Zona horaria', 'Strefa czasowa') }}</span>
-              <input
-                type="text"
-                [(ngModel)]="formTimeZoneId"
-                [placeholder]="browserTimeZone"
-                spellcheck="false"
-                autocapitalize="off"
-                autocorrect="off"
-              />
-            </label>
-          </div>
-
-          <button class="secondary-action" type="button" (click)="useBrowserTimeZone()">
-            {{ t('Use browser time zone', 'Usar la zona horaria del navegador', 'Uzyj strefy czasowej przegladarki') }}
-          </button>
-
-          <div class="settings-footer">
-            <p class="status-copy" [class.status-copy--error]="saveError">
-              {{
-                saveMessage ??
-                t(
-                  'Time zone is the only saved account setting here right now. Reminders and notifications will come later.',
-                  'La zona horaria es la única configuración guardada aquí por ahora. Los recordatorios y notificaciones llegarán después.',
-                  'Na razie zapisujemy tutaj tylko strefę czasową. Przypomnienia i powiadomienia pojawią się później.'
-                )
-              }}
-            </p>
-
-            <button class="primary-action" type="button" [disabled]="savePending" (click)="submitPreferences()">
-              {{
-                savePending
-                  ? t('Saving…', 'Guardando…', 'Zapisywanie…')
-                  : t('Save settings', 'Guardar configuración', 'Zapisz ustawienia')
-              }}
-            </button>
-          </div>
         </article>
       </section>
     </section>
   `,
 })
-export class MePageComponent implements OnChanges {
+export class MePageComponent {
   @Input() currentLanguage: AppLanguage = 'en';
   @Input() userName: string | null = null;
   @Input() profile: UserProfile | null = null;
@@ -242,40 +188,11 @@ export class MePageComponent implements OnChanges {
   @Input() activeNovenas: MeLinkedItem[] = [];
   @Input() favoriteNovenas: MeLinkedItem[] = [];
   @Input() favoriteSaints: MeLinkedItem[] = [];
-  @Input() savePending = false;
-  @Input() saveMessage: string | null = null;
-  @Input() saveError = false;
 
   @Output() readonly logout = new EventEmitter<void>();
-  @Output() readonly savePreferences = new EventEmitter<UserPreferencesUpdateRequest>();
   @Output() readonly openActiveNovena = new EventEmitter<MeLinkedItem>();
   @Output() readonly openFavoriteNovena = new EventEmitter<MeLinkedItem>();
   @Output() readonly openFavoriteSaint = new EventEmitter<MeLinkedItem>();
-
-  protected formPreferredLanguage: AppLanguage = 'en';
-  protected formTimeZoneId = '';
-  protected formNovenaRemindersEnabled = false;
-  protected formFeastRemindersEnabled = false;
-  protected formEmailUpdatesEnabled = false;
-  protected formOnboardingCompleted = true;
-  protected readonly browserTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
-
-  ngOnChanges(changes: SimpleChanges): void {
-    if (changes['profile']?.currentValue) {
-      const profile = changes['profile'].currentValue as UserProfile;
-      this.formPreferredLanguage = (profile.preferredLanguage ?? this.currentLanguage ?? 'en') as AppLanguage;
-      this.formTimeZoneId = profile.timeZoneId ?? this.browserTimeZone;
-      this.formNovenaRemindersEnabled = Boolean(profile.novenaRemindersEnabled);
-      this.formFeastRemindersEnabled = Boolean(profile.feastRemindersEnabled);
-      this.formEmailUpdatesEnabled = Boolean(profile.emailUpdatesEnabled);
-      this.formOnboardingCompleted = profile.onboardingCompleted ?? true;
-      return;
-    }
-
-    if (changes['currentLanguage'] && !this.profile) {
-      this.formPreferredLanguage = this.currentLanguage;
-    }
-  }
 
   protected get completedNovenaCount(): number {
     return this.profile?.completedNovenaCount ?? 0;
@@ -288,21 +205,6 @@ export class MePageComponent implements OnChanges {
       .slice(0, 2)
       .map((part) => part.charAt(0).toUpperCase())
       .join('');
-  }
-
-  protected useBrowserTimeZone(): void {
-    this.formTimeZoneId = this.browserTimeZone;
-  }
-
-  protected submitPreferences(): void {
-    this.savePreferences.emit({
-      preferredLanguage: this.currentLanguage,
-      timeZoneId: this.formTimeZoneId.trim() || this.browserTimeZone,
-      novenaRemindersEnabled: this.formNovenaRemindersEnabled,
-      feastRemindersEnabled: this.formFeastRemindersEnabled,
-      emailUpdatesEnabled: this.formEmailUpdatesEnabled,
-      onboardingCompleted: this.formOnboardingCompleted,
-    });
   }
 
   protected languageLabel(language: AppLanguage): string {
