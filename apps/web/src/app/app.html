@@ -2,6 +2,7 @@
 
 @if (facade.saintDetail() || facade.prayerDetail() || facade.novenaDetail()) {
   <app-content-detail-modal
+    [currentLanguage]="facade.language()"
     [saintDetail]="facade.saintDetail()"
     [prayerDetail]="facade.prayerDetail()"
     [novenaDetail]="facade.novenaDetail()"
