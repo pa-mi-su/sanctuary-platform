@@ -190,15 +190,7 @@ public class CognitoAuthService {
                 throw new AuthFlowException(HttpStatus.BAD_GATEWAY, "Sanctuary could not complete sign in.");
             }
 
-            return new AuthSessionResponse(
-                authenticationResult.accessToken(),
-                authenticationResult.idToken(),
-                authenticationResult.refreshToken(),
-                authenticationResult.tokenType(),
-                authenticationResult.expiresIn(),
-                normalizedEmail(request.email()),
-                extractDisplayName(authenticationResult.idToken(), normalizedEmail(request.email()))
-            );
+            return authSessionResponse(authenticationResult, normalizedEmail(request.email()), authenticationResult.refreshToken());
         } catch (UserNotConfirmedException exception) {
             throw new AuthFlowException(HttpStatus.CONFLICT, "Please confirm your account before signing in.");
         } catch (NotAuthorizedException exception) {
@@ -207,6 +199,35 @@ public class CognitoAuthService {
             throw new AuthFlowException(HttpStatus.NOT_FOUND, "We could not find an account for that email.");
         } catch (TooManyRequestsException exception) {
             throw new AuthFlowException(HttpStatus.TOO_MANY_REQUESTS, "Too many attempts. Please wait a moment and try again.");
+        }
+    }
+
+    public AuthSessionResponse refresh(String refreshToken) {
+        validateConfigured();
+
+        try {
+            var response = cognitoClient.initiateAuth(InitiateAuthRequest.builder()
+                .clientId(authProperties.clientId())
+                .authFlow(AuthFlowType.REFRESH_TOKEN_AUTH)
+                .authParameters(Map.of("REFRESH_TOKEN", cleaned(refreshToken)))
+                .build());
+
+            var authenticationResult = response.authenticationResult();
+            if (authenticationResult == null || authenticationResult.accessToken() == null || authenticationResult.idToken() == null) {
+                throw new AuthFlowException(HttpStatus.BAD_GATEWAY, "Sanctuary could not refresh your session.");
+            }
+
+            String resolvedRefreshToken = authenticationResult.refreshToken() == null || authenticationResult.refreshToken().isBlank()
+                ? cleaned(refreshToken)
+                : authenticationResult.refreshToken();
+
+            return authSessionResponse(authenticationResult, extractEmail(authenticationResult.idToken()), resolvedRefreshToken);
+        } catch (NotAuthorizedException exception) {
+            throw new AuthFlowException(HttpStatus.UNAUTHORIZED, "Your Sanctuary session expired. Please sign in again.");
+        } catch (TooManyRequestsException exception) {
+            throw new AuthFlowException(HttpStatus.TOO_MANY_REQUESTS, "Too many attempts. Please wait a moment and try again.");
+        } catch (InvalidParameterException exception) {
+            throw new AuthFlowException(HttpStatus.BAD_REQUEST, friendlyMessage(exception.getMessage(), "We could not refresh your session."));
         }
     }
 
@@ -235,6 +256,27 @@ public class CognitoAuthService {
         return (firstName + " " + lastName).trim();
     }
 
+    private AuthSessionResponse authSessionResponse(
+        software.amazon.awssdk.services.cognitoidentityprovider.model.AuthenticationResultType authenticationResult,
+        String fallbackEmail,
+        String refreshToken
+    ) {
+        String resolvedEmail = extractEmail(authenticationResult.idToken());
+        if (resolvedEmail == null || resolvedEmail.isBlank()) {
+            resolvedEmail = fallbackEmail;
+        }
+
+        return new AuthSessionResponse(
+            authenticationResult.accessToken(),
+            authenticationResult.idToken(),
+            refreshToken,
+            authenticationResult.tokenType(),
+            authenticationResult.expiresIn(),
+            resolvedEmail,
+            extractDisplayName(authenticationResult.idToken(), resolvedEmail)
+        );
+    }
+
     private String extractDisplayName(String idToken, String fallback) {
         try {
             String payload = idToken.split("\\.")[1];
@@ -253,6 +295,20 @@ public class CognitoAuthService {
             return joined.isBlank() ? fallback : joined;
         } catch (RuntimeException exception) {
             return fallback;
+        }
+    }
+
+    private String extractEmail(String idToken) {
+        try {
+            String payload = idToken.split("\\.")[1];
+            String normalized = payload.replace('-', '+').replace('_', '/');
+            while (normalized.length() % 4 != 0) {
+                normalized += "=";
+            }
+            String json = new String(java.util.Base64.getDecoder().decode(normalized));
+            return extractJsonString(json, "\"email\":\"");
+        } catch (RuntimeException exception) {
+            return null;
         }
     }
 

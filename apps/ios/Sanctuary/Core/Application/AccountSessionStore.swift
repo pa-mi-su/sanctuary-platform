@@ -54,6 +54,8 @@ final class AccountSessionStore: ObservableObject {
     private let secureStore: KeychainStore
     private let platformConfiguration: PlatformConfiguration
     private let sessionAccountKey = "primary-session"
+    private var refreshTask: Task<Void, Never>?
+    private let refreshBuffer: TimeInterval = 60
 
     init(
         apiClient: SanctuaryAPIClient,
@@ -92,13 +94,21 @@ final class AccountSessionStore: ObservableObject {
             return
         }
 
-        guard restored.expiresAt > Date() else {
-            clearStoredSession()
+        if restored.expiresAt <= Date() {
+            guard let refreshToken = restored.refreshToken, !refreshToken.isEmpty else {
+                clearStoredSession()
+                return
+            }
+
+            session = restored
+            status = .loading
+            await renewSession(using: refreshToken, fallbackSession: restored, refreshProfileAfter: true)
             return
         }
 
         session = restored
         status = .loading
+        scheduleRefresh(for: restored)
         await refreshProfile()
     }
 
@@ -243,6 +253,7 @@ final class AccountSessionStore: ObservableObject {
             pendingConfirmationEmail = nil
             pendingPasswordResetEmail = nil
             try persist(session)
+            scheduleRefresh(for: session)
             await refreshProfile(fallbackSession: session)
         } catch {
             clearStoredSession()
@@ -373,6 +384,38 @@ final class AccountSessionStore: ObservableObject {
         try secureStore.save(data, for: sessionAccountKey)
     }
 
+    private func renewSession(
+        using refreshToken: String,
+        fallbackSession: AccountSession,
+        refreshProfileAfter: Bool
+    ) async {
+        do {
+            let response = try await apiClient.refreshSession(refreshToken: refreshToken)
+            let refreshedSession = AccountSession(
+                accessToken: response.accessToken,
+                idToken: response.idToken,
+                refreshToken: response.refreshToken ?? refreshToken,
+                tokenType: response.tokenType,
+                expiresAt: Date().addingTimeInterval(TimeInterval(response.expiresIn)),
+                email: response.email,
+                displayName: response.displayName
+            )
+
+            session = refreshedSession
+            try persist(refreshedSession)
+            scheduleRefresh(for: refreshedSession)
+
+            if refreshProfileAfter {
+                await refreshProfile(fallbackSession: refreshedSession)
+            } else {
+                status = .authenticated
+                clearMessage()
+            }
+        } catch {
+            clearStoredSession()
+        }
+    }
+
     private func loadStoredSession() -> AccountSession? {
         do {
             guard let data = try secureStore.load(account: sessionAccountKey) else {
@@ -388,6 +431,8 @@ final class AccountSessionStore: ObservableObject {
     }
 
     private func clearStoredSession() {
+        refreshTask?.cancel()
+        refreshTask = nil
         secureStore.delete(account: sessionAccountKey)
         session = nil
         profile = nil
@@ -395,6 +440,23 @@ final class AccountSessionStore: ObservableObject {
         pendingPasswordResetEmail = nil
         status = .signedOut
         clearMessage()
+    }
+
+    private func scheduleRefresh(for session: AccountSession) {
+        refreshTask?.cancel()
+        refreshTask = nil
+
+        guard let refreshToken = session.refreshToken, !refreshToken.isEmpty else {
+            return
+        }
+
+        let delay = max(session.expiresAt.timeIntervalSinceNow - refreshBuffer, 1)
+        refreshTask = Task { [weak self] in
+            let duration = UInt64(delay * 1_000_000_000)
+            try? await Task.sleep(nanoseconds: duration)
+            guard !Task.isCancelled, let self else { return }
+            await self.renewSession(using: refreshToken, fallbackSession: session, refreshProfileAfter: false)
+        }
     }
 
     private func setMessage(_ value: String, isError: Bool) {
