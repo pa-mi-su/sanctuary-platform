@@ -2,6 +2,11 @@ import Foundation
 
 actor APIContentRepository: ContentRepository, SaintRangeRepository {
     private let apiClient: SanctuaryAPIClient
+    private let apiDayCalendar: Calendar = {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .autoupdatingCurrent
+        return calendar
+    }()
 
     init(apiClient: SanctuaryAPIClient) {
         self.apiClient = apiClient
@@ -150,8 +155,8 @@ actor APIContentRepository: ContentRepository, SaintRangeRepository {
         locale: ContentLocale,
         feastDateOverride: Date? = nil
     ) -> Saint {
-        let feastMonth = feastDateOverride.map { Calendar(identifier: .gregorian).component(.month, from: $0) } ?? response.feastMonth
-        let feastDay = feastDateOverride.map { Calendar(identifier: .gregorian).component(.day, from: $0) } ?? response.feastDay
+        let feastMonth = feastDateOverride.map { apiDayCalendar.component(.month, from: $0) } ?? response.feastMonth
+        let feastDay = feastDateOverride.map { apiDayCalendar.component(.day, from: $0) } ?? response.feastDay
 
         return Saint(
             id: response.id,
@@ -260,12 +265,22 @@ actor APIContentRepository: ContentRepository, SaintRangeRepository {
     private func date(from raw: String) -> Date? {
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
-        let formatter = DateFormatter()
-        formatter.calendar = Calendar(identifier: .gregorian)
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.timeZone = TimeZone(secondsFromGMT: 0)
-        formatter.dateFormat = "yyyy-MM-dd"
-        return formatter.date(from: trimmed)
+        let parts = trimmed.split(separator: "-", omittingEmptySubsequences: false)
+        guard parts.count == 3,
+              let year = Int(parts[0]),
+              let month = Int(parts[1]),
+              let day = Int(parts[2]) else {
+            return nil
+        }
+
+        var components = DateComponents()
+        components.calendar = apiDayCalendar
+        components.timeZone = apiDayCalendar.timeZone
+        components.year = year
+        components.month = month
+        components.day = day
+        components.hour = 12
+        return apiDayCalendar.date(from: components)
     }
 
     private func mapLiturgicalDay(_ response: APILiturgicalDayResponse) -> LiturgicalDay? {

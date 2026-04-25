@@ -2,6 +2,7 @@
 
 @if (facade.saintDetail() || facade.prayerDetail() || facade.novenaDetail()) {
   <app-content-detail-modal
+    [currentLanguage]="facade.language()"
     [saintDetail]="facade.saintDetail()"
     [prayerDetail]="facade.prayerDetail()"
     [novenaDetail]="facade.novenaDetail()"
@@ -218,14 +219,10 @@
         [activeNovenas]="facade.meActiveNovenaItems()"
         [favoriteNovenas]="facade.meFavoriteNovenaItems()"
         [favoriteSaints]="facade.meFavoriteSaintItems()"
-        [savePending]="facade.savePreferencesPending()"
-        [saveMessage]="facade.savePreferencesMessage()"
-        [saveError]="facade.savePreferencesError()"
         (logout)="facade.logout()"
         (openActiveNovena)="facade.openMeActiveNovena($event)"
         (openFavoriteNovena)="facade.openMeFavoriteNovena($event)"
         (openFavoriteSaint)="facade.openMeFavoriteSaint($event)"
-        (savePreferences)="facade.saveUserPreferences($event)"
       />
     }
   </main>
