@@ -33,29 +33,6 @@ type AppLanguage = 'en' | 'es' | 'pl';
         </div>
       </div>
 
-      <section class="stats-grid">
-        <article class="panel-card glass-subtle stat-card">
-          <span class="stat-value">{{ activeNovenaCount }}</span>
-          <span class="stat-label">{{ t('Active novenas', 'Novenas activas', 'Aktywne nowenny') }}</span>
-        </article>
-
-        <article class="panel-card glass-subtle stat-card">
-          <span class="stat-value">{{ completedNovenaCount }}</span>
-          <span class="stat-label">{{ t('Completed novenas', 'Novenas completadas', 'Ukonczone nowenny') }}</span>
-        </article>
-
-        <article class="panel-card glass-subtle stat-card">
-          <span class="stat-value">{{ favoriteSaintCount }}</span>
-          <span class="stat-label">{{ t('Favorite saints', 'Santos favoritos', 'Ulubieni swieci') }}</span>
-        </article>
-
-        <article class="panel-card glass-subtle stat-card">
-          <span class="stat-value">{{ favoriteNovenaCount }}</span>
-          <span class="stat-label">{{ t('Favorite novenas', 'Novenas favoritas', 'Ulubione nowenny') }}</span>
-        </article>
-
-      </section>
-
       <section class="linked-grid">
         <article class="panel-card glass-subtle linked-card">
           <div class="panel-heading">
@@ -182,9 +159,6 @@ export class MePageComponent {
   @Input() currentLanguage: AppLanguage = 'en';
   @Input() userName: string | null = null;
   @Input() profile: UserProfile | null = null;
-  @Input() activeNovenaCount = 0;
-  @Input() favoriteNovenaCount = 0;
-  @Input() favoriteSaintCount = 0;
   @Input() activeNovenas: MeLinkedItem[] = [];
   @Input() favoriteNovenas: MeLinkedItem[] = [];
   @Input() favoriteSaints: MeLinkedItem[] = [];
@@ -193,10 +167,6 @@ export class MePageComponent {
   @Output() readonly openActiveNovena = new EventEmitter<MeLinkedItem>();
   @Output() readonly openFavoriteNovena = new EventEmitter<MeLinkedItem>();
   @Output() readonly openFavoriteSaint = new EventEmitter<MeLinkedItem>();
-
-  protected get completedNovenaCount(): number {
-    return this.profile?.completedNovenaCount ?? 0;
-  }
 
   protected get initials(): string {
     const label = this.userName?.trim() || this.profile?.email?.trim() || 'S';

@@ -25,12 +25,14 @@ export interface SanctuaryAuthState {
 
 const ACCESS_TOKEN_KEY = 'sanctuary.auth.accessToken';
 const ID_TOKEN_KEY = 'sanctuary.auth.idToken';
+const REFRESH_TOKEN_KEY = 'sanctuary.auth.refreshToken';
 const EXPIRES_AT_KEY = 'sanctuary.auth.expiresAt';
 
 @Injectable({ providedIn: 'root' })
 export class SanctuaryAuthService {
   private readonly api = inject(SanctuaryApiService);
   private readonly config = inject(SANCTUARY_AUTH_CONFIG);
+  private refreshTimer: number | null = null;
 
   readonly state = signal<SanctuaryAuthState>({
     configured: this.config.enabled,
@@ -43,7 +45,7 @@ export class SanctuaryAuthService {
   });
 
   constructor() {
-    this.restoreStoredSession();
+    void this.restoreStoredSession();
   }
 
   async completeRedirectIfPresent(): Promise<void> {
@@ -68,7 +70,7 @@ export class SanctuaryAuthService {
 
     try {
       const session = await firstValueFrom(this.api.login(request));
-      this.storeSession(session.accessToken, session.idToken, session.expiresIn);
+      this.storeSession(session.accessToken, session.idToken, session.refreshToken ?? null, session.expiresIn);
     } catch (error) {
       this.clearStoredSession();
       this.setError(this.extractMessage(error, 'Sanctuary could not sign you in.'));
@@ -159,28 +161,42 @@ export class SanctuaryAuthService {
     this.clearStoredSession();
   }
 
-  private storeSession(accessToken: string, idToken: string | null, expiresIn: number): void {
+  private storeSession(accessToken: string, idToken: string | null, refreshToken: string | null, expiresIn: number): void {
     const expiresAt = Date.now() + expiresIn * 1000;
     localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
     localStorage.setItem(ID_TOKEN_KEY, idToken ?? '');
+    if (refreshToken && refreshToken.length > 0) {
+      localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+    }
     localStorage.setItem(EXPIRES_AT_KEY, String(expiresAt));
-    this.applyTokens(accessToken, idToken, expiresAt);
+    this.applyTokens(accessToken, idToken, refreshToken, expiresAt);
   }
 
-  private restoreStoredSession(): void {
+  private async restoreStoredSession(): Promise<void> {
     const accessToken = localStorage.getItem(ACCESS_TOKEN_KEY);
     const idToken = localStorage.getItem(ID_TOKEN_KEY);
+    const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
     const expiresAt = Number(localStorage.getItem(EXPIRES_AT_KEY) ?? '0');
 
-    if (!accessToken || !expiresAt || expiresAt <= Date.now()) {
+    if ((!accessToken && !refreshToken) || !expiresAt) {
       this.clearStoredSession();
       return;
     }
 
-    this.applyTokens(accessToken, idToken, expiresAt);
+    if (accessToken && expiresAt > Date.now()) {
+      this.applyTokens(accessToken, idToken, refreshToken, expiresAt);
+      return;
+    }
+
+    if (refreshToken) {
+      await this.refreshStoredSession(refreshToken);
+      return;
+    }
+
+    this.clearStoredSession();
   }
 
-  private applyTokens(accessToken: string, idToken: string | null, expiresAt: number): void {
+  private applyTokens(accessToken: string, idToken: string | null, refreshToken: string | null, expiresAt: number): void {
     const claims = this.decodeJwt(idToken || accessToken);
     this.state.set({
       configured: this.config.enabled,
@@ -197,12 +213,14 @@ export class SanctuaryAuthService {
       message: null,
     });
 
-    window.setTimeout(() => this.clearStoredSession(), Math.max(expiresAt - Date.now(), 0));
+    this.scheduleRefresh(refreshToken, expiresAt);
   }
 
   private clearStoredSession(): void {
+    this.cancelScheduledRefresh();
     localStorage.removeItem(ACCESS_TOKEN_KEY);
     localStorage.removeItem(ID_TOKEN_KEY);
+    localStorage.removeItem(REFRESH_TOKEN_KEY);
     localStorage.removeItem(EXPIRES_AT_KEY);
     this.state.set({
       configured: this.config.enabled,
@@ -213,6 +231,34 @@ export class SanctuaryAuthService {
       displayName: null,
       message: this.config.enabled ? null : 'Authentication is not configured for this environment yet.',
     });
+  }
+
+  private scheduleRefresh(refreshToken: string | null, expiresAt: number): void {
+    this.cancelScheduledRefresh();
+    const delay = Math.max(expiresAt - Date.now() - 60_000, 5_000);
+    this.refreshTimer = window.setTimeout(() => {
+      if (refreshToken) {
+        void this.refreshStoredSession(refreshToken);
+      } else {
+        this.clearStoredSession();
+      }
+    }, delay);
+  }
+
+  private cancelScheduledRefresh(): void {
+    if (this.refreshTimer !== null) {
+      window.clearTimeout(this.refreshTimer);
+      this.refreshTimer = null;
+    }
+  }
+
+  private async refreshStoredSession(refreshToken: string): Promise<void> {
+    try {
+      const session = await firstValueFrom(this.api.refreshSession({ refreshToken }));
+      this.storeSession(session.accessToken, session.idToken, session.refreshToken ?? refreshToken, session.expiresIn);
+    } catch {
+      this.clearStoredSession();
+    }
   }
 
   private decodeJwt(token: string | null): Record<string, unknown> {

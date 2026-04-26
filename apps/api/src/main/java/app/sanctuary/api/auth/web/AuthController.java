@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 import app.sanctuary.api.auth.dto.AuthConfirmRegistrationRequest;
 import app.sanctuary.api.auth.dto.AuthForgotPasswordRequest;
 import app.sanctuary.api.auth.dto.AuthLoginRequest;
+import app.sanctuary.api.auth.dto.AuthRefreshRequest;
 import app.sanctuary.api.auth.dto.AuthRegisterRequest;
 import app.sanctuary.api.auth.dto.AuthRegistrationResponse;
 import app.sanctuary.api.auth.dto.AuthResetPasswordRequest;
@@ -53,6 +54,11 @@ public class AuthController {
     @PostMapping("/login")
     public AuthSessionResponse login(@Valid @RequestBody AuthLoginRequest request) {
         return cognitoAuthService.login(request);
+    }
+
+    @PostMapping("/refresh")
+    public AuthSessionResponse refresh(@Valid @RequestBody AuthRefreshRequest request) {
+        return cognitoAuthService.refresh(request);
     }
 
     @PostMapping("/forgot-password")

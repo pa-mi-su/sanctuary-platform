@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import app.sanctuary.api.auth.dto.AuthConfirmRegistrationRequest;
 import app.sanctuary.api.auth.dto.AuthForgotPasswordRequest;
 import app.sanctuary.api.auth.dto.AuthLoginRequest;
+import app.sanctuary.api.auth.dto.AuthRefreshRequest;
 import app.sanctuary.api.auth.dto.AuthRegisterRequest;
 import app.sanctuary.api.auth.dto.AuthRegistrationResponse;
 import app.sanctuary.api.auth.dto.AuthResetPasswordRequest;
@@ -210,6 +211,42 @@ public class CognitoAuthService {
         }
     }
 
+    public AuthSessionResponse refresh(AuthRefreshRequest request) {
+        validateConfigured();
+
+        try {
+            var response = cognitoClient.initiateAuth(InitiateAuthRequest.builder()
+                .clientId(authProperties.clientId())
+                .authFlow(AuthFlowType.REFRESH_TOKEN_AUTH)
+                .authParameters(Map.of("REFRESH_TOKEN", cleaned(request.refreshToken())))
+                .build());
+
+            var authenticationResult = response.authenticationResult();
+            if (authenticationResult == null || authenticationResult.accessToken() == null || authenticationResult.idToken() == null) {
+                throw new AuthFlowException(HttpStatus.BAD_GATEWAY, "Sanctuary could not refresh your session.");
+            }
+
+            String email = extractClaim(authenticationResult.idToken(), "\"email\":\"");
+            String fallbackEmail = email == null || email.isBlank() ? "" : email;
+
+            return new AuthSessionResponse(
+                authenticationResult.accessToken(),
+                authenticationResult.idToken(),
+                request.refreshToken(),
+                authenticationResult.tokenType(),
+                authenticationResult.expiresIn(),
+                fallbackEmail,
+                extractDisplayName(authenticationResult.idToken(), fallbackEmail)
+            );
+        } catch (NotAuthorizedException exception) {
+            throw new AuthFlowException(HttpStatus.UNAUTHORIZED, "Your session has ended. Please sign in again.");
+        } catch (TooManyRequestsException exception) {
+            throw new AuthFlowException(HttpStatus.TOO_MANY_REQUESTS, "Too many attempts. Please wait a moment and try again.");
+        } catch (InvalidParameterException exception) {
+            throw new AuthFlowException(HttpStatus.BAD_REQUEST, friendlyMessage(exception.getMessage(), "Sanctuary could not refresh your session."));
+        }
+    }
+
     private void validateConfigured() {
         if (authProperties.clientId() == null || authProperties.clientId().isBlank()) {
             throw new AuthFlowException(HttpStatus.SERVICE_UNAVAILABLE, "Authentication is not configured for this environment yet.");
@@ -237,12 +274,7 @@ public class CognitoAuthService {
 
     private String extractDisplayName(String idToken, String fallback) {
         try {
-            String payload = idToken.split("\\.")[1];
-            String normalized = payload.replace('-', '+').replace('_', '/');
-            while (normalized.length() % 4 != 0) {
-                normalized += "=";
-            }
-            String json = new String(java.util.Base64.getDecoder().decode(normalized));
+            String json = decodeTokenPayload(idToken);
             String name = extractJsonString(json, "\"name\":\"");
             if (name != null && !name.isBlank()) {
                 return name;
@@ -254,6 +286,23 @@ public class CognitoAuthService {
         } catch (RuntimeException exception) {
             return fallback;
         }
+    }
+
+    private String extractClaim(String idToken, String marker) {
+        try {
+            return extractJsonString(decodeTokenPayload(idToken), marker);
+        } catch (RuntimeException exception) {
+            return null;
+        }
+    }
+
+    private String decodeTokenPayload(String idToken) {
+        String payload = idToken.split("\\.")[1];
+        String normalized = payload.replace('-', '+').replace('_', '/');
+        while (normalized.length() % 4 != 0) {
+            normalized += "=";
+        }
+        return new String(java.util.Base64.getDecoder().decode(normalized));
     }
 
     private String extractJsonString(String json, String marker) {
