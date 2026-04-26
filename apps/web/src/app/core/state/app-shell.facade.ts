@@ -319,19 +319,28 @@ export class AppShellFacade {
     }
 
     const novenasById = new Map(this.meNovenaCatalog().map((novena) => [novena.id, novena] as const));
+    const commitmentsById = new Map(
+      this.userNovenaCommitments()
+        .filter((commitment) => commitment.status === 'active')
+        .map((commitment) => [commitment.novenaId, commitment] as const),
+    );
+
     return this.userNovenaCommitments()
       .filter((commitment) => commitment.status === 'active')
       .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))
-      .map((commitment) => novenasById.get(commitment.novenaId))
-      .filter((novena): novena is NovenaSummary => Boolean(novena))
-      .map((novena) => ({
+      .map((commitment) => {
+        const novena = novenasById.get(commitment.novenaId);
+        return novena ? { novena, commitment } : null;
+      })
+      .filter((entry): entry is { novena: NovenaSummary; commitment: UserNovenaCommitment } => Boolean(entry))
+      .map(({ novena, commitment }) => ({
         id: novena.id,
         slug: novena.slug,
         title: novena.title,
         subtitle: this.translate(
-          `${novena.durationDays}-day novena`,
-          `Novena de ${novena.durationDays} días`,
-          `${novena.durationDays}-dniowa nowenna`,
+          `Day ${Math.min(commitment.currentDay, novena.durationDays)} of ${novena.durationDays}`,
+          `Día ${Math.min(commitment.currentDay, novena.durationDays)} de ${novena.durationDays}`,
+          `Dzień ${Math.min(commitment.currentDay, novena.durationDays)} z ${novena.durationDays}`,
         ),
         imageUrl: novena.imageUrl,
       }));

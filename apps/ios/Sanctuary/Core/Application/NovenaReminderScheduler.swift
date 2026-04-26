@@ -11,10 +11,11 @@ actor NovenaReminderScheduler {
     private let morningHour = 8
     private let eveningHour = 20
 
-    func syncDigestReminder(activeCommitmentCount: Int) async {
+    func syncDigestReminder(activeCommitmentCount: Int, enabled: Bool) async {
         #if canImport(UserNotifications)
         let center = UNUserNotificationCenter.current()
         center.removePendingNotificationRequests(withIdentifiers: [morningIdentifier, eveningIdentifier])
+        guard enabled else { return }
         guard await ensureAuthorizedForNotifications(center: center) else { return }
 
         if activeCommitmentCount > 0 {
