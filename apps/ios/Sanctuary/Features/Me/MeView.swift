@@ -8,6 +8,9 @@ struct MeView: View {
     @State private var selectedRoute: MeSelectionRoute?
     @State private var saintDetailsByID: [String: Saint] = [:]
     @State private var novenaDetailsByID: [String: Novena] = [:]
+    @State private var novenaReminderToggle = false
+    @State private var dailyReminderToggle = false
+    @State private var isSavingReminderPreferences = false
 
     var body: some View {
         ZStack {
@@ -17,7 +20,7 @@ struct MeView: View {
                 VStack(alignment: .leading, spacing: 14) {
                     if accountStore.isAuthenticated {
                         accountHeader
-                        accountSummary
+                        reminderPreferencesCard
                         inProgressCard
                         favoriteNovenasCard
                         favoriteSaintsCard
@@ -40,6 +43,10 @@ struct MeView: View {
         }
         .task(id: novenaLookupKey) {
             await loadNovenaDetails()
+        }
+        .task(id: reminderPreferenceKey) {
+            novenaReminderToggle = accountStore.profile?.novenaRemindersEnabled ?? false
+            dailyReminderToggle = accountStore.profile?.feastRemindersEnabled ?? false
         }
         .fullScreenCover(item: $selectedRoute) { route in
             switch route {
@@ -83,6 +90,36 @@ struct MeView: View {
                         days: []
                     ),
                     onClose: { selectedRoute = nil }
+                )
+            }
+        }
+    }
+
+    private var reminderPreferencesCard: some View {
+        MeCard(title: localization.t("me.reminders")) {
+            VStack(alignment: .leading, spacing: 10) {
+                reminderToggleRow(
+                    title: localization.t("me.reminders.inProgressTitle"),
+                    subtitle: localization.t("me.reminders.inProgressBody"),
+                    isOn: Binding(
+                        get: { novenaReminderToggle },
+                        set: { newValue in
+                            novenaReminderToggle = newValue
+                            persistReminderPreferences()
+                        }
+                    )
+                )
+
+                reminderToggleRow(
+                    title: localization.t("me.reminders.generalTitle"),
+                    subtitle: localization.t("me.reminders.generalBody"),
+                    isOn: Binding(
+                        get: { dailyReminderToggle },
+                        set: { newValue in
+                            dailyReminderToggle = newValue
+                            persistReminderPreferences()
+                        }
+                    )
                 )
             }
         }
@@ -154,39 +191,8 @@ struct MeView: View {
         }
     }
 
-    private var accountSummary: some View {
-        HStack(spacing: 12) {
-            summaryMetric(
-                title: localization.t("me.inProgress"),
-                value: "\(progressStore.activeCommitments.count)"
-            )
-            summaryMetric(
-                title: localization.t("me.favoriteNovenas"),
-                value: "\(favoriteNovenas.count)"
-            )
-            summaryMetric(
-                title: localization.t("me.favoriteSaints"),
-                value: "\(favoriteSaints.count)"
-            )
-        }
-    }
-
-    private func summaryMetric(title: String, value: String) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(value)
-                .font(AppTheme.rounded(26, weight: .bold))
-                .foregroundStyle(.white)
-            Text(title)
-                .font(AppTheme.rounded(14, weight: .bold))
-                .foregroundStyle(AppTheme.subtitleText)
-        }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .appGlassCard(cornerRadius: 22)
-    }
-
     private var inProgressCard: some View {
-        MeCard(title: localization.t("me.inProgress"), subtitle: "\(progressStore.activeCommitments.count) synced") {
+        MeCard(title: localization.t("me.inProgress")) {
             if progressStore.activeCommitments.isEmpty {
                 Text(localization.t("me.noneInProgress"))
                     .font(AppTheme.rounded(16, weight: .medium))
@@ -273,6 +279,35 @@ struct MeView: View {
         .buttonStyle(.plain)
     }
 
+    private func reminderToggleRow(title: String, subtitle: String, isOn: Binding<Bool>) -> some View {
+        HStack(alignment: .top, spacing: 14) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.system(size: 16, weight: .semibold, design: .rounded))
+                    .foregroundStyle(.white)
+
+                Text(subtitle)
+                    .font(AppTheme.rounded(13, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.78))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 0)
+
+            Toggle("", isOn: isOn)
+                .labelsHidden()
+                .disabled(isSavingReminderPreferences)
+        }
+        .padding(.vertical, 12)
+        .padding(.horizontal, 14)
+        .background(AppTheme.cardBackgroundSoft)
+        .overlay(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(Color.white.opacity(0.12), lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+    }
+
     private var favoriteNovenas: [UserFavorite] {
         progressStore.favorites(for: .novena)
     }
@@ -340,6 +375,13 @@ struct MeView: View {
     private var favoriteSaintLookupKey: String {
         ([localization.language.contentLocale.rawValue] + favoriteSaints.map(\.itemID).sorted()).joined(separator: "|")
     }
+
+    private var reminderPreferenceKey: String {
+        let novena = accountStore.profile?.novenaRemindersEnabled == true ? "1" : "0"
+        let general = accountStore.profile?.feastRemindersEnabled == true ? "1" : "0"
+        return "\(novena)-\(general)-\(accountStore.profile?.userID ?? "signed-out")"
+    }
+
     private var novenaLookupKey: String {
         let allIDs = progressStore.activeCommitments.map(\.novenaID) + favoriteNovenas.map(\.itemID)
         return ([localization.language.contentLocale.rawValue] + allIDs.sorted()).joined(separator: "|")
@@ -384,6 +426,32 @@ struct MeView: View {
         }
 
         novenaDetailsByID = loadedDetails
+    }
+
+    private func persistReminderPreferences() {
+        guard !isSavingReminderPreferences else { return }
+        let pendingNovena = novenaReminderToggle
+        let pendingDaily = dailyReminderToggle
+        isSavingReminderPreferences = true
+
+        Task {
+            let success = await accountStore.updateReminderPreferences(
+                novenaEnabled: pendingNovena,
+                dailyEnabled: pendingDaily
+            )
+
+            if success {
+                await progressStore.setReminderPreferences(
+                    novenaEnabled: pendingNovena,
+                    generalDailyEnabled: pendingDaily
+                )
+            } else {
+                novenaReminderToggle = accountStore.profile?.novenaRemindersEnabled ?? false
+                dailyReminderToggle = accountStore.profile?.feastRemindersEnabled ?? false
+            }
+
+            isSavingReminderPreferences = false
+        }
     }
 }
 

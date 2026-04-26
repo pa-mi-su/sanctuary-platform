@@ -34,6 +34,10 @@ struct APIAuthLoginRequest: Encodable, Sendable {
     let password: String
 }
 
+struct APIAuthRefreshRequest: Encodable, Sendable {
+    let refreshToken: String
+}
+
 struct APIAuthConfirmRequest: Encodable, Sendable {
     let email: String
     let code: String
@@ -121,6 +125,15 @@ struct APIUserNovenaCommitmentRequest: Encodable, Sendable {
     let reminderEveningHour: Int?
     let reminderTimeZoneId: String
     let status: String
+}
+
+struct APIUserPreferencesUpdateRequest: Encodable, Sendable {
+    let preferredLanguage: String
+    let timeZoneId: String
+    let novenaRemindersEnabled: Bool
+    let feastRemindersEnabled: Bool
+    let emailUpdatesEnabled: Bool
+    let onboardingCompleted: Bool
 }
 
 struct APIContentSaintSummaryResponse: Decodable, Sendable {
@@ -287,8 +300,24 @@ actor SanctuaryAPIClient {
         try await performRequest(path: "/auth/login", method: "POST", body: request, token: nil)
     }
 
+    func refreshSession(refreshToken: String) async throws -> APIAuthSessionResponse {
+        try await performRequest(
+            path: "/auth/refresh",
+            method: "POST",
+            body: APIAuthRefreshRequest(refreshToken: refreshToken),
+            token: nil
+        )
+    }
+
     func me(token: String) async throws -> APIUserProfileResponse {
         try await performRequest(path: "/me", method: "GET", body: Optional<String>.none, token: token)
+    }
+
+    func updateMePreferences(
+        request: APIUserPreferencesUpdateRequest,
+        token: String
+    ) async throws -> APIUserProfileResponse {
+        try await performRequest(path: "/me/preferences", method: "PUT", body: request, token: token)
     }
 
     func favorites(token: String) async throws -> [APIUserFavoriteResponse] {

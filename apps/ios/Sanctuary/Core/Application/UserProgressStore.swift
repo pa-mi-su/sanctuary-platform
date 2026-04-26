@@ -6,6 +6,8 @@ final class UserProgressStore: ObservableObject {
     @Published private(set) var commitments: [UserNovenaCommitment] = []
     @Published private(set) var favorites: [UserFavorite] = []
     @Published private(set) var userID: String?
+    @Published private(set) var novenaRemindersEnabled = false
+    @Published private(set) var generalDailyRemindersEnabled = false
 
     private let repository: any UserProgressRepository
     private let reminderScheduler: NovenaReminderScheduler
@@ -38,6 +40,17 @@ final class UserProgressStore: ObservableObject {
         }
 
         await refresh()
+    }
+
+    func setNovenaRemindersEnabled(_ enabled: Bool) async {
+        novenaRemindersEnabled = enabled
+        await syncDigestReminders()
+    }
+
+    func setReminderPreferences(novenaEnabled: Bool, generalDailyEnabled: Bool) async {
+        novenaRemindersEnabled = novenaEnabled
+        self.generalDailyRemindersEnabled = generalDailyEnabled
+        await syncDigestReminders()
     }
 
     func refresh() async {
@@ -157,6 +170,10 @@ final class UserProgressStore: ObservableObject {
     }
 
     private func syncDigestReminders() async {
-        await reminderScheduler.syncDigestReminder(activeCommitmentCount: activeCommitments.count)
+        await reminderScheduler.syncDigestReminder(
+            activeCommitmentCount: activeCommitments.count,
+            novenaEnabled: novenaRemindersEnabled,
+            generalDailyEnabled: generalDailyRemindersEnabled
+        )
     }
 }
