@@ -354,7 +354,12 @@ final class LocalizationManager: ObservableObject {
         "me.fallbackName": "Sanctuary member",
         "me.inProgress": "Novenas in Progress",
         "me.favoriteNovenas": "Favorite Novenas",
-        "me.favoriteSaints": "Favorite Saints"
+        "me.favoriteSaints": "Favorite Saints",
+        "me.reminders": "Reminders",
+        "me.reminders.inProgressTitle": "Novenas in progress",
+        "me.reminders.inProgressBody": "Send morning and evening reminders when you have a novena in progress.",
+        "me.reminders.generalTitle": "Once-daily Sanctuary reminder",
+        "me.reminders.generalBody": "Send a gentle morning reminder when you do not have a novena in progress."
     ]
 
     private static let spanish: [String: String] = [
@@ -525,7 +530,12 @@ final class LocalizationManager: ObservableObject {
         "me.fallbackName": "Miembro de Sanctuary",
         "me.inProgress": "Novenas en curso",
         "me.favoriteNovenas": "Novenas favoritas",
-        "me.favoriteSaints": "Santos favoritos"
+        "me.favoriteSaints": "Santos favoritos",
+        "me.reminders": "Recordatorios",
+        "me.reminders.inProgressTitle": "Novenas en curso",
+        "me.reminders.inProgressBody": "Envía recordatorios por la mañana y por la noche cuando tengas una novena en curso.",
+        "me.reminders.generalTitle": "Recordatorio diario de Sanctuary",
+        "me.reminders.generalBody": "Envía un recordatorio suave por la mañana cuando no tengas una novena en curso."
     ]
 
     private static let polish: [String: String] = [
@@ -696,6 +706,11 @@ final class LocalizationManager: ObservableObject {
         "me.fallbackName": "Członek Sanctuary",
         "me.inProgress": "Nowenny w trakcie",
         "me.favoriteNovenas": "Ulubione nowenny",
-        "me.favoriteSaints": "Ulubieni święci"
+        "me.favoriteSaints": "Ulubieni święci",
+        "me.reminders": "Przypomnienia",
+        "me.reminders.inProgressTitle": "Nowenny w toku",
+        "me.reminders.inProgressBody": "Wysyłaj poranne i wieczorne przypomnienia, gdy masz nowennę w toku.",
+        "me.reminders.generalTitle": "Codzienne przypomnienie Sanctuary",
+        "me.reminders.generalBody": "Wysyłaj delikatne poranne przypomnienie, gdy nie masz nowenny w toku."
     ]
 }
