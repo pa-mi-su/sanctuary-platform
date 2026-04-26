@@ -11,14 +11,18 @@ actor NovenaReminderScheduler {
     private let morningHour = 8
     private let eveningHour = 20
 
-    func syncDigestReminder(activeCommitmentCount: Int, enabled: Bool) async {
+    func syncDigestReminder(
+        activeCommitmentCount: Int,
+        novenaEnabled: Bool,
+        generalDailyEnabled: Bool
+    ) async {
         #if canImport(UserNotifications)
         let center = UNUserNotificationCenter.current()
         center.removePendingNotificationRequests(withIdentifiers: [morningIdentifier, eveningIdentifier])
-        guard enabled else { return }
+        guard novenaEnabled || generalDailyEnabled else { return }
         guard await ensureAuthorizedForNotifications(center: center) else { return }
 
-        if activeCommitmentCount > 0 {
+        if activeCommitmentCount > 0 && novenaEnabled {
             let title = "Continue your novena"
             let body = activeCommitmentCount == 1
                 ? "You have a novena in progress. Take a calm moment to continue your prayer in Sanctuary."
@@ -42,6 +46,8 @@ actor NovenaReminderScheduler {
             )
             return
         }
+
+        guard generalDailyEnabled else { return }
 
         await scheduleDailyDigest(
             center: center,

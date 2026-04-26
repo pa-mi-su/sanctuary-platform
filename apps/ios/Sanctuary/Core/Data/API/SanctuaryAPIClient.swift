@@ -34,6 +34,10 @@ struct APIAuthLoginRequest: Encodable, Sendable {
     let password: String
 }
 
+struct APIAuthRefreshRequest: Encodable, Sendable {
+    let refreshToken: String
+}
+
 struct APIAuthConfirmRequest: Encodable, Sendable {
     let email: String
     let code: String
@@ -294,6 +298,15 @@ actor SanctuaryAPIClient {
 
     func login(_ request: APIAuthLoginRequest) async throws -> APIAuthSessionResponse {
         try await performRequest(path: "/auth/login", method: "POST", body: request, token: nil)
+    }
+
+    func refreshSession(refreshToken: String) async throws -> APIAuthSessionResponse {
+        try await performRequest(
+            path: "/auth/refresh",
+            method: "POST",
+            body: APIAuthRefreshRequest(refreshToken: refreshToken),
+            token: nil
+        )
     }
 
     func me(token: String) async throws -> APIUserProfileResponse {

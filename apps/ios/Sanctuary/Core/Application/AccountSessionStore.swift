@@ -93,6 +93,10 @@ final class AccountSessionStore: ObservableObject {
         }
 
         guard restored.expiresAt > Date() else {
+            if let refreshToken = restored.refreshToken, !refreshToken.isEmpty {
+                await refreshSession(using: refreshToken, preserving: restored)
+                return
+            }
             clearStoredSession()
             return
         }
@@ -230,15 +234,7 @@ final class AccountSessionStore: ObservableObject {
 
         do {
             let response = try await apiClient.login(APIAuthLoginRequest(email: email, password: password))
-            let session = AccountSession(
-                accessToken: response.accessToken,
-                idToken: response.idToken,
-                refreshToken: response.refreshToken,
-                tokenType: response.tokenType,
-                expiresAt: Date().addingTimeInterval(TimeInterval(response.expiresIn)),
-                email: response.email,
-                displayName: response.displayName
-            )
+            let session = buildSession(from: response, fallbackRefreshToken: nil)
             self.session = session
             pendingConfirmationEmail = nil
             pendingPasswordResetEmail = nil
@@ -252,14 +248,15 @@ final class AccountSessionStore: ObservableObject {
     }
 
     func refreshProfile(fallbackSession: AccountSession? = nil) async {
-        guard let token = session?.idToken ?? fallbackSession?.idToken ?? session?.accessToken ?? fallbackSession?.accessToken else {
+        guard let activeSession = await activeSession(fallbackSession: fallbackSession) else {
             clearStoredSession()
             return
         }
+        let token = activeSession.idToken
 
         do {
             let response = try await apiClient.me(token: token)
-            profile = mapProfile(response, fallbackSession: fallbackSession ?? session)
+            profile = mapProfile(response, fallbackSession: activeSession)
             status = .authenticated
             clearMessage()
         } catch {
@@ -288,8 +285,13 @@ final class AccountSessionStore: ObservableObject {
         setMessage("Your account is confirmed. Please sign in to continue.", isError: false)
     }
 
-    func updateNovenaRemindersPreference(enabled: Bool) async -> Bool {
-        guard let profile, let token = session?.idToken ?? session?.accessToken else {
+    func updateReminderPreferences(novenaEnabled: Bool, dailyEnabled: Bool) async -> Bool {
+        guard let profile else {
+            setMessage("Please sign in to continue.", isError: true)
+            return false
+        }
+
+        guard let activeSession = await activeSession() else {
             setMessage("Please sign in to continue.", isError: true)
             return false
         }
@@ -299,18 +301,18 @@ final class AccountSessionStore: ObservableObject {
                 request: APIUserPreferencesUpdateRequest(
                     preferredLanguage: profile.preferredLanguage?.rawValue ?? "en",
                     timeZoneId: profile.timeZoneID ?? TimeZone.current.identifier,
-                    novenaRemindersEnabled: enabled,
-                    feastRemindersEnabled: profile.feastRemindersEnabled,
+                    novenaRemindersEnabled: novenaEnabled,
+                    feastRemindersEnabled: dailyEnabled,
                     emailUpdatesEnabled: profile.emailUpdatesEnabled,
                     onboardingCompleted: profile.onboardingCompleted
                 ),
-                token: token
+                token: activeSession.idToken
             )
             self.profile = mapProfile(response, fallbackSession: session)
             setMessage(
-                enabled
-                    ? "Daily prayer reminders are on."
-                    : "Daily prayer reminders are off.",
+                (novenaEnabled || dailyEnabled)
+                    ? "Your reminder preferences are updated."
+                    : "Prayer reminders are off.",
                 isError: false
             )
             status = .authenticated
@@ -320,6 +322,11 @@ final class AccountSessionStore: ObservableObject {
             status = .failed
             return false
         }
+    }
+
+    func updateNovenaRemindersPreference(enabled: Bool) async -> Bool {
+        let dailyEnabled = profile?.feastRemindersEnabled ?? false
+        return await updateReminderPreferences(novenaEnabled: enabled, dailyEnabled: dailyEnabled)
     }
 
     private func mapProfile(
@@ -397,6 +404,47 @@ final class AccountSessionStore: ObservableObject {
             favoritePrayerCount: 0,
             activeNovenaCount: 0,
             completedNovenaCount: 0
+        )
+    }
+
+    private func activeSession(fallbackSession: AccountSession? = nil) async -> AccountSession? {
+        let candidate = session ?? fallbackSession
+        guard let candidate else { return nil }
+        if candidate.expiresAt > Date() {
+            return candidate
+        }
+        guard let refreshToken = candidate.refreshToken, !refreshToken.isEmpty else {
+            return nil
+        }
+        return await refreshSession(using: refreshToken, preserving: candidate)
+    }
+
+    @discardableResult
+    private func refreshSession(using refreshToken: String, preserving existing: AccountSession) async -> AccountSession? {
+        do {
+            let response = try await apiClient.refreshSession(refreshToken: refreshToken)
+            let refreshed = buildSession(from: response, fallbackRefreshToken: existing.refreshToken)
+            session = refreshed
+            try persist(refreshed)
+            await refreshProfile(fallbackSession: refreshed)
+            return refreshed
+        } catch {
+            clearStoredSession()
+            status = .failed
+            setMessage("Your session ended. Please sign in again.", isError: true)
+            return nil
+        }
+    }
+
+    private func buildSession(from response: APIAuthSessionResponse, fallbackRefreshToken: String?) -> AccountSession {
+        AccountSession(
+            accessToken: response.accessToken,
+            idToken: response.idToken,
+            refreshToken: response.refreshToken ?? fallbackRefreshToken,
+            tokenType: response.tokenType,
+            expiresAt: Date().addingTimeInterval(TimeInterval(response.expiresIn)),
+            email: response.email,
+            displayName: response.displayName
         )
     }
 
