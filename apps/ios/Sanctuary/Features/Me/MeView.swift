@@ -17,7 +17,6 @@ struct MeView: View {
                 VStack(alignment: .leading, spacing: 14) {
                     if accountStore.isAuthenticated {
                         accountHeader
-                        accountSummary
                         inProgressCard
                         favoriteNovenasCard
                         favoriteSaintsCard
@@ -154,39 +153,8 @@ struct MeView: View {
         }
     }
 
-    private var accountSummary: some View {
-        HStack(spacing: 12) {
-            summaryMetric(
-                title: localization.t("me.inProgress"),
-                value: "\(progressStore.activeCommitments.count)"
-            )
-            summaryMetric(
-                title: localization.t("me.favoriteNovenas"),
-                value: "\(favoriteNovenas.count)"
-            )
-            summaryMetric(
-                title: localization.t("me.favoriteSaints"),
-                value: "\(favoriteSaints.count)"
-            )
-        }
-    }
-
-    private func summaryMetric(title: String, value: String) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(value)
-                .font(AppTheme.rounded(26, weight: .bold))
-                .foregroundStyle(.white)
-            Text(title)
-                .font(AppTheme.rounded(14, weight: .bold))
-                .foregroundStyle(AppTheme.subtitleText)
-        }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .appGlassCard(cornerRadius: 22)
-    }
-
     private var inProgressCard: some View {
-        MeCard(title: localization.t("me.inProgress"), subtitle: "\(progressStore.activeCommitments.count) synced") {
+        MeCard(title: localization.t("me.inProgress")) {
             if progressStore.activeCommitments.isEmpty {
                 Text(localization.t("me.noneInProgress"))
                     .font(AppTheme.rounded(16, weight: .medium))
