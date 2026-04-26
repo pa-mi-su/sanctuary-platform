@@ -127,6 +127,10 @@ export interface AuthLoginRequest {
   password: string;
 }
 
+export interface AuthRefreshRequest {
+  refreshToken: string;
+}
+
 export interface AuthRegisterRequest {
   firstName: string;
   lastName: string;
@@ -312,6 +316,10 @@ export class SanctuaryApiService {
 
   login(request: AuthLoginRequest): Observable<AuthSessionResponse> {
     return this.http.post<AuthSessionResponse>(`${this.apiBaseUrl}/auth/login`, request);
+  }
+
+  refreshSession(request: AuthRefreshRequest): Observable<AuthSessionResponse> {
+    return this.http.post<AuthSessionResponse>(`${this.apiBaseUrl}/auth/refresh`, request);
   }
 
   updateMePreferences(request: UserPreferencesUpdateRequest): Observable<UserProfile> {

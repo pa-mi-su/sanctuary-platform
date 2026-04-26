@@ -82,6 +82,18 @@ struct AppShellView: View {
         .task(id: accountStore.profile?.userID) {
             await progressStore.setAuthenticatedUser(id: accountStore.profile?.userID)
         }
+        .task(id: reminderPreferenceSyncKey) {
+            await progressStore.setReminderPreferences(
+                novenaEnabled: accountStore.profile?.novenaRemindersEnabled ?? false,
+                generalDailyEnabled: accountStore.profile?.feastRemindersEnabled ?? false
+            )
+        }
+    }
+
+    private var reminderPreferenceSyncKey: String {
+        let novena = accountStore.profile?.novenaRemindersEnabled == true ? "1" : "0"
+        let general = accountStore.profile?.feastRemindersEnabled == true ? "1" : "0"
+        return "\(novena)-\(general)-\(accountStore.profile?.userID ?? "signed-out")"
     }
 }
 
