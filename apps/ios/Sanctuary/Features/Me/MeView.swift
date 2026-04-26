@@ -280,15 +280,29 @@ struct MeView: View {
     }
 
     private func reminderToggleRow(title: String, subtitle: String, isOn: Binding<Bool>) -> some View {
+        let active = isOn.wrappedValue
+
         HStack(alignment: .top, spacing: 14) {
             VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(.system(size: 16, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.white)
+                HStack(alignment: .center, spacing: 8) {
+                    Text(title)
+                        .font(.system(size: 16, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.white)
+
+                    Text(localization.t(active ? "common.on" : "common.off"))
+                        .font(AppTheme.rounded(11, weight: .bold))
+                        .foregroundStyle(active ? AppTheme.gradientTop : .white.opacity(0.82))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(
+                            Capsule(style: .continuous)
+                                .fill(active ? AppTheme.tabActive : Color.white.opacity(0.12))
+                        )
+                }
 
                 Text(subtitle)
                     .font(AppTheme.rounded(13, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.78))
+                    .foregroundStyle(active ? .white.opacity(0.88) : .white.opacity(0.78))
                     .fixedSize(horizontal: false, vertical: true)
             }
 
@@ -296,16 +310,31 @@ struct MeView: View {
 
             Toggle("", isOn: isOn)
                 .labelsHidden()
+                .tint(AppTheme.tabActive)
                 .disabled(isSavingReminderPreferences)
         }
         .padding(.vertical, 12)
         .padding(.horizontal, 14)
-        .background(AppTheme.cardBackgroundSoft)
+        .background(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(active ? AppTheme.tabActive.opacity(0.16) : AppTheme.cardBackgroundSoft)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .fill(
+                            LinearGradient(
+                                colors: active ? [Color.white.opacity(0.08), AppTheme.tabActive.opacity(0.02)] : [Color.clear, Color.clear],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                )
+        )
         .overlay(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                .stroke(active ? AppTheme.tabActive.opacity(0.42) : Color.white.opacity(0.12), lineWidth: 1)
         )
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .animation(.spring(response: 0.24, dampingFraction: 0.82), value: active)
     }
 
     private var favoriteNovenas: [UserFavorite] {
