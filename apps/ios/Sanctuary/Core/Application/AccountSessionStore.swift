@@ -288,6 +288,40 @@ final class AccountSessionStore: ObservableObject {
         setMessage("Your account is confirmed. Please sign in to continue.", isError: false)
     }
 
+    func updateNovenaRemindersPreference(enabled: Bool) async -> Bool {
+        guard let profile, let token = session?.idToken ?? session?.accessToken else {
+            setMessage("Please sign in to continue.", isError: true)
+            return false
+        }
+
+        do {
+            let response = try await apiClient.updateMePreferences(
+                request: APIUserPreferencesUpdateRequest(
+                    preferredLanguage: profile.preferredLanguage?.rawValue ?? "en",
+                    timeZoneId: profile.timeZoneID ?? TimeZone.current.identifier,
+                    novenaRemindersEnabled: enabled,
+                    feastRemindersEnabled: profile.feastRemindersEnabled,
+                    emailUpdatesEnabled: profile.emailUpdatesEnabled,
+                    onboardingCompleted: profile.onboardingCompleted
+                ),
+                token: token
+            )
+            self.profile = mapProfile(response, fallbackSession: session)
+            setMessage(
+                enabled
+                    ? "Daily prayer reminders are on."
+                    : "Daily prayer reminders are off.",
+                isError: false
+            )
+            status = .authenticated
+            return true
+        } catch {
+            setMessage(error.localizedDescription, isError: true)
+            status = .failed
+            return false
+        }
+    }
+
     private func mapProfile(
         _ response: APIUserProfileResponse,
         fallbackSession: AccountSession?

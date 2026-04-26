@@ -123,6 +123,15 @@ struct APIUserNovenaCommitmentRequest: Encodable, Sendable {
     let status: String
 }
 
+struct APIUserPreferencesUpdateRequest: Encodable, Sendable {
+    let preferredLanguage: String
+    let timeZoneId: String
+    let novenaRemindersEnabled: Bool
+    let feastRemindersEnabled: Bool
+    let emailUpdatesEnabled: Bool
+    let onboardingCompleted: Bool
+}
+
 struct APIContentSaintSummaryResponse: Decodable, Sendable {
     let id: String
     let slug: String
@@ -289,6 +298,13 @@ actor SanctuaryAPIClient {
 
     func me(token: String) async throws -> APIUserProfileResponse {
         try await performRequest(path: "/me", method: "GET", body: Optional<String>.none, token: token)
+    }
+
+    func updateMePreferences(
+        request: APIUserPreferencesUpdateRequest,
+        token: String
+    ) async throws -> APIUserProfileResponse {
+        try await performRequest(path: "/me/preferences", method: "PUT", body: request, token: token)
     }
 
     func favorites(token: String) async throws -> [APIUserFavoriteResponse] {
