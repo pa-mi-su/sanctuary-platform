@@ -7,9 +7,6 @@ on:
       - uat
       - prod
       - main
-    paths:
-      - "apps/ios/**"
-      - ".github/workflows/ios-pipeline.yml"
   push:
     branches:
       - main
