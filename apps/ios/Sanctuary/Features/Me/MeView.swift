@@ -282,7 +282,7 @@ struct MeView: View {
     private func reminderToggleRow(title: String, subtitle: String, isOn: Binding<Bool>) -> some View {
         let active = isOn.wrappedValue
 
-        HStack(alignment: .top, spacing: 14) {
+        return HStack(alignment: .top, spacing: 14) {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(alignment: .center, spacing: 8) {
                     Text(title)
