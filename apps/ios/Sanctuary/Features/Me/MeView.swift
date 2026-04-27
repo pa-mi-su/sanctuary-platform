@@ -50,29 +50,10 @@ struct MeView: View {
         }
         .fullScreenCover(item: $selectedRoute) { route in
             switch route {
-            case .saint(let id):
+            case .saint(let saint):
                 SaintDetailView(
                     contentRepository: environment.contentRepository,
-                    saint: saintDetailsByID[id] ?? Saint(
-                        id: id,
-                        slug: id,
-                        name: saintName(for: id),
-                        nameByLocale: [
-                            .en: saintName(for: id),
-                            .es: saintName(for: id),
-                            .pl: saintName(for: id)
-                        ],
-                        feastMonth: 1,
-                        feastDay: 1,
-                        imageURL: nil,
-                        tags: [],
-                        patronages: [],
-                        feastLabelByLocale: [.en: ""],
-                        summaryByLocale: [.en: ""],
-                        biographyByLocale: [.en: ""],
-                        prayersByLocale: [.en: []],
-                        sources: []
-                    ),
+                    saint: saint,
                     onClose: { selectedRoute = nil }
                 )
             case .novena(let id):
@@ -240,7 +221,9 @@ struct MeView: View {
                 VStack(spacing: 10) {
                     ForEach(favoriteSaints, id: \.itemID) { favorite in
                         accountLinkedRow(title: saintName(for: favorite.itemID), subtitle: nil) {
-                            selectedRoute = .saint(id: favorite.itemID)
+                            Task {
+                                await openFavoriteSaint(favorite.itemID)
+                            }
                         }
                     }
                 }
@@ -391,7 +374,7 @@ struct MeView: View {
     }
 
     private func saintName(for id: String) -> String {
-        saintDetailsByID[id]?.displayName(locale: localization.language.contentLocale) ?? id
+        saintDetailsByID[id]?.displayName(locale: localization.language.contentLocale) ?? formattedFavoriteSaintName(from: id)
     }
 
     private func novenaTitle(for id: String) -> String {
@@ -427,15 +410,69 @@ struct MeView: View {
         }
 
         let locale = localization.language.contentLocale
-        var loadedDetails: [String: Saint] = [:]
+        var resolvedSaints: [String: Saint] = [:]
 
-        for favorite in favoriteSaints {
-            if let saint = try? await environment.contentRepository.fetchSaint(slug: favorite.itemID, locale: locale) {
-                loadedDetails[favorite.itemID] = saint
+        if let summaries = try? await environment.contentRepository.listSaints(
+            locale: locale,
+            feastDate: nil,
+            query: nil
+        ) {
+            let favoritesByID = Set(favoriteSaints.map(\.itemID))
+            for saint in summaries where favoritesByID.contains(saint.id) || favoritesByID.contains(saint.slug) {
+                resolvedSaints[saint.id] = saint
+                resolvedSaints[saint.slug] = saint
             }
         }
 
-        saintDetailsByID = loadedDetails
+        saintDetailsByID = resolvedSaints
+
+        for favorite in favoriteSaints {
+            let slug = resolvedSaints[favorite.itemID]?.slug ?? favorite.itemID
+            if let saint = try? await environment.contentRepository.fetchSaint(slug: slug, locale: locale) {
+                resolvedSaints[favorite.itemID] = saint
+                resolvedSaints[saint.slug] = saint
+            }
+        }
+
+        saintDetailsByID = resolvedSaints
+    }
+
+    private func openFavoriteSaint(_ id: String) async {
+        if let saint = saintDetailsByID[id] {
+            selectedRoute = .saint(saint: saint)
+            return
+        }
+
+        await loadFavoriteSaintDetails()
+
+        if let saint = saintDetailsByID[id] {
+            selectedRoute = .saint(saint: saint)
+        }
+    }
+
+    private func formattedFavoriteSaintName(from id: String) -> String {
+        let trimmed = id.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return id }
+
+        let rawTokens = trimmed.split(separator: "_").map(String.init)
+        let nameTokens: [String]
+
+        if rawTokens.count >= 4,
+           rawTokens[0].count == 2,
+           rawTokens[1].count == 2,
+           rawTokens[2].lowercased() == "saint" {
+            nameTokens = ["Saint"] + rawTokens.dropFirst(3)
+        } else {
+            nameTokens = rawTokens
+        }
+
+        return nameTokens
+            .map { token in
+                let lower = token.lowercased()
+                guard let first = lower.first else { return token }
+                return first.uppercased() + lower.dropFirst()
+            }
+            .joined(separator: " ")
     }
 
     private func loadNovenaDetails() async {
@@ -533,13 +570,13 @@ struct MeView_Previews: PreviewProvider {
 }
 
 private enum MeSelectionRoute: Identifiable {
-    case saint(id: String)
+    case saint(saint: Saint)
     case novena(id: String)
 
     var id: String {
         switch self {
-        case .saint(let id):
-            return "saint:\(id)"
+        case .saint(let saint):
+            return "saint:\(saint.id)"
         case .novena(let id):
             return "novena:\(id)"
         }
