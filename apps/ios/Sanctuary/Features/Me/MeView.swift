@@ -295,7 +295,7 @@ struct MeView: View {
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
                         .background(
-                            Capsule(style: .continuous)
+                            Capsule()
                                 .fill(active ? AppTheme.tabActive : Color.white.opacity(0.12))
                         )
                 }
