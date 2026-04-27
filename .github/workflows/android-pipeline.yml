@@ -1,0 +1,79 @@
+name: Android Pipeline
+
+on:
+  pull_request:
+    branches:
+      - dev
+      - uat
+      - prod
+      - main
+    paths:
+      - "apps/android/**"
+      - ".github/workflows/android-pipeline.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "apps/android/**"
+      - ".github/workflows/android-pipeline.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-pipeline-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate Android Build
+    runs-on: ubuntu-latest
+    outputs:
+      has_gradle_wrapper: ${{ steps.detect.outputs.has_gradle_wrapper }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Detect Android build readiness
+        id: detect
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ -f "apps/android/gradlew" ]]; then
+            echo "has_gradle_wrapper=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_gradle_wrapper=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Setup Java 21
+        if: steps.detect.outputs.has_gradle_wrapper == 'true'
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Validate Android Gradle project
+        if: steps.detect.outputs.has_gradle_wrapper == 'true'
+        working-directory: apps/android
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x ./gradlew
+          ./gradlew help
+
+      - name: Android scaffold placeholder
+        if: steps.detect.outputs.has_gradle_wrapper != 'true'
+        run: echo "Android project scaffold is present. Add the Gradle wrapper next to enable real CI validation."
+
+  upload-internal:
+    name: Upload Android Internal Build
+    needs: validate
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.validate.outputs.has_gradle_wrapper == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Android release placeholder
+        run: echo "Android Play upload automation will be added when signing and the Gradle wrapper are in place."

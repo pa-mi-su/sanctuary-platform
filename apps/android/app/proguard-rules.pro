@@ -1,0 +1,2 @@
+# Sanctuary Android release rules
+
