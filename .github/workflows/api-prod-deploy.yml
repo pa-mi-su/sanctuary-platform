@@ -58,6 +58,7 @@ jobs:
       API_ECS_CLUSTER: ${{ vars.API_PROD_ECS_CLUSTER }}
       SANCTUARY_DB_URL: ${{ vars.API_PROD_DB_URL }}
       SANCTUARY_DB_USERNAME: ${{ vars.API_PROD_DB_USERNAME }}
+      API_PROD_DB_SECRET_ARN: ${{ vars.API_PROD_DB_SECRET_ARN || 'arn:aws:secretsmanager:us-east-1:160885294528:secret:rds!db-6969fe1c-0964-444f-b4f3-4fc2182887b5-xYENSU' }}
       SANCTUARY_AUTH_ENABLED: ${{ vars.API_PROD_AUTH_ENABLED || 'true' }}
       SANCTUARY_COGNITO_ISSUER_URI: ${{ vars.API_PROD_COGNITO_ISSUER_URI || 'https://cognito-idp.us-east-1.amazonaws.com/us-east-1_syYJKg0NY' }}
       SANCTUARY_COGNITO_CLIENT_ID: ${{ vars.API_PROD_COGNITO_CLIENT_ID || '7e3anthnuctm8p9nqck6kesjm9' }}
@@ -92,6 +93,7 @@ jobs:
           echo "API_ECS_CLUSTER=$(echo -n "${API_ECS_CLUSTER}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
           echo "SANCTUARY_DB_URL=$(echo -n "${SANCTUARY_DB_URL}" | tr -d '\r\n')" >> "$GITHUB_ENV"
           echo "SANCTUARY_DB_USERNAME=$(echo -n "${SANCTUARY_DB_USERNAME}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
+          echo "API_PROD_DB_SECRET_ARN=$(echo -n "${API_PROD_DB_SECRET_ARN}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
           echo "SANCTUARY_AUTH_ENABLED=$(echo -n "${SANCTUARY_AUTH_ENABLED}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
           echo "SANCTUARY_COGNITO_ISSUER_URI=$(echo -n "${SANCTUARY_COGNITO_ISSUER_URI}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
           echo "SANCTUARY_COGNITO_CLIENT_ID=$(echo -n "${SANCTUARY_COGNITO_CLIENT_ID}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
@@ -133,7 +135,7 @@ jobs:
             ]
           secrets: |
             [
-              {"name": "SANCTUARY_DB_PASSWORD", "valueFrom": "/sanctuary/prod/db/password"}
+              {"name": "SANCTUARY_DB_PASSWORD", "valueFrom": "${{ env.API_PROD_DB_SECRET_ARN }}:password::"}
             ]
           health-check-path: /health
           cpu: "512"
