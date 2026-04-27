@@ -50,29 +50,10 @@ struct MeView: View {
         }
         .fullScreenCover(item: $selectedRoute) { route in
             switch route {
-            case .saint(let id):
+            case .saint(let saint):
                 SaintDetailView(
                     contentRepository: environment.contentRepository,
-                    saint: saintDetailsByID[id] ?? Saint(
-                        id: id,
-                        slug: id,
-                        name: saintName(for: id),
-                        nameByLocale: [
-                            .en: saintName(for: id),
-                            .es: saintName(for: id),
-                            .pl: saintName(for: id)
-                        ],
-                        feastMonth: 1,
-                        feastDay: 1,
-                        imageURL: nil,
-                        tags: [],
-                        patronages: [],
-                        feastLabelByLocale: [.en: ""],
-                        summaryByLocale: [.en: ""],
-                        biographyByLocale: [.en: ""],
-                        prayersByLocale: [.en: []],
-                        sources: []
-                    ),
+                    saint: saint,
                     onClose: { selectedRoute = nil }
                 )
             case .novena(let id):
@@ -240,7 +221,9 @@ struct MeView: View {
                 VStack(spacing: 10) {
                     ForEach(favoriteSaints, id: \.itemID) { favorite in
                         accountLinkedRow(title: saintName(for: favorite.itemID), subtitle: nil) {
-                            selectedRoute = .saint(id: favorite.itemID)
+                            Task {
+                                await openFavoriteSaint(favorite.itemID)
+                            }
                         }
                     }
                 }
@@ -280,15 +263,29 @@ struct MeView: View {
     }
 
     private func reminderToggleRow(title: String, subtitle: String, isOn: Binding<Bool>) -> some View {
-        HStack(alignment: .top, spacing: 14) {
+        let active = isOn.wrappedValue
+
+        return HStack(alignment: .top, spacing: 14) {
             VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(.system(size: 16, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.white)
+                HStack(alignment: .center, spacing: 8) {
+                    Text(title)
+                        .font(.system(size: 16, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.white)
+
+                    Text(localization.t(active ? "common.on" : "common.off"))
+                        .font(AppTheme.rounded(11, weight: .bold))
+                        .foregroundStyle(active ? AppTheme.gradientTop : .white.opacity(0.82))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(
+                            Capsule()
+                                .fill(active ? AppTheme.tabActive : Color.white.opacity(0.12))
+                        )
+                }
 
                 Text(subtitle)
                     .font(AppTheme.rounded(13, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.78))
+                    .foregroundStyle(active ? .white.opacity(0.88) : .white.opacity(0.78))
                     .fixedSize(horizontal: false, vertical: true)
             }
 
@@ -296,16 +293,31 @@ struct MeView: View {
 
             Toggle("", isOn: isOn)
                 .labelsHidden()
+                .tint(AppTheme.tabActive)
                 .disabled(isSavingReminderPreferences)
         }
         .padding(.vertical, 12)
         .padding(.horizontal, 14)
-        .background(AppTheme.cardBackgroundSoft)
+        .background(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(active ? AppTheme.tabActive.opacity(0.16) : AppTheme.cardBackgroundSoft)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .fill(
+                            LinearGradient(
+                                colors: active ? [Color.white.opacity(0.08), AppTheme.tabActive.opacity(0.02)] : [Color.clear, Color.clear],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                )
+        )
         .overlay(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                .stroke(active ? AppTheme.tabActive.opacity(0.42) : Color.white.opacity(0.12), lineWidth: 1)
         )
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .animation(.spring(response: 0.24, dampingFraction: 0.82), value: active)
     }
 
     private var favoriteNovenas: [UserFavorite] {
@@ -362,7 +374,7 @@ struct MeView: View {
     }
 
     private func saintName(for id: String) -> String {
-        saintDetailsByID[id]?.displayName(locale: localization.language.contentLocale) ?? id
+        saintDetailsByID[id]?.displayName(locale: localization.language.contentLocale) ?? formattedFavoriteSaintName(from: id)
     }
 
     private func novenaTitle(for id: String) -> String {
@@ -398,15 +410,69 @@ struct MeView: View {
         }
 
         let locale = localization.language.contentLocale
-        var loadedDetails: [String: Saint] = [:]
+        var resolvedSaints: [String: Saint] = [:]
 
-        for favorite in favoriteSaints {
-            if let saint = try? await environment.contentRepository.fetchSaint(slug: favorite.itemID, locale: locale) {
-                loadedDetails[favorite.itemID] = saint
+        if let summaries = try? await environment.contentRepository.listSaints(
+            locale: locale,
+            feastDate: nil,
+            query: nil
+        ) {
+            let favoritesByID = Set(favoriteSaints.map(\.itemID))
+            for saint in summaries where favoritesByID.contains(saint.id) || favoritesByID.contains(saint.slug) {
+                resolvedSaints[saint.id] = saint
+                resolvedSaints[saint.slug] = saint
             }
         }
 
-        saintDetailsByID = loadedDetails
+        saintDetailsByID = resolvedSaints
+
+        for favorite in favoriteSaints {
+            let slug = resolvedSaints[favorite.itemID]?.slug ?? favorite.itemID
+            if let saint = try? await environment.contentRepository.fetchSaint(slug: slug, locale: locale) {
+                resolvedSaints[favorite.itemID] = saint
+                resolvedSaints[saint.slug] = saint
+            }
+        }
+
+        saintDetailsByID = resolvedSaints
+    }
+
+    private func openFavoriteSaint(_ id: String) async {
+        if let saint = saintDetailsByID[id] {
+            selectedRoute = .saint(saint: saint)
+            return
+        }
+
+        await loadFavoriteSaintDetails()
+
+        if let saint = saintDetailsByID[id] {
+            selectedRoute = .saint(saint: saint)
+        }
+    }
+
+    private func formattedFavoriteSaintName(from id: String) -> String {
+        let trimmed = id.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return id }
+
+        let rawTokens = trimmed.split(separator: "_").map(String.init)
+        let nameTokens: [String]
+
+        if rawTokens.count >= 4,
+           rawTokens[0].count == 2,
+           rawTokens[1].count == 2,
+           rawTokens[2].lowercased() == "saint" {
+            nameTokens = ["Saint"] + rawTokens.dropFirst(3)
+        } else {
+            nameTokens = rawTokens
+        }
+
+        return nameTokens
+            .map { token in
+                let lower = token.lowercased()
+                guard let first = lower.first else { return token }
+                return first.uppercased() + lower.dropFirst()
+            }
+            .joined(separator: " ")
     }
 
     private func loadNovenaDetails() async {
@@ -504,13 +570,13 @@ struct MeView_Previews: PreviewProvider {
 }
 
 private enum MeSelectionRoute: Identifiable {
-    case saint(id: String)
+    case saint(saint: Saint)
     case novena(id: String)
 
     var id: String {
         switch self {
-        case .saint(let id):
-            return "saint:\(id)"
+        case .saint(let saint):
+            return "saint:\(saint.id)"
         case .novena(let id):
             return "novena:\(id)"
         }
