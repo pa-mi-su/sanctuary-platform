@@ -30,33 +30,33 @@ jobs:
     name: Validate Android Build
     runs-on: ubuntu-latest
     outputs:
-      has_android_app: ${{ steps.detect.outputs.has_android_app }}
+      has_gradle_wrapper: ${{ steps.detect.outputs.has_gradle_wrapper }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
 
-      - name: Detect Android project
+      - name: Detect Android build readiness
         id: detect
         shell: bash
         run: |
           set -euo pipefail
 
-          if [[ -f "apps/android/gradlew" ]] || [[ -f "apps/android/build.gradle.kts" ]] || [[ -f "apps/android/settings.gradle.kts" ]]; then
-            echo "has_android_app=true" >> "$GITHUB_OUTPUT"
+          if [[ -f "apps/android/gradlew" ]]; then
+            echo "has_gradle_wrapper=true" >> "$GITHUB_OUTPUT"
           else
-            echo "has_android_app=false" >> "$GITHUB_OUTPUT"
+            echo "has_gradle_wrapper=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Setup Java 21
-        if: steps.detect.outputs.has_android_app == 'true'
+        if: steps.detect.outputs.has_gradle_wrapper == 'true'
         uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: 21
 
       - name: Validate Android Gradle project
-        if: steps.detect.outputs.has_android_app == 'true'
+        if: steps.detect.outputs.has_gradle_wrapper == 'true'
         working-directory: apps/android
         shell: bash
         run: |
@@ -65,15 +65,15 @@ jobs:
           ./gradlew help
 
       - name: Android scaffold placeholder
-        if: steps.detect.outputs.has_android_app != 'true'
-        run: echo "Android pipeline is configured and waiting for the Android app scaffold in apps/android."
+        if: steps.detect.outputs.has_gradle_wrapper != 'true'
+        run: echo "Android project scaffold is present. Add the Gradle wrapper next to enable real CI validation."
 
   upload-internal:
     name: Upload Android Internal Build
     needs: validate
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.validate.outputs.has_android_app == 'true'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.validate.outputs.has_gradle_wrapper == 'true'
     runs-on: ubuntu-latest
 
     steps:
       - name: Android release placeholder
-        run: echo "Android release automation will be added once the Android app and Play signing configuration are in place."
+        run: echo "Android Play upload automation will be added when signing and the Gradle wrapper are in place."
