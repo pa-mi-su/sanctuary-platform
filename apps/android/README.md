@@ -18,6 +18,12 @@ The project is scaffolded with:
 - Compose app shell and theme
 - A simple home screen that maps the intended Sanctuary sections
 
+Current CI behavior:
+
+- PRs only trigger the Android pipeline when `apps/android/**` changes.
+- Pushes to `main` only trigger Android release automation when `apps/android/**` changes.
+- Until the Gradle wrapper exists, the Android workflow succeeds with a placeholder step instead of blocking unrelated releases.
+
 The next implementation slices should be:
 
 1. Gradle wrapper check-in
@@ -31,4 +37,3 @@ The next implementation slices should be:
 
 Android is intended to stay independent from API, web, and iOS releases.
 The GitHub workflow should only run when `apps/android/**` changes.
-
