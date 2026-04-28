@@ -132,6 +132,7 @@ jobs:
           packageName: ${{ env.ANDROID_PLAY_PACKAGE_NAME }}
           releaseFiles: apps/android/app/build/outputs/bundle/devRelease/app-dev-release.aab
           track: internal
+          status: draft
 
   build-uat:
     name: Upload Android UAT Artifact
@@ -197,6 +198,7 @@ jobs:
           packageName: ${{ env.ANDROID_PLAY_PACKAGE_NAME }}
           releaseFiles: apps/android/app/build/outputs/bundle/uatRelease/app-uat-release.aab
           track: beta
+          status: draft
 
   build-prod:
     name: Upload Android Production Artifact
