@@ -69,6 +69,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -80,6 +81,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -103,6 +105,7 @@ import app.sanctuary.android.data.CommitmentStatus
 import app.sanctuary.android.data.FavoriteItemType
 import app.sanctuary.android.data.UserNovenaCommitment
 import app.sanctuary.android.ui.theme.SanctuaryTheme
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     private val viewModel by viewModels<MainViewModel>()
@@ -582,9 +585,12 @@ private fun AuthenticatedShell(
     var showNovenaSearch by rememberSaveable { mutableStateOf(false) }
     var showIntentionsSearch by rememberSaveable { mutableStateOf(false) }
     var showPrayerSearch by rememberSaveable { mutableStateOf(false) }
+    var dailyReadingError by rememberSaveable { mutableStateOf<String?>(null) }
     var saintsCalendarMode by rememberSaveable { mutableStateOf(CalendarMode.Day) }
     var novenasCalendarMode by rememberSaveable { mutableStateOf(CalendarMode.Day) }
     var liturgicalCalendarMode by rememberSaveable { mutableStateOf(CalendarMode.Month) }
+    val uriHandler = LocalUriHandler.current
+    val scope = rememberCoroutineScope()
 
     Scaffold(
         containerColor = Color.Transparent,
@@ -660,7 +666,23 @@ private fun AuthenticatedShell(
                     item {
                         HomeFeatureCard(
                             action = HomeAction.Daily,
-                            onClick = { onTabSelected(AppTab.Liturgical) }
+                            onClick = {
+                                scope.launch {
+                                    val today = LocalDate.now().toString()
+                                    runCatching { fetchLiturgicalRange(today, today) }
+                                        .onSuccess { days ->
+                                            val readingsUrl = days.firstOrNull()?.readingsUrl
+                                            if (!readingsUrl.isNullOrBlank()) {
+                                                uriHandler.openUri(readingsUrl)
+                                            } else {
+                                                dailyReadingError = "Sanctuary could not find today's USCCB reading link right now."
+                                            }
+                                        }
+                                        .onFailure {
+                                            dailyReadingError = it.message ?: "Sanctuary could not open today's readings right now."
+                                        }
+                                }
+                            }
                         )
                     }
                     item {
@@ -752,6 +774,12 @@ private fun AuthenticatedShell(
                         lineHeight = 22.sp
                     )
                 }
+            }
+        }
+
+        dailyReadingError?.let { message ->
+            SanctuaryModalSheet(onDismissRequest = { dailyReadingError = null }) {
+                DetailErrorSheet(message = message, onDismiss = { dailyReadingError = null })
             }
         }
 
@@ -2388,10 +2416,12 @@ private fun LiturgicalCalendarScreen(
     onModeChange: (CalendarMode) -> Unit,
     fetchLiturgicalRange: suspend (String, String) -> List<app.sanctuary.android.data.LiturgicalDay>
 ) {
+    val uriHandler = LocalUriHandler.current
     val today = LocalDate.now()
     var selectedDay by rememberSaveable { mutableStateOf(today.dayOfMonth) }
     var selectedMonth by rememberSaveable { mutableStateOf(today.monthValue) }
     var selectedYear by rememberSaveable { mutableStateOf(today.year) }
+    var readingError by rememberSaveable { mutableStateOf<String?>(null) }
     val month = remember(selectedYear, selectedMonth) { YearMonth.of(selectedYear, selectedMonth) }
     val state by produceState<CalendarLoadState<List<app.sanctuary.android.data.LiturgicalDay>>>(
         initialValue = CalendarLoadState.Loading,
@@ -2481,7 +2511,15 @@ private fun LiturgicalCalendarScreen(
                         if (preview != null) {
                             LiturgicalDayPreviewCard(
                                 date = previewDate,
-                                detail = preview
+                                detail = preview,
+                                onOpenReadings = {
+                                    val readingsUrl = preview.readingsUrl
+                                    if (!readingsUrl.isNullOrBlank()) {
+                                        uriHandler.openUri(readingsUrl)
+                                    } else {
+                                        readingError = "Sanctuary could not find daily readings for this day."
+                                    }
+                                }
                             )
                         } else {
                             SectionHint("No liturgical reading found", "Sanctuary did not return a liturgical observance for this day yet.")
@@ -2492,7 +2530,7 @@ private fun LiturgicalCalendarScreen(
                             month = month,
                             selectedDay = selectedDay,
                             labelForDay = { day ->
-                                liturgicalByDate[month.atDay(day)]?.primaryRank?.let { shortLabel(it) } ?: "·"
+                                liturgicalByDate[month.atDay(day)]?.let { shortLiturgicalLabel(it) } ?: "·"
                             },
                             borderColorForDay = { day ->
                                 liturgicalBorderColor(liturgicalByDate[month.atDay(day)]?.season)
@@ -2517,6 +2555,7 @@ private fun LiturgicalCalendarScreen(
                 }
             }
         }
+        readingError?.let { Banner(it, isError = true) }
         SeasonLegend()
     }
 }
@@ -2902,15 +2941,17 @@ private fun CalendarWeekHeaderRow() {
 @Composable
 private fun LiturgicalDayPreviewCard(
     date: LocalDate,
-    detail: app.sanctuary.android.data.LiturgicalDay
+    detail: app.sanctuary.android.data.LiturgicalDay,
+    onOpenReadings: () -> Unit
 ) {
     DayPreviewCard(
         date = date,
         title = detail.primaryRank,
         subtitle = detail.observances.firstOrNull().orEmpty().ifBlank { detail.season.replaceFirstChar { it.uppercase() } },
         imageUrl = null,
-        buttonLabel = detail.season.replaceFirstChar { it.uppercase() }
-    ) {}
+        buttonLabel = "Open daily readings",
+        onClick = onOpenReadings
+    )
 }
 
 private fun liturgicalBorderColor(season: String?): Color = when (season?.lowercase()) {
@@ -2919,6 +2960,13 @@ private fun liturgicalBorderColor(season: String?): Color = when (season?.lowerc
     "lent" -> Color(0xFFD16BA5)
     "easter" -> Color(0xFFF5F5F5)
     else -> Color(0xFF6FB56B)
+}
+
+private fun shortLiturgicalLabel(detail: app.sanctuary.android.data.LiturgicalDay): String {
+    val source = detail.observances.firstOrNull()
+        ?.takeIf { it.isNotBlank() }
+        ?: detail.primaryRank
+    return shortLabel(source)
 }
 
 @Composable
