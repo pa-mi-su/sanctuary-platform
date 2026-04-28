@@ -51,3 +51,7 @@ Run the novena import from the platform repo root:
 ```bash
 python3 scripts/import_novenas.py
 ```
+
+## Pipeline Test Note
+
+This README may occasionally receive tiny no-op edits used only to verify API-only GitHub workflow routing.
