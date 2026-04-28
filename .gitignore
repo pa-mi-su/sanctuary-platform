@@ -13,3 +13,4 @@ xcuserdata/
 apps/api/.env
 apps/api/target
 backups
+sanctuary-upload-key.jks
