@@ -88,6 +88,7 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -289,11 +290,13 @@ private fun AccountAccessScreen(
     var lastName by rememberSaveable { mutableStateOf("") }
     var registerEmail by rememberSaveable { mutableStateOf(session.pendingConfirmationEmail.orEmpty()) }
     var registerPassword by rememberSaveable { mutableStateOf("") }
+    var registerPasswordConfirmation by rememberSaveable { mutableStateOf("") }
     var confirmationCode by rememberSaveable { mutableStateOf("") }
     var forgotEmail by rememberSaveable { mutableStateOf(session.pendingPasswordResetEmail.orEmpty()) }
     var resetEmail by rememberSaveable { mutableStateOf(session.pendingPasswordResetEmail.orEmpty()) }
     var resetCode by rememberSaveable { mutableStateOf("") }
     var newPassword by rememberSaveable { mutableStateOf("") }
+    var resetPasswordConfirmation by rememberSaveable { mutableStateOf("") }
 
     LaunchedEffect(session.status, session.pendingConfirmationEmail, session.pendingPasswordResetEmail) {
         if (session.status == SessionStatus.AwaitingConfirmation) {
@@ -337,6 +340,8 @@ private fun AccountAccessScreen(
                 onRegisterEmailChange = { registerEmail = it },
                 registerPassword = registerPassword,
                 onRegisterPasswordChange = { registerPassword = it },
+                registerPasswordConfirmation = registerPasswordConfirmation,
+                onRegisterPasswordConfirmationChange = { registerPasswordConfirmation = it },
                 confirmationCode = confirmationCode,
                 onConfirmationCodeChange = { confirmationCode = it },
                 forgotEmail = forgotEmail,
@@ -347,6 +352,8 @@ private fun AccountAccessScreen(
                 onResetCodeChange = { resetCode = it },
                 newPassword = newPassword,
                 onNewPasswordChange = { newPassword = it },
+                resetPasswordConfirmation = resetPasswordConfirmation,
+                onResetPasswordConfirmationChange = { resetPasswordConfirmation = it },
                 onStepChange = { step = it },
                 onAction = onAction,
                 showAccountEyebrow = false
@@ -377,6 +384,8 @@ private fun AccountAccessScreen(
                     onRegisterEmailChange = { registerEmail = it },
                     registerPassword = registerPassword,
                     onRegisterPasswordChange = { registerPassword = it },
+                    registerPasswordConfirmation = registerPasswordConfirmation,
+                    onRegisterPasswordConfirmationChange = { registerPasswordConfirmation = it },
                     confirmationCode = confirmationCode,
                     onConfirmationCodeChange = { confirmationCode = it },
                     forgotEmail = forgotEmail,
@@ -387,6 +396,8 @@ private fun AccountAccessScreen(
                     onResetCodeChange = { resetCode = it },
                     newPassword = newPassword,
                     onNewPasswordChange = { newPassword = it },
+                    resetPasswordConfirmation = resetPasswordConfirmation,
+                    onResetPasswordConfirmationChange = { resetPasswordConfirmation = it },
                     onStepChange = { step = it },
                     onAction = onAction,
                     showAccountEyebrow = true
@@ -415,6 +426,8 @@ private fun AccountAccessContent(
     onRegisterEmailChange: (String) -> Unit,
     registerPassword: String,
     onRegisterPasswordChange: (String) -> Unit,
+    registerPasswordConfirmation: String,
+    onRegisterPasswordConfirmationChange: (String) -> Unit,
     confirmationCode: String,
     onConfirmationCodeChange: (String) -> Unit,
     forgotEmail: String,
@@ -425,10 +438,29 @@ private fun AccountAccessContent(
     onResetCodeChange: (String) -> Unit,
     newPassword: String,
     onNewPasswordChange: (String) -> Unit,
+    resetPasswordConfirmation: String,
+    onResetPasswordConfirmationChange: (String) -> Unit,
     onStepChange: (AuthStep) -> Unit,
     onAction: MainViewModel,
     showAccountEyebrow: Boolean
 ) {
+    val loginReady = loginEmail.trim().isNotEmpty() && loginPassword.isNotEmpty()
+    val registerRules = passwordRules(registerPassword)
+    val registerPasswordsMatch = passwordsMatch(registerPassword, registerPasswordConfirmation)
+    val canSubmitRegistration =
+        firstName.trim().isNotEmpty() &&
+            lastName.trim().isNotEmpty() &&
+            registerEmail.trim().isNotEmpty() &&
+            registerRules.all { it.met } &&
+            registerPasswordsMatch
+    val resetRules = passwordRules(newPassword)
+    val resetPasswordsMatch = passwordsMatch(newPassword, resetPasswordConfirmation)
+    val canSubmitReset =
+        resetEmail.trim().isNotEmpty() &&
+            resetCode.trim().isNotEmpty() &&
+            resetRules.all { it.met } &&
+            resetPasswordsMatch
+
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         if (showAccountEyebrow) {
             Text(
@@ -474,9 +506,9 @@ private fun AccountAccessContent(
                 TextButton(onClick = { onStepChange(AuthStep.Landing) }, enabled = !isBusy) {
                     Text("Back")
                 }
-                TextFieldBlock("Email", loginEmail, onValueChange = onLoginEmailChange)
+                TextFieldBlock("Email", loginEmail, keyboardType = KeyboardType.Email, onValueChange = onLoginEmailChange)
                 TextFieldBlock("Password", loginPassword, secure = true, onValueChange = onLoginPasswordChange)
-                PrimaryButton("Login", isBusy) {
+                PrimaryButton("Login", isBusy, enabled = loginReady) {
                     onAction.login(loginEmail.trim(), loginPassword)
                 }
                 TextButton(onClick = { onStepChange(AuthStep.ForgotPassword) }, enabled = !isBusy) {
@@ -490,9 +522,16 @@ private fun AccountAccessContent(
                 }
                 TextFieldBlock("First name", firstName, onValueChange = onFirstNameChange)
                 TextFieldBlock("Last name", lastName, onValueChange = onLastNameChange)
-                TextFieldBlock("Email", registerEmail, onValueChange = onRegisterEmailChange)
+                TextFieldBlock("Email", registerEmail, keyboardType = KeyboardType.Email, onValueChange = onRegisterEmailChange)
                 TextFieldBlock("Password", registerPassword, secure = true, onValueChange = onRegisterPasswordChange)
-                PrimaryButton("Create account", isBusy) {
+                TextFieldBlock("Confirm password", registerPasswordConfirmation, secure = true, onValueChange = onRegisterPasswordConfirmationChange)
+                PasswordPanel(
+                    rules = registerRules,
+                    strengthLabel = passwordStrengthLabel(registerRules),
+                    matches = registerPasswordsMatch,
+                    confirmationWarning = "Passwords must match before you can create the account."
+                )
+                PrimaryButton("Create account", isBusy, enabled = canSubmitRegistration) {
                     onAction.register(
                         firstName = firstName.trim(),
                         lastName = lastName.trim(),
@@ -510,21 +549,19 @@ private fun AccountAccessContent(
                     text = "We sent a confirmation code to ${session.pendingConfirmationEmail ?: registerEmail.trim()}.",
                     color = Color(0xFFD0DFEA)
                 )
-                TextFieldBlock("Verification code", confirmationCode, onValueChange = onConfirmationCodeChange)
-                PrimaryButton("Confirm account", isBusy) {
+                TextFieldBlock("Verification code", confirmationCode, keyboardType = KeyboardType.Number, onValueChange = onConfirmationCodeChange)
+                PrimaryButton("Confirm account", isBusy, enabled = confirmationCode.trim().isNotEmpty()) {
                     onAction.confirmRegistration(confirmationCode.trim())
                 }
-                TextButton(onClick = onAction::resendConfirmation, enabled = !isBusy) {
-                    Text("Send a new code")
-                }
+                SecondaryButton("Send a new code", isBusy, enabled = true, onClick = onAction::resendConfirmation)
             }
 
             AuthStep.ForgotPassword -> AuthCard {
                 TextButton(onClick = { onStepChange(AuthStep.Login) }, enabled = !isBusy) {
                     Text("Back")
                 }
-                TextFieldBlock("Email", forgotEmail, onValueChange = onForgotEmailChange)
-                PrimaryButton("Send reset code", isBusy) {
+                TextFieldBlock("Email", forgotEmail, keyboardType = KeyboardType.Email, onValueChange = onForgotEmailChange)
+                PrimaryButton("Send reset code", isBusy, enabled = forgotEmail.trim().isNotEmpty()) {
                     onAction.forgotPassword(forgotEmail.trim())
                 }
             }
@@ -533,11 +570,25 @@ private fun AccountAccessContent(
                 TextButton(onClick = { onStepChange(AuthStep.Login) }, enabled = !isBusy) {
                     Text("Back")
                 }
-                TextFieldBlock("Email", resetEmail, onValueChange = onResetEmailChange)
-                TextFieldBlock("Reset code", resetCode, onValueChange = onResetCodeChange)
+                Text(
+                    text = "We sent a reset code to ${session.pendingPasswordResetEmail ?: forgotEmail.trim()}.",
+                    color = Color(0xFFD0DFEA)
+                )
+                TextFieldBlock("Email", resetEmail, keyboardType = KeyboardType.Email, onValueChange = onResetEmailChange)
+                TextFieldBlock("Reset code", resetCode, keyboardType = KeyboardType.Number, onValueChange = onResetCodeChange)
                 TextFieldBlock("New password", newPassword, secure = true, onValueChange = onNewPasswordChange)
-                PrimaryButton("Reset password", isBusy) {
+                TextFieldBlock("Confirm new password", resetPasswordConfirmation, secure = true, onValueChange = onResetPasswordConfirmationChange)
+                PasswordPanel(
+                    rules = resetRules,
+                    strengthLabel = passwordStrengthLabel(resetRules),
+                    matches = resetPasswordsMatch,
+                    confirmationWarning = "Passwords must match before you can save the new password."
+                )
+                PrimaryButton("Save new password", isBusy, enabled = canSubmitReset) {
                     onAction.resetPassword(resetEmail.trim(), resetCode.trim(), newPassword)
+                }
+                SecondaryButton("Send a new reset code", isBusy, enabled = resetEmail.trim().isNotEmpty()) {
+                    onAction.forgotPassword(resetEmail.trim())
                 }
             }
         }
@@ -1037,6 +1088,7 @@ private fun TextFieldBlock(
     label: String,
     value: String,
     secure: Boolean = false,
+    keyboardType: KeyboardType = KeyboardType.Text,
     onValueChange: (String) -> Unit
 ) {
     OutlinedTextField(
@@ -1044,6 +1096,8 @@ private fun TextFieldBlock(
         onValueChange = onValueChange,
         modifier = Modifier.fillMaxWidth(),
         label = { Text(label) },
+        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = keyboardType),
+        singleLine = true,
         visualTransformation = if (secure) PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
         shape = RoundedCornerShape(16.dp)
     )
@@ -1053,23 +1107,143 @@ private fun TextFieldBlock(
 private fun PrimaryButton(
     title: String,
     isBusy: Boolean,
+    enabled: Boolean = true,
     onClick: () -> Unit
 ) {
     Button(
         onClick = onClick,
-        enabled = !isBusy,
+        enabled = enabled && !isBusy,
         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF5CAED4)),
         shape = RoundedCornerShape(18.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
-        if (isBusy) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (isBusy) {
             CircularProgressIndicator(
                 modifier = Modifier.size(18.dp),
                 color = Color.White,
                 strokeWidth = 2.dp
             )
-        } else {
+            }
             Text(title, color = Color.White)
+        }
+    }
+}
+
+@Composable
+private fun SecondaryButton(
+    title: String,
+    isBusy: Boolean,
+    enabled: Boolean = true,
+    onClick: () -> Unit
+) {
+    Button(
+        onClick = onClick,
+        enabled = enabled && !isBusy,
+        colors = ButtonDefaults.buttonColors(
+            containerColor = Color(0x6622394C),
+            contentColor = Color(0xFF7AC8EA)
+        ),
+        shape = RoundedCornerShape(18.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (isBusy) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(18.dp),
+                    color = Color(0xFF7AC8EA),
+                    strokeWidth = 2.dp
+                )
+            }
+            Text(title)
+        }
+    }
+}
+
+private data class PasswordRuleUi(
+    val label: String,
+    val met: Boolean
+)
+
+private fun passwordRules(password: String): List<PasswordRuleUi> = listOf(
+    PasswordRuleUi("At least 8 characters", password.length >= 8),
+    PasswordRuleUi("One uppercase letter", password.any(Char::isUpperCase)),
+    PasswordRuleUi("One lowercase letter", password.any(Char::isLowerCase)),
+    PasswordRuleUi("One number", password.any(Char::isDigit)),
+    PasswordRuleUi("One special character", password.any { !it.isLetterOrDigit() })
+)
+
+private fun passwordsMatch(password: String, confirmation: String): Boolean =
+    confirmation.isNotEmpty() && password == confirmation
+
+private fun passwordStrengthLabel(rules: List<PasswordRuleUi>): String {
+    val metCount = rules.count { it.met }
+    return when {
+        metCount == rules.size -> "Ready"
+        metCount >= 4 -> "Almost there"
+        metCount >= 2 -> "Needs work"
+        else -> "Too weak"
+    }
+}
+
+@Composable
+private fun PasswordPanel(
+    rules: List<PasswordRuleUi>,
+    strengthLabel: String,
+    matches: Boolean,
+    confirmationWarning: String
+) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = Color(0x6622394C)),
+        shape = RoundedCornerShape(22.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "Password strength",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                Text(
+                    text = strengthLabel,
+                    color = if (rules.all { it.met }) Color(0xFF7AC8EA) else Color(0xFFD0DFEA),
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+
+            rules.forEach { rule ->
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = if (rule.met) "✓" else "•",
+                        color = if (rule.met) Color(0xFF7AC8EA) else Color(0xFFD0DFEA),
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = rule.label,
+                        color = if (rule.met) Color.White else Color(0xFFD0DFEA)
+                    )
+                }
+            }
+
+            Text(
+                text = if (matches) "Passwords match." else confirmationWarning,
+                color = if (matches) Color(0xFF7AC8EA) else Color(0xFFD0DFEA)
+            )
         }
     }
 }
