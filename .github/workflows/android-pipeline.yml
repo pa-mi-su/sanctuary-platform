@@ -32,7 +32,7 @@ env:
 jobs:
   validate:
     name: Validate Android Build
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
 
     steps:
@@ -70,7 +70,7 @@ jobs:
 
   build-dev:
     name: Upload Android Dev Artifact
-    if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/dev'
     runs-on: ubuntu-latest
     environment: dev
     env:
@@ -136,7 +136,7 @@ jobs:
 
   build-uat:
     name: Upload Android UAT Artifact
-    if: github.event_name == 'push' && github.ref == 'refs/heads/uat'
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/uat'
     runs-on: ubuntu-latest
     environment: uat
     env:
@@ -202,7 +202,7 @@ jobs:
 
   build-prod:
     name: Upload Android Production Artifact
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: prod
     env:
