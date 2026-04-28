@@ -19,7 +19,6 @@ on:
       - "apps/web/**"
       - "package-lock.json"
       - "package.json"
-      - ".github/workflows/web-prod-deploy.yml"
   workflow_dispatch:
 
 permissions:
