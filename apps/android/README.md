@@ -37,3 +37,7 @@ The next implementation slices should be:
 
 Android is intended to stay independent from API, web, and iOS releases.
 The GitHub workflow should only run when `apps/android/**` changes.
+
+## Pipeline Test Note
+
+This README may occasionally receive tiny no-op edits used only to verify Android-only GitHub workflow routing.
