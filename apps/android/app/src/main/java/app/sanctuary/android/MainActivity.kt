@@ -1344,19 +1344,43 @@ private fun HomeHeroCard(session: SessionUiState) {
                 color = Color(0xFF7AC8EA),
                 style = MaterialTheme.typography.labelLarge
             )
-            Image(
-                painter = painterResource(id = R.drawable.brand_logo),
-                contentDescription = "Sanctuary",
+            Box(
                 modifier = Modifier
-                    .size(136.dp)
-                    .background(
-                        brush = Brush.radialGradient(
-                            colors = listOf(Color(0x261E4867), Color(0xFF0B1A2A))
-                        ),
-                        shape = RoundedCornerShape(32.dp)
-                    )
-                    .padding(6.dp)
-            )
+                    .size(156.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(132.dp)
+                        .background(
+                            brush = Brush.radialGradient(
+                                colors = listOf(
+                                    Color(0x99E8C56A),
+                                    Color(0x33E8C56A),
+                                    Color.Transparent
+                                ),
+                                radius = 180f
+                            ),
+                            shape = CircleShape
+                        )
+                )
+                Box(
+                    modifier = Modifier
+                        .size(144.dp)
+                        .background(
+                            brush = Brush.radialGradient(
+                                colors = listOf(Color(0x2A3F6F8D), Color.Transparent),
+                                radius = 220f
+                            ),
+                            shape = CircleShape
+                        )
+                )
+                Image(
+                    painter = painterResource(id = R.drawable.brand_logo),
+                    contentDescription = "Sanctuary",
+                    modifier = Modifier.size(132.dp)
+                )
+            }
             Text(
                 text = if (session.status == SessionStatus.Authenticated) {
                     "Welcome back to your sanctuary"

@@ -1,4 +1,10 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
+    <style name="Theme.Sanctuary.Starting" parent="Theme.Sanctuary">
+        <item name="android:windowSplashScreenBackground">#132433</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/brand_logo</item>
+        <item name="postSplashScreenTheme">@style/Theme.Sanctuary</item>
+    </style>
+
     <style name="Theme.Sanctuary" parent="Theme.Material3.DayNight.NoActionBar">
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">#132433</item>
