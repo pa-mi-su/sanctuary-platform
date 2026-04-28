@@ -2978,8 +2978,9 @@ private fun LiturgicalDayCell(
     onClick: () -> Unit
 ) {
     val strokeColor = liturgicalBorderColor(detail?.season)
+    val compactLabel = detail?.let(::shortLiturgicalLabel).orEmpty()
     Card(
-        modifier = modifier.aspectRatio(0.78f),
+        modifier = modifier.aspectRatio(0.86f),
         colors = CardDefaults.cardColors(containerColor = if (selected) Color(0xB323394C) else Color(0x9922394C)),
         shape = RoundedCornerShape(18.dp)
         ,
@@ -2989,17 +2990,26 @@ private fun LiturgicalDayCell(
             modifier = Modifier
                 .fillMaxSize()
                 .border(if (selected) 2.dp else 1.dp, strokeColor, RoundedCornerShape(18.dp))
-                .padding(8.dp)
+                .padding(horizontal = 6.dp, vertical = 7.dp)
         ) {
-            Text(day.toString(), color = Color.White, fontWeight = FontWeight.Bold)
             Text(
-                text = detail?.primaryRank ?: "",
+                day.toString(),
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                fontSize = 15.sp,
+                modifier = Modifier.align(Alignment.TopCenter)
+            )
+            Text(
+                text = compactLabel,
                 color = Color(0xFFD0DFEA),
-                fontSize = 11.sp,
-                lineHeight = 13.sp,
-                maxLines = 3,
+                fontSize = 10.sp,
+                lineHeight = 11.sp,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.align(Alignment.Center)
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .padding(top = 10.dp)
             )
         }
     }
