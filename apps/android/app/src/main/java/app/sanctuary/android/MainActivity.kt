@@ -1,6 +1,10 @@
 package app.sanctuary.android
 
+import android.annotation.SuppressLint
 import android.os.Bundle
+import android.webkit.WebChromeClient
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
@@ -75,13 +79,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -585,11 +589,11 @@ private fun AuthenticatedShell(
     var showNovenaSearch by rememberSaveable { mutableStateOf(false) }
     var showIntentionsSearch by rememberSaveable { mutableStateOf(false) }
     var showPrayerSearch by rememberSaveable { mutableStateOf(false) }
+    var dailyReadingsUrl by rememberSaveable { mutableStateOf<String?>(null) }
     var dailyReadingError by rememberSaveable { mutableStateOf<String?>(null) }
     var saintsCalendarMode by rememberSaveable { mutableStateOf(CalendarMode.Day) }
     var novenasCalendarMode by rememberSaveable { mutableStateOf(CalendarMode.Day) }
     var liturgicalCalendarMode by rememberSaveable { mutableStateOf(CalendarMode.Month) }
-    val uriHandler = LocalUriHandler.current
     val scope = rememberCoroutineScope()
 
     Scaffold(
@@ -673,7 +677,7 @@ private fun AuthenticatedShell(
                                         .onSuccess { days ->
                                             val readingsUrl = days.firstOrNull()?.readingsUrl
                                             if (!readingsUrl.isNullOrBlank()) {
-                                                uriHandler.openUri(readingsUrl)
+                                                dailyReadingsUrl = readingsUrl
                                             } else {
                                                 dailyReadingError = "Sanctuary could not find today's USCCB reading link right now."
                                             }
@@ -719,7 +723,8 @@ private fun AuthenticatedShell(
                         LiturgicalCalendarScreen(
                             mode = liturgicalCalendarMode,
                             onModeChange = { liturgicalCalendarMode = it },
-                            fetchLiturgicalRange = fetchLiturgicalRange
+                            fetchLiturgicalRange = fetchLiturgicalRange,
+                            onOpenReadings = { dailyReadingsUrl = it }
                         )
                     }
                 }
@@ -780,6 +785,15 @@ private fun AuthenticatedShell(
         dailyReadingError?.let { message ->
             SanctuaryModalSheet(onDismissRequest = { dailyReadingError = null }) {
                 DetailErrorSheet(message = message, onDismiss = { dailyReadingError = null })
+            }
+        }
+
+        dailyReadingsUrl?.let { url ->
+            SanctuaryModalSheet(onDismissRequest = { dailyReadingsUrl = null }) {
+                DailyReadingsSheet(
+                    url = url,
+                    onDismiss = { dailyReadingsUrl = null }
+                )
             }
         }
 
@@ -2438,9 +2452,9 @@ private fun NovenasCalendarScreen(
 private fun LiturgicalCalendarScreen(
     mode: CalendarMode,
     onModeChange: (CalendarMode) -> Unit,
-    fetchLiturgicalRange: suspend (String, String) -> List<app.sanctuary.android.data.LiturgicalDay>
+    fetchLiturgicalRange: suspend (String, String) -> List<app.sanctuary.android.data.LiturgicalDay>,
+    onOpenReadings: (String) -> Unit
 ) {
-    val uriHandler = LocalUriHandler.current
     val today = LocalDate.now()
     var selectedDay by rememberSaveable { mutableStateOf(today.dayOfMonth) }
     var selectedMonth by rememberSaveable { mutableStateOf(today.monthValue) }
@@ -2539,7 +2553,7 @@ private fun LiturgicalCalendarScreen(
                                 onOpenReadings = {
                                     val readingsUrl = preview.readingsUrl
                                     if (!readingsUrl.isNullOrBlank()) {
-                                        uriHandler.openUri(readingsUrl)
+                                        onOpenReadings(readingsUrl)
                                     } else {
                                         readingError = "Sanctuary could not find daily readings for this day."
                                     }
@@ -2581,6 +2595,50 @@ private fun LiturgicalCalendarScreen(
         }
         readingError?.let { Banner(it, isError = true) }
         SeasonLegend()
+    }
+}
+
+@Composable
+private fun DailyReadingsSheet(
+    url: String,
+    onDismiss: () -> Unit
+) {
+    DetailSheetScaffold(
+        title = "Daily Readings",
+        subtitle = "USCCB readings inside Sanctuary"
+    ) {
+        DailyReadingsWebView(url = url)
+        PrimaryButton("Close", false, onClick = onDismiss)
+    }
+}
+
+@SuppressLint("SetJavaScriptEnabled")
+@Composable
+private fun DailyReadingsWebView(url: String) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF10212E)),
+        shape = RoundedCornerShape(24.dp)
+    ) {
+        AndroidView(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(560.dp),
+            factory = { context ->
+                WebView(context).apply {
+                    webViewClient = WebViewClient()
+                    webChromeClient = WebChromeClient()
+                    settings.javaScriptEnabled = true
+                    settings.domStorageEnabled = true
+                    settings.loadsImagesAutomatically = true
+                    loadUrl(url)
+                }
+            },
+            update = { webView ->
+                if (webView.url != url) {
+                    webView.loadUrl(url)
+                }
+            }
+        )
     }
 }
 
