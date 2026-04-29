@@ -3150,6 +3150,12 @@ private fun shortLabel(raw: String, max: Int = 14): String {
     return if (trimmed.length > max) "${trimmed.take(max - 1)}…" else trimmed
 }
 
+private fun shortWord(raw: String, max: Int = 7): String {
+    val trimmed = raw.trim()
+    if (trimmed.isEmpty()) return ""
+    return if (trimmed.length > max) "${trimmed.take(max - 1)}…" else trimmed
+}
+
 private fun sanitizedSaintName(raw: String): String {
     return raw.replace(Regex(""",\s*\d{3,4}[–-]\d{2,4}$"""), "").trim()
 }
@@ -3243,7 +3249,18 @@ private fun shortLiturgicalLabel(detail: app.sanctuary.android.data.LiturgicalDa
     val source = detail.observances.firstOrNull()
         ?.takeIf { it.isNotBlank() }
         ?: detail.primaryRank
-    return shortLabel(source)
+    val significantWords = source
+        .split(Regex("\\s+"))
+        .map { it.trim().trim(',', '.', ';', ':') }
+        .filter { it.isNotBlank() }
+        .filterNot { it.equals("of", ignoreCase = true) || it.equals("the", ignoreCase = true) || it.equals("within", ignoreCase = true) }
+
+    if (significantWords.isEmpty()) return "·"
+    if (significantWords.size == 1) return shortWord(significantWords.first(), max = 10)
+
+    val first = shortWord(significantWords[0], max = 7)
+    val second = shortWord(significantWords[1], max = 7)
+    return "$first\n$second"
 }
 
 @Composable
