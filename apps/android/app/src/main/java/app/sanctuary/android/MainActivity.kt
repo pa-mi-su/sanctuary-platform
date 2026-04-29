@@ -80,7 +80,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -115,6 +117,16 @@ import app.sanctuary.android.data.CommitmentStatus
 import app.sanctuary.android.data.FavoriteItemType
 import app.sanctuary.android.data.UserNovenaCommitment
 import app.sanctuary.android.ui.theme.SanctuaryTheme
+import app.sanctuary.android.ui.theme.SanctuaryGlowBlue
+import app.sanctuary.android.ui.theme.SanctuaryGlowGold
+import app.sanctuary.android.ui.theme.SanctuaryGlowRose
+import app.sanctuary.android.ui.theme.SanctuaryGradientBottom
+import app.sanctuary.android.ui.theme.SanctuaryGradientMid
+import app.sanctuary.android.ui.theme.SanctuaryGradientTop
+import app.sanctuary.android.ui.theme.SanctuaryTabActive
+import app.sanctuary.android.ui.theme.SanctuaryTabBackground
+import app.sanctuary.android.ui.theme.SanctuaryTabBorder
+import app.sanctuary.android.ui.theme.SanctuaryTabInactive
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
@@ -225,12 +237,8 @@ private fun SanctuaryApp(viewModel: MainViewModel) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                brush = Brush.verticalGradient(
-                    colors = listOf(Color(0xFF132433), Color(0xFF09141F))
-                )
-            )
     ) {
+        SanctuaryBackdrop()
         if (session.isBootstrapping && session.status == SessionStatus.Loading && session.session == null) {
             BrandedLaunchScreen()
         } else {
@@ -274,6 +282,56 @@ private fun SanctuaryApp(viewModel: MainViewModel) {
                 fetchLiturgicalRange = viewModel::fetchLiturgicalRange
             )
         }
+    }
+}
+
+@Composable
+private fun SanctuaryBackdrop() {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                brush = Brush.linearGradient(
+                    colors = listOf(
+                        SanctuaryGradientTop,
+                        SanctuaryGradientMid,
+                        SanctuaryGradientBottom
+                    ),
+                    start = Offset.Zero,
+                    end = Offset.Infinite
+                )
+            )
+    ) {
+        Box(
+            modifier = Modifier
+                .size(340.dp)
+                .offset(x = 110.dp, y = (-240).dp)
+                .background(SanctuaryGlowBlue.copy(alpha = 0.24f), CircleShape)
+                .blur(26.dp)
+        )
+        Box(
+            modifier = Modifier
+                .size(280.dp)
+                .offset(x = (-130).dp, y = (-40).dp)
+                .background(SanctuaryGlowGold.copy(alpha = 0.16f), CircleShape)
+                .blur(28.dp)
+        )
+        Box(
+            modifier = Modifier
+                .size(260.dp)
+                .offset(x = 120.dp, y = 260.dp)
+                .background(SanctuaryGlowRose.copy(alpha = 0.14f), CircleShape)
+                .blur(32.dp)
+        )
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .background(
+                    Brush.linearGradient(
+                        colors = listOf(Color.White.copy(alpha = 0.09f), Color.Transparent, Color.Black.copy(alpha = 0.18f))
+                    )
+                )
+        )
     }
 }
 
@@ -669,29 +727,38 @@ private fun AuthenticatedShell(
     Scaffold(
         containerColor = Color.Transparent,
         bottomBar = {
-            NavigationBar(
-                containerColor = Color(0xCC1B2E3C),
-                tonalElevation = 0.dp
+            Surface(
+                modifier = Modifier
+                    .padding(horizontal = 12.dp, vertical = 10.dp)
+                    .shadow(18.dp, RoundedCornerShape(26.dp), clip = false),
+                shape = RoundedCornerShape(26.dp),
+                color = SanctuaryTabBackground,
+                border = androidx.compose.foundation.BorderStroke(1.dp, SanctuaryTabBorder.copy(alpha = 0.55f))
             ) {
-                AppTab.entries.forEach { tab ->
-                    NavigationBarItem(
-                        selected = selectedTab == tab,
-                        onClick = { onTabSelected(tab) },
-                        label = { Text(tab.label) },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = Color(0xFF7AC8EA),
-                            selectedTextColor = Color(0xFF7AC8EA),
-                            indicatorColor = Color(0x332F9FD9),
-                            unselectedIconColor = Color(0xFFBCC9D6),
-                            unselectedTextColor = Color(0xFFBCC9D6)
-                        ),
-                        icon = {
-                            Icon(
-                                imageVector = tab.icon(),
-                                contentDescription = tab.label
-                            )
-                        }
-                    )
+                NavigationBar(
+                    containerColor = Color.Transparent,
+                    tonalElevation = 0.dp
+                ) {
+                    AppTab.entries.forEach { tab ->
+                        NavigationBarItem(
+                            selected = selectedTab == tab,
+                            onClick = { onTabSelected(tab) },
+                            label = { Text(tab.label) },
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = SanctuaryTabActive,
+                                selectedTextColor = SanctuaryTabActive,
+                                indicatorColor = SanctuaryTabActive.copy(alpha = 0.16f),
+                                unselectedIconColor = SanctuaryTabInactive,
+                                unselectedTextColor = SanctuaryTabInactive
+                            ),
+                            icon = {
+                                Icon(
+                                    imageVector = tab.icon(),
+                                    contentDescription = tab.label
+                                )
+                            }
+                        )
+                    }
                 }
             }
         }
@@ -1747,9 +1814,18 @@ private fun AboutInfoCard(
 private fun PrimarySheetButton(title: String, onClick: () -> Unit) {
     Button(
         onClick = onClick,
-        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF61B4DE)),
+        colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
         shape = RoundedCornerShape(20.dp),
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
+            .shadow(12.dp, RoundedCornerShape(20.dp), clip = false)
+            .background(
+                brush = Brush.linearGradient(
+                    listOf(Color(0xFF3E9FC1), Color(0xFF195E78))
+                ),
+                shape = RoundedCornerShape(20.dp)
+            )
+            .border(1.dp, Color.White.copy(alpha = 0.16f), RoundedCornerShape(20.dp))
     ) {
         Text(title, color = Color.White, fontWeight = FontWeight.SemiBold)
     }
@@ -1759,9 +1835,12 @@ private fun PrimarySheetButton(title: String, onClick: () -> Unit) {
 private fun SecondarySheetButton(title: String, onClick: () -> Unit) {
     Button(
         onClick = onClick,
-        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2A4153)),
+        colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
         shape = RoundedCornerShape(20.dp),
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color.White.copy(alpha = 0.08f), RoundedCornerShape(20.dp))
+            .border(1.dp, Color(0xFF7CC7DE).copy(alpha = 0.6f), RoundedCornerShape(20.dp))
     ) {
         Text(title, color = Color.White, fontWeight = FontWeight.SemiBold)
     }
@@ -1834,18 +1913,27 @@ private fun TopPillButton(
 ) {
     Card(
         modifier = modifier,
-        colors = CardDefaults.cardColors(containerColor = Color(0xCC22394C)),
-        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0x1222394C)),
+        shape = RoundedCornerShape(18.dp),
         onClick = onClick
     ) {
         Row(
             modifier = Modifier
-                .padding(horizontal = 16.dp, vertical = 14.dp),
+                .background(Color.White.copy(alpha = 0.08f))
+                .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(18.dp))
+                .padding(horizontal = 14.dp, vertical = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(icon, contentDescription = title, tint = Color(0xFFD0DFEA), modifier = Modifier.size(18.dp))
-            Text(title, color = Color.White, fontWeight = FontWeight.Medium)
+            Box(
+                modifier = Modifier
+                    .size(26.dp)
+                    .background(Color.White.copy(alpha = 0.08f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, contentDescription = title, tint = Color(0xFFD0DFEA), modifier = Modifier.size(13.dp))
+            }
+            Text(title, color = Color.White.copy(alpha = 0.9f), fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
         }
     }
 }
@@ -1856,6 +1944,7 @@ private fun HomeFeatureCard(
     onClick: () -> Unit
 ) {
     Card(
+        modifier = Modifier.shadow(18.dp, RoundedCornerShape(28.dp), clip = false),
         colors = CardDefaults.cardColors(containerColor = Color.Transparent),
         shape = RoundedCornerShape(28.dp),
         onClick = onClick
@@ -2294,6 +2383,7 @@ private fun HomeActionIllustration(
 @Composable
 private fun LoadingCard() {
     Card(
+        modifier = Modifier.shadow(12.dp, RoundedCornerShape(24.dp), clip = false),
         colors = CardDefaults.cardColors(containerColor = Color(0xCC22394C)),
         shape = RoundedCornerShape(24.dp)
     ) {
@@ -2334,6 +2424,7 @@ private fun SearchCard(
     onSubmit: () -> Unit
 ) {
     Card(
+        modifier = Modifier.shadow(12.dp, RoundedCornerShape(24.dp), clip = false),
         colors = CardDefaults.cardColors(containerColor = Color(0xCC22394C)),
         shape = RoundedCornerShape(24.dp)
     ) {
@@ -2354,6 +2445,7 @@ private fun ContentCard(
     onClick: () -> Unit
 ) {
     Card(
+        modifier = Modifier.shadow(10.dp, RoundedCornerShape(22.dp), clip = false),
         colors = CardDefaults.cardColors(containerColor = Color(0xB323394C)),
         shape = RoundedCornerShape(22.dp),
         onClick = onClick
