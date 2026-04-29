@@ -117,9 +117,6 @@ import app.sanctuary.android.data.CommitmentStatus
 import app.sanctuary.android.data.FavoriteItemType
 import app.sanctuary.android.data.UserNovenaCommitment
 import app.sanctuary.android.ui.theme.SanctuaryTheme
-import app.sanctuary.android.ui.theme.SanctuaryGlowBlue
-import app.sanctuary.android.ui.theme.SanctuaryGlowGold
-import app.sanctuary.android.ui.theme.SanctuaryGlowRose
 import app.sanctuary.android.ui.theme.SanctuaryGradientBottom
 import app.sanctuary.android.ui.theme.SanctuaryGradientMid
 import app.sanctuary.android.ui.theme.SanctuaryGradientTop
@@ -302,27 +299,6 @@ private fun SanctuaryBackdrop() {
                 )
             )
     ) {
-        Box(
-            modifier = Modifier
-                .size(340.dp)
-                .offset(x = 110.dp, y = (-240).dp)
-                .background(SanctuaryGlowBlue.copy(alpha = 0.24f), CircleShape)
-                .blur(26.dp)
-        )
-        Box(
-            modifier = Modifier
-                .size(280.dp)
-                .offset(x = (-130).dp, y = (-40).dp)
-                .background(SanctuaryGlowGold.copy(alpha = 0.16f), CircleShape)
-                .blur(28.dp)
-        )
-        Box(
-            modifier = Modifier
-                .size(260.dp)
-                .offset(x = 120.dp, y = 260.dp)
-                .background(SanctuaryGlowRose.copy(alpha = 0.14f), CircleShape)
-                .blur(32.dp)
-        )
         Box(
             modifier = Modifier
                 .matchParentSize()
