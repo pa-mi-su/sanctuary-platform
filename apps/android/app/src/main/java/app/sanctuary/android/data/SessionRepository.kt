@@ -226,7 +226,7 @@ class SessionRepository(
     }
 
     suspend fun listNovenaCommitments(): List<UserNovenaCommitment> = withContext(Dispatchers.IO) {
-        runApiCall { api.listNovenaCommitments() }
+        runApiCall { authenticatedApi().listNovenaCommitments() }
             .mapNotNull { response ->
                 val status = when (response.status.lowercase()) {
                     "active" -> CommitmentStatus.Active
@@ -252,7 +252,7 @@ class SessionRepository(
     }
 
     suspend fun listFavorites(): List<UserFavorite> = withContext(Dispatchers.IO) {
-        runApiCall { api.listFavorites() }
+        runApiCall { authenticatedApi().listFavorites() }
             .mapNotNull { response ->
                 val itemType = when (response.itemType.lowercase()) {
                     "saint" -> FavoriteItemType.Saint
@@ -275,9 +275,9 @@ class SessionRepository(
         enabled: Boolean
     ) = withContext(Dispatchers.IO) {
         if (enabled) {
-            runApiCall { api.saveFavorite(itemType.name.lowercase(), itemId) }
+            runApiCall { authenticatedApi().saveFavorite(itemType.name.lowercase(), itemId) }
         } else {
-            runApiCall { api.deleteFavorite(itemType.name.lowercase(), itemId) }
+            runApiCall { authenticatedApi().deleteFavorite(itemType.name.lowercase(), itemId) }
         }
     }
 
@@ -369,7 +369,7 @@ class SessionRepository(
         novenaId: String,
         request: UserNovenaCommitmentRequest
     ): UserNovenaCommitment {
-        return runApiCall { api.saveNovenaCommitment(novenaId, request) }
+        return runApiCall { authenticatedApi().saveNovenaCommitment(novenaId, request) }
             .let { response ->
                 UserNovenaCommitment(
                     novenaId = response.novenaId,
@@ -423,7 +423,7 @@ class SessionRepository(
 
     private suspend fun loadProfile(session: StoredSession): SessionBootstrapResult {
         return try {
-            val profile = runApiCall { api.me() }.toUserProfile(session)
+            val profile = runApiCall { authenticatedApi(session).me() }.toUserProfile(session)
             SessionBootstrapResult.authenticated(session, profile)
         } catch (exception: Exception) {
             if (!session.refreshToken.isNullOrBlank()) {
@@ -432,6 +432,13 @@ class SessionRepository(
                 clearSession()
                 SessionBootstrapResult.failed(exception.message ?: "Please sign in to continue.")
             }
+        }
+    }
+
+    private fun authenticatedApi(session: StoredSession? = loadSession()): SanctuaryApiService {
+        val activeSession = session ?: throw SanctuaryApiException("Please sign in to continue.")
+        return SanctuaryApiFactory.create {
+            activeSession.idToken.ifBlank { activeSession.accessToken }
         }
     }
 }
