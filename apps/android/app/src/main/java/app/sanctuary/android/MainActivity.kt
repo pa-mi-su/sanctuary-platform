@@ -120,11 +120,15 @@ import app.sanctuary.android.ui.theme.SanctuaryTheme
 import app.sanctuary.android.ui.theme.SanctuaryGradientBottom
 import app.sanctuary.android.ui.theme.SanctuaryGradientMid
 import app.sanctuary.android.ui.theme.SanctuaryGradientTop
+import app.sanctuary.android.ui.theme.SanctuaryCardElevated
 import app.sanctuary.android.ui.theme.SanctuaryTabActive
 import app.sanctuary.android.ui.theme.SanctuaryTabBackground
 import app.sanctuary.android.ui.theme.SanctuaryTabBorder
 import app.sanctuary.android.ui.theme.SanctuaryTabInactive
 import kotlinx.coroutines.launch
+
+private fun Modifier.sanctuaryCardShadow(shape: RoundedCornerShape = RoundedCornerShape(24.dp)) =
+    this.shadow(14.dp, shape, clip = false)
 
 class MainActivity : ComponentActivity() {
     private val viewModel by viewModels<MainViewModel>()
@@ -1105,7 +1109,8 @@ private fun ChoiceCard(
     onClick: () -> Unit
 ) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = Color(0xCC22394C)),
+        modifier = Modifier.sanctuaryCardShadow(),
+        colors = CardDefaults.cardColors(containerColor = SanctuaryCardElevated),
         shape = RoundedCornerShape(24.dp),
         onClick = onClick,
         enabled = enabled
@@ -1123,7 +1128,8 @@ private fun ChoiceCard(
 @Composable
 private fun AuthCard(content: @Composable ColumnScope.() -> Unit) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = Color(0xCC22394C)),
+        modifier = Modifier.sanctuaryCardShadow(),
+        colors = CardDefaults.cardColors(containerColor = SanctuaryCardElevated),
         shape = RoundedCornerShape(24.dp)
     ) {
         Column(
@@ -1139,6 +1145,7 @@ private fun AuthCard(content: @Composable ColumnScope.() -> Unit) {
 @Composable
 private fun Banner(message: String, isError: Boolean) {
     Card(
+        modifier = Modifier.sanctuaryCardShadow(RoundedCornerShape(18.dp)),
         colors = CardDefaults.cardColors(
             containerColor = if (isError) Color(0x4D7B1E26) else Color(0x332F9FD9)
         ),
@@ -1510,7 +1517,8 @@ private fun MeSectionCard(
     content: @Composable ColumnScope.() -> Unit
 ) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = Color(0xCC22394C)),
+        modifier = Modifier.sanctuaryCardShadow(),
+        colors = CardDefaults.cardColors(containerColor = SanctuaryCardElevated),
         shape = RoundedCornerShape(24.dp)
     ) {
         Column(
@@ -2400,8 +2408,8 @@ private fun SearchCard(
     onSubmit: () -> Unit
 ) {
     Card(
-        modifier = Modifier.shadow(12.dp, RoundedCornerShape(24.dp), clip = false),
-        colors = CardDefaults.cardColors(containerColor = Color(0xCC22394C)),
+        modifier = Modifier.sanctuaryCardShadow(),
+        colors = CardDefaults.cardColors(containerColor = SanctuaryCardElevated),
         shape = RoundedCornerShape(24.dp)
     ) {
         Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -2421,8 +2429,8 @@ private fun ContentCard(
     onClick: () -> Unit
 ) {
     Card(
-        modifier = Modifier.shadow(10.dp, RoundedCornerShape(22.dp), clip = false),
-        colors = CardDefaults.cardColors(containerColor = Color(0xB323394C)),
+        modifier = Modifier.sanctuaryCardShadow(RoundedCornerShape(22.dp)),
+        colors = CardDefaults.cardColors(containerColor = Color(0xC3182F40)),
         shape = RoundedCornerShape(22.dp),
         onClick = onClick
     ) {
@@ -2776,7 +2784,8 @@ private fun DetailSectionCard(
     content: @Composable ColumnScope.() -> Unit
 ) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = Color(0xCC22394C)),
+        modifier = Modifier.sanctuaryCardShadow(),
+        colors = CardDefaults.cardColors(containerColor = SanctuaryCardElevated),
         shape = RoundedCornerShape(24.dp)
     ) {
         Column(
@@ -2823,7 +2832,8 @@ private fun InlineLoading(message: String) {
 @Composable
 private fun SectionHint(title: String, body: String) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = Color(0xB323394C)),
+        modifier = Modifier.sanctuaryCardShadow(RoundedCornerShape(22.dp)),
+        colors = CardDefaults.cardColors(containerColor = Color(0xC3182F40)),
         shape = RoundedCornerShape(22.dp)
     ) {
         Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
