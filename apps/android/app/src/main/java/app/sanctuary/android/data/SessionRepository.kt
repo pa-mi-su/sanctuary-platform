@@ -3,6 +3,7 @@ package app.sanctuary.android.data
 import android.content.Context
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
+import java.time.Instant
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -105,7 +106,77 @@ class SessionRepository(
                     slug = it.slug,
                     name = it.name,
                     feastLabel = it.feastLabel,
-                    summary = it.summary
+                    summary = it.summary,
+                    imageUrl = it.imageUrl
+                )
+            }
+    }
+
+    suspend fun fetchSaintDetail(slug: String): SaintDetail = withContext(Dispatchers.IO) {
+        runApiCall { api.getSaintDetail(slug = slug) }
+            .let {
+                SaintDetail(
+                    id = it.id,
+                    slug = it.slug,
+                    name = it.name,
+                    feastLabel = it.feastLabel,
+                    summary = it.summary,
+                    biography = it.biography,
+                    imageUrl = it.imageUrl,
+                    sources = it.sources.orEmpty().map { source ->
+                        SaintSource(
+                            title = source.text ?: source.url ?: "Source",
+                            url = source.url
+                        )
+                    }
+                )
+            }
+    }
+
+    suspend fun listSaintsByFeastDay(month: Int, day: Int): List<SaintSummary> = withContext(Dispatchers.IO) {
+        runApiCall { api.listSaintsByDay(month = month, day = day) }
+            .map { it.toDomain() }
+    }
+
+    suspend fun listPrayers(query: String): List<PrayerSummary> = withContext(Dispatchers.IO) {
+        runApiCall { api.listPrayers(query = query.trim()) }
+            .map { prayer ->
+                PrayerSummary(
+                    id = prayer.id,
+                    slug = prayer.slug,
+                    title = prayer.title,
+                    bodyPreview = prayer.bodyPreview,
+                    category = prayer.category,
+                    imageUrl = prayer.imageUrl
+                )
+            }
+    }
+
+    suspend fun fetchPrayerDetail(slug: String): PrayerDetail = withContext(Dispatchers.IO) {
+        runApiCall { api.getPrayerDetail(slug = slug) }
+            .let { prayer ->
+                PrayerDetail(
+                    id = prayer.id,
+                    slug = prayer.slug,
+                    title = prayer.title,
+                    alternateTitle = prayer.alternateTitle,
+                    body = prayer.body,
+                    note = prayer.note,
+                    category = prayer.category,
+                    imageUrl = prayer.imageUrl,
+                    sourceTitle = prayer.sourceTitle,
+                    sourceType = prayer.sourceType,
+                    tags = prayer.tags.orEmpty()
+                )
+            }
+    }
+
+    suspend fun listSaintsInRange(start: String, end: String): List<SaintDateGroup> = withContext(Dispatchers.IO) {
+        runApiCall { api.listSaintsInRange(start = start, end = end) }
+            .map { group ->
+                SaintDateGroup(
+                    date = group.date,
+                    saints = group.saints.map { it.toDomain() }
                 )
             }
     }
@@ -119,7 +190,192 @@ class SessionRepository(
                     title = it.title,
                     description = it.description,
                     durationDays = it.durationDays,
-                    intentions = it.intentions.orEmpty()
+                    intentions = it.intentions.orEmpty(),
+                    imageUrl = it.imageUrl
+                )
+            }
+    }
+
+    suspend fun fetchNovenaDetail(slug: String): NovenaDetail = withContext(Dispatchers.IO) {
+        runApiCall { api.getNovenaDetail(slug = slug) }
+            .let {
+                NovenaDetail(
+                    id = it.id,
+                    slug = it.slug,
+                    title = it.title,
+                    description = it.description,
+                    durationDays = it.durationDays,
+                    imageUrl = it.imageUrl,
+                    tags = it.tags.orEmpty(),
+                    intentions = it.intentions.orEmpty(),
+                    days = it.days.orEmpty().map { day ->
+                        NovenaDayDetail(
+                            dayNumber = day.dayNumber,
+                            title = day.title,
+                            openingPrayer = day.openingPrayer,
+                            meditation = day.meditation,
+                            closingPrayer = day.closingPrayer,
+                            scripture = day.scripture,
+                            prayer = day.prayer,
+                            reflection = day.reflection,
+                            body = day.body
+                        )
+                    }
+                )
+            }
+    }
+
+    suspend fun listNovenaCommitments(): List<UserNovenaCommitment> = withContext(Dispatchers.IO) {
+        runApiCall { authenticatedApi().listNovenaCommitments() }
+            .mapNotNull { response ->
+                val status = when (response.status.lowercase()) {
+                    "active" -> CommitmentStatus.Active
+                    "completed" -> CommitmentStatus.Completed
+                    else -> null
+                } ?: return@mapNotNull null
+
+                UserNovenaCommitment(
+                    novenaId = response.novenaId,
+                    startedAt = response.startedAt,
+                    currentDay = response.currentDay,
+                    completedDays = response.completedDays.sorted(),
+                    reminder = ReminderConfig(
+                        enabled = response.reminderEnabled,
+                        morningHour = response.reminderMorningHour,
+                        eveningHour = response.reminderEveningHour,
+                        timeZoneId = response.reminderTimeZoneId
+                    ),
+                    status = status,
+                    updatedAt = response.updatedAt
+                )
+            }
+    }
+
+    suspend fun listFavorites(): List<UserFavorite> = withContext(Dispatchers.IO) {
+        runApiCall { authenticatedApi().listFavorites() }
+            .mapNotNull { response ->
+                val itemType = when (response.itemType.lowercase()) {
+                    "saint" -> FavoriteItemType.Saint
+                    "novena" -> FavoriteItemType.Novena
+                    "prayer" -> FavoriteItemType.Prayer
+                    else -> null
+                } ?: return@mapNotNull null
+
+                UserFavorite(
+                    itemType = itemType,
+                    itemId = response.itemId,
+                    createdAt = response.createdAt
+                )
+            }
+    }
+
+    suspend fun updateReminderPreferences(
+        novenaEnabled: Boolean,
+        dailyEnabled: Boolean
+    ): UserProfile = withContext(Dispatchers.IO) {
+        val session = loadSession() ?: throw SanctuaryApiException("Please sign in to continue.")
+        val currentProfile = runApiCall { authenticatedApi(session).me() }.toUserProfile(session)
+        val updatedProfile = runApiCall {
+            authenticatedApi(session).updateMePreferences(
+                UserPreferencesUpdateRequest(
+                    preferredLanguage = currentProfile.preferredLanguage ?: "en",
+                    timeZoneId = currentProfile.timeZoneId ?: java.util.TimeZone.getDefault().id,
+                    novenaRemindersEnabled = novenaEnabled,
+                    feastRemindersEnabled = dailyEnabled,
+                    emailUpdatesEnabled = currentProfile.emailUpdatesEnabled,
+                    onboardingCompleted = currentProfile.onboardingCompleted
+                )
+            )
+        }
+        updatedProfile.toUserProfile(session)
+    }
+
+    suspend fun toggleFavorite(
+        itemType: FavoriteItemType,
+        itemId: String,
+        enabled: Boolean
+    ) = withContext(Dispatchers.IO) {
+        if (enabled) {
+            runApiCall { authenticatedApi().saveFavorite(itemType.name.lowercase(), itemId) }
+        } else {
+            runApiCall { authenticatedApi().deleteFavorite(itemType.name.lowercase(), itemId) }
+        }
+    }
+
+    suspend fun startNovena(novenaId: String): UserNovenaCommitment = withContext(Dispatchers.IO) {
+        val now = Instant.now().toString()
+        saveNovenaCommitment(
+            novenaId = novenaId,
+            request = UserNovenaCommitmentRequest(
+                startedAt = now,
+                currentDay = 1,
+                completedDays = emptyList(),
+                reminderEnabled = false,
+                reminderMorningHour = null,
+                reminderEveningHour = null,
+                reminderTimeZoneId = java.util.TimeZone.getDefault().id,
+                status = "active"
+            )
+        )
+    }
+
+    suspend fun stopNovena(novenaId: String) = withContext(Dispatchers.IO) {
+        runApiCall { api.deleteNovenaCommitment(novenaId) }
+    }
+
+    suspend fun completeCurrentNovenaDay(
+        novenaId: String,
+        totalDays: Int
+    ): UserNovenaCommitment = withContext(Dispatchers.IO) {
+        val existing = listNovenaCommitments()
+            .firstOrNull { it.novenaId == novenaId && it.status == CommitmentStatus.Active }
+            ?: throw SanctuaryApiException("No active novena was found to update.")
+
+        val dayToComplete = existing.currentDay
+        val completedDays = (existing.completedDays + dayToComplete).toSet().sorted()
+        val reachedEnd = dayToComplete >= maxOf(1, totalDays)
+
+        saveNovenaCommitment(
+            novenaId = novenaId,
+            request = UserNovenaCommitmentRequest(
+                startedAt = existing.startedAt,
+                currentDay = if (reachedEnd) maxOf(1, totalDays) else maxOf(existing.currentDay, dayToComplete + 1),
+                completedDays = if (reachedEnd) (1..maxOf(1, totalDays)).toList() else completedDays,
+                reminderEnabled = existing.reminder.enabled,
+                reminderMorningHour = existing.reminder.morningHour,
+                reminderEveningHour = existing.reminder.eveningHour,
+                reminderTimeZoneId = existing.reminder.timeZoneId,
+                status = if (reachedEnd) "completed" else "active"
+            )
+        )
+    }
+
+    suspend fun listNovenasByIntentions(query: String): List<NovenaSummary> = withContext(Dispatchers.IO) {
+        runApiCall { api.listNovenasByIntentions(query = query.trim()) }
+            .map { it.toDomain() }
+    }
+
+    suspend fun listNovenaCalendarRange(start: String, end: String): List<NovenaCalendarDate> = withContext(Dispatchers.IO) {
+        runApiCall { api.listNovenasCalendarRange(start = start, end = end) }
+            .map { entry ->
+                NovenaCalendarDate(
+                    date = entry.date,
+                    novenas = entry.novenas.map { it.toDomain() },
+                    startingNovena = entry.startingNovena?.toDomain()
+                )
+            }
+    }
+
+    suspend fun listLiturgicalRange(start: String, end: String): List<LiturgicalDay> = withContext(Dispatchers.IO) {
+        runApiCall { api.listLiturgicalRange(start = start, end = end) }
+            .map { day ->
+                LiturgicalDay(
+                    date = day.date,
+                    season = day.season,
+                    primaryRank = day.primaryRank,
+                    observances = day.observances,
+                    readingsUrl = day.readingsUrl,
+                    rankType = day.rankType
                 )
             }
     }
@@ -128,6 +384,32 @@ class SessionRepository(
 
     fun logout() {
         clearSession()
+    }
+
+    private suspend fun saveNovenaCommitment(
+        novenaId: String,
+        request: UserNovenaCommitmentRequest
+    ): UserNovenaCommitment {
+        return runApiCall { authenticatedApi().saveNovenaCommitment(novenaId, request) }
+            .let { response ->
+                UserNovenaCommitment(
+                    novenaId = response.novenaId,
+                    startedAt = response.startedAt,
+                    currentDay = response.currentDay,
+                    completedDays = response.completedDays.sorted(),
+                    reminder = ReminderConfig(
+                        enabled = response.reminderEnabled,
+                        morningHour = response.reminderMorningHour,
+                        eveningHour = response.reminderEveningHour,
+                        timeZoneId = response.reminderTimeZoneId
+                    ),
+                    status = when (response.status.lowercase()) {
+                        "completed" -> CommitmentStatus.Completed
+                        else -> CommitmentStatus.Active
+                    },
+                    updatedAt = response.updatedAt
+                )
+            }
     }
 
     private fun loadSession(): StoredSession? {
@@ -162,7 +444,7 @@ class SessionRepository(
 
     private suspend fun loadProfile(session: StoredSession): SessionBootstrapResult {
         return try {
-            val profile = runApiCall { api.me() }.toUserProfile(session)
+            val profile = runApiCall { authenticatedApi(session).me() }.toUserProfile(session)
             SessionBootstrapResult.authenticated(session, profile)
         } catch (exception: Exception) {
             if (!session.refreshToken.isNullOrBlank()) {
@@ -173,7 +455,33 @@ class SessionRepository(
             }
         }
     }
+
+    private fun authenticatedApi(session: StoredSession? = loadSession()): SanctuaryApiService {
+        val activeSession = session ?: throw SanctuaryApiException("Please sign in to continue.")
+        return SanctuaryApiFactory.create {
+            activeSession.idToken.ifBlank { activeSession.accessToken }
+        }
+    }
 }
+
+private fun SaintSummaryResponse.toDomain(): SaintSummary = SaintSummary(
+    id = id,
+    slug = slug,
+    name = name,
+    feastLabel = feastLabel,
+    summary = summary,
+    imageUrl = imageUrl
+)
+
+private fun NovenaSummaryResponse.toDomain(): NovenaSummary = NovenaSummary(
+    id = id,
+    slug = slug,
+    title = title,
+    description = description,
+    durationDays = durationDays,
+    intentions = intentions.orEmpty(),
+    imageUrl = imageUrl
+)
 
 data class SessionBootstrapResult(
     val session: StoredSession?,
