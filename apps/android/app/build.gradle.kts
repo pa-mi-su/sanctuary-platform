@@ -8,6 +8,10 @@ val uploadKeystorePath = System.getenv("ANDROID_UPLOAD_KEYSTORE_PATH")
 val uploadKeystorePassword = System.getenv("ANDROID_UPLOAD_KEYSTORE_PASSWORD")
 val uploadKeyAlias = System.getenv("ANDROID_UPLOAD_KEY_ALIAS")
 val uploadKeyPassword = System.getenv("ANDROID_UPLOAD_KEY_PASSWORD")
+val ciVersionCode =
+    System.getenv("ANDROID_VERSION_CODE")?.toIntOrNull()
+        ?: System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull()
+        ?: 1
 val hasUploadSigning =
     !uploadKeystorePath.isNullOrBlank() &&
         !uploadKeystorePassword.isNullOrBlank() &&
@@ -22,7 +26,7 @@ android {
         applicationId = "com.pamisu.sanctuary"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
+        versionCode = ciVersionCode
         versionName = "0.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
