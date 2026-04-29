@@ -84,9 +84,12 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -1894,11 +1897,9 @@ private fun HomeFeatureCard(
                             .background(Color.White.copy(alpha = 0.12f), RoundedCornerShape(14.dp)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            imageVector = action.icon,
-                            contentDescription = action.title,
-                            tint = action.iconTint,
-                            modifier = Modifier.size(18.dp)
+                        HomeActionBadgeGlyph(
+                            action = action,
+                            modifier = Modifier.size(22.dp)
                         )
                     }
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -1934,13 +1935,12 @@ private fun HomeFeatureCard(
                         .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(22.dp))
                 )
 
-                Icon(
-                    imageVector = action.icon,
-                    contentDescription = null,
-                    tint = Color.White.copy(alpha = 0.22f),
+                HomeActionIllustration(
+                    action = action,
                     modifier = Modifier
                         .align(Alignment.Center)
-                        .size(48.dp)
+                        .fillMaxSize()
+                        .padding(horizontal = 6.dp, vertical = 4.dp)
                 )
 
                 Box(
@@ -1990,6 +1990,305 @@ private fun HomeAction.cardBrush(): Brush = when (this) {
     HomeAction.Daily -> Brush.linearGradient(
         listOf(Color(0xFF1C514C).copy(alpha = 0.90f), Color(0xFF143B4D).copy(alpha = 0.74f))
     )
+}
+
+@Composable
+private fun HomeActionBadgeGlyph(
+    action: HomeAction,
+    modifier: Modifier = Modifier
+) {
+    Canvas(modifier = modifier) {
+        val gold = Color(0xFFF2D37B)
+        val cyan = Color(0xFF9DDFF4)
+        val rose = Color(0xFFF2A8C4)
+        val ivory = Color(0xFFF1E6CF)
+        val navy = Color(0xFF173244)
+        val stroke = size.minDimension * 0.09f
+        val center = Offset(size.width / 2f, size.height / 2f)
+
+        when (action) {
+            HomeAction.Saints -> {
+                drawCircle(gold, radius = size.minDimension * 0.12f, center = Offset(size.width * 0.5f, size.height * 0.32f))
+                drawCircle(navy, radius = size.minDimension * 0.06f, center = Offset(size.width * 0.5f, size.height * 0.25f))
+                drawCircle(gold.copy(alpha = 0.85f), radius = size.minDimension * 0.09f, center = Offset(size.width * 0.28f, size.height * 0.44f))
+                drawCircle(gold.copy(alpha = 0.85f), radius = size.minDimension * 0.09f, center = Offset(size.width * 0.72f, size.height * 0.44f))
+                drawArc(
+                    color = gold,
+                    startAngle = 200f,
+                    sweepAngle = 140f,
+                    useCenter = false,
+                    topLeft = Offset(size.width * 0.13f, size.height * 0.45f),
+                    size = Size(size.width * 0.74f, size.height * 0.34f),
+                    style = Stroke(width = stroke, cap = StrokeCap.Round)
+                )
+            }
+            HomeAction.Novenas -> {
+                drawRoundRect(
+                    color = Color(0xFF163245),
+                    topLeft = Offset(size.width * 0.16f, size.height * 0.16f),
+                    size = Size(size.width * 0.42f, size.height * 0.58f),
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(size.minDimension * 0.12f)
+                )
+                repeat(2) { index ->
+                    drawLine(
+                        color = cyan.copy(alpha = 0.65f),
+                        start = Offset(size.width * 0.24f, size.height * (0.30f + 0.12f * index)),
+                        end = Offset(size.width * 0.46f, size.height * (0.30f + 0.12f * index)),
+                        strokeWidth = stroke * 0.8f,
+                        cap = StrokeCap.Round
+                    )
+                }
+                drawLine(gold, Offset(size.width * 0.36f, size.height * 0.54f), Offset(size.width * 0.36f, size.height * 0.72f), stroke, StrokeCap.Round)
+                drawLine(gold, Offset(size.width * 0.27f, size.height * 0.63f), Offset(size.width * 0.45f, size.height * 0.63f), stroke, StrokeCap.Round)
+                drawArc(
+                    color = Color(0xFFD9C49B),
+                    startAngle = -70f,
+                    sweepAngle = 150f,
+                    useCenter = false,
+                    topLeft = Offset(size.width * 0.58f, size.height * 0.14f),
+                    size = Size(size.width * 0.22f, size.height * 0.52f),
+                    style = Stroke(width = stroke * 0.72f, cap = StrokeCap.Round)
+                )
+                listOf(0.0f, 0.12f, 0.24f, 0.36f).forEach { fraction ->
+                    drawCircle(
+                        color = gold,
+                        radius = size.minDimension * 0.045f,
+                        center = Offset(size.width * 0.73f, size.height * (0.20f + fraction))
+                    )
+                }
+            }
+            HomeAction.Liturgical -> {
+                drawRoundRect(
+                    color = Color(0xFFAEC7F0),
+                    topLeft = Offset(size.width * 0.2f, size.height * 0.22f),
+                    size = Size(size.width * 0.6f, size.height * 0.52f),
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(size.minDimension * 0.12f)
+                )
+                drawRoundRect(
+                    color = Color(0xFF6D88B8),
+                    topLeft = Offset(size.width * 0.2f, size.height * 0.22f),
+                    size = Size(size.width * 0.6f, size.height * 0.16f)
+                )
+                drawLine(Color(0xFF50698F), Offset(size.width * 0.32f, size.height * 0.16f), Offset(size.width * 0.32f, size.height * 0.30f), stroke * 0.8f, StrokeCap.Round)
+                drawLine(Color(0xFF50698F), Offset(size.width * 0.68f, size.height * 0.16f), Offset(size.width * 0.68f, size.height * 0.30f), stroke * 0.8f, StrokeCap.Round)
+                drawLine(Color(0xFF50698F), Offset(size.width * 0.28f, size.height * 0.5f), Offset(size.width * 0.72f, size.height * 0.5f), stroke * 0.72f, StrokeCap.Round)
+            }
+            HomeAction.Prayers -> {
+                drawCircle(gold.copy(alpha = 0.4f), radius = size.minDimension * 0.26f, center = Offset(size.width * 0.58f, size.height * 0.24f))
+                drawOval(
+                    color = gold,
+                    topLeft = Offset(size.width * 0.48f, size.height * 0.12f),
+                    size = Size(size.width * 0.18f, size.height * 0.22f)
+                )
+                drawRoundRect(
+                    color = ivory,
+                    topLeft = Offset(size.width * 0.44f, size.height * 0.34f),
+                    size = Size(size.width * 0.18f, size.height * 0.4f),
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(size.minDimension * 0.04f)
+                )
+                drawLine(
+                    color = Color(0xFF244A5B),
+                    start = Offset(size.width * 0.53f, size.height * 0.40f),
+                    end = Offset(size.width * 0.53f, size.height * 0.64f),
+                    strokeWidth = stroke * 0.72f,
+                    cap = StrokeCap.Round
+                )
+                drawLine(
+                    color = Color(0xFF244A5B),
+                    start = Offset(size.width * 0.45f, size.height * 0.52f),
+                    end = Offset(size.width * 0.61f, size.height * 0.52f),
+                    strokeWidth = stroke * 0.72f,
+                    cap = StrokeCap.Round
+                )
+            }
+            HomeAction.Intentions -> {
+                val heart = androidx.compose.ui.graphics.Path().apply {
+                    moveTo(center.x, size.height * 0.72f)
+                    cubicTo(size.width * 0.18f, size.height * 0.54f, size.width * 0.16f, size.height * 0.28f, size.width * 0.34f, size.height * 0.28f)
+                    cubicTo(size.width * 0.46f, size.height * 0.28f, size.width * 0.5f, size.height * 0.38f, center.x, size.height * 0.44f)
+                    cubicTo(size.width * 0.5f, size.height * 0.38f, size.width * 0.54f, size.height * 0.28f, size.width * 0.66f, size.height * 0.28f)
+                    cubicTo(size.width * 0.84f, size.height * 0.28f, size.width * 0.82f, size.height * 0.54f, center.x, size.height * 0.72f)
+                    close()
+                }
+                drawPath(heart, rose.copy(alpha = 0.8f))
+                drawLine(Color.White.copy(alpha = 0.8f), Offset(center.x, size.height * 0.38f), Offset(center.x, size.height * 0.56f), stroke, StrokeCap.Round)
+                drawLine(Color.White.copy(alpha = 0.8f), Offset(size.width * 0.41f, size.height * 0.47f), Offset(size.width * 0.59f, size.height * 0.47f), stroke, StrokeCap.Round)
+            }
+            HomeAction.Daily -> {
+                drawCircle(gold.copy(alpha = 0.75f), radius = size.minDimension * 0.09f, center = Offset(size.width * 0.74f, size.height * 0.22f))
+                drawLine(gold, Offset(size.width * 0.5f, size.height * 0.12f), Offset(size.width * 0.5f, size.height * 0.34f), stroke, StrokeCap.Round)
+                drawLine(gold, Offset(size.width * 0.40f, size.height * 0.23f), Offset(size.width * 0.60f, size.height * 0.23f), stroke, StrokeCap.Round)
+                val pageColor = Color(0xFFE8DCC2)
+                drawArc(
+                    color = pageColor,
+                    startAngle = 180f,
+                    sweepAngle = 180f,
+                    useCenter = true,
+                    topLeft = Offset(size.width * 0.18f, size.height * 0.50f),
+                    size = Size(size.width * 0.32f, size.height * 0.18f)
+                )
+                drawArc(
+                    color = pageColor,
+                    startAngle = 180f,
+                    sweepAngle = 180f,
+                    useCenter = true,
+                    topLeft = Offset(size.width * 0.50f, size.height * 0.50f),
+                    size = Size(size.width * 0.32f, size.height * 0.18f)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun HomeActionIllustration(
+    action: HomeAction,
+    modifier: Modifier = Modifier
+) {
+    Canvas(modifier = modifier) {
+        val gold = Color(0xFFF7DF91)
+        val cyan = Color(0xFF8EE0F2)
+        val rose = Color(0xFFF2ACC8)
+        val ivory = Color(0xFFF2E8D0)
+        val navy = Color(0xFF102E3D)
+        val deep = Color(0xFF243949)
+        val stroke = size.minDimension * 0.035f
+
+        when (action) {
+            HomeAction.Saints -> {
+                drawCircle(gold.copy(alpha = 0.35f), radius = size.minDimension * 0.34f, center = Offset(size.width * 0.64f, size.height * 0.26f))
+                drawPath(
+                    path = androidx.compose.ui.graphics.Path().apply {
+                        moveTo(size.width * 0.16f, size.height * 0.82f)
+                        quadraticBezierTo(size.width * 0.50f, size.height * 0.62f, size.width * 0.84f, size.height * 0.82f)
+                        lineTo(size.width * 0.84f, size.height)
+                        lineTo(size.width * 0.16f, size.height)
+                        close()
+                    },
+                    color = Color(0xFF2A5E72)
+                )
+                drawCircle(Color(0xFFD9C49B), radius = size.minDimension * 0.17f, center = Offset(size.width * 0.64f, size.height * 0.30f))
+                drawPath(
+                    path = androidx.compose.ui.graphics.Path().apply {
+                        moveTo(size.width * 0.48f, size.height * 0.28f)
+                        quadraticBezierTo(size.width * 0.54f, size.height * 0.08f, size.width * 0.82f, size.height * 0.20f)
+                        lineTo(size.width * 0.82f, size.height * 0.30f)
+                        close()
+                    },
+                    color = deep
+                )
+                drawLine(gold, Offset(size.width * 0.64f, size.height * 0.10f), Offset(size.width * 0.64f, size.height * 0.40f), stroke * 1.2f, StrokeCap.Round)
+                drawLine(gold, Offset(size.width * 0.50f, size.height * 0.25f), Offset(size.width * 0.78f, size.height * 0.25f), stroke * 1.2f, StrokeCap.Round)
+                drawLine(cyan.copy(alpha = 0.45f), Offset(size.width * 0.14f, size.height * 0.88f), Offset(size.width * 0.45f, size.height * 0.78f), stroke * 1.1f, StrokeCap.Round)
+                drawLine(gold.copy(alpha = 0.38f), Offset(size.width * 0.70f, size.height * 0.76f), Offset(size.width * 0.92f, size.height * 0.86f), stroke * 1.1f, StrokeCap.Round)
+            }
+            HomeAction.Novenas -> {
+                drawRoundRect(
+                    color = Color(0xFF102D3D),
+                    topLeft = Offset(size.width * 0.12f, size.height * 0.16f),
+                    size = Size(size.width * 0.34f, size.height * 0.54f),
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(size.minDimension * 0.10f)
+                )
+                drawLine(cyan.copy(alpha = 0.42f), Offset(size.width * 0.18f, size.height * 0.28f), Offset(size.width * 0.40f, size.height * 0.28f), stroke, StrokeCap.Round)
+                drawLine(Color.White.copy(alpha = 0.22f), Offset(size.width * 0.18f, size.height * 0.42f), Offset(size.width * 0.36f, size.height * 0.42f), stroke * 0.9f, StrokeCap.Round)
+                drawLine(Color.White.copy(alpha = 0.18f), Offset(size.width * 0.18f, size.height * 0.54f), Offset(size.width * 0.38f, size.height * 0.54f), stroke * 0.9f, StrokeCap.Round)
+                drawLine(gold, Offset(size.width * 0.29f, size.height * 0.58f), Offset(size.width * 0.29f, size.height * 0.76f), stroke, StrokeCap.Round)
+                drawLine(gold, Offset(size.width * 0.20f, size.height * 0.67f), Offset(size.width * 0.38f, size.height * 0.67f), stroke, StrokeCap.Round)
+                drawArc(
+                    color = Color(0xFFD9C49B),
+                    startAngle = -70f,
+                    sweepAngle = 170f,
+                    useCenter = false,
+                    topLeft = Offset(size.width * 0.56f, size.height * 0.12f),
+                    size = Size(size.width * 0.24f, size.height * 0.62f),
+                    style = Stroke(width = stroke * 0.9f, cap = StrokeCap.Round)
+                )
+                listOf(0.0f, 0.12f, 0.24f, 0.36f, 0.52f).forEach { fraction ->
+                    drawCircle(gold, radius = size.minDimension * 0.03f, center = Offset(size.width * 0.70f, size.height * (0.16f + fraction)))
+                }
+                drawLine(gold, Offset(size.width * 0.70f, size.height * 0.70f), Offset(size.width * 0.70f, size.height * 0.88f), stroke, StrokeCap.Round)
+                drawLine(gold, Offset(size.width * 0.61f, size.height * 0.79f), Offset(size.width * 0.79f, size.height * 0.79f), stroke, StrokeCap.Round)
+                drawArc(
+                    color = cyan.copy(alpha = 0.55f),
+                    startAngle = -68f,
+                    sweepAngle = 145f,
+                    useCenter = false,
+                    topLeft = Offset(size.width * 0.76f, size.height * 0.22f),
+                    size = Size(size.width * 0.18f, size.height * 0.44f),
+                    style = Stroke(width = stroke * 0.8f, cap = StrokeCap.Round)
+                )
+            }
+            HomeAction.Liturgical -> {
+                drawRoundRect(
+                    color = Color(0xFF9CB9E0),
+                    topLeft = Offset(size.width * 0.26f, size.height * 0.20f),
+                    size = Size(size.width * 0.34f, size.height * 0.40f),
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(size.minDimension * 0.08f)
+                )
+                drawRoundRect(
+                    color = Color(0xFF6E86B1),
+                    topLeft = Offset(size.width * 0.26f, size.height * 0.20f),
+                    size = Size(size.width * 0.34f, size.height * 0.12f)
+                )
+                drawLine(Color(0xFF50698F), Offset(size.width * 0.34f, size.height * 0.14f), Offset(size.width * 0.34f, size.height * 0.28f), stroke * 0.8f, StrokeCap.Round)
+                drawLine(Color(0xFF50698F), Offset(size.width * 0.52f, size.height * 0.14f), Offset(size.width * 0.52f, size.height * 0.28f), stroke * 0.8f, StrokeCap.Round)
+                drawLine(Color(0xFF50698F), Offset(size.width * 0.30f, size.height * 0.42f), Offset(size.width * 0.56f, size.height * 0.42f), stroke * 0.7f, StrokeCap.Round)
+            }
+            HomeAction.Prayers -> {
+                drawCircle(gold.copy(alpha = 0.30f), radius = size.minDimension * 0.30f, center = Offset(size.width * 0.56f, size.height * 0.22f))
+                drawOval(gold, Offset(size.width * 0.44f, size.height * 0.10f), Size(size.width * 0.14f, size.height * 0.18f))
+                drawRoundRect(
+                    color = ivory,
+                    topLeft = Offset(size.width * 0.42f, size.height * 0.30f),
+                    size = Size(size.width * 0.12f, size.height * 0.42f),
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(size.minDimension * 0.04f)
+                )
+                drawLine(Color(0xFF2C5363), Offset(size.width * 0.48f, size.height * 0.36f), Offset(size.width * 0.48f, size.height * 0.62f), stroke, StrokeCap.Round)
+                drawLine(Color(0xFF2C5363), Offset(size.width * 0.40f, size.height * 0.49f), Offset(size.width * 0.56f, size.height * 0.49f), stroke, StrokeCap.Round)
+                drawLine(cyan.copy(alpha = 0.35f), Offset(size.width * 0.14f, size.height * 0.78f), Offset(size.width * 0.48f, size.height * 0.70f), stroke * 1.1f, StrokeCap.Round)
+                drawLine(rose.copy(alpha = 0.40f), Offset(size.width * 0.56f, size.height * 0.70f), Offset(size.width * 0.86f, size.height * 0.78f), stroke * 1.1f, StrokeCap.Round)
+            }
+            HomeAction.Intentions -> {
+                val heart = androidx.compose.ui.graphics.Path().apply {
+                    moveTo(size.width * 0.50f, size.height * 0.74f)
+                    cubicTo(size.width * 0.24f, size.height * 0.56f, size.width * 0.22f, size.height * 0.24f, size.width * 0.38f, size.height * 0.24f)
+                    cubicTo(size.width * 0.46f, size.height * 0.24f, size.width * 0.50f, size.height * 0.34f, size.width * 0.50f, size.height * 0.40f)
+                    cubicTo(size.width * 0.50f, size.height * 0.34f, size.width * 0.54f, size.height * 0.24f, size.width * 0.62f, size.height * 0.24f)
+                    cubicTo(size.width * 0.78f, size.height * 0.24f, size.width * 0.76f, size.height * 0.56f, size.width * 0.50f, size.height * 0.74f)
+                    close()
+                }
+                drawPath(heart, rose.copy(alpha = 0.72f))
+                drawLine(Color.White.copy(alpha = 0.72f), Offset(size.width * 0.50f, size.height * 0.34f), Offset(size.width * 0.50f, size.height * 0.56f), stroke * 1.1f, StrokeCap.Round)
+                drawLine(Color.White.copy(alpha = 0.72f), Offset(size.width * 0.40f, size.height * 0.45f), Offset(size.width * 0.60f, size.height * 0.45f), stroke * 1.1f, StrokeCap.Round)
+                drawCircle(gold.copy(alpha = 0.76f), radius = size.minDimension * 0.04f, center = Offset(size.width * 0.20f, size.height * 0.70f))
+                drawCircle(cyan.copy(alpha = 0.70f), radius = size.minDimension * 0.03f, center = Offset(size.width * 0.82f, size.height * 0.18f))
+                drawLine(cyan.copy(alpha = 0.32f), Offset(size.width * 0.12f, size.height * 0.82f), Offset(size.width * 0.86f, size.height * 0.76f), stroke * 1.1f, StrokeCap.Round)
+            }
+            HomeAction.Daily -> {
+                drawCircle(gold.copy(alpha = 0.72f), radius = size.minDimension * 0.09f, center = Offset(size.width * 0.78f, size.height * 0.18f))
+                drawLine(gold, Offset(size.width * 0.54f, size.height * 0.18f), Offset(size.width * 0.54f, size.height * 0.44f), stroke * 1.1f, StrokeCap.Round)
+                drawLine(gold, Offset(size.width * 0.42f, size.height * 0.31f), Offset(size.width * 0.66f, size.height * 0.31f), stroke * 1.1f, StrokeCap.Round)
+                drawArc(
+                    color = Color(0xFFE8DCC2),
+                    startAngle = 180f,
+                    sweepAngle = 180f,
+                    useCenter = true,
+                    topLeft = Offset(size.width * 0.14f, size.height * 0.58f),
+                    size = Size(size.width * 0.28f, size.height * 0.18f)
+                )
+                drawArc(
+                    color = Color(0xFFE8DCC2),
+                    startAngle = 180f,
+                    sweepAngle = 180f,
+                    useCenter = true,
+                    topLeft = Offset(size.width * 0.42f, size.height * 0.58f),
+                    size = Size(size.width * 0.28f, size.height * 0.18f)
+                )
+                drawLine(Color(0xFF2B5663).copy(alpha = 0.44f), Offset(size.width * 0.20f, size.height * 0.66f), Offset(size.width * 0.38f, size.height * 0.66f), stroke * 0.7f, StrokeCap.Round)
+                drawLine(Color(0xFF2B5663).copy(alpha = 0.44f), Offset(size.width * 0.48f, size.height * 0.66f), Offset(size.width * 0.66f, size.height * 0.66f), stroke * 0.7f, StrokeCap.Round)
+            }
+        }
+    }
 }
 
 @Composable
