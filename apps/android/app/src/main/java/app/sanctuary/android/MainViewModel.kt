@@ -113,9 +113,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             _session.update { it.copy(status = SessionStatus.Loading, message = null, isErrorMessage = false) }
             val result = runCatching {
                 withTimeoutOrNull(10_000) { repository.bootstrap() }
-                    ?: SessionBootstrapResult.failed("Sanctuary took too long to prepare. Please try again.")
+                    ?: SessionBootstrapResult.signedOut()
             }.getOrElse { failure ->
-                SessionBootstrapResult.failed(failure.message ?: "Sanctuary could not finish preparing.")
+                SessionBootstrapResult.signedOut()
             }
             if (result.authenticated) {
                 _session.value = SessionUiState(
@@ -127,9 +127,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 refreshNovenaProgress()
             } else {
                 _session.value = SessionUiState(
-                    status = if (result.errorMessage != null) SessionStatus.Failed else SessionStatus.SignedOut,
-                    message = result.errorMessage,
-                    isErrorMessage = result.errorMessage != null
+                    status = SessionStatus.SignedOut
                 )
                 loadInitialContent()
                 _novenaProgress.value = NovenaProgressUiState()
