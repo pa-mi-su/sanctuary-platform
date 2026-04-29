@@ -1638,8 +1638,10 @@ private fun HomeHeroCard(session: SessionUiState) {
         ) {
             Text(
                 text = "#1 Catholic Prayer Companion",
+                modifier = Modifier.fillMaxWidth(),
                 color = Color(0xFF7AC8EA),
-                style = MaterialTheme.typography.labelLarge
+                style = MaterialTheme.typography.labelLarge,
+                textAlign = TextAlign.Center
             )
             Box(
                 modifier = Modifier
@@ -1650,22 +1652,28 @@ private fun HomeHeroCard(session: SessionUiState) {
             }
             Text(
                 text = "Welcome to your sanctuary",
+                modifier = Modifier.fillMaxWidth(),
                 color = Color.White,
                 fontSize = 34.sp,
                 lineHeight = 38.sp,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
             )
             Text(
                 text = "How do you want to connect with God?",
+                modifier = Modifier.fillMaxWidth(),
                 color = Color(0xFFE7F2FA),
                 fontSize = 22.sp,
                 lineHeight = 28.sp,
-                fontWeight = FontWeight.SemiBold
+                fontWeight = FontWeight.SemiBold,
+                textAlign = TextAlign.Center
             )
             Text(
                 text = "Prayer, liturgy, and saints in one calm place.",
+                modifier = Modifier.fillMaxWidth(),
                 color = Color(0xFFD0DFEA),
-                lineHeight = 22.sp
+                lineHeight = 22.sp,
+                textAlign = TextAlign.Center
             )
         }
     }
