@@ -75,7 +75,9 @@ data class NovenaProgressUiState(
 class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = SessionRepository(
         context = application.applicationContext,
-        api = SanctuaryApiFactory.create { _session.value.session?.accessToken }
+        api = SanctuaryApiFactory.create {
+            _session.value.session?.idToken ?: _session.value.session?.accessToken
+        }
     )
 
     private val _session = MutableStateFlow(
