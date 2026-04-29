@@ -150,6 +150,11 @@ private enum class CalendarMode(val label: String) {
     Month("Month")
 }
 
+private enum class AboutDocument {
+    Support,
+    Privacy
+}
+
 private enum class HomeAction(
     val title: String,
     val subtitle: String,
@@ -652,6 +657,7 @@ private fun AuthenticatedShell(
     var showPrayerSearch by rememberSaveable { mutableStateOf(false) }
     var dailyReadingsUrl by rememberSaveable { mutableStateOf<String?>(null) }
     var dailyReadingError by rememberSaveable { mutableStateOf<String?>(null) }
+    var aboutDocument by rememberSaveable { mutableStateOf<AboutDocument?>(null) }
     var saintsCalendarMode by rememberSaveable { mutableStateOf(CalendarMode.Day) }
     var novenasCalendarMode by rememberSaveable { mutableStateOf(CalendarMode.Day) }
     var liturgicalCalendarMode by rememberSaveable { mutableStateOf(CalendarMode.Month) }
@@ -831,16 +837,23 @@ private fun AuthenticatedShell(
 
         if (showAbout) {
             SanctuaryModalSheet(onDismissRequest = { showAbout = false }) {
-                DetailSheetScaffold(
-                    title = "About Sanctuary",
-                    subtitle = "A calm Catholic prayer companion."
-                ) {
-                    Text(
-                        text = "Sanctuary brings saints, novenas, liturgical rhythms, and your personal prayer progress into one place. Android is now moving onto the same real API-backed foundation as iOS.",
-                        color = Color(0xFFD0DFEA),
-                        lineHeight = 22.sp
-                    )
-                }
+                AboutOverviewSheet(
+                    onOpenDesktop = { dailyReadingsUrl = "https://mydailysanctuary.com" },
+                    onOpenUsccb = { dailyReadingsUrl = "https://bible.usccb.org/daily-bible-reading" },
+                    onOpenWikipedia = { dailyReadingsUrl = "https://www.wikipedia.org/" },
+                    onOpenSupport = { aboutDocument = AboutDocument.Support },
+                    onOpenPrivacy = { aboutDocument = AboutDocument.Privacy },
+                    onEmailSupport = { dailyReadingsUrl = "mailto:info@mydailysanctuary.com" }
+                )
+            }
+        }
+
+        aboutDocument?.let { document ->
+            SanctuaryModalSheet(onDismissRequest = { aboutDocument = null }) {
+                AboutDocumentSheet(
+                    document = document,
+                    onEmailSupport = { dailyReadingsUrl = "mailto:info@mydailysanctuary.com" }
+                )
             }
         }
 
@@ -1572,11 +1585,7 @@ private fun HomeHeroCard(session: SessionUiState) {
                 BrandLogoMark(size = 132.dp, corner = 30.dp, glowExtra = 44.dp)
             }
             Text(
-                text = if (session.status == SessionStatus.Authenticated) {
-                    "Welcome back to your sanctuary"
-                } else {
-                    "Welcome to your sanctuary"
-                },
+                text = "Welcome to your sanctuary",
                 color = Color.White,
                 fontSize = 34.sp,
                 lineHeight = 38.sp,
@@ -1595,6 +1604,163 @@ private fun HomeHeroCard(session: SessionUiState) {
                 lineHeight = 22.sp
             )
         }
+    }
+}
+
+@Composable
+private fun AboutOverviewSheet(
+    onOpenDesktop: () -> Unit,
+    onOpenUsccb: () -> Unit,
+    onOpenWikipedia: () -> Unit,
+    onOpenSupport: () -> Unit,
+    onOpenPrivacy: () -> Unit,
+    onEmailSupport: () -> Unit
+) {
+    DetailSheetScaffold(
+        title = "About Sanctuary",
+        subtitle = "Sanctuary is a Catholic companion for prayer, daily readings, saints, liturgical living, and novenas."
+    ) {
+        AboutInfoCard(title = "Sanctuary") {
+            Text("Sanctuary", color = Color(0xFF7AC8EA), fontWeight = FontWeight.Bold, fontSize = 13.sp)
+            Text("About Sanctuary", color = Color.White, fontSize = 28.sp, lineHeight = 32.sp, fontWeight = FontWeight.Bold)
+            Text(
+                "Sanctuary is a Catholic companion for prayer, daily readings, saints, liturgical living, and novenas.",
+                color = Color(0xFFD0DFEA),
+                lineHeight = 21.sp
+            )
+        }
+
+        AboutInfoCard(title = "Use Sanctuary on desktop") {
+            Text(
+                "You can also use Sanctuary on desktop for the full web experience, including daily readings, saints, liturgical browsing, novenas, and your synced account.",
+                color = Color(0xFFD0DFEA),
+                lineHeight = 21.sp
+            )
+            PrimarySheetButton(title = "Open mydailysanctuary.com", onClick = onOpenDesktop)
+        }
+
+        AboutInfoCard(title = "What's in the app") {
+            Text("• Liturgical: day, week, and month calendar views with season context and direct daily readings links.", color = Color(0xFFD0DFEA), lineHeight = 21.sp)
+            Text("• Saints: date-aware saint listings, detailed profiles, and searchable content.", color = Color(0xFFD0DFEA), lineHeight = 21.sp)
+            Text("• Novenas: rule-based start dates, end-date tracking, intentions search, and progress management.", color = Color(0xFFD0DFEA), lineHeight = 21.sp)
+        }
+
+        AboutInfoCard(title = "References") {
+            Text("Sanctuary currently references these public sources for readings and saint information.", color = Color(0xFFD0DFEA), lineHeight = 21.sp)
+            Text("• USCCB (daily readings)", color = Color(0xFFD0DFEA))
+            Text("• Wikipedia", color = Color(0xFFD0DFEA))
+            PrimarySheetButton(title = "USCCB Daily Bible Reading", onClick = onOpenUsccb)
+            PrimarySheetButton(title = "Wikipedia", onClick = onOpenWikipedia)
+        }
+
+        AboutInfoCard(title = "Contact & feedback") {
+            Text(
+                "To report bugs, request corrections, or send feedback, contact us and include the page or feature you were using along with a short description of the issue.",
+                color = Color(0xFFD0DFEA),
+                lineHeight = 21.sp
+            )
+            PrimarySheetButton(title = "Email Support", onClick = onEmailSupport)
+            SecondarySheetButton(title = "Support", onClick = onOpenSupport)
+            SecondarySheetButton(title = "Privacy Policy", onClick = onOpenPrivacy)
+        }
+
+        Text(
+            "Sanctuary © 2026. All rights reserved.",
+            color = Color(0xFFD0DFEA),
+            fontSize = 14.sp,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth().padding(top = 6.dp)
+        )
+    }
+}
+
+@Composable
+private fun AboutDocumentSheet(
+    document: AboutDocument,
+    onEmailSupport: () -> Unit
+) {
+    val title = when (document) {
+        AboutDocument.Support -> "Support"
+        AboutDocument.Privacy -> "Privacy Policy"
+    }
+    val sections = when (document) {
+        AboutDocument.Support -> listOf(
+            "Help and Feedback" to "If you need help with Sanctuary, have a bug to report, or want to suggest an improvement, contact us at info@mydailysanctuary.com and include your device type, platform, and a short description of the issue.",
+            "App Features" to "Sanctuary includes Catholic prayers, novenas, saint reflections, liturgical calendar content, and optional reminders to support prayer throughout the day.",
+            "Response Time" to "We do our best to respond to support requests promptly."
+        )
+        AboutDocument.Privacy -> listOf(
+            "Information We Collect" to "Sanctuary is designed to work primarily with local content on your device. We do not require account creation to use the app.",
+            "Location" to "If you choose to use location-aware features, Sanctuary may request location access to improve nearby content and time-sensitive experiences.",
+            "Notifications" to "If you choose to allow notifications, Sanctuary uses notification permissions to send reminder notifications for prayer and novena activity. Notifications are optional and can be disabled at any time in your device settings.",
+            "Sharing" to "Sanctuary does not sell your personal information. We use trusted providers only where needed to support core app functionality.",
+            "Your Choices" to "You can use most of Sanctuary without creating an account, and you can remove app data from your device at any time.",
+            "Contact" to "If you have privacy questions, contact us at info@mydailysanctuary.com."
+        )
+    }
+
+    DetailSheetScaffold(
+        title = title,
+        subtitle = if (document == AboutDocument.Privacy) "Effective date: April 13, 2026" else "Support and feedback for Sanctuary."
+    ) {
+        sections.forEach { (sectionTitle, body) ->
+            AboutInfoCard(title = sectionTitle) {
+                Text(body, color = Color(0xFFD0DFEA), lineHeight = 21.sp)
+            }
+        }
+        PrimarySheetButton(title = "Email Support", onClick = onEmailSupport)
+        Text(
+            "Sanctuary © 2026. All rights reserved.",
+            color = Color(0xFFD0DFEA),
+            fontSize = 14.sp,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth().padding(top = 6.dp)
+        )
+    }
+}
+
+@Composable
+private fun AboutInfoCard(
+    title: String,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = Color(0xCC22394C)),
+        shape = RoundedCornerShape(24.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+            content = {
+                Text(title, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                content()
+            }
+        )
+    }
+}
+
+@Composable
+private fun PrimarySheetButton(title: String, onClick: () -> Unit) {
+    Button(
+        onClick = onClick,
+        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF61B4DE)),
+        shape = RoundedCornerShape(20.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Text(title, color = Color.White, fontWeight = FontWeight.SemiBold)
+    }
+}
+
+@Composable
+private fun SecondarySheetButton(title: String, onClick: () -> Unit) {
+    Button(
+        onClick = onClick,
+        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2A4153)),
+        shape = RoundedCornerShape(20.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Text(title, color = Color.White, fontWeight = FontWeight.SemiBold)
     }
 }
 
