@@ -42,6 +42,9 @@ interface SanctuaryApiService {
     @GET("me")
     suspend fun me(): UserProfileResponse
 
+    @PUT("me/preferences")
+    suspend fun updateMePreferences(@Body request: UserPreferencesUpdateRequest): UserProfileResponse
+
     @GET("me/favorites")
     suspend fun listFavorites(): List<UserFavoriteResponse>
 

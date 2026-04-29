@@ -269,6 +269,27 @@ class SessionRepository(
             }
     }
 
+    suspend fun updateReminderPreferences(
+        novenaEnabled: Boolean,
+        dailyEnabled: Boolean
+    ): UserProfile = withContext(Dispatchers.IO) {
+        val session = loadSession() ?: throw SanctuaryApiException("Please sign in to continue.")
+        val currentProfile = runApiCall { authenticatedApi(session).me() }.toUserProfile(session)
+        val updatedProfile = runApiCall {
+            authenticatedApi(session).updateMePreferences(
+                UserPreferencesUpdateRequest(
+                    preferredLanguage = currentProfile.preferredLanguage ?: "en",
+                    timeZoneId = currentProfile.timeZoneId ?: java.util.TimeZone.getDefault().id,
+                    novenaRemindersEnabled = novenaEnabled,
+                    feastRemindersEnabled = dailyEnabled,
+                    emailUpdatesEnabled = currentProfile.emailUpdatesEnabled,
+                    onboardingCompleted = currentProfile.onboardingCompleted
+                )
+            )
+        }
+        updatedProfile.toUserProfile(session)
+    }
+
     suspend fun toggleFavorite(
         itemType: FavoriteItemType,
         itemId: String,

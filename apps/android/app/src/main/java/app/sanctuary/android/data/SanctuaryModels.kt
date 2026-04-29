@@ -75,6 +75,15 @@ data class UserProfileResponse(
     val completedNovenaCount: Int
 )
 
+data class UserPreferencesUpdateRequest(
+    val preferredLanguage: String,
+    val timeZoneId: String,
+    val novenaRemindersEnabled: Boolean,
+    val feastRemindersEnabled: Boolean,
+    val emailUpdatesEnabled: Boolean,
+    val onboardingCompleted: Boolean
+)
+
 data class UserFavoriteResponse(
     val itemType: String,
     val itemId: String,

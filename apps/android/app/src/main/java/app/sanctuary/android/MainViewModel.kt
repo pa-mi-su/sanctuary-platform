@@ -40,6 +40,7 @@ enum class SessionStatus {
 data class SessionUiState(
     val status: SessionStatus = SessionStatus.Loading,
     val isBootstrapping: Boolean = false,
+    val isSavingReminderPreferences: Boolean = false,
     val session: StoredSession? = null,
     val profile: UserProfile? = null,
     val pendingConfirmationEmail: String? = null,
@@ -136,6 +137,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 _session.value = SessionUiState(
                     status = SessionStatus.Authenticated,
                     isBootstrapping = false,
+                    isSavingReminderPreferences = false,
                     session = result.session,
                     profile = result.profile
                 )
@@ -144,7 +146,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             } else {
                 _session.value = SessionUiState(
                     status = SessionStatus.SignedOut,
-                    isBootstrapping = false
+                    isBootstrapping = false,
+                    isSavingReminderPreferences = false
                 )
                 loadInitialContent()
                 _novenaProgress.value = NovenaProgressUiState()
@@ -289,6 +292,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     _session.value = SessionUiState(
                         status = SessionStatus.Authenticated,
                         isBootstrapping = false,
+                        isSavingReminderPreferences = false,
                         session = result.session,
                         profile = result.profile
                     )
@@ -306,9 +310,59 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun logout() {
         repository.logout()
-        _session.value = SessionUiState(status = SessionStatus.SignedOut)
+        _session.value = SessionUiState(status = SessionStatus.SignedOut, isSavingReminderPreferences = false)
         _novenaProgress.value = NovenaProgressUiState()
         loadInitialContent()
+    }
+
+    fun updateReminderPreferences(novenaEnabled: Boolean, dailyEnabled: Boolean) {
+        val previousProfile = _session.value.profile ?: return
+        if (_session.value.status != SessionStatus.Authenticated) return
+
+        viewModelScope.launch {
+            _session.update {
+                it.copy(
+                    isSavingReminderPreferences = true,
+                    profile = previousProfile.copy(
+                        novenaRemindersEnabled = novenaEnabled,
+                        feastRemindersEnabled = dailyEnabled
+                    ),
+                    message = null,
+                    isErrorMessage = false
+                )
+            }
+
+            runCatching {
+                repository.updateReminderPreferences(
+                    novenaEnabled = novenaEnabled,
+                    dailyEnabled = dailyEnabled
+                )
+            }.onSuccess { updatedProfile ->
+                _session.update {
+                    it.copy(
+                        status = SessionStatus.Authenticated,
+                        isSavingReminderPreferences = false,
+                        profile = updatedProfile,
+                        message = if (novenaEnabled || dailyEnabled) {
+                            "Your reminder preferences are updated."
+                        } else {
+                            "Prayer reminders are off."
+                        },
+                        isErrorMessage = false
+                    )
+                }
+            }.onFailure { failure ->
+                _session.update {
+                    it.copy(
+                        status = SessionStatus.Authenticated,
+                        isSavingReminderPreferences = false,
+                        profile = previousProfile,
+                        message = failure.message,
+                        isErrorMessage = true
+                    )
+                }
+            }
+        }
     }
 
     fun updateSaintQuery(query: String) {
@@ -563,6 +617,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             it.copy(
                 status = SessionStatus.Loading,
                 isBootstrapping = false,
+                isSavingReminderPreferences = false,
                 message = null,
                 isErrorMessage = false
             )

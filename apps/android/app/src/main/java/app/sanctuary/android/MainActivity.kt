@@ -64,6 +64,8 @@ import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -258,6 +260,7 @@ private fun SanctuaryApp(viewModel: MainViewModel) {
                 onStopNovena = viewModel::stopNovena,
                 onCompleteNovenaDay = viewModel::completeNovenaDay,
                 onToggleFavorite = viewModel::toggleFavorite,
+                onUpdateReminderPreferences = viewModel::updateReminderPreferences,
                 fetchSaintsInRange = viewModel::fetchSaintsInRange,
                 fetchNovenasInRange = viewModel::fetchNovenasInRange,
                 fetchLiturgicalRange = viewModel::fetchLiturgicalRange
@@ -637,6 +640,7 @@ private fun AuthenticatedShell(
     onStopNovena: (String) -> Unit,
     onCompleteNovenaDay: (String, Int) -> Unit,
     onToggleFavorite: (FavoriteItemType, String) -> Unit,
+    onUpdateReminderPreferences: (Boolean, Boolean) -> Unit,
     fetchSaintsInRange: suspend (String, String) -> List<app.sanctuary.android.data.SaintDateGroup>,
     fetchNovenasInRange: suspend (String, String) -> List<app.sanctuary.android.data.NovenaCalendarDate>,
     fetchLiturgicalRange: suspend (String, String) -> List<app.sanctuary.android.data.LiturgicalDay>
@@ -806,7 +810,8 @@ private fun AuthenticatedShell(
                                 progress = novenaProgress,
                                 onOpenNovena = onOpenNovena,
                                 onOpenSaint = onOpenSaint,
-                                onLogout = onLogout
+                                onLogout = onLogout,
+                                onUpdateReminderPreferences = onUpdateReminderPreferences
                             )
                         }
                     } else if (session.status == SessionStatus.Loading && session.session != null) {
@@ -1287,11 +1292,18 @@ private fun MeScreen(
     progress: NovenaProgressUiState,
     onOpenNovena: (String) -> Unit,
     onOpenSaint: (String) -> Unit,
-    onLogout: () -> Unit
+    onLogout: () -> Unit,
+    onUpdateReminderPreferences: (Boolean, Boolean) -> Unit
 ) {
     val profile = session.profile
     val favoriteNovenas = progress.favorites.filter { it.itemType == FavoriteItemType.Novena }
     val favoriteSaints = progress.favorites.filter { it.itemType == FavoriteItemType.Saint }
+    var novenaReminderToggle by remember(profile?.novenaRemindersEnabled) {
+        mutableStateOf(profile?.novenaRemindersEnabled == true)
+    }
+    var dailyReminderToggle by remember(profile?.feastRemindersEnabled) {
+        mutableStateOf(profile?.feastRemindersEnabled == true)
+    }
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Text("Me", color = Color.White, fontSize = 42.sp, fontWeight = FontWeight.Bold)
         Text(
@@ -1355,15 +1367,25 @@ private fun MeScreen(
         }
 
         MeSectionCard(title = "Reminders") {
-            ReminderSummaryRow(
+            ReminderToggleRow(
                 title = "Novenas in progress",
                 subtitle = "Send morning and evening reminders when you have a novena in progress.",
-                active = profile?.novenaRemindersEnabled == true
+                checked = novenaReminderToggle,
+                enabled = !session.isSavingReminderPreferences,
+                onCheckedChange = { checked ->
+                    novenaReminderToggle = checked
+                    onUpdateReminderPreferences(checked, dailyReminderToggle)
+                }
             )
-            ReminderSummaryRow(
+            ReminderToggleRow(
                 title = "Once-daily Sanctuary reminder",
                 subtitle = "Send a gentle morning reminder when you do not have a novena in progress.",
-                active = profile?.feastRemindersEnabled == true
+                checked = dailyReminderToggle,
+                enabled = !session.isSavingReminderPreferences,
+                onCheckedChange = { checked ->
+                    dailyReminderToggle = checked
+                    onUpdateReminderPreferences(novenaReminderToggle, checked)
+                }
             )
         }
 
@@ -1443,38 +1465,42 @@ private fun MeSectionCard(
 }
 
 @Composable
-private fun ReminderSummaryRow(
+private fun ReminderToggleRow(
     title: String,
     subtitle: String,
-    active: Boolean
+    checked: Boolean,
+    enabled: Boolean,
+    onCheckedChange: (Boolean) -> Unit
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(18.dp))
-            .background(if (active) Color(0x245CAED4) else Color(0xFF2A4153))
+            .background(if (checked) Color(0x245CAED4) else Color(0xFF2A4153))
             .padding(14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(title, color = Color.White, fontWeight = FontWeight.SemiBold)
-                StatusPill(active = active)
-            }
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(title, color = Color.White, fontWeight = FontWeight.SemiBold)
             Text(subtitle, color = Color(0xFFD0DFEA), lineHeight = 18.sp, fontSize = 13.sp)
         }
-    }
-}
-
-@Composable
-private fun StatusPill(active: Boolean) {
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(999.dp))
-            .background(if (active) Color(0xFF5CAED4) else Color.White.copy(alpha = 0.12f))
-            .padding(horizontal = 8.dp, vertical = 4.dp)
-    ) {
-        Text(if (active) "On" else "Off", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            enabled = enabled,
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = Color.White,
+                checkedTrackColor = Color(0xFF8EDBFF),
+                checkedBorderColor = Color(0xFF8EDBFF),
+                uncheckedThumbColor = Color.White,
+                uncheckedTrackColor = Color.White.copy(alpha = 0.16f),
+                uncheckedBorderColor = Color.White.copy(alpha = 0.10f),
+                disabledCheckedThumbColor = Color.White.copy(alpha = 0.9f),
+                disabledCheckedTrackColor = Color(0xFF8EDBFF).copy(alpha = 0.55f),
+                disabledUncheckedThumbColor = Color.White.copy(alpha = 0.75f),
+                disabledUncheckedTrackColor = Color.White.copy(alpha = 0.10f)
+            )
+        )
     }
 }
 
