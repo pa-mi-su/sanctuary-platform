@@ -15,12 +15,14 @@ import app.sanctuary.android.data.SaintDateGroup
 import app.sanctuary.android.data.SaintDetail
 import app.sanctuary.android.data.SaintSummary
 import app.sanctuary.android.data.SanctuaryApiFactory
+import app.sanctuary.android.data.SessionBootstrapResult
 import app.sanctuary.android.data.SessionRepository
 import app.sanctuary.android.data.StoredSession
 import app.sanctuary.android.data.FavoriteItemType
 import app.sanctuary.android.data.UserFavorite
 import app.sanctuary.android.data.UserNovenaCommitment
 import app.sanctuary.android.data.UserProfile
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -109,7 +111,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun bootstrap() {
         viewModelScope.launch {
             _session.update { it.copy(status = SessionStatus.Loading, message = null, isErrorMessage = false) }
-            val result = repository.bootstrap()
+            val result = runCatching {
+                withTimeoutOrNull(10_000) { repository.bootstrap() }
+                    ?: SessionBootstrapResult.failed("Sanctuary took too long to prepare. Please try again.")
+            }.getOrElse { failure ->
+                SessionBootstrapResult.failed(failure.message ?: "Sanctuary could not finish preparing.")
+            }
             if (result.authenticated) {
                 _session.value = SessionUiState(
                     status = SessionStatus.Authenticated,
