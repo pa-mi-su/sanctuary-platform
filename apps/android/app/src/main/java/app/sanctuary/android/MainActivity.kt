@@ -2013,7 +2013,7 @@ private fun HomeFeatureCard(
                     modifier = Modifier
                         .align(Alignment.Center)
                         .fillMaxSize()
-                        .padding(horizontal = 6.dp, vertical = 4.dp)
+                        .padding(start = 14.dp, top = 12.dp, end = 24.dp, bottom = 16.dp)
                 )
 
                 Box(
