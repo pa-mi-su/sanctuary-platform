@@ -1995,8 +1995,8 @@ private fun HomeFeatureCard(
 
             Box(
                 modifier = Modifier
-                    .align(Alignment.CenterEnd)
-                    .padding(end = 16.dp)
+                    .align(Alignment.TopEnd)
+                    .padding(top = 16.dp, end = 16.dp)
                     .size(width = 156.dp, height = 108.dp)
             ) {
                 Box(
@@ -2013,8 +2013,8 @@ private fun HomeFeatureCard(
                     action = action,
                     modifier = Modifier
                         .align(Alignment.Center)
-                        .size(width = 124.dp, height = 84.dp)
-                        .offset(x = (-4).dp)
+                        .size(width = 118.dp, height = 78.dp)
+                        .offset(x = (-8).dp, y = 4.dp)
                 )
 
                 Box(
