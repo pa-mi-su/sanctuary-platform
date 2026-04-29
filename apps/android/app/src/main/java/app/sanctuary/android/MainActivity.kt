@@ -92,6 +92,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -2226,7 +2227,37 @@ private fun HomeActionIllustration(
         val navy = Color(0xFF102E3D)
         val deep = Color(0xFF243949)
         val stroke = size.minDimension * 0.035f
+        val center = Offset(size.width / 2f, size.height / 2f)
 
+        val scaleFactor = when (action) {
+            HomeAction.Saints -> 1.22f
+            HomeAction.Novenas -> 1.20f
+            HomeAction.Liturgical -> 1.16f
+            HomeAction.Prayers -> 1.18f
+            HomeAction.Intentions -> 1.16f
+            HomeAction.Daily -> 1.20f
+        }
+        val offsetX = when (action) {
+            HomeAction.Saints -> -size.width * 0.035f
+            HomeAction.Novenas -> -size.width * 0.03f
+            HomeAction.Liturgical -> -size.width * 0.02f
+            HomeAction.Prayers -> -size.width * 0.02f
+            HomeAction.Intentions -> -size.width * 0.02f
+            HomeAction.Daily -> -size.width * 0.02f
+        }
+        val offsetY = when (action) {
+            HomeAction.Saints -> size.height * 0.01f
+            HomeAction.Novenas -> size.height * 0.015f
+            HomeAction.Liturgical -> size.height * 0.01f
+            HomeAction.Prayers -> size.height * 0.01f
+            HomeAction.Intentions -> size.height * 0.01f
+            HomeAction.Daily -> size.height * 0.015f
+        }
+
+        withTransform({
+            translate(left = offsetX, top = offsetY)
+            scale(scaleX = scaleFactor, scaleY = scaleFactor, pivot = center)
+        }) {
         when (action) {
             HomeAction.Saints -> {
                 drawCircle(gold.copy(alpha = 0.35f), radius = size.minDimension * 0.34f, center = Offset(size.width * 0.64f, size.height * 0.26f))
@@ -2360,6 +2391,7 @@ private fun HomeActionIllustration(
                 drawLine(Color(0xFF2B5663).copy(alpha = 0.44f), Offset(size.width * 0.20f, size.height * 0.66f), Offset(size.width * 0.38f, size.height * 0.66f), stroke * 0.7f, StrokeCap.Round)
                 drawLine(Color(0xFF2B5663).copy(alpha = 0.44f), Offset(size.width * 0.48f, size.height * 0.66f), Offset(size.width * 0.66f, size.height * 0.66f), stroke * 0.7f, StrokeCap.Round)
             }
+        }
         }
     }
 }
