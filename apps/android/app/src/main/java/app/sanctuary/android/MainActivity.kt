@@ -94,6 +94,8 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -104,6 +106,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.material3.ExperimentalMaterial3Api
 import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
@@ -177,21 +180,24 @@ private enum class HomeAction(
     val subtitle: String,
     val icon: ImageVector,
     val iconTint: Color,
-    val illustrationColors: List<Color>
+    val illustrationColors: List<Color>,
+    val artworkAssetPath: String? = null
 ) {
     Saints(
         "Saints",
         "Feasts and biographies",
         Icons.Filled.People,
         Color(0xFFE7C76A),
-        listOf(Color(0xFF7BB4CF), Color(0xFF385E77))
+        listOf(Color(0xFF7BB4CF), Color(0xFF385E77)),
+        "file:///android_asset/home_cards/saints.svg"
     ),
     Novenas(
         "Novenas",
         "Journeys of prayer",
         Icons.Filled.MenuBook,
         Color(0xFF8FE0FF),
-        listOf(Color(0xFF6EB9DE), Color(0xFF345C76))
+        listOf(Color(0xFF6EB9DE), Color(0xFF345C76)),
+        "file:///android_asset/home_cards/novenas.svg"
     ),
     Liturgical(
         "Liturgical",
@@ -205,21 +211,24 @@ private enum class HomeAction(
         "Daily essentials",
         Icons.Filled.SelfImprovement,
         Color(0xFFF2A8C4),
-        listOf(Color(0xFFB08FCF), Color(0xFF5D4D7C))
+        listOf(Color(0xFFB08FCF), Color(0xFF5D4D7C)),
+        "file:///android_asset/home_cards/prayers.svg"
     ),
     Intentions(
         "Intentions",
         "Search novena intentions",
         Icons.Filled.Favorite,
         Color(0xFFF2A8C4),
-        listOf(Color(0xFF5B4167), Color(0xFF184754))
+        listOf(Color(0xFF5B4167), Color(0xFF184754)),
+        "file:///android_asset/home_cards/intentions.svg"
     ),
     Daily(
         "Daily",
         "Daily readings",
         Icons.Filled.WbSunny,
         Color(0xFFF5D57A),
-        listOf(Color(0xFFE0C487), Color(0xFF6C5A3B))
+        listOf(Color(0xFFE0C487), Color(0xFF6C5A3B)),
+        "file:///android_asset/home_cards/daily-readings.svg"
     )
 }
 
@@ -2009,13 +2018,24 @@ private fun HomeFeatureCard(
                         .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(22.dp))
                 )
 
-                HomeActionIllustration(
-                    action = action,
-                    modifier = Modifier
-                        .align(Alignment.Center)
-                        .size(width = 118.dp, height = 78.dp)
-                        .offset(x = (-8).dp, y = 4.dp)
-                )
+                if (action.artworkAssetPath != null) {
+                    HomeActionArtwork(
+                        assetPath = action.artworkAssetPath,
+                        contentDescription = action.title,
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .fillMaxSize()
+                            .padding(start = 18.dp, end = 12.dp, top = 10.dp, bottom = 8.dp)
+                    )
+                } else {
+                    HomeActionIllustration(
+                        action = action,
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .size(width = 118.dp, height = 78.dp)
+                            .offset(x = (-8).dp, y = 4.dp)
+                    )
+                }
 
                 Box(
                     modifier = Modifier
@@ -2043,6 +2063,23 @@ private fun HomeFeatureCard(
             }
         }
     }
+}
+
+@Composable
+private fun HomeActionArtwork(
+    assetPath: String,
+    contentDescription: String,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    AsyncImage(
+        model = ImageRequest.Builder(context)
+            .data(assetPath)
+            .build(),
+        contentDescription = contentDescription,
+        contentScale = ContentScale.Fit,
+        modifier = modifier
+    )
 }
 
 private fun HomeAction.cardBrush(): Brush = when (this) {
