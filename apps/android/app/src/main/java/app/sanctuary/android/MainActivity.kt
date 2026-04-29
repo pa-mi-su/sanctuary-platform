@@ -1638,13 +1638,13 @@ private fun TopPillButton(
     onClick: () -> Unit
 ) {
     Card(
+        modifier = modifier,
         colors = CardDefaults.cardColors(containerColor = Color(0xCC22394C)),
         shape = RoundedCornerShape(20.dp),
         onClick = onClick
     ) {
         Row(
             modifier = Modifier
-                .then(modifier)
                 .padding(horizontal = 16.dp, vertical = 14.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically,
