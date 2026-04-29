@@ -3348,10 +3348,15 @@ private fun LiturgicalCalendarScreen(
                         )
                     }
                     CalendarMode.Month -> {
-                        LiturgicalMonthGrid(
+                        CalendarMonthGrid(
                             month = month,
-                            days = liturgicalByDate,
                             selectedDay = selectedDay,
+                            labelForDay = { day ->
+                                liturgicalByDate[month.atDay(day)]?.let(::shortLiturgicalLabel) ?: "·"
+                            },
+                            borderColorForDay = { day ->
+                                liturgicalBorderColor(liturgicalByDate[month.atDay(day)]?.season)
+                            },
                             onDaySelected = {
                                 selectedDay = it
                                 onModeChange(CalendarMode.Day)
@@ -3691,42 +3696,6 @@ private fun CalendarEntryCell(
     }
 }
 
-@Composable
-private fun LiturgicalMonthGrid(
-    month: YearMonth,
-    days: Map<LocalDate, app.sanctuary.android.data.LiturgicalDay>,
-    selectedDay: Int,
-    onDaySelected: (Int) -> Unit
-) {
-    val first = month.atDay(1)
-    val offset = (first.dayOfWeek.value % 7)
-    val total = month.lengthOfMonth()
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        CalendarWeekHeaderRow()
-        var dayNumber = 1
-        repeat(6) { row ->
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                repeat(7) { column ->
-                    val index = row * 7 + column
-                    if (index < offset || dayNumber > total) {
-                        Spacer(modifier = Modifier.weight(1f).height(72.dp))
-                    } else {
-                        val date = month.atDay(dayNumber)
-                        LiturgicalDayCell(
-                            day = dayNumber,
-                            detail = days[date],
-                            modifier = Modifier.weight(1f),
-                            selected = dayNumber == selectedDay,
-                            onClick = { onDaySelected(dayNumber) }
-                        )
-                        dayNumber += 1
-                    }
-                }
-            }
-        }
-    }
-}
-
 private fun shortLabel(raw: String, max: Int = 14): String {
     val trimmed = raw.trim()
     if (trimmed.isEmpty()) return "·"
@@ -3741,52 +3710,6 @@ private fun shortWord(raw: String, max: Int = 7): String {
 
 private fun sanitizedSaintName(raw: String): String {
     return raw.replace(Regex(""",\s*\d{3,4}[–-]\d{2,4}$"""), "").trim()
-}
-
-@Composable
-private fun LiturgicalDayCell(
-    day: Int,
-    detail: app.sanctuary.android.data.LiturgicalDay?,
-    modifier: Modifier = Modifier,
-    selected: Boolean,
-    onClick: () -> Unit
-) {
-    val strokeColor = liturgicalBorderColor(detail?.season)
-    val compactLabel = detail?.let(::shortLiturgicalLabel).orEmpty()
-    Card(
-        modifier = modifier.aspectRatio(0.86f),
-        colors = CardDefaults.cardColors(containerColor = if (selected) Color(0xB323394C) else Color(0x9922394C)),
-        shape = RoundedCornerShape(18.dp)
-        ,
-        onClick = onClick
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .border(if (selected) 2.dp else 1.dp, strokeColor, RoundedCornerShape(18.dp))
-                .padding(horizontal = 6.dp, vertical = 7.dp)
-        ) {
-            Text(
-                day.toString(),
-                color = Color.White,
-                fontWeight = FontWeight.Bold,
-                fontSize = 15.sp,
-                modifier = Modifier.align(Alignment.TopCenter)
-            )
-            Text(
-                text = compactLabel,
-                color = Color(0xFFD0DFEA),
-                fontSize = 10.sp,
-                lineHeight = 11.sp,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                textAlign = TextAlign.Center,
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .padding(top = 10.dp)
-            )
-        }
-    }
 }
 
 @Composable
