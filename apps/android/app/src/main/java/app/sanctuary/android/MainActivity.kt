@@ -809,7 +809,7 @@ private fun AuthenticatedShell(
                                 onLogout = onLogout
                             )
                         }
-                    } else if (session.status == SessionStatus.Loading) {
+                    } else if (session.status == SessionStatus.Loading && session.session != null) {
                         item { LoadingCard() }
                     } else {
                         item {
