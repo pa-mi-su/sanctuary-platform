@@ -221,53 +221,59 @@ private fun SanctuaryApp(viewModel: MainViewModel) {
                 )
             )
     ) {
-        AuthenticatedShell(
-            session = session,
-            saints = saints,
-            novenas = novenas,
-            intentions = intentions,
-            prayers = prayers,
-            onAction = viewModel,
-            selectedTab = selectedTab,
-            onTabSelected = { selectedTab = it },
-            onLogout = viewModel::logout,
-            onSaintQueryChanged = viewModel::updateSaintQuery,
-            onNovenaQueryChanged = viewModel::updateNovenaQuery,
-            onIntentionsQueryChanged = viewModel::updateIntentionsQuery,
-            onPrayerQueryChanged = viewModel::updatePrayerQuery,
-            onReloadSaints = viewModel::loadSaints,
-            onReloadNovenas = viewModel::loadNovenas,
-            onReloadIntentions = viewModel::loadIntentions,
-            onReloadPrayers = viewModel::loadPrayers,
-            onShowSaints = { selectedTab = AppTab.Saints },
-            onShowNovenas = { selectedTab = AppTab.Novenas },
-            saintDetail = saintDetail,
-            novenaDetail = novenaDetail,
-            prayerDetail = prayerDetail,
-            novenaProgress = novenaProgress,
-            onOpenSaint = viewModel::openSaint,
-            onOpenNovena = viewModel::openNovena,
-            onOpenPrayer = viewModel::openPrayer,
-            onCloseSaintDetail = viewModel::closeSaintDetail,
-            onCloseNovenaDetail = viewModel::closeNovenaDetail,
-            onClosePrayerDetail = viewModel::closePrayerDetail,
-            onStartNovena = viewModel::startNovena,
-            onStopNovena = viewModel::stopNovena,
-            onCompleteNovenaDay = viewModel::completeNovenaDay,
-            onToggleFavorite = viewModel::toggleFavorite,
-            fetchSaintsInRange = viewModel::fetchSaintsInRange,
-            fetchNovenasInRange = viewModel::fetchNovenasInRange,
-            fetchLiturgicalRange = viewModel::fetchLiturgicalRange
-        )
+        if (session.status == SessionStatus.Loading && session.session == null) {
+            BrandedLaunchScreen()
+        } else {
+            AuthenticatedShell(
+                session = session,
+                saints = saints,
+                novenas = novenas,
+                intentions = intentions,
+                prayers = prayers,
+                onAction = viewModel,
+                selectedTab = selectedTab,
+                onTabSelected = { selectedTab = it },
+                onLogout = viewModel::logout,
+                onSaintQueryChanged = viewModel::updateSaintQuery,
+                onNovenaQueryChanged = viewModel::updateNovenaQuery,
+                onIntentionsQueryChanged = viewModel::updateIntentionsQuery,
+                onPrayerQueryChanged = viewModel::updatePrayerQuery,
+                onReloadSaints = viewModel::loadSaints,
+                onReloadNovenas = viewModel::loadNovenas,
+                onReloadIntentions = viewModel::loadIntentions,
+                onReloadPrayers = viewModel::loadPrayers,
+                onShowSaints = { selectedTab = AppTab.Saints },
+                onShowNovenas = { selectedTab = AppTab.Novenas },
+                saintDetail = saintDetail,
+                novenaDetail = novenaDetail,
+                prayerDetail = prayerDetail,
+                novenaProgress = novenaProgress,
+                onOpenSaint = viewModel::openSaint,
+                onOpenNovena = viewModel::openNovena,
+                onOpenPrayer = viewModel::openPrayer,
+                onCloseSaintDetail = viewModel::closeSaintDetail,
+                onCloseNovenaDetail = viewModel::closeNovenaDetail,
+                onClosePrayerDetail = viewModel::closePrayerDetail,
+                onStartNovena = viewModel::startNovena,
+                onStopNovena = viewModel::stopNovena,
+                onCompleteNovenaDay = viewModel::completeNovenaDay,
+                onToggleFavorite = viewModel::toggleFavorite,
+                fetchSaintsInRange = viewModel::fetchSaintsInRange,
+                fetchNovenasInRange = viewModel::fetchNovenasInRange,
+                fetchLiturgicalRange = viewModel::fetchLiturgicalRange
+            )
+        }
     }
 }
 
 @Composable
-private fun LoadingScreen() {
+private fun BrandedLaunchScreen() {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            CircularProgressIndicator(color = Color(0xFF7AC8EA))
-            Spacer(modifier = Modifier.height(18.dp))
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(20.dp)
+        ) {
+            BrandLogoMark(size = 132.dp, corner = 30.dp, glowExtra = 44.dp)
             Text("Preparing Sanctuary…", color = Color.White)
         }
     }
@@ -1537,37 +1543,7 @@ private fun HomeHeroCard(session: SessionUiState) {
                     .size(156.dp),
                 contentAlignment = Alignment.Center
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(132.dp)
-                        .background(
-                            brush = Brush.radialGradient(
-                                colors = listOf(
-                                    Color(0x99E8C56A),
-                                    Color(0x33E8C56A),
-                                    Color.Transparent
-                                ),
-                                radius = 180f
-                            ),
-                            shape = CircleShape
-                        )
-                )
-                Box(
-                    modifier = Modifier
-                        .size(144.dp)
-                        .background(
-                            brush = Brush.radialGradient(
-                                colors = listOf(Color(0x2A3F6F8D), Color.Transparent),
-                                radius = 220f
-                            ),
-                            shape = CircleShape
-                        )
-                )
-                Image(
-                    painter = painterResource(id = R.drawable.brand_logo),
-                    contentDescription = "Sanctuary",
-                    modifier = Modifier.size(132.dp)
-                )
+                BrandLogoMark(size = 132.dp, corner = 30.dp, glowExtra = 44.dp)
             }
             Text(
                 text = if (session.status == SessionStatus.Authenticated) {
@@ -1593,6 +1569,41 @@ private fun HomeHeroCard(session: SessionUiState) {
                 lineHeight = 22.sp
             )
         }
+    }
+}
+
+@Composable
+private fun BrandLogoMark(
+    size: androidx.compose.ui.unit.Dp,
+    corner: androidx.compose.ui.unit.Dp,
+    glowExtra: androidx.compose.ui.unit.Dp
+) {
+    Box(
+        modifier = Modifier.size(size + glowExtra),
+        contentAlignment = Alignment.Center
+    ) {
+        Box(
+            modifier = Modifier
+                .size(size + glowExtra)
+                .background(
+                    brush = Brush.radialGradient(
+                        colors = listOf(
+                            Color(0x38E8C56A),
+                            Color(0x12E8C56A),
+                            Color.Transparent
+                        )
+                    ),
+                    shape = CircleShape
+                )
+        )
+        Image(
+            painter = painterResource(id = R.drawable.brand_logo),
+            contentDescription = "Sanctuary",
+            modifier = Modifier
+                .size(size)
+                .clip(RoundedCornerShape(corner))
+                .border(1.dp, Color.White.copy(alpha = 0.14f), RoundedCornerShape(corner))
+        )
     }
 }
 
