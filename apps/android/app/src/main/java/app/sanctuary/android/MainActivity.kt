@@ -188,7 +188,7 @@ private enum class HomeAction(
     ),
     Novenas(
         "Novenas",
-        "Prayer journeys and intentions",
+        "Journeys of prayer",
         Icons.Filled.MenuBook,
         Color(0xFF8FE0FF),
         listOf(Color(0xFF6EB9DE), Color(0xFF345C76))
@@ -202,7 +202,7 @@ private enum class HomeAction(
     ),
     Prayers(
         "Prayers",
-        "Daily prayer companions",
+        "Daily essentials",
         Icons.Filled.SelfImprovement,
         Color(0xFFF2A8C4),
         listOf(Color(0xFFB08FCF), Color(0xFF5D4D7C))
@@ -216,7 +216,7 @@ private enum class HomeAction(
     ),
     Daily(
         "Daily",
-        "Scripture and reflections",
+        "Daily readings",
         Icons.Filled.WbSunny,
         Color(0xFFF5D57A),
         listOf(Color(0xFFE0C487), Color(0xFF6C5A3B))
@@ -775,12 +775,6 @@ private fun AuthenticatedShell(
                     }
                     item {
                         HomeFeatureCard(
-                            action = HomeAction.Liturgical,
-                            onClick = { onTabSelected(AppTab.Liturgical) }
-                        )
-                    }
-                    item {
-                        HomeFeatureCard(
                             action = HomeAction.Prayers,
                             onClick = { showPrayerSearch = true }
                         )
@@ -811,6 +805,12 @@ private fun AuthenticatedShell(
                         HomeFeatureCard(
                             action = HomeAction.Intentions,
                             onClick = { showIntentionsSearch = true }
+                        )
+                    }
+                    item {
+                        HomeFeatureCard(
+                            action = HomeAction.Liturgical,
+                            onClick = { onTabSelected(AppTab.Liturgical) }
                         )
                     }
                     if (session.status != SessionStatus.Authenticated) {
