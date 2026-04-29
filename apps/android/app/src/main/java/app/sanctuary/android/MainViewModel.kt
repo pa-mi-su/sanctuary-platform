@@ -39,6 +39,7 @@ enum class SessionStatus {
 
 data class SessionUiState(
     val status: SessionStatus = SessionStatus.Loading,
+    val isBootstrapping: Boolean = false,
     val session: StoredSession? = null,
     val profile: UserProfile? = null,
     val pendingConfirmationEmail: String? = null,
@@ -77,7 +78,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         api = SanctuaryApiFactory.create { _session.value.session?.accessToken }
     )
 
-    private val _session = MutableStateFlow(SessionUiState())
+    private val _session = MutableStateFlow(
+        SessionUiState(
+            status = SessionStatus.Loading,
+            isBootstrapping = true
+        )
+    )
     val session: StateFlow<SessionUiState> = _session.asStateFlow()
 
     private val _saints = MutableStateFlow(ContentListUiState<SaintSummary>())
@@ -110,7 +116,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun bootstrap() {
         viewModelScope.launch {
-            _session.update { it.copy(status = SessionStatus.Loading, message = null, isErrorMessage = false) }
+            _session.update {
+                it.copy(
+                    status = SessionStatus.Loading,
+                    isBootstrapping = true,
+                    message = null,
+                    isErrorMessage = false
+                )
+            }
             val result = runCatching {
                 withTimeoutOrNull(10_000) { repository.bootstrap() }
                     ?: SessionBootstrapResult.signedOut()
@@ -120,6 +133,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             if (result.authenticated) {
                 _session.value = SessionUiState(
                     status = SessionStatus.Authenticated,
+                    isBootstrapping = false,
                     session = result.session,
                     profile = result.profile
                 )
@@ -127,7 +141,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 refreshNovenaProgress()
             } else {
                 _session.value = SessionUiState(
-                    status = SessionStatus.SignedOut
+                    status = SessionStatus.SignedOut,
+                    isBootstrapping = false
                 )
                 loadInitialContent()
                 _novenaProgress.value = NovenaProgressUiState()
@@ -522,7 +537,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun setBusy() {
         _session.update {
-            it.copy(status = SessionStatus.Loading, message = null, isErrorMessage = false)
+            it.copy(
+                status = SessionStatus.Loading,
+                isBootstrapping = false,
+                message = null,
+                isErrorMessage = false
+            )
         }
     }
 

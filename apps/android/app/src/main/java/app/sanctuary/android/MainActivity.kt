@@ -221,7 +221,7 @@ private fun SanctuaryApp(viewModel: MainViewModel) {
                 )
             )
     ) {
-        if (session.status == SessionStatus.Loading && session.session == null) {
+        if (session.isBootstrapping && session.status == SessionStatus.Loading && session.session == null) {
             BrandedLaunchScreen()
         } else {
             AuthenticatedShell(
