@@ -154,7 +154,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             setBusy()
             runCatching {
-                repository.register(firstName, lastName, email, password)
+                withTimeoutOrNull(15_000) {
+                    repository.register(firstName, lastName, email, password)
+                } ?: throw IllegalStateException("Sanctuary took too long to register. Please try again.")
             }.onSuccess { response: AuthRegistrationResponse ->
                 _session.value = SessionUiState(
                     status = SessionStatus.AwaitingConfirmation,
@@ -178,7 +180,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             setBusy()
             runCatching {
-                repository.confirm(email = email, code = code)
+                withTimeoutOrNull(15_000) {
+                    repository.confirm(email = email, code = code)
+                } ?: throw IllegalStateException("Sanctuary took too long to confirm your account. Please try again.")
             }.onSuccess { response ->
                 _session.value = _session.value.copy(
                     status = SessionStatus.SignedOut,
@@ -199,7 +203,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val email = _session.value.pendingConfirmationEmail ?: return
         viewModelScope.launch {
             setBusy()
-            runCatching { repository.resendConfirmation(email) }
+            runCatching {
+                withTimeoutOrNull(15_000) {
+                    repository.resendConfirmation(email)
+                } ?: throw IllegalStateException("Sanctuary took too long to resend the confirmation code. Please try again.")
+            }
                 .onSuccess { response ->
                     _session.value = _session.value.copy(
                         status = SessionStatus.AwaitingConfirmation,
@@ -219,7 +227,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun forgotPassword(email: String) {
         viewModelScope.launch {
             setBusy()
-            runCatching { repository.forgotPassword(email) }
+            runCatching {
+                withTimeoutOrNull(15_000) {
+                    repository.forgotPassword(email)
+                } ?: throw IllegalStateException("Sanctuary took too long to start password reset. Please try again.")
+            }
                 .onSuccess { response ->
                     _session.value = SessionUiState(
                         status = SessionStatus.SignedOut,
@@ -241,7 +253,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun resetPassword(email: String, code: String, newPassword: String) {
         viewModelScope.launch {
             setBusy()
-            runCatching { repository.resetPassword(email, code, newPassword) }
+            runCatching {
+                withTimeoutOrNull(15_000) {
+                    repository.resetPassword(email, code, newPassword)
+                } ?: throw IllegalStateException("Sanctuary took too long to reset your password. Please try again.")
+            }
                 .onSuccess { response ->
                     _session.value = SessionUiState(
                         status = SessionStatus.SignedOut,
@@ -262,10 +278,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun login(email: String, password: String) {
         viewModelScope.launch {
             setBusy()
-            runCatching { repository.login(email, password) }
+            runCatching {
+                withTimeoutOrNull(15_000) {
+                    repository.login(email, password)
+                } ?: throw IllegalStateException("Sanctuary took too long to sign you in. Please try again.")
+            }
                 .onSuccess { result ->
                     _session.value = SessionUiState(
                         status = SessionStatus.Authenticated,
+                        isBootstrapping = false,
                         session = result.session,
                         profile = result.profile
                     )

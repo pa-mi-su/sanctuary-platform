@@ -15,6 +15,7 @@ import retrofit2.http.POST
 import retrofit2.http.PUT
 import retrofit2.http.Query
 import java.io.IOException
+import java.util.concurrent.TimeUnit
 
 interface SanctuaryApiService {
     @POST("auth/register")
@@ -170,6 +171,10 @@ object SanctuaryApiFactory {
         val client = OkHttpClient.Builder()
             .addInterceptor(AuthHeaderInterceptor(tokenProvider))
             .addInterceptor(logging)
+            .connectTimeout(10, TimeUnit.SECONDS)
+            .readTimeout(15, TimeUnit.SECONDS)
+            .writeTimeout(15, TimeUnit.SECONDS)
+            .callTimeout(20, TimeUnit.SECONDS)
             .build()
 
         val baseUrl = BuildConfig.API_BASE_URL.trim().let {
