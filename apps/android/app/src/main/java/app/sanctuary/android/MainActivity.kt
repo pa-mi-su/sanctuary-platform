@@ -69,6 +69,7 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -129,6 +130,10 @@ import app.sanctuary.android.ui.theme.SanctuaryTabActive
 import app.sanctuary.android.ui.theme.SanctuaryTabBackground
 import app.sanctuary.android.ui.theme.SanctuaryTabBorder
 import app.sanctuary.android.ui.theme.SanctuaryTabInactive
+import app.sanctuary.android.ui.AppLanguage
+import app.sanctuary.android.ui.LocalSanctuaryStrings
+import app.sanctuary.android.ui.SanctuaryStrings
+import app.sanctuary.android.ui.sanctuaryStrings
 import kotlinx.coroutines.launch
 
 private fun Modifier.sanctuaryCardShadow(shape: RoundedCornerShape = RoundedCornerShape(24.dp)) =
@@ -156,18 +161,18 @@ private enum class AuthStep {
     ResetPassword
 }
 
-private enum class AppTab(val label: String) {
-    Home("Home"),
-    Novenas("Novenas"),
-    Liturgical("Liturgical"),
-    Saints("Saints"),
-    Me("Me")
+private enum class AppTab {
+    Home,
+    Novenas,
+    Liturgical,
+    Saints,
+    Me
 }
 
-private enum class CalendarMode(val label: String) {
-    Day("Day"),
-    Week("Week"),
-    Month("Month")
+private enum class CalendarMode {
+    Day,
+    Week,
+    Month
 }
 
 private enum class AboutDocument {
@@ -176,55 +181,55 @@ private enum class AboutDocument {
 }
 
 private enum class HomeAction(
-    val title: String,
-    val subtitle: String,
+    val titleKey: String,
+    val subtitleKey: String,
     val icon: ImageVector,
     val iconTint: Color,
     val illustrationColors: List<Color>,
     val artworkAssetPath: String? = null
 ) {
     Saints(
-        "Saints",
-        "Feasts and biographies",
+        "home.saints",
+        "home.saintsSubtitle",
         Icons.Filled.People,
         Color(0xFFE7C76A),
         listOf(Color(0xFF7BB4CF), Color(0xFF385E77)),
         "file:///android_asset/home_cards/saints.svg"
     ),
     Novenas(
-        "Novenas",
-        "Journeys of prayer",
+        "home.novenas",
+        "home.novenasSubtitle",
         Icons.Filled.MenuBook,
         Color(0xFF8FE0FF),
         listOf(Color(0xFF6EB9DE), Color(0xFF345C76)),
         "file:///android_asset/home_cards/novenas.svg"
     ),
     Liturgical(
-        "Liturgical",
-        "Follow the Church calendar",
+        "home.liturgical",
+        "home.liturgicalSubtitle",
         Icons.Filled.CalendarMonth,
         Color(0xFFB7D8FF),
         listOf(Color(0xFF7FA4D2), Color(0xFF344E76))
     ),
     Prayers(
-        "Prayers",
-        "Daily essentials",
+        "home.prayers",
+        "home.prayersSubtitle",
         Icons.Filled.SelfImprovement,
         Color(0xFFF2A8C4),
         listOf(Color(0xFFB08FCF), Color(0xFF5D4D7C)),
         "file:///android_asset/home_cards/prayers.svg"
     ),
     Intentions(
-        "Intentions",
-        "Search novena intentions",
+        "home.intentions",
+        "home.intentionsSubtitle",
         Icons.Filled.Favorite,
         Color(0xFFF2A8C4),
         listOf(Color(0xFF5B4167), Color(0xFF184754)),
         "file:///android_asset/home_cards/intentions.svg"
     ),
     Daily(
-        "Daily",
-        "Daily readings",
+        "home.daily",
+        "home.dailySubtitle",
         Icons.Filled.WbSunny,
         Color(0xFFF5D57A),
         listOf(Color(0xFFE0C487), Color(0xFF6C5A3B)),
@@ -233,8 +238,10 @@ private enum class HomeAction(
 }
 
 @Composable
+@OptIn(ExperimentalMaterial3Api::class)
 private fun SanctuaryApp(viewModel: MainViewModel) {
     val session by viewModel.session.collectAsState()
+    val appLanguage by viewModel.appLanguage.collectAsState()
     val saints by viewModel.saints.collectAsState()
     val novenas by viewModel.novenas.collectAsState()
     val intentions by viewModel.intentions.collectAsState()
@@ -244,54 +251,77 @@ private fun SanctuaryApp(viewModel: MainViewModel) {
     val prayerDetail by viewModel.prayerDetail.collectAsState()
     val novenaProgress by viewModel.novenaProgress.collectAsState()
     var selectedTab by rememberSaveable { mutableStateOf(AppTab.Home) }
+    var showLanguagePicker by rememberSaveable { mutableStateOf(false) }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-    ) {
-        SanctuaryBackdrop()
-        if (session.isBootstrapping && session.status == SessionStatus.Loading && session.session == null) {
-            BrandedLaunchScreen()
-        } else {
-            AuthenticatedShell(
-                session = session,
-                saints = saints,
-                novenas = novenas,
-                intentions = intentions,
-                prayers = prayers,
-                onAction = viewModel,
-                selectedTab = selectedTab,
-                onTabSelected = { selectedTab = it },
-                onLogout = viewModel::logout,
-                onSaintQueryChanged = viewModel::updateSaintQuery,
-                onNovenaQueryChanged = viewModel::updateNovenaQuery,
-                onIntentionsQueryChanged = viewModel::updateIntentionsQuery,
-                onPrayerQueryChanged = viewModel::updatePrayerQuery,
-                onReloadSaints = viewModel::loadSaints,
-                onReloadNovenas = viewModel::loadNovenas,
-                onReloadIntentions = viewModel::loadIntentions,
-                onReloadPrayers = viewModel::loadPrayers,
-                onShowSaints = { selectedTab = AppTab.Saints },
-                onShowNovenas = { selectedTab = AppTab.Novenas },
-                saintDetail = saintDetail,
-                novenaDetail = novenaDetail,
-                prayerDetail = prayerDetail,
-                novenaProgress = novenaProgress,
-                onOpenSaint = viewModel::openSaint,
-                onOpenNovena = viewModel::openNovena,
-                onOpenPrayer = viewModel::openPrayer,
-                onCloseSaintDetail = viewModel::closeSaintDetail,
-                onCloseNovenaDetail = viewModel::closeNovenaDetail,
-                onClosePrayerDetail = viewModel::closePrayerDetail,
-                onStartNovena = viewModel::startNovena,
-                onStopNovena = viewModel::stopNovena,
-                onCompleteNovenaDay = viewModel::completeNovenaDay,
-                onToggleFavorite = viewModel::toggleFavorite,
-                onUpdateReminderPreferences = viewModel::updateReminderPreferences,
-                fetchSaintsInRange = viewModel::fetchSaintsInRange,
-                fetchNovenasInRange = viewModel::fetchNovenasInRange,
-                fetchLiturgicalRange = viewModel::fetchLiturgicalRange
-            )
+    CompositionLocalProvider(LocalSanctuaryStrings provides SanctuaryStrings(appLanguage)) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+        ) {
+            SanctuaryBackdrop()
+            if (session.isBootstrapping && session.status == SessionStatus.Loading && session.session == null) {
+                BrandedLaunchScreen()
+            } else {
+                AuthenticatedShell(
+                    session = session,
+                    saints = saints,
+                    novenas = novenas,
+                    intentions = intentions,
+                    prayers = prayers,
+                    selectedLanguage = appLanguage,
+                    onUpdateLanguage = {
+                        viewModel.updateLanguage(it)
+                        showLanguagePicker = false
+                    },
+                    onShowLanguagePicker = { showLanguagePicker = true },
+                    onAction = viewModel,
+                    selectedTab = selectedTab,
+                    onTabSelected = { selectedTab = it },
+                    onLogout = viewModel::logout,
+                    onSaintQueryChanged = viewModel::updateSaintQuery,
+                    onNovenaQueryChanged = viewModel::updateNovenaQuery,
+                    onIntentionsQueryChanged = viewModel::updateIntentionsQuery,
+                    onPrayerQueryChanged = viewModel::updatePrayerQuery,
+                    onReloadSaints = viewModel::loadSaints,
+                    onReloadNovenas = viewModel::loadNovenas,
+                    onReloadIntentions = viewModel::loadIntentions,
+                    onReloadPrayers = viewModel::loadPrayers,
+                    onShowSaints = { selectedTab = AppTab.Saints },
+                    onShowNovenas = { selectedTab = AppTab.Novenas },
+                    saintDetail = saintDetail,
+                    novenaDetail = novenaDetail,
+                    prayerDetail = prayerDetail,
+                    novenaProgress = novenaProgress,
+                    onOpenSaint = viewModel::openSaint,
+                    onOpenNovena = viewModel::openNovena,
+                    onOpenPrayer = viewModel::openPrayer,
+                    onCloseSaintDetail = viewModel::closeSaintDetail,
+                    onCloseNovenaDetail = viewModel::closeNovenaDetail,
+                    onClosePrayerDetail = viewModel::closePrayerDetail,
+                    onStartNovena = viewModel::startNovena,
+                    onStopNovena = viewModel::stopNovena,
+                    onCompleteNovenaDay = viewModel::completeNovenaDay,
+                    onToggleFavorite = viewModel::toggleFavorite,
+                    onUpdateReminderPreferences = viewModel::updateReminderPreferences,
+                    fetchSaintsInRange = viewModel::fetchSaintsInRange,
+                    fetchNovenasInRange = viewModel::fetchNovenasInRange,
+                    fetchLiturgicalRange = viewModel::fetchLiturgicalRange
+                )
+            }
+            if (showLanguagePicker) {
+                ModalBottomSheet(
+                    onDismissRequest = { showLanguagePicker = false },
+                    sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+                ) {
+                    LanguagePickerSheet(
+                        current = appLanguage,
+                        onSelect = {
+                            viewModel.updateLanguage(it)
+                            showLanguagePicker = false
+                        }
+                    )
+                }
+            }
         }
     }
 }
@@ -327,13 +357,14 @@ private fun SanctuaryBackdrop() {
 
 @Composable
 private fun BrandedLaunchScreen() {
+    val l10n = sanctuaryStrings()
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
             BrandLogoMark(size = 132.dp, corner = 30.dp, glowExtra = 44.dp)
-            Text("Preparing Sanctuary…", color = Color.White)
+            Text(l10n.t("common.loading"), color = Color.White)
         }
     }
 }
@@ -375,11 +406,12 @@ private fun AccountAccessScreen(
     }
 
     val isBusy = session.status == SessionStatus.Loading
-    val introTitle = if (embedded) "Account" else "Sanctuary for Android"
+    val l10n = sanctuaryStrings()
+    val introTitle = if (embedded) l10n.t("auth.account") else l10n.t("auth.androidTitle")
     val introBody = if (embedded) {
-        "Log in or create an account to sync your saved saints, novenas, and progress."
+        l10n.t("auth.accountBody")
     } else {
-        "This first Android build is focused on auth parity and live Sanctuary content, so we can distribute something real to the dev track today."
+        l10n.t("auth.androidIntro")
     }
 
     if (embedded) {
@@ -509,8 +541,9 @@ private fun AccountAccessContent(
     onAction: MainViewModel,
     showAccountEyebrow: Boolean
 ) {
+    val l10n = sanctuaryStrings()
     val loginReady = loginEmail.trim().isNotEmpty() && loginPassword.isNotEmpty()
-    val registerRules = passwordRules(registerPassword)
+    val registerRules = passwordRules(registerPassword, l10n)
     val registerPasswordsMatch = passwordsMatch(registerPassword, registerPasswordConfirmation)
     val canSubmitRegistration =
         firstName.trim().isNotEmpty() &&
@@ -518,7 +551,7 @@ private fun AccountAccessContent(
             registerEmail.trim().isNotEmpty() &&
             registerRules.all { it.met } &&
             registerPasswordsMatch
-    val resetRules = passwordRules(newPassword)
+    val resetRules = passwordRules(newPassword, l10n)
     val resetPasswordsMatch = passwordsMatch(newPassword, resetPasswordConfirmation)
     val canSubmitReset =
         resetEmail.trim().isNotEmpty() &&
@@ -529,7 +562,7 @@ private fun AccountAccessContent(
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         if (showAccountEyebrow) {
             Text(
-                text = "Sanctuary account",
+                text = l10n.t("auth.account"),
                 color = Color(0xFF7AC8EA),
                 style = MaterialTheme.typography.labelLarge
             )
@@ -538,11 +571,11 @@ private fun AccountAccessContent(
         Text(
             text = when (step) {
                 AuthStep.Landing -> introTitle
-                AuthStep.Login -> "Sign in calmly"
-                AuthStep.Register -> "Create your account"
-                AuthStep.Confirm -> "Confirm your account"
-                AuthStep.ForgotPassword -> "Reset your password calmly"
-                AuthStep.ResetPassword -> "Choose a new password"
+                AuthStep.Login -> l10n.t("auth.signInCalmly")
+                AuthStep.Register -> l10n.t("auth.createAccount")
+                AuthStep.Confirm -> l10n.t("auth.confirmAccount")
+                AuthStep.ForgotPassword -> l10n.t("auth.resetCalmly")
+                AuthStep.ResetPassword -> l10n.t("auth.chooseNewPassword")
             },
             color = Color.White,
             fontSize = 34.sp,
@@ -569,34 +602,34 @@ private fun AccountAccessContent(
 
             AuthStep.Login -> AuthCard {
                 TextButton(onClick = { onStepChange(AuthStep.Landing) }, enabled = !isBusy) {
-                    Text("Back")
+                    Text(l10n.t("auth.back"))
                 }
-                TextFieldBlock("Email", loginEmail, keyboardType = KeyboardType.Email, onValueChange = onLoginEmailChange)
-                TextFieldBlock("Password", loginPassword, secure = true, onValueChange = onLoginPasswordChange)
-                PrimaryButton("Login", isBusy, enabled = loginReady) {
+                TextFieldBlock(l10n.t("auth.email"), loginEmail, keyboardType = KeyboardType.Email, onValueChange = onLoginEmailChange)
+                TextFieldBlock(l10n.t("auth.password"), loginPassword, secure = true, onValueChange = onLoginPasswordChange)
+                PrimaryButton(l10n.t("auth.login"), isBusy, enabled = loginReady) {
                     onAction.login(loginEmail.trim(), loginPassword)
                 }
                 TextButton(onClick = { onStepChange(AuthStep.ForgotPassword) }, enabled = !isBusy) {
-                    Text("Forgot password?")
+                    Text(l10n.t("auth.forgotPassword"))
                 }
             }
 
             AuthStep.Register -> AuthCard {
                 TextButton(onClick = { onStepChange(AuthStep.Landing) }, enabled = !isBusy) {
-                    Text("Back")
+                    Text(l10n.t("auth.back"))
                 }
-                TextFieldBlock("First name", firstName, onValueChange = onFirstNameChange)
-                TextFieldBlock("Last name", lastName, onValueChange = onLastNameChange)
-                TextFieldBlock("Email", registerEmail, keyboardType = KeyboardType.Email, onValueChange = onRegisterEmailChange)
-                TextFieldBlock("Password", registerPassword, secure = true, onValueChange = onRegisterPasswordChange)
-                TextFieldBlock("Confirm password", registerPasswordConfirmation, secure = true, onValueChange = onRegisterPasswordConfirmationChange)
+                TextFieldBlock(l10n.t("auth.firstName"), firstName, onValueChange = onFirstNameChange)
+                TextFieldBlock(l10n.t("auth.lastName"), lastName, onValueChange = onLastNameChange)
+                TextFieldBlock(l10n.t("auth.email"), registerEmail, keyboardType = KeyboardType.Email, onValueChange = onRegisterEmailChange)
+                TextFieldBlock(l10n.t("auth.password"), registerPassword, secure = true, onValueChange = onRegisterPasswordChange)
+                TextFieldBlock(l10n.t("auth.confirmPassword"), registerPasswordConfirmation, secure = true, onValueChange = onRegisterPasswordConfirmationChange)
                 PasswordPanel(
                     rules = registerRules,
-                    strengthLabel = passwordStrengthLabel(registerRules),
+                    strengthLabel = passwordStrengthLabel(registerRules, l10n),
                     matches = registerPasswordsMatch,
-                    confirmationWarning = "Passwords must match before you can create the account."
+                    confirmationWarning = l10n.t("auth.passwordsMustMatchCreate")
                 )
-                PrimaryButton("Create account", isBusy, enabled = canSubmitRegistration) {
+                PrimaryButton(l10n.t("auth.createAccountCta"), isBusy, enabled = canSubmitRegistration) {
                     onAction.register(
                         firstName = firstName.trim(),
                         lastName = lastName.trim(),
@@ -608,51 +641,51 @@ private fun AccountAccessContent(
 
             AuthStep.Confirm -> AuthCard {
                 TextButton(onClick = { onStepChange(AuthStep.Login) }, enabled = !isBusy) {
-                    Text("Back")
+                    Text(l10n.t("auth.back"))
                 }
                 Text(
-                    text = "We sent a confirmation code to ${session.pendingConfirmationEmail ?: registerEmail.trim()}.",
+                    text = "${l10n.t("auth.confirmationSentPrefix")} ${session.pendingConfirmationEmail ?: registerEmail.trim()}.",
                     color = Color(0xFFD0DFEA)
                 )
-                TextFieldBlock("Verification code", confirmationCode, keyboardType = KeyboardType.Number, onValueChange = onConfirmationCodeChange)
-                PrimaryButton("Confirm account", isBusy, enabled = confirmationCode.trim().isNotEmpty()) {
+                TextFieldBlock(l10n.t("auth.verificationCode"), confirmationCode, keyboardType = KeyboardType.Number, onValueChange = onConfirmationCodeChange)
+                PrimaryButton(l10n.t("auth.confirmAccountCta"), isBusy, enabled = confirmationCode.trim().isNotEmpty()) {
                     onAction.confirmRegistration(confirmationCode.trim())
                 }
-                SecondaryButton("Send a new code", isBusy, enabled = true, onClick = onAction::resendConfirmation)
+                SecondaryButton(l10n.t("auth.sendNewCode"), isBusy, enabled = true, onClick = onAction::resendConfirmation)
             }
 
             AuthStep.ForgotPassword -> AuthCard {
                 TextButton(onClick = { onStepChange(AuthStep.Login) }, enabled = !isBusy) {
-                    Text("Back")
+                    Text(l10n.t("auth.back"))
                 }
-                TextFieldBlock("Email", forgotEmail, keyboardType = KeyboardType.Email, onValueChange = onForgotEmailChange)
-                PrimaryButton("Send reset code", isBusy, enabled = forgotEmail.trim().isNotEmpty()) {
+                TextFieldBlock(l10n.t("auth.email"), forgotEmail, keyboardType = KeyboardType.Email, onValueChange = onForgotEmailChange)
+                PrimaryButton(l10n.t("auth.sendResetCode"), isBusy, enabled = forgotEmail.trim().isNotEmpty()) {
                     onAction.forgotPassword(forgotEmail.trim())
                 }
             }
 
             AuthStep.ResetPassword -> AuthCard {
                 TextButton(onClick = { onStepChange(AuthStep.Login) }, enabled = !isBusy) {
-                    Text("Back")
+                    Text(l10n.t("auth.back"))
                 }
                 Text(
-                    text = "We sent a reset code to ${session.pendingPasswordResetEmail ?: forgotEmail.trim()}.",
+                    text = "${l10n.t("auth.resetSentPrefix")} ${session.pendingPasswordResetEmail ?: forgotEmail.trim()}.",
                     color = Color(0xFFD0DFEA)
                 )
-                TextFieldBlock("Email", resetEmail, keyboardType = KeyboardType.Email, onValueChange = onResetEmailChange)
-                TextFieldBlock("Reset code", resetCode, keyboardType = KeyboardType.Number, onValueChange = onResetCodeChange)
-                TextFieldBlock("New password", newPassword, secure = true, onValueChange = onNewPasswordChange)
-                TextFieldBlock("Confirm new password", resetPasswordConfirmation, secure = true, onValueChange = onResetPasswordConfirmationChange)
+                TextFieldBlock(l10n.t("auth.email"), resetEmail, keyboardType = KeyboardType.Email, onValueChange = onResetEmailChange)
+                TextFieldBlock(l10n.t("auth.resetCode"), resetCode, keyboardType = KeyboardType.Number, onValueChange = onResetCodeChange)
+                TextFieldBlock(l10n.t("auth.newPassword"), newPassword, secure = true, onValueChange = onNewPasswordChange)
+                TextFieldBlock(l10n.t("auth.confirmNewPassword"), resetPasswordConfirmation, secure = true, onValueChange = onResetPasswordConfirmationChange)
                 PasswordPanel(
                     rules = resetRules,
-                    strengthLabel = passwordStrengthLabel(resetRules),
+                    strengthLabel = passwordStrengthLabel(resetRules, l10n),
                     matches = resetPasswordsMatch,
-                    confirmationWarning = "Passwords must match before you can save the new password."
+                    confirmationWarning = l10n.t("auth.passwordsMustMatchSave")
                 )
-                PrimaryButton("Save new password", isBusy, enabled = canSubmitReset) {
+                PrimaryButton(l10n.t("auth.saveNewPassword"), isBusy, enabled = canSubmitReset) {
                     onAction.resetPassword(resetEmail.trim(), resetCode.trim(), newPassword)
                 }
-                SecondaryButton("Send a new reset code", isBusy, enabled = resetEmail.trim().isNotEmpty()) {
+                SecondaryButton(l10n.t("auth.sendNewResetCode"), isBusy, enabled = resetEmail.trim().isNotEmpty()) {
                     onAction.forgotPassword(resetEmail.trim())
                 }
             }
@@ -668,6 +701,9 @@ private fun AuthenticatedShell(
     novenas: ContentListUiState<NovenaSummary>,
     intentions: ContentListUiState<NovenaSummary>,
     prayers: ContentListUiState<PrayerSummary>,
+    selectedLanguage: AppLanguage,
+    onUpdateLanguage: (AppLanguage) -> Unit,
+    onShowLanguagePicker: () -> Unit,
     onAction: MainViewModel,
     selectedTab: AppTab,
     onTabSelected: (AppTab) -> Unit,
@@ -701,6 +737,7 @@ private fun AuthenticatedShell(
     fetchNovenasInRange: suspend (String, String) -> List<app.sanctuary.android.data.NovenaCalendarDate>,
     fetchLiturgicalRange: suspend (String, String) -> List<app.sanctuary.android.data.LiturgicalDay>
 ) {
+    val l10n = sanctuaryStrings()
     var showAbout by rememberSaveable { mutableStateOf(false) }
     var showSaintSearch by rememberSaveable { mutableStateOf(false) }
     var showNovenaSearch by rememberSaveable { mutableStateOf(false) }
@@ -733,7 +770,7 @@ private fun AuthenticatedShell(
                         NavigationBarItem(
                             selected = selectedTab == tab,
                             onClick = { onTabSelected(tab) },
-                            label = { Text(tab.label) },
+                            label = { Text(tab.label(l10n)) },
                             colors = NavigationBarItemDefaults.colors(
                                 selectedIconColor = SanctuaryTabActive,
                                 selectedTextColor = SanctuaryTabActive,
@@ -744,7 +781,7 @@ private fun AuthenticatedShell(
                             icon = {
                                 Icon(
                                     imageVector = tab.icon(),
-                                    contentDescription = tab.label
+                                    contentDescription = tab.label(l10n)
                                 )
                             }
                         )
@@ -764,7 +801,10 @@ private fun AuthenticatedShell(
                 AppTab.Home -> {
                     item {
                         HomeTopActions(
+                            language = selectedLanguage,
                             onShowAbout = { showAbout = true }
+                            ,
+                            onShowLanguage = onShowLanguagePicker
                         )
                     }
                     item {
@@ -800,11 +840,11 @@ private fun AuthenticatedShell(
                                             if (!readingsUrl.isNullOrBlank()) {
                                                 dailyReadingsUrl = readingsUrl
                                             } else {
-                                                dailyReadingError = "Sanctuary could not find today's USCCB reading link right now."
+                                                dailyReadingError = l10n.t("calendar.dailyReadingsMissing")
                                             }
                                         }
                                         .onFailure {
-                                            dailyReadingError = it.message ?: "Sanctuary could not open today's readings right now."
+                                            dailyReadingError = it.message ?: l10n.t("calendar.dailyReadingsOpenError")
                                         }
                                 }
                             }
@@ -825,8 +865,8 @@ private fun AuthenticatedShell(
                     if (session.status != SessionStatus.Authenticated) {
                         item {
                             SectionHint(
-                                title = "Sign in when you're ready",
-                                body = "You can browse Sanctuary first, then use the Me tab to log in or create an account and sync your progress."
+                                title = l10n.t("auth.login"),
+                                body = l10n.t("auth.accountBody")
                             )
                         }
                     }
@@ -935,18 +975,18 @@ private fun AuthenticatedShell(
         if (showSaintSearch) {
             SanctuaryModalSheet(onDismissRequest = { showSaintSearch = false }) {
                 SearchListSheet(
-                    title = "Search Saints",
+                    title = l10n.t("search.saintsTitle"),
                     query = saints.query,
                     onQueryChanged = onSaintQueryChanged,
                     onSubmit = onReloadSaints,
                     isLoading = saints.isLoading,
                     error = saints.error,
-                    emptyLabel = "No saints found yet.",
+                    emptyLabel = l10n.t("search.saintsTitle"),
                     items = saints.items
                 ) { item ->
                     ContentCard(
                         title = item.name,
-                        subtitle = item.summary ?: "Featured in Sanctuary",
+                        subtitle = item.summary ?: l10n.t("home.saintsSubtitle"),
                         detail = item.feastLabel,
                         imageUrl = item.imageUrl,
                         onClick = {
@@ -961,13 +1001,13 @@ private fun AuthenticatedShell(
         if (showNovenaSearch) {
             SanctuaryModalSheet(onDismissRequest = { showNovenaSearch = false }) {
                 SearchListSheet(
-                    title = "Search Novenas",
+                    title = l10n.t("search.novenasTitle"),
                     query = novenas.query,
                     onQueryChanged = onNovenaQueryChanged,
                     onSubmit = onReloadNovenas,
                     isLoading = novenas.isLoading,
                     error = novenas.error,
-                    emptyLabel = "No novenas found yet.",
+                    emptyLabel = l10n.t("search.novenasTitle"),
                     items = novenas.items
                 ) { item ->
                     ContentCard(
@@ -987,13 +1027,13 @@ private fun AuthenticatedShell(
         if (showPrayerSearch) {
             SanctuaryModalSheet(onDismissRequest = { showPrayerSearch = false }) {
                 SearchListSheet(
-                    title = "Search Prayers",
+                    title = l10n.t("search.prayersTitle"),
                     query = prayers.query,
                     onQueryChanged = onPrayerQueryChanged,
                     onSubmit = onReloadPrayers,
                     isLoading = prayers.isLoading,
                     error = prayers.error,
-                    emptyLabel = "No prayers found yet.",
+                    emptyLabel = l10n.t("search.prayersTitle"),
                     items = prayers.items
                 ) { item ->
                     ContentCard(
@@ -1013,13 +1053,13 @@ private fun AuthenticatedShell(
         if (showIntentionsSearch) {
             SanctuaryModalSheet(onDismissRequest = { showIntentionsSearch = false }) {
                 SearchListSheet(
-                    title = "Search Novena Intentions",
+                    title = l10n.t("search.intentionsTitle"),
                     query = intentions.query,
                     onQueryChanged = onIntentionsQueryChanged,
                     onSubmit = onReloadIntentions,
                     isLoading = intentions.isLoading,
                     error = intentions.error,
-                    emptyLabel = "No novena intentions found yet.",
+                    emptyLabel = l10n.t("search.intentionsTitle"),
                     items = intentions.items
                 ) { item ->
                     ContentCard(
@@ -1039,7 +1079,7 @@ private fun AuthenticatedShell(
         if (saintDetail.isLoading || saintDetail.item != null || saintDetail.error != null) {
             SanctuaryModalSheet(onDismissRequest = onCloseSaintDetail) {
                 when {
-                    saintDetail.isLoading -> DetailLoadingSheet("Loading saint…")
+                    saintDetail.isLoading -> DetailLoadingSheet(l10n.t("common.loading"))
                     saintDetail.error != null -> DetailErrorSheet(saintDetail.error, onCloseSaintDetail)
                     saintDetail.item != null -> SaintDetailSheet(
                         detail = saintDetail.item,
@@ -1055,7 +1095,7 @@ private fun AuthenticatedShell(
         if (novenaDetail.isLoading || novenaDetail.item != null || novenaDetail.error != null) {
             SanctuaryModalSheet(onDismissRequest = onCloseNovenaDetail) {
                 when {
-                    novenaDetail.isLoading -> DetailLoadingSheet("Loading novena…")
+                    novenaDetail.isLoading -> DetailLoadingSheet(l10n.t("common.loading"))
                     novenaDetail.error != null -> DetailErrorSheet(novenaDetail.error, onCloseNovenaDetail)
                     novenaDetail.item != null -> NovenaDetailSheet(
                         detail = novenaDetail.item,
@@ -1074,7 +1114,7 @@ private fun AuthenticatedShell(
         if (prayerDetail.isLoading || prayerDetail.item != null || prayerDetail.error != null) {
             SanctuaryModalSheet(onDismissRequest = onClosePrayerDetail) {
                 when {
-                    prayerDetail.isLoading -> DetailLoadingSheet("Loading prayer…")
+                    prayerDetail.isLoading -> DetailLoadingSheet(l10n.t("common.loading"))
                     prayerDetail.error != null -> DetailErrorSheet(prayerDetail.error, onClosePrayerDetail)
                     prayerDetail.item != null -> PrayerDetailSheet(
                         detail = prayerDetail.item,
@@ -1092,18 +1132,19 @@ private fun ChoiceStack(
     onLogin: () -> Unit,
     onRegister: () -> Unit
 ) {
+    val l10n = sanctuaryStrings()
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         ChoiceCard(
-            eyebrow = "Returning to Sanctuary",
-            title = "Login",
-            body = "Sign in to your saved saints, novenas, and progress.",
+            eyebrow = l10n.t("auth.returning"),
+            title = l10n.t("auth.login"),
+            body = l10n.t("auth.returningBody"),
             enabled = !isBusy,
             onClick = onLogin
         )
         ChoiceCard(
-            eyebrow = "New to Sanctuary",
-            title = "Register",
-            body = "Create a free account so this Android build can sync with your existing Sanctuary account.",
+            eyebrow = l10n.t("auth.newToSanctuary"),
+            title = l10n.t("auth.register"),
+            body = l10n.t("auth.newToSanctuaryBody"),
             enabled = !isBusy,
             onClick = onRegister
         )
@@ -1118,6 +1159,7 @@ private fun ChoiceCard(
     enabled: Boolean,
     onClick: () -> Unit
 ) {
+    val l10n = sanctuaryStrings()
     Card(
         modifier = Modifier.sanctuaryCardShadow(),
         colors = CardDefaults.cardColors(containerColor = SanctuaryCardElevated),
@@ -1258,24 +1300,24 @@ private data class PasswordRuleUi(
     val met: Boolean
 )
 
-private fun passwordRules(password: String): List<PasswordRuleUi> = listOf(
-    PasswordRuleUi("At least 8 characters", password.length >= 8),
-    PasswordRuleUi("One uppercase letter", password.any(Char::isUpperCase)),
-    PasswordRuleUi("One lowercase letter", password.any(Char::isLowerCase)),
-    PasswordRuleUi("One number", password.any(Char::isDigit)),
-    PasswordRuleUi("One special character", password.any { !it.isLetterOrDigit() })
+private fun passwordRules(password: String, l10n: SanctuaryStrings): List<PasswordRuleUi> = listOf(
+    PasswordRuleUi(l10n.t("auth.rule.length"), password.length >= 8),
+    PasswordRuleUi(l10n.t("auth.rule.upper"), password.any(Char::isUpperCase)),
+    PasswordRuleUi(l10n.t("auth.rule.lower"), password.any(Char::isLowerCase)),
+    PasswordRuleUi(l10n.t("auth.rule.number"), password.any(Char::isDigit)),
+    PasswordRuleUi(l10n.t("auth.rule.special"), password.any { !it.isLetterOrDigit() })
 )
 
 private fun passwordsMatch(password: String, confirmation: String): Boolean =
     confirmation.isNotEmpty() && password == confirmation
 
-private fun passwordStrengthLabel(rules: List<PasswordRuleUi>): String {
+private fun passwordStrengthLabel(rules: List<PasswordRuleUi>, l10n: SanctuaryStrings): String {
     val metCount = rules.count { it.met }
     return when {
-        metCount == rules.size -> "Ready"
-        metCount >= 4 -> "Almost there"
-        metCount >= 2 -> "Needs work"
-        else -> "Too weak"
+        metCount == rules.size -> l10n.t("auth.passwordStrengthReady")
+        metCount >= 4 -> l10n.t("auth.passwordStrengthAlmost")
+        metCount >= 2 -> l10n.t("auth.passwordStrengthNeedsWork")
+        else -> l10n.t("auth.passwordStrengthTooWeak")
     }
 }
 
@@ -1286,6 +1328,7 @@ private fun PasswordPanel(
     matches: Boolean,
     confirmationWarning: String
 ) {
+    val l10n = sanctuaryStrings()
     Card(
         colors = CardDefaults.cardColors(containerColor = Color(0x6622394C)),
         shape = RoundedCornerShape(22.dp)
@@ -1298,7 +1341,7 @@ private fun PasswordPanel(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = "Password strength",
+                    text = l10n.t("auth.passwordStrength"),
                     color = Color.White,
                     fontWeight = FontWeight.Bold
                 )
@@ -1328,7 +1371,7 @@ private fun PasswordPanel(
             }
 
             Text(
-                text = if (matches) "Passwords match." else confirmationWarning,
+                text = if (matches) l10n.t("auth.passwordsMatch") else confirmationWarning,
                 color = if (matches) Color(0xFF7AC8EA) else Color(0xFFD0DFEA)
             )
         }
@@ -1337,6 +1380,7 @@ private fun PasswordPanel(
 
 @Composable
 private fun HomeCard(session: SessionUiState) {
+    val l10n = sanctuaryStrings()
     val profile = session.profile
     Card(
         colors = CardDefaults.cardColors(containerColor = Color(0xCC22394C)),
@@ -1344,7 +1388,7 @@ private fun HomeCard(session: SessionUiState) {
     ) {
         Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(
-                text = profile?.displayName ?: session.session?.displayName ?: "Sanctuary account",
+                text = profile?.displayName ?: session.session?.displayName ?: l10n.t("me.accountFallback"),
                 color = Color.White,
                 fontSize = 28.sp,
                 fontWeight = FontWeight.Bold
@@ -1354,10 +1398,10 @@ private fun HomeCard(session: SessionUiState) {
                 color = Color(0xFFD0DFEA)
             )
             Spacer(modifier = Modifier.height(8.dp))
-            ProfileMetric("Active novenas", profile?.activeNovenaCount ?: 0)
-            ProfileMetric("Favorite novenas", profile?.favoriteNovenaCount ?: 0)
-            ProfileMetric("Favorite saints", profile?.favoriteSaintCount ?: 0)
-            ProfileMetric("Environment", BuildConfig.ENVIRONMENT.uppercase())
+            ProfileMetric(l10n.t("me.metric.activeNovenas"), profile?.activeNovenaCount ?: 0)
+            ProfileMetric(l10n.t("me.metric.favoriteNovenas"), profile?.favoriteNovenaCount ?: 0)
+            ProfileMetric(l10n.t("me.metric.favoriteSaints"), profile?.favoriteSaintCount ?: 0)
+            ProfileMetric(l10n.t("me.metric.environment"), BuildConfig.ENVIRONMENT.uppercase())
         }
     }
 }
@@ -1371,6 +1415,7 @@ private fun MeScreen(
     onLogout: () -> Unit,
     onUpdateReminderPreferences: (Boolean, Boolean) -> Unit
 ) {
+    val l10n = sanctuaryStrings()
     val profile = session.profile
     val favoriteNovenas = progress.favorites.filter { it.itemType == FavoriteItemType.Novena }
     val favoriteSaints = progress.favorites.filter { it.itemType == FavoriteItemType.Saint }
@@ -1381,9 +1426,9 @@ private fun MeScreen(
         mutableStateOf(profile?.feastRemindersEnabled == true)
     }
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        Text("Me", color = Color.White, fontSize = 42.sp, fontWeight = FontWeight.Bold)
+        Text(l10n.t("me.title"), color = Color.White, fontSize = 42.sp, fontWeight = FontWeight.Bold)
         Text(
-            "Your novenas in progress and saved favorites.",
+            l10n.t("me.subtitle"),
             color = Color(0xFFD0DFEA),
             fontSize = 18.sp
         )
@@ -1396,7 +1441,7 @@ private fun MeScreen(
                 modifier = Modifier.padding(18.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                Text("Signed in", color = Color(0xFF7AC8EA), fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                Text(l10n.t("me.signedIn"), color = Color(0xFF7AC8EA), fontWeight = FontWeight.Bold, fontSize = 13.sp)
                 Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.Top) {
                     Box(
                         modifier = Modifier
@@ -1414,7 +1459,7 @@ private fun MeScreen(
                     }
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(
-                            profile?.displayName ?: session.session?.displayName ?: "Sanctuary account",
+                            profile?.displayName ?: session.session?.displayName ?: l10n.t("me.accountFallback"),
                             color = Color.White,
                             fontSize = 30.sp,
                             lineHeight = 34.sp,
@@ -1425,7 +1470,7 @@ private fun MeScreen(
                             color = Color(0xFFD0DFEA)
                         )
                         Text(
-                            "Your favorites, active novenas, and future account settings live here.",
+                            l10n.t("me.accountSummary"),
                             color = Color(0xFFD0DFEA),
                             lineHeight = 20.sp
                         )
@@ -1437,15 +1482,15 @@ private fun MeScreen(
                     shape = RoundedCornerShape(18.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Logout", color = Color.White)
+                    Text(l10n.t("me.logout"), color = Color.White)
                 }
             }
         }
 
-        MeSectionCard(title = "Reminders") {
+        MeSectionCard(title = l10n.t("me.reminders")) {
             ReminderToggleRow(
-                title = "Novenas in progress",
-                subtitle = "Send morning and evening reminders when you have a novena in progress.",
+                title = l10n.t("reminder.novenas"),
+                subtitle = l10n.t("reminder.novenasBody"),
                 checked = novenaReminderToggle,
                 enabled = !session.isSavingReminderPreferences,
                 onCheckedChange = { checked ->
@@ -1454,8 +1499,8 @@ private fun MeScreen(
                 }
             )
             ReminderToggleRow(
-                title = "Once-daily Sanctuary reminder",
-                subtitle = "Send a gentle morning reminder when you do not have a novena in progress.",
+                title = l10n.t("reminder.daily"),
+                subtitle = l10n.t("reminder.dailyBody"),
                 checked = dailyReminderToggle,
                 enabled = !session.isSavingReminderPreferences,
                 onCheckedChange = { checked ->
@@ -1465,9 +1510,9 @@ private fun MeScreen(
             )
         }
 
-        MeSectionCard(title = "Novenas in Progress") {
+        MeSectionCard(title = l10n.t("me.inProgress")) {
             if (progress.commitments.none { it.status == CommitmentStatus.Active }) {
-                Text("No novenas in progress.", color = Color(0xFFD0DFEA))
+                Text(l10n.t("me.noInProgress"), color = Color(0xFFD0DFEA))
             } else {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     progress.commitments
@@ -1477,7 +1522,7 @@ private fun MeScreen(
                             LinkedMeRow(
                                 title = progress.novenaTitles[commitment.novenaId]
                                     ?: commitment.novenaId.replace("-", " ").replaceFirstChar { it.uppercase() },
-                                subtitle = "Day ${commitment.currentDay} of ${progress.novenaDurations[commitment.novenaId] ?: 9}",
+                                subtitle = "${l10n.t("calendar.dayNumberPrefix")} ${commitment.currentDay} / ${progress.novenaDurations[commitment.novenaId] ?: 9}",
                                 onClick = { onOpenNovena(commitment.novenaId) }
                             )
                         }
@@ -1485,9 +1530,9 @@ private fun MeScreen(
             }
         }
 
-        MeSectionCard(title = "Favorite Novenas") {
+        MeSectionCard(title = l10n.t("me.favoriteNovenas")) {
             if (favoriteNovenas.isEmpty()) {
-                Text("No favorite novenas yet.", color = Color(0xFFD0DFEA))
+                Text(l10n.t("me.noneFavoriteNovenas"), color = Color(0xFFD0DFEA))
             } else {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     favoriteNovenas.forEach { favorite ->
@@ -1502,9 +1547,9 @@ private fun MeScreen(
             }
         }
 
-        MeSectionCard(title = "Favorite Saints") {
+        MeSectionCard(title = l10n.t("me.favoriteSaints")) {
             if (favoriteSaints.isEmpty()) {
-                Text("No favorite saints yet.", color = Color(0xFFD0DFEA))
+                Text(l10n.t("me.noneFavoriteSaints"), color = Color(0xFFD0DFEA))
             } else {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     favoriteSaints.forEach { favorite ->
@@ -1627,6 +1672,7 @@ private fun initialsFor(name: String): String {
 
 @Composable
 private fun HomeHeroCard(session: SessionUiState) {
+    val l10n = sanctuaryStrings()
     Card(
         colors = CardDefaults.cardColors(containerColor = Color(0xCC22394C)),
         shape = RoundedCornerShape(28.dp)
@@ -1637,7 +1683,7 @@ private fun HomeHeroCard(session: SessionUiState) {
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = "#1 Catholic Prayer Companion",
+                text = l10n.t("home.eyebrow"),
                 modifier = Modifier.fillMaxWidth(),
                 color = Color(0xFF7AC8EA),
                 style = MaterialTheme.typography.labelLarge,
@@ -1651,7 +1697,7 @@ private fun HomeHeroCard(session: SessionUiState) {
                 BrandLogoMark(size = 132.dp, corner = 30.dp, glowExtra = 44.dp)
             }
             Text(
-                text = "Welcome to your sanctuary",
+                text = l10n.t("home.welcome"),
                 modifier = Modifier.fillMaxWidth(),
                 color = Color.White,
                 fontSize = 34.sp,
@@ -1660,7 +1706,7 @@ private fun HomeHeroCard(session: SessionUiState) {
                 textAlign = TextAlign.Center
             )
             Text(
-                text = "How do you want to connect with God?",
+                text = l10n.t("home.connect"),
                 modifier = Modifier.fillMaxWidth(),
                 color = Color(0xFFE7F2FA),
                 fontSize = 22.sp,
@@ -1669,7 +1715,7 @@ private fun HomeHeroCard(session: SessionUiState) {
                 textAlign = TextAlign.Center
             )
             Text(
-                text = "Prayer, liturgy, and saints in one calm place.",
+                text = l10n.t("home.supporting"),
                 modifier = Modifier.fillMaxWidth(),
                 color = Color(0xFFD0DFEA),
                 lineHeight = 22.sp,
@@ -1688,56 +1734,57 @@ private fun AboutOverviewSheet(
     onOpenPrivacy: () -> Unit,
     onEmailSupport: () -> Unit
 ) {
+    val l10n = sanctuaryStrings()
     DetailSheetScaffold(
-        title = "About Sanctuary",
-        subtitle = "Sanctuary is a Catholic companion for prayer, daily readings, saints, liturgical living, and novenas."
+        title = l10n.t("about.title"),
+        subtitle = l10n.t("about.subtitle")
     ) {
-        AboutInfoCard(title = "Sanctuary") {
-            Text("Sanctuary", color = Color(0xFF7AC8EA), fontWeight = FontWeight.Bold, fontSize = 13.sp)
-            Text("About Sanctuary", color = Color.White, fontSize = 28.sp, lineHeight = 32.sp, fontWeight = FontWeight.Bold)
+        AboutInfoCard(title = l10n.t("about.brand")) {
+            Text(l10n.t("about.brand"), color = Color(0xFF7AC8EA), fontWeight = FontWeight.Bold, fontSize = 13.sp)
+            Text(l10n.t("about.title"), color = Color.White, fontSize = 28.sp, lineHeight = 32.sp, fontWeight = FontWeight.Bold)
             Text(
-                "Sanctuary is a Catholic companion for prayer, daily readings, saints, liturgical living, and novenas.",
+                l10n.t("about.subtitle"),
                 color = Color(0xFFD0DFEA),
                 lineHeight = 21.sp
             )
         }
 
-        AboutInfoCard(title = "Use Sanctuary on desktop") {
+        AboutInfoCard(title = l10n.t("about.desktopVersion")) {
             Text(
-                "You can also use Sanctuary on desktop for the full web experience, including daily readings, saints, liturgical browsing, novenas, and your synced account.",
+                l10n.t("about.desktopBody"),
                 color = Color(0xFFD0DFEA),
                 lineHeight = 21.sp
             )
-            PrimarySheetButton(title = "Open mydailysanctuary.com", onClick = onOpenDesktop)
+            PrimarySheetButton(title = l10n.t("about.link.desktop"), onClick = onOpenDesktop)
         }
 
-        AboutInfoCard(title = "What's in the app") {
-            Text("• Liturgical: day, week, and month calendar views with season context and direct daily readings links.", color = Color(0xFFD0DFEA), lineHeight = 21.sp)
-            Text("• Saints: date-aware saint listings, detailed profiles, and searchable content.", color = Color(0xFFD0DFEA), lineHeight = 21.sp)
-            Text("• Novenas: rule-based start dates, end-date tracking, intentions search, and progress management.", color = Color(0xFFD0DFEA), lineHeight = 21.sp)
+        AboutInfoCard(title = l10n.t("about.whatsInApp")) {
+            Text("• ${l10n.t("about.whatsInApp.liturgical")}", color = Color(0xFFD0DFEA), lineHeight = 21.sp)
+            Text("• ${l10n.t("about.whatsInApp.saints")}", color = Color(0xFFD0DFEA), lineHeight = 21.sp)
+            Text("• ${l10n.t("about.whatsInApp.novenas")}", color = Color(0xFFD0DFEA), lineHeight = 21.sp)
         }
 
-        AboutInfoCard(title = "References") {
-            Text("Sanctuary currently references these public sources for readings and saint information.", color = Color(0xFFD0DFEA), lineHeight = 21.sp)
-            Text("• USCCB (daily readings)", color = Color(0xFFD0DFEA))
-            Text("• Wikipedia", color = Color(0xFFD0DFEA))
-            PrimarySheetButton(title = "USCCB Daily Bible Reading", onClick = onOpenUsccb)
-            PrimarySheetButton(title = "Wikipedia", onClick = onOpenWikipedia)
+        AboutInfoCard(title = l10n.t("about.references")) {
+            Text(l10n.t("about.referencesBody"), color = Color(0xFFD0DFEA), lineHeight = 21.sp)
+            Text("• ${l10n.t("about.reference.usccb")}", color = Color(0xFFD0DFEA))
+            Text("• ${l10n.t("about.reference.wikipedia")}", color = Color(0xFFD0DFEA))
+            PrimarySheetButton(title = l10n.t("about.link.usccb"), onClick = onOpenUsccb)
+            PrimarySheetButton(title = l10n.t("about.link.wikipedia"), onClick = onOpenWikipedia)
         }
 
-        AboutInfoCard(title = "Contact & feedback") {
+        AboutInfoCard(title = l10n.t("about.contact")) {
             Text(
-                "To report bugs, request corrections, or send feedback, contact us and include the page or feature you were using along with a short description of the issue.",
+                l10n.t("about.contactBody"),
                 color = Color(0xFFD0DFEA),
                 lineHeight = 21.sp
             )
-            PrimarySheetButton(title = "Email Support", onClick = onEmailSupport)
-            SecondarySheetButton(title = "Support", onClick = onOpenSupport)
-            SecondarySheetButton(title = "Privacy Policy", onClick = onOpenPrivacy)
+            PrimarySheetButton(title = l10n.t("about.emailSupport"), onClick = onEmailSupport)
+            SecondarySheetButton(title = l10n.t("about.link.support"), onClick = onOpenSupport)
+            SecondarySheetButton(title = l10n.t("about.link.privacy"), onClick = onOpenPrivacy)
         }
 
         Text(
-            "Sanctuary © 2026. All rights reserved.",
+            l10n.t("about.copyright"),
             color = Color(0xFFD0DFEA),
             fontSize = 14.sp,
             textAlign = TextAlign.Center,
@@ -1751,38 +1798,39 @@ private fun AboutDocumentSheet(
     document: AboutDocument,
     onEmailSupport: () -> Unit
 ) {
+    val l10n = sanctuaryStrings()
     val title = when (document) {
-        AboutDocument.Support -> "Support"
-        AboutDocument.Privacy -> "Privacy Policy"
+        AboutDocument.Support -> l10n.t("about.supportTitle")
+        AboutDocument.Privacy -> l10n.t("about.privacyTitle")
     }
     val sections = when (document) {
         AboutDocument.Support -> listOf(
-            "Help and Feedback" to "If you need help with Sanctuary, have a bug to report, or want to suggest an improvement, contact us at info@mydailysanctuary.com and include your device type, platform, and a short description of the issue.",
-            "App Features" to "Sanctuary includes Catholic prayers, novenas, saint reflections, liturgical calendar content, and optional reminders to support prayer throughout the day.",
-            "Response Time" to "We do our best to respond to support requests promptly."
+            l10n.t("about.support.section.help") to l10n.t("about.support.body.help"),
+            l10n.t("about.support.section.features") to l10n.t("about.support.body.features"),
+            l10n.t("about.support.section.response") to l10n.t("about.support.body.response")
         )
         AboutDocument.Privacy -> listOf(
-            "Information We Collect" to "Sanctuary is designed to work primarily with local content on your device. We do not require account creation to use the app.",
-            "Location" to "If you choose to use location-aware features, Sanctuary may request location access to improve nearby content and time-sensitive experiences.",
-            "Notifications" to "If you choose to allow notifications, Sanctuary uses notification permissions to send reminder notifications for prayer and novena activity. Notifications are optional and can be disabled at any time in your device settings.",
-            "Sharing" to "Sanctuary does not sell your personal information. We use trusted providers only where needed to support core app functionality.",
-            "Your Choices" to "You can use most of Sanctuary without creating an account, and you can remove app data from your device at any time.",
-            "Contact" to "If you have privacy questions, contact us at info@mydailysanctuary.com."
+            l10n.t("about.privacy.section.collect") to l10n.t("about.privacy.body.collect"),
+            l10n.t("about.privacy.section.location") to l10n.t("about.privacy.body.location"),
+            l10n.t("about.privacy.section.notifications") to l10n.t("about.privacy.body.notifications"),
+            l10n.t("about.privacy.section.sharing") to l10n.t("about.privacy.body.sharing"),
+            l10n.t("about.privacy.section.choices") to l10n.t("about.privacy.body.choices"),
+            l10n.t("about.privacy.section.contact") to l10n.t("about.privacy.body.contact")
         )
     }
 
     DetailSheetScaffold(
         title = title,
-        subtitle = if (document == AboutDocument.Privacy) "Effective date: April 13, 2026" else "Support and feedback for Sanctuary."
+        subtitle = if (document == AboutDocument.Privacy) l10n.t("about.privacySubtitle") else l10n.t("about.supportSubtitle")
     ) {
         sections.forEach { (sectionTitle, body) ->
             AboutInfoCard(title = sectionTitle) {
                 Text(body, color = Color(0xFFD0DFEA), lineHeight = 21.sp)
             }
         }
-        PrimarySheetButton(title = "Email Support", onClick = onEmailSupport)
+        PrimarySheetButton(title = l10n.t("about.emailSupport"), onClick = onEmailSupport)
         Text(
-            "Sanctuary © 2026. All rights reserved.",
+            l10n.t("about.copyright"),
             color = Color(0xFFD0DFEA),
             fontSize = 14.sp,
             textAlign = TextAlign.Center,
@@ -1874,7 +1922,7 @@ private fun BrandLogoMark(
         )
         Image(
             painter = painterResource(id = R.drawable.brand_logo),
-            contentDescription = "Sanctuary",
+            contentDescription = sanctuaryStrings().t("about.brand"),
             modifier = Modifier
                 .size(size)
                 .clip(RoundedCornerShape(corner))
@@ -1885,23 +1933,26 @@ private fun BrandLogoMark(
 
 @Composable
 private fun HomeTopActions(
-    onShowAbout: () -> Unit
+    language: AppLanguage,
+    onShowAbout: () -> Unit,
+    onShowLanguage: () -> Unit
 ) {
+    val l10n = sanctuaryStrings()
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         TopPillButton(
             modifier = Modifier.weight(1f),
-            title = "About Sanctuary",
+            title = l10n.t("home.about"),
             icon = Icons.Filled.Info,
             onClick = onShowAbout
         )
         TopPillButton(
             modifier = Modifier.weight(1f),
-            title = "Language: English",
+            title = "${l10n.t("home.language")}: ${language.displayName}",
             icon = Icons.Filled.Language,
-            onClick = {}
+            onClick = onShowLanguage
         )
     }
 }
@@ -1941,10 +1992,55 @@ private fun TopPillButton(
 }
 
 @Composable
+private fun LanguagePickerSheet(
+    current: AppLanguage,
+    onSelect: (AppLanguage) -> Unit
+) {
+    val l10n = sanctuaryStrings()
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Text(
+            text = l10n.t("home.chooseLanguage"),
+            color = Color.White,
+            fontWeight = FontWeight.Bold,
+            fontSize = 24.sp
+        )
+        AppLanguage.entries.forEach { language ->
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = if (language == current) Color(0x223CB8F2) else Color(0x1222394C)
+                ),
+                shape = RoundedCornerShape(18.dp),
+                onClick = { onSelect(language) }
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 18.dp, vertical = 16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(language.displayName, color = Color.White, fontWeight = FontWeight.SemiBold)
+                    if (language == current) {
+                        Text("✓", color = SanctuaryTabActive, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+    }
+}
+
+@Composable
 private fun HomeFeatureCard(
     action: HomeAction,
     onClick: () -> Unit
 ) {
+    val l10n = sanctuaryStrings()
     Card(
         modifier = Modifier.shadow(18.dp, RoundedCornerShape(28.dp), clip = false),
         colors = CardDefaults.cardColors(containerColor = Color.Transparent),
@@ -1995,13 +2091,13 @@ private fun HomeFeatureCard(
                     }
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(
-                            action.title,
+                            l10n.t(action.titleKey),
                             color = Color.White,
                             fontWeight = FontWeight.Bold,
                             fontSize = 22.sp
                         )
                         Text(
-                            action.subtitle,
+                            l10n.t(action.subtitleKey),
                             color = Color(0xFFD0DFEA),
                             fontSize = 14.sp,
                             lineHeight = 20.sp
@@ -2029,16 +2125,16 @@ private fun HomeFeatureCard(
                 if (action.artworkAssetPath != null) {
                     HomeActionArtwork(
                         assetPath = action.artworkAssetPath,
-                        contentDescription = action.title,
+                        contentDescription = l10n.t(action.titleKey),
                         modifier = Modifier
                             .align(Alignment.Center)
                             .fillMaxSize()
                             .padding(start = 18.dp, end = 12.dp, top = 10.dp, bottom = 8.dp)
                     )
                 } else {
-                    HomeActionIllustration(
-                        action = action,
-                        modifier = Modifier
+                        HomeActionIllustration(
+                            action = action,
+                            modifier = Modifier
                             .align(Alignment.Center)
                             .size(width = 118.dp, height = 78.dp)
                             .offset(x = (-8).dp, y = 4.dp)
@@ -2443,6 +2539,7 @@ private fun HomeActionIllustration(
 
 @Composable
 private fun LoadingCard() {
+    val l10n = sanctuaryStrings()
     Card(
         modifier = Modifier.shadow(12.dp, RoundedCornerShape(24.dp), clip = false),
         colors = CardDefaults.cardColors(containerColor = Color(0xCC22394C)),
@@ -2460,7 +2557,7 @@ private fun LoadingCard() {
                 strokeWidth = 2.dp
             )
             Spacer(modifier = Modifier.size(12.dp))
-            Text("Preparing Sanctuary…", color = Color.White)
+            Text(l10n.t("common.loading"), color = Color.White)
         }
     }
 }
@@ -2484,6 +2581,7 @@ private fun SearchCard(
     onQueryChanged: (String) -> Unit,
     onSubmit: () -> Unit
 ) {
+    val l10n = sanctuaryStrings()
     Card(
         modifier = Modifier.sanctuaryCardShadow(),
         colors = CardDefaults.cardColors(containerColor = SanctuaryCardElevated),
@@ -2491,8 +2589,8 @@ private fun SearchCard(
     ) {
         Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(title, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 20.sp)
-            TextFieldBlock(label = "Search", value = query, onValueChange = onQueryChanged)
-            PrimaryButton("Refresh", false, onClick = onSubmit)
+            TextFieldBlock(label = l10n.t("search.field"), value = query, onValueChange = onQueryChanged)
+            PrimaryButton(l10n.t("common.search"), false, onClick = onSubmit)
         }
     }
 }
@@ -2598,9 +2696,10 @@ private fun DetailLoadingSheet(message: String) {
 
 @Composable
 private fun DetailErrorSheet(message: String, onDismiss: () -> Unit) {
-    DetailSheetScaffold(title = "Could not load this right now") {
-        Banner(message ?: "Sanctuary could not complete that request right now.", isError = true)
-        PrimaryButton("Close", false, onClick = onDismiss)
+    val l10n = sanctuaryStrings()
+    DetailSheetScaffold(title = l10n.t("detail.loadErrorTitle")) {
+        Banner(message.ifBlank { l10n.t("detail.loadErrorBody") }, isError = true)
+        PrimaryButton(l10n.t("common.close"), false, onClick = onDismiss)
     }
 }
 
@@ -2612,6 +2711,7 @@ private fun SaintDetailSheet(
     onToggleFavorite: (FavoriteItemType, String) -> Unit,
     onDismiss: () -> Unit
 ) {
+    val l10n = sanctuaryStrings()
     val isFavorite = progress.favorites.any { it.itemType == FavoriteItemType.Saint && it.itemId == detail.id }
     DetailSheetScaffold(
         title = detail.name,
@@ -2635,7 +2735,7 @@ private fun SaintDetailSheet(
                 shape = RoundedCornerShape(18.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(if (isFavorite) "Saved to Favorites" else "Add to Favorites")
+                Text(if (isFavorite) l10n.t("detail.favorite.saved") else l10n.t("detail.favorite.add"))
             }
         }
         detail.summary?.takeIf { it.isNotBlank() }?.let {
@@ -2645,12 +2745,12 @@ private fun SaintDetailSheet(
             Text(it, color = Color(0xFFD0DFEA), lineHeight = 22.sp)
         }
         if (detail.sources.isNotEmpty()) {
-            Text("Sources", color = Color.White, fontWeight = FontWeight.SemiBold)
+            Text(l10n.t("detail.sources"), color = Color.White, fontWeight = FontWeight.SemiBold)
             detail.sources.take(3).forEach { source ->
                 Text("• ${source.title}", color = Color(0xFFD0DFEA), lineHeight = 20.sp)
             }
         }
-        PrimaryButton("Close", false, onClick = onDismiss)
+        PrimaryButton(l10n.t("common.close"), false, onClick = onDismiss)
     }
 }
 
@@ -2665,6 +2765,7 @@ private fun NovenaDetailSheet(
     onToggleFavorite: (FavoriteItemType, String) -> Unit,
     onDismiss: () -> Unit
 ) {
+    val l10n = sanctuaryStrings()
     val activeCommitment = progress.commitments.firstOrNull {
         it.novenaId == detail.id && it.status == CommitmentStatus.Active
     }
@@ -2681,9 +2782,9 @@ private fun NovenaDetailSheet(
         activeCommitment == null &&
         latestCommitment?.status != CommitmentStatus.Completed
     val completionLabel = when {
-        latestCommitment?.status == CommitmentStatus.Completed -> "Completed"
-        activeCommitment != null -> "Complete Day ${activeCommitment.currentDay}"
-        else -> "Complete Day 1"
+        latestCommitment?.status == CommitmentStatus.Completed -> l10n.t("detail.completed")
+        activeCommitment != null -> "${l10n.t("detail.completeDay")} ${activeCommitment.currentDay}"
+        else -> "${l10n.t("detail.completeDay")} 1"
     }
 
     LaunchedEffect(activeCommitment?.currentDay, detail.id) {
@@ -2710,7 +2811,7 @@ private fun NovenaDetailSheet(
                 Text(it, color = Color.White, lineHeight = 24.sp)
             }
             if (detail.intentions.isNotEmpty()) {
-                Text("Intentions", color = Color.White, fontWeight = FontWeight.SemiBold)
+                Text(l10n.t("detail.intentions"), color = Color.White, fontWeight = FontWeight.SemiBold)
                 detail.intentions.take(4).forEach { intention ->
                     Text("• $intention", color = Color(0xFFD0DFEA), lineHeight = 20.sp)
                 }
@@ -2727,11 +2828,11 @@ private fun NovenaDetailSheet(
                 shape = RoundedCornerShape(18.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(if (isFavorite) "Saved to Favorites" else "Add to Favorites")
+                Text(if (isFavorite) l10n.t("detail.favorite.saved") else l10n.t("detail.favorite.add"))
             }
         }
 
-        Text("Choose Day", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 24.sp)
+        Text(l10n.t("calendar.chooseDay"), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 24.sp)
         androidx.compose.foundation.lazy.grid.LazyVerticalGrid(
             columns = androidx.compose.foundation.lazy.grid.GridCells.Adaptive(minSize = 92.dp),
             modifier = Modifier
@@ -2754,7 +2855,7 @@ private fun NovenaDetailSheet(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("Day", fontSize = 12.sp, color = Color.White.copy(alpha = 0.78f))
+                        Text(l10n.t("calendar.dayLabel"), fontSize = 12.sp, color = Color.White.copy(alpha = 0.78f))
                         Text("${day.dayNumber}", fontWeight = FontWeight.Bold, fontSize = 20.sp)
                     }
                 }
@@ -2763,49 +2864,49 @@ private fun NovenaDetailSheet(
 
         when {
             session.status != SessionStatus.Authenticated -> {
-                Banner("Log in or register to start this novena and track your progress.", isError = false)
+                Banner(l10n.t("detail.loginToTrack"), isError = false)
             }
             activeCommitment != null -> {
-                PrimaryButton("Stop Novena", false, onClick = { onStop(detail.id) })
+                PrimaryButton(l10n.t("detail.stopNovena"), false, onClick = { onStop(detail.id) })
             }
             canStart -> {
-                PrimaryButton("Start Novena", false, onClick = { onStart(detail.id) })
+                PrimaryButton(l10n.t("detail.startNovena"), false, onClick = { onStart(detail.id) })
             }
         }
 
-        DetailSectionCard(title = "Day $selectedDay") {
+        DetailSectionCard(title = "${l10n.t("calendar.dayNumberPrefix")} $selectedDay") {
             if (selectedDayDetail == null) {
-                Text("No day content was found for this novena yet.", color = Color(0xFFD0DFEA), lineHeight = 22.sp)
+                Text(l10n.t("detail.noDayContent"), color = Color(0xFFD0DFEA), lineHeight = 22.sp)
             } else {
                 selectedDayDetail.title?.takeIf { it.isNotBlank() }?.let {
                     Text(it, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 22.sp, lineHeight = 26.sp)
                 }
                 selectedDayDetail.scripture?.takeIf { it.isNotBlank() }?.let {
-                    DetailSectionLabel("Scripture")
+                    DetailSectionLabel(l10n.t("detail.scripture"))
                     Text(it, color = Color(0xFFD0DFEA), lineHeight = 22.sp)
                 }
                 selectedDayDetail.prayer?.takeIf { it.isNotBlank() }?.let {
-                    DetailSectionLabel("Prayer")
+                    DetailSectionLabel(l10n.t("detail.prayer"))
                     Text(it, color = Color(0xFFD0DFEA), lineHeight = 22.sp)
                 }
                 selectedDayDetail.reflection?.takeIf { it.isNotBlank() }?.let {
-                    DetailSectionLabel("Reflection")
+                    DetailSectionLabel(l10n.t("detail.reflection"))
                     Text(it, color = Color(0xFFD0DFEA), lineHeight = 22.sp)
                 }
                 selectedDayDetail.body?.takeIf { it.isNotBlank() }?.let {
-                    DetailSectionLabel("Content")
+                    DetailSectionLabel(l10n.t("detail.content"))
                     Text(it, color = Color(0xFFD0DFEA), lineHeight = 22.sp)
                 }
                 selectedDayDetail.openingPrayer?.takeIf { it.isNotBlank() }?.let {
-                    DetailSectionLabel("Opening Prayer")
+                    DetailSectionLabel(l10n.t("detail.openingPrayer"))
                     Text(it, color = Color(0xFFD0DFEA), lineHeight = 22.sp)
                 }
                 selectedDayDetail.meditation?.takeIf { it.isNotBlank() }?.let {
-                    DetailSectionLabel("Meditation")
+                    DetailSectionLabel(l10n.t("detail.meditation"))
                     Text(it, color = Color(0xFFD0DFEA), lineHeight = 22.sp)
                 }
                 selectedDayDetail.closingPrayer?.takeIf { it.isNotBlank() }?.let {
-                    DetailSectionLabel("Closing Prayer")
+                    DetailSectionLabel(l10n.t("detail.closingPrayer"))
                     Text(it, color = Color(0xFFD0DFEA), lineHeight = 22.sp)
                 }
             }
@@ -2823,7 +2924,7 @@ private fun NovenaDetailSheet(
             }
         }
 
-        PrimaryButton("Close", false, onClick = onDismiss)
+        PrimaryButton(l10n.t("common.close"), false, onClick = onDismiss)
     }
 }
 
@@ -2832,6 +2933,7 @@ private fun PrayerDetailSheet(
     detail: PrayerDetail,
     onDismiss: () -> Unit
 ) {
+    val l10n = sanctuaryStrings()
     DetailSheetScaffold(
         title = detail.title,
         subtitle = detail.category
@@ -2851,7 +2953,7 @@ private fun PrayerDetailSheet(
         detail.note?.takeIf { it.isNotBlank() }?.let {
             Text(it, color = Color(0xFFD0DFEA), lineHeight = 22.sp)
         }
-        PrimaryButton("Close", false, onClick = onDismiss)
+        PrimaryButton(l10n.t("common.close"), false, onClick = onDismiss)
     }
 }
 
@@ -2891,6 +2993,20 @@ private fun AppTab.icon(): ImageVector = when (this) {
     AppTab.Liturgical -> Icons.Filled.CalendarMonth
     AppTab.Saints -> Icons.Filled.People
     AppTab.Me -> Icons.Filled.Person
+}
+
+private fun AppTab.label(l10n: SanctuaryStrings): String = when (this) {
+    AppTab.Home -> l10n.t("tab.home")
+    AppTab.Novenas -> l10n.t("tab.novenas")
+    AppTab.Liturgical -> l10n.t("tab.liturgical")
+    AppTab.Saints -> l10n.t("tab.saints")
+    AppTab.Me -> l10n.t("tab.me")
+}
+
+private fun CalendarMode.label(l10n: SanctuaryStrings): String = when (this) {
+    CalendarMode.Day -> l10n.t("common.day")
+    CalendarMode.Week -> l10n.t("common.week")
+    CalendarMode.Month -> l10n.t("common.month")
 }
 
 @Composable
@@ -2979,7 +3095,7 @@ private fun <T> SearchListSheet(
             onSubmit = onSubmit
         )
         when {
-            isLoading -> InlineLoading("Loading…")
+            isLoading -> InlineLoading(sanctuaryStrings().t("inline.loading"))
             error != null -> Banner(error, isError = true)
             items.isEmpty() -> Text(emptyLabel, color = Color(0xFFD0DFEA))
             else -> Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -2997,6 +3113,7 @@ private fun SaintsCalendarScreen(
     onOpenSaint: (String) -> Unit,
     fetchSaintsInRange: suspend (String, String) -> List<app.sanctuary.android.data.SaintDateGroup>
 ) {
+    val l10n = sanctuaryStrings()
     val today = LocalDate.now()
     var selectedDay by rememberSaveable { mutableStateOf(today.dayOfMonth) }
     var selectedMonth by rememberSaveable { mutableStateOf(today.monthValue) }
@@ -3009,7 +3126,7 @@ private fun SaintsCalendarScreen(
         value = runCatching { fetchSaintsInRange(month.atDay(1).toString(), month.atEndOfMonth().toString()) }
             .fold(
                 onSuccess = { CalendarLoadState.Ready(it) },
-                onFailure = { CalendarLoadState.Error(it.message ?: "Could not load saints right now.") }
+                onFailure = { CalendarLoadState.Error(it.message ?: l10n.t("search.saintsTitle")) }
             )
     }
 
@@ -3019,12 +3136,11 @@ private fun SaintsCalendarScreen(
 
     CalendarSurface(
         title = if (mode == CalendarMode.Day) {
-            LocalDate.of(selectedYear, selectedMonth, selectedDay.coerceIn(1, month.lengthOfMonth()))
-                .format(DateTimeFormatter.ofPattern("MMMM d, yyyy"))
+            l10n.formatMonthDayYear(LocalDate.of(selectedYear, selectedMonth, selectedDay.coerceIn(1, month.lengthOfMonth())))
         } else {
-            month.format(DateTimeFormatter.ofPattern("MMMM yyyy"))
+            l10n.formatMonthYear(selectedMonth, selectedYear)
         },
-        subtitle = "Saints • Tap to jump",
+        subtitle = l10n.t("calendar.subtitle.saints"),
         mode = mode,
         onModeChange = onModeChange,
         onToday = {
@@ -3078,7 +3194,7 @@ private fun SaintsCalendarScreen(
         }
     ) {
         when (val current = state) {
-            CalendarLoadState.Loading -> InlineLoading("Loading saints…")
+            CalendarLoadState.Loading -> InlineLoading(l10n.t("common.loading"))
             is CalendarLoadState.Error -> Banner(current.message, isError = true)
             is CalendarLoadState.Ready -> {
                 val saintByDate = current.value.mapNotNull { group ->
@@ -3094,11 +3210,11 @@ private fun SaintsCalendarScreen(
                                 title = preview.name,
                                 subtitle = preview.feastLabel,
                                 imageUrl = preview.imageUrl,
-                                buttonLabel = "Open details",
+                                buttonLabel = l10n.t("common.openDetails"),
                                 onClick = { onOpenSaint(preview.slug) }
                             )
                         } else {
-                            SectionHint("No saints found", "Sanctuary did not return saint observances for this day yet.")
+                            SectionHint(l10n.t("search.saintsTitle"), l10n.t("calendar.noLiturgicalBody"))
                         }
                     }
                     CalendarMode.Week -> {
@@ -3126,7 +3242,7 @@ private fun SaintsCalendarScreen(
                         )
                     }
                 }
-                PrimaryButton("Search Saints", false, onClick = onSearch)
+                PrimaryButton(l10n.t("calendar.searchSaints"), false, onClick = onSearch)
                 SeasonLegend()
             }
         }
@@ -3142,6 +3258,7 @@ private fun NovenasCalendarScreen(
     onOpenNovena: (String) -> Unit,
     fetchNovenasInRange: suspend (String, String) -> List<app.sanctuary.android.data.NovenaCalendarDate>
 ) {
+    val l10n = sanctuaryStrings()
     val today = LocalDate.now()
     var selectedDay by rememberSaveable { mutableStateOf(today.dayOfMonth) }
     var selectedMonth by rememberSaveable { mutableStateOf(today.monthValue) }
@@ -3154,7 +3271,7 @@ private fun NovenasCalendarScreen(
         value = runCatching { fetchNovenasInRange(month.atDay(1).toString(), month.atEndOfMonth().toString()) }
             .fold(
                 onSuccess = { CalendarLoadState.Ready(it) },
-                onFailure = { CalendarLoadState.Error(it.message ?: "Could not load novenas right now.") }
+                onFailure = { CalendarLoadState.Error(it.message ?: l10n.t("search.novenasTitle")) }
             )
     }
 
@@ -3164,12 +3281,11 @@ private fun NovenasCalendarScreen(
 
     CalendarSurface(
         title = if (mode == CalendarMode.Day) {
-            LocalDate.of(selectedYear, selectedMonth, selectedDay.coerceIn(1, month.lengthOfMonth()))
-                .format(DateTimeFormatter.ofPattern("MMMM d, yyyy"))
+            l10n.formatMonthDayYear(LocalDate.of(selectedYear, selectedMonth, selectedDay.coerceIn(1, month.lengthOfMonth())))
         } else {
-            month.format(DateTimeFormatter.ofPattern("MMMM yyyy"))
+            l10n.formatMonthYear(selectedMonth, selectedYear)
         },
-        subtitle = "Novenas • Tap to jump",
+        subtitle = l10n.t("calendar.subtitle.novenas"),
         mode = mode,
         onModeChange = onModeChange,
         onToday = {
@@ -3223,7 +3339,7 @@ private fun NovenasCalendarScreen(
         }
     ) {
         when (val current = state) {
-            CalendarLoadState.Loading -> InlineLoading("Loading novenas…")
+            CalendarLoadState.Loading -> InlineLoading(l10n.t("common.loading"))
             is CalendarLoadState.Error -> Banner(current.message, isError = true)
             is CalendarLoadState.Ready -> {
                 val novenaByDate = current.value.mapNotNull { entry ->
@@ -3239,11 +3355,11 @@ private fun NovenasCalendarScreen(
                                 title = preview.title,
                                 subtitle = preview.description,
                                 imageUrl = preview.imageUrl,
-                                buttonLabel = "Open details",
+                                buttonLabel = l10n.t("common.openDetails"),
                                 onClick = { onOpenNovena(preview.slug) }
                             )
                         } else {
-                            SectionHint("No novenas found", "Sanctuary did not return novena observances for this day yet.")
+                            SectionHint(l10n.t("search.novenasTitle"), l10n.t("calendar.noLiturgicalBody"))
                         }
                     }
                     CalendarMode.Week -> {
@@ -3271,8 +3387,8 @@ private fun NovenasCalendarScreen(
                         )
                     }
                 }
-                PrimaryButton("Search Novenas", false, onClick = onSearch)
-                PrimaryButton("Search Novena Intentions", false, onClick = onSearchIntentions)
+                PrimaryButton(l10n.t("calendar.searchNovenas"), false, onClick = onSearch)
+                PrimaryButton(l10n.t("calendar.searchIntentions"), false, onClick = onSearchIntentions)
                 SeasonLegend()
             }
         }
@@ -3286,6 +3402,7 @@ private fun LiturgicalCalendarScreen(
     fetchLiturgicalRange: suspend (String, String) -> List<app.sanctuary.android.data.LiturgicalDay>,
     onOpenReadings: (String) -> Unit
 ) {
+    val l10n = sanctuaryStrings()
     val today = LocalDate.now()
     var selectedDay by rememberSaveable { mutableStateOf(today.dayOfMonth) }
     var selectedMonth by rememberSaveable { mutableStateOf(today.monthValue) }
@@ -3300,7 +3417,7 @@ private fun LiturgicalCalendarScreen(
             fetchLiturgicalRange(month.atDay(1).toString(), month.atEndOfMonth().toString())
         }.fold(
             onSuccess = { CalendarLoadState.Ready(it) },
-            onFailure = { CalendarLoadState.Error(it.message ?: "Could not load liturgical days right now.") }
+            onFailure = { CalendarLoadState.Error(it.message ?: l10n.t("calendar.noLiturgicalBody")) }
         )
     }
 
@@ -3310,12 +3427,11 @@ private fun LiturgicalCalendarScreen(
 
     CalendarSurface(
         title = if (mode == CalendarMode.Day) {
-            LocalDate.of(selectedYear, selectedMonth, selectedDay.coerceIn(1, month.lengthOfMonth()))
-                .format(DateTimeFormatter.ofPattern("MMMM d, yyyy"))
+            l10n.formatMonthDayYear(LocalDate.of(selectedYear, selectedMonth, selectedDay.coerceIn(1, month.lengthOfMonth())))
         } else {
-            month.format(DateTimeFormatter.ofPattern("MMMM yyyy"))
+            l10n.formatMonthYear(selectedMonth, selectedYear)
         },
-        subtitle = "Liturgical • Tap to jump",
+        subtitle = l10n.t("calendar.subtitle.liturgical"),
         mode = mode,
         onModeChange = onModeChange,
         onToday = {
@@ -3369,7 +3485,7 @@ private fun LiturgicalCalendarScreen(
         }
     ) {
         when (val current = state) {
-            CalendarLoadState.Loading -> InlineLoading("Loading liturgical days…")
+            CalendarLoadState.Loading -> InlineLoading(l10n.t("common.loading"))
             is CalendarLoadState.Error -> Banner(current.message, isError = true)
             is CalendarLoadState.Ready -> {
                 val liturgicalByDate = current.value.associateBy { LocalDate.parse(it.date) }
@@ -3386,12 +3502,12 @@ private fun LiturgicalCalendarScreen(
                                     if (!readingsUrl.isNullOrBlank()) {
                                         onOpenReadings(readingsUrl)
                                     } else {
-                                        readingError = "Sanctuary could not find daily readings for this day."
+                                        readingError = l10n.t("calendar.noLiturgicalBody")
                                     }
                                 }
                             )
                         } else {
-                            SectionHint("No liturgical reading found", "Sanctuary did not return a liturgical observance for this day yet.")
+                            SectionHint(l10n.t("calendar.noLiturgicalFound"), l10n.t("calendar.noLiturgicalBody"))
                         }
                     }
                     CalendarMode.Week -> {
@@ -3439,12 +3555,13 @@ private fun DailyReadingsSheet(
     url: String,
     onDismiss: () -> Unit
 ) {
+    val l10n = sanctuaryStrings()
     DetailSheetScaffold(
-        title = "Daily Readings",
-        subtitle = "USCCB readings inside Sanctuary"
+        title = l10n.t("calendar.dailyReadingsTitle"),
+        subtitle = l10n.t("calendar.dailyReadingsSubtitle")
     ) {
         DailyReadingsWebView(url = url)
-        PrimaryButton("Close", false, onClick = onDismiss)
+        PrimaryButton(l10n.t("common.close"), false, onClick = onDismiss)
     }
 }
 
@@ -3489,6 +3606,7 @@ private fun CalendarSurface(
     onNext: () -> Unit,
     content: @Composable ColumnScope.() -> Unit
 ) {
+    val l10n = sanctuaryStrings()
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Card(
             colors = CardDefaults.cardColors(containerColor = Color(0xCC22394C)),
@@ -3514,10 +3632,10 @@ private fun CalendarSurface(
             }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            FilterChipButton(title = "Today", selected = false, onClick = onToday)
+            FilterChipButton(title = l10n.t("common.today"), selected = false, onClick = onToday)
             CalendarMode.entries.forEach { entry ->
                 FilterChipButton(
-                    title = entry.label,
+                    title = entry.label(l10n),
                     selected = mode == entry,
                     onClick = { onModeChange(entry) }
                 )
@@ -3777,8 +3895,9 @@ private fun sanitizedSaintName(raw: String): String {
 
 @Composable
 private fun CalendarWeekHeaderRow() {
+    val l10n = sanctuaryStrings()
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        listOf("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat").forEach { label ->
+        l10n.weekdaySymbolsShort().forEach { label ->
             Text(
                 label,
                 color = Color.White.copy(alpha = 0.82f),
@@ -3796,12 +3915,13 @@ private fun LiturgicalDayPreviewCard(
     detail: app.sanctuary.android.data.LiturgicalDay,
     onOpenReadings: () -> Unit
 ) {
+    val l10n = sanctuaryStrings()
     DayPreviewCard(
         date = date,
         title = detail.primaryRank,
         subtitle = detail.observances.firstOrNull().orEmpty().ifBlank { detail.season.replaceFirstChar { it.uppercase() } },
         imageUrl = null,
-        buttonLabel = "Open daily readings",
+        buttonLabel = l10n.t("calendar.openDailyReadings"),
         onClick = onOpenReadings
     )
 }
@@ -3834,15 +3954,16 @@ private fun shortLiturgicalLabel(detail: app.sanctuary.android.data.LiturgicalDa
 
 @Composable
 private fun SeasonLegend() {
+    val l10n = sanctuaryStrings()
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        SeasonDot("Advent", Color(0xFF8B5CF6))
-        SeasonDot("Christmas", Color(0xFFE7C76A))
-        SeasonDot("Lent", Color(0xFFD16BA5))
-        SeasonDot("Easter", Color(0xFFF5F5F5))
-        SeasonDot("Ordinary Time", Color(0xFF6FB56B))
+        SeasonDot(l10n.t("season.advent"), Color(0xFF8B5CF6))
+        SeasonDot(l10n.t("season.christmas"), Color(0xFFE7C76A))
+        SeasonDot(l10n.t("season.lent"), Color(0xFFD16BA5))
+        SeasonDot(l10n.t("season.easter"), Color(0xFFF5F5F5))
+        SeasonDot(l10n.t("season.ordinary"), Color(0xFF6FB56B))
     }
 }
 
@@ -3871,10 +3992,10 @@ private fun calendarRange(mode: CalendarMode, anchor: LocalDate): Pair<String, S
     }
 }
 
-private fun headerTitle(mode: CalendarMode, anchor: LocalDate): String {
+private fun headerTitle(mode: CalendarMode, anchor: LocalDate, language: AppLanguage = AppLanguage.English): String {
     return when (mode) {
-        CalendarMode.Day -> anchor.format(DateTimeFormatter.ofPattern("MMMM d, yyyy"))
-        CalendarMode.Week -> "${anchor.format(DateTimeFormatter.ofPattern("MMMM d"))} - ${anchor.plusDays(6).format(DateTimeFormatter.ofPattern("MMMM d, yyyy"))}"
-        CalendarMode.Month -> YearMonth.from(anchor).format(DateTimeFormatter.ofPattern("MMMM yyyy"))
+        CalendarMode.Day -> anchor.format(DateTimeFormatter.ofPattern("MMMM d, yyyy", language.locale))
+        CalendarMode.Week -> "${anchor.format(DateTimeFormatter.ofPattern("MMMM d", language.locale))} - ${anchor.plusDays(6).format(DateTimeFormatter.ofPattern("MMMM d, yyyy", language.locale))}"
+        CalendarMode.Month -> YearMonth.from(anchor).format(DateTimeFormatter.ofPattern("MMMM yyyy", language.locale))
     }
 }

@@ -22,6 +22,7 @@ class SessionRepository(
     )
 
     private val sessionKey = "primary_session"
+    private val languageKey = "preferred_language"
 
     suspend fun bootstrap(): SessionBootstrapResult = withContext(Dispatchers.IO) {
         val stored = loadSession()
@@ -47,6 +48,29 @@ class SessionRepository(
         val session = response.toStoredSession()
         persistSession(session)
         loadProfile(session)
+    }
+
+    fun currentLanguage(): String = preferences.getString(languageKey, null)?.ifBlank { null } ?: "en"
+
+    suspend fun updatePreferredLanguage(language: String): UserProfile? = withContext(Dispatchers.IO) {
+        persistLanguage(language)
+        val session = loadSession() ?: return@withContext null
+        val currentProfile = runApiCall { authenticatedApi(session).me() }.toUserProfile(session)
+        val updatedProfile = runApiCall {
+            authenticatedApi(session).updateMePreferences(
+                UserPreferencesUpdateRequest(
+                    preferredLanguage = language,
+                    timeZoneId = currentProfile.timeZoneId ?: java.util.TimeZone.getDefault().id,
+                    novenaRemindersEnabled = currentProfile.novenaRemindersEnabled,
+                    feastRemindersEnabled = currentProfile.feastRemindersEnabled,
+                    emailUpdatesEnabled = currentProfile.emailUpdatesEnabled,
+                    onboardingCompleted = currentProfile.onboardingCompleted
+                )
+            )
+        }
+        updatedProfile.toUserProfile(session).also {
+            persistLanguage(it.preferredLanguage ?: language)
+        }
     }
 
     suspend fun register(
@@ -99,7 +123,7 @@ class SessionRepository(
         }
 
     suspend fun listSaints(query: String): List<SaintSummary> = withContext(Dispatchers.IO) {
-        runApiCall { api.listSaints(query = query.trim()) }
+        runApiCall { api.listSaints(lang = currentLanguage(), query = query.trim()) }
             .map {
                 SaintSummary(
                     id = it.id,
@@ -113,7 +137,7 @@ class SessionRepository(
     }
 
     suspend fun fetchSaintDetail(slug: String): SaintDetail = withContext(Dispatchers.IO) {
-        runApiCall { api.getSaintDetail(slug = slug) }
+        runApiCall { api.getSaintDetail(slug = slug, lang = currentLanguage()) }
             .let {
                 SaintDetail(
                     id = it.id,
@@ -134,12 +158,12 @@ class SessionRepository(
     }
 
     suspend fun listSaintsByFeastDay(month: Int, day: Int): List<SaintSummary> = withContext(Dispatchers.IO) {
-        runApiCall { api.listSaintsByDay(month = month, day = day) }
+        runApiCall { api.listSaintsByDay(month = month, day = day, lang = currentLanguage()) }
             .map { it.toDomain() }
     }
 
     suspend fun listPrayers(query: String): List<PrayerSummary> = withContext(Dispatchers.IO) {
-        runApiCall { api.listPrayers(query = query.trim()) }
+        runApiCall { api.listPrayers(lang = currentLanguage(), query = query.trim()) }
             .map { prayer ->
                 PrayerSummary(
                     id = prayer.id,
@@ -153,7 +177,7 @@ class SessionRepository(
     }
 
     suspend fun fetchPrayerDetail(slug: String): PrayerDetail = withContext(Dispatchers.IO) {
-        runApiCall { api.getPrayerDetail(slug = slug) }
+        runApiCall { api.getPrayerDetail(slug = slug, lang = currentLanguage()) }
             .let { prayer ->
                 PrayerDetail(
                     id = prayer.id,
@@ -172,7 +196,7 @@ class SessionRepository(
     }
 
     suspend fun listSaintsInRange(start: String, end: String): List<SaintDateGroup> = withContext(Dispatchers.IO) {
-        runApiCall { api.listSaintsInRange(start = start, end = end) }
+        runApiCall { api.listSaintsInRange(start = start, end = end, lang = currentLanguage()) }
             .map { group ->
                 SaintDateGroup(
                     date = group.date,
@@ -182,7 +206,7 @@ class SessionRepository(
     }
 
     suspend fun listNovenas(query: String): List<NovenaSummary> = withContext(Dispatchers.IO) {
-        runApiCall { api.listNovenas(query = query.trim()) }
+        runApiCall { api.listNovenas(lang = currentLanguage(), query = query.trim()) }
             .map {
                 NovenaSummary(
                     id = it.id,
@@ -197,7 +221,7 @@ class SessionRepository(
     }
 
     suspend fun fetchNovenaDetail(slug: String): NovenaDetail = withContext(Dispatchers.IO) {
-        runApiCall { api.getNovenaDetail(slug = slug) }
+        runApiCall { api.getNovenaDetail(slug = slug, lang = currentLanguage()) }
             .let {
                 NovenaDetail(
                     id = it.id,
@@ -351,12 +375,12 @@ class SessionRepository(
     }
 
     suspend fun listNovenasByIntentions(query: String): List<NovenaSummary> = withContext(Dispatchers.IO) {
-        runApiCall { api.listNovenasByIntentions(query = query.trim()) }
+        runApiCall { api.listNovenasByIntentions(lang = currentLanguage(), query = query.trim()) }
             .map { it.toDomain() }
     }
 
     suspend fun listNovenaCalendarRange(start: String, end: String): List<NovenaCalendarDate> = withContext(Dispatchers.IO) {
-        runApiCall { api.listNovenasCalendarRange(start = start, end = end) }
+        runApiCall { api.listNovenasCalendarRange(start = start, end = end, lang = currentLanguage()) }
             .map { entry ->
                 NovenaCalendarDate(
                     date = entry.date,
@@ -421,6 +445,10 @@ class SessionRepository(
         preferences.edit().putString(sessionKey, ApiJson.encodeSession(session)).apply()
     }
 
+    private fun persistLanguage(language: String) {
+        preferences.edit().putString(languageKey, language).apply()
+    }
+
     private fun clearSession() {
         preferences.edit().remove(sessionKey).apply()
     }
@@ -445,6 +473,7 @@ class SessionRepository(
     private suspend fun loadProfile(session: StoredSession): SessionBootstrapResult {
         return try {
             val profile = runApiCall { authenticatedApi(session).me() }.toUserProfile(session)
+            persistLanguage(profile.preferredLanguage ?: currentLanguage())
             SessionBootstrapResult.authenticated(session, profile)
         } catch (exception: Exception) {
             if (!session.refreshToken.isNullOrBlank()) {

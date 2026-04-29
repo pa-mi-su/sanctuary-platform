@@ -22,6 +22,8 @@ import app.sanctuary.android.data.FavoriteItemType
 import app.sanctuary.android.data.UserFavorite
 import app.sanctuary.android.data.UserNovenaCommitment
 import app.sanctuary.android.data.UserProfile
+import app.sanctuary.android.ui.AppLanguage
+import app.sanctuary.android.ui.SanctuaryStrings
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -89,6 +91,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     )
     val session: StateFlow<SessionUiState> = _session.asStateFlow()
 
+    private val _appLanguage = MutableStateFlow(AppLanguage.fromCode(repository.currentLanguage()))
+    val appLanguage: StateFlow<AppLanguage> = _appLanguage.asStateFlow()
+
+    private fun l10n() = SanctuaryStrings(_appLanguage.value)
+
     private val _saints = MutableStateFlow(ContentListUiState<SaintSummary>())
     val saints: StateFlow<ContentListUiState<SaintSummary>> = _saints.asStateFlow()
 
@@ -134,6 +141,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 SessionBootstrapResult.signedOut()
             }
             if (result.authenticated) {
+                _appLanguage.value = AppLanguage.fromCode(result.profile?.preferredLanguage ?: repository.currentLanguage())
                 _session.value = SessionUiState(
                     status = SessionStatus.Authenticated,
                     isBootstrapping = false,
@@ -144,6 +152,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 loadInitialContent()
                 refreshNovenaProgress()
             } else {
+                _appLanguage.value = AppLanguage.fromCode(repository.currentLanguage())
                 _session.value = SessionUiState(
                     status = SessionStatus.SignedOut,
                     isBootstrapping = false,
@@ -161,12 +170,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             runCatching {
                 withTimeoutOrNull(15_000) {
                     repository.register(firstName, lastName, email, password)
-                } ?: throw IllegalStateException("Sanctuary took too long to register. Please try again.")
+                } ?: throw IllegalStateException(l10n().t("status.registerTimeout"))
             }.onSuccess { response: AuthRegistrationResponse ->
                 _session.value = SessionUiState(
                     status = SessionStatus.AwaitingConfirmation,
                     pendingConfirmationEmail = response.email,
-                    message = "We sent a confirmation code to ${response.email}.",
+                    message = "${l10n().t("auth.confirmationSentPrefix")} ${response.email}.",
                     isErrorMessage = false
                 )
             }.onFailure { failure ->
@@ -187,7 +196,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             runCatching {
                 withTimeoutOrNull(15_000) {
                     repository.confirm(email = email, code = code)
-                } ?: throw IllegalStateException("Sanctuary took too long to confirm your account. Please try again.")
+                } ?: throw IllegalStateException(l10n().t("status.confirmTimeout"))
             }.onSuccess { response ->
                 _session.value = _session.value.copy(
                     status = SessionStatus.SignedOut,
@@ -211,7 +220,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             runCatching {
                 withTimeoutOrNull(15_000) {
                     repository.resendConfirmation(email)
-                } ?: throw IllegalStateException("Sanctuary took too long to resend the confirmation code. Please try again.")
+                } ?: throw IllegalStateException(l10n().t("status.resendTimeout"))
             }
                 .onSuccess { response ->
                     _session.value = _session.value.copy(
@@ -235,7 +244,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             runCatching {
                 withTimeoutOrNull(15_000) {
                     repository.forgotPassword(email)
-                } ?: throw IllegalStateException("Sanctuary took too long to start password reset. Please try again.")
+                } ?: throw IllegalStateException(l10n().t("status.forgotTimeout"))
             }
                 .onSuccess { response ->
                     _session.value = SessionUiState(
@@ -261,7 +270,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             runCatching {
                 withTimeoutOrNull(15_000) {
                     repository.resetPassword(email, code, newPassword)
-                } ?: throw IllegalStateException("Sanctuary took too long to reset your password. Please try again.")
+                } ?: throw IllegalStateException(l10n().t("status.resetTimeout"))
             }
                 .onSuccess { response ->
                     _session.value = SessionUiState(
@@ -286,7 +295,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             runCatching {
                 withTimeoutOrNull(15_000) {
                     repository.login(email, password)
-                } ?: throw IllegalStateException("Sanctuary took too long to sign you in. Please try again.")
+                } ?: throw IllegalStateException(l10n().t("status.loginTimeout"))
             }
                 .onSuccess { result ->
                     _session.value = SessionUiState(
@@ -313,6 +322,28 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _session.value = SessionUiState(status = SessionStatus.SignedOut, isSavingReminderPreferences = false)
         _novenaProgress.value = NovenaProgressUiState()
         loadInitialContent()
+    }
+
+    fun updateLanguage(language: AppLanguage) {
+        if (_appLanguage.value == language) return
+        viewModelScope.launch {
+            _appLanguage.value = language
+            runCatching { repository.updatePreferredLanguage(language.code) }
+                .onSuccess { updatedProfile ->
+                    if (updatedProfile != null) {
+                        _session.update {
+                            it.copy(
+                                status = SessionStatus.Authenticated,
+                                profile = updatedProfile,
+                                message = null,
+                                isErrorMessage = false
+                            )
+                        }
+                    }
+                }
+            loadInitialContent()
+            refreshNovenaProgress()
+        }
     }
 
     fun updateReminderPreferences(novenaEnabled: Boolean, dailyEnabled: Boolean) {
@@ -344,9 +375,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         isSavingReminderPreferences = false,
                         profile = updatedProfile,
                         message = if (novenaEnabled || dailyEnabled) {
-                            "Your reminder preferences are updated."
+                            l10n().t("status.remindersUpdated")
                         } else {
-                            "Prayer reminders are off."
+                            l10n().t("status.remindersOff")
                         },
                         isErrorMessage = false
                     )
