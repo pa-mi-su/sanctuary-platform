@@ -12,6 +12,8 @@ on:
       - ".github/workflows/ios-pipeline.yml"
   push:
     branches:
+      - dev
+      - uat
       - main
     paths:
       - "apps/ios/**"
@@ -102,7 +104,17 @@ jobs:
           elif [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
             target="${{ inputs.target }}"
           else
-            target="main"
+            case "${GITHUB_REF}" in
+              refs/heads/dev)
+                target="dev"
+                ;;
+              refs/heads/uat)
+                target="uat"
+                ;;
+              *)
+                target="main"
+                ;;
+            esac
           fi
 
           case "$target" in
@@ -143,7 +155,7 @@ jobs:
     name: Upload Dev TestFlight Build
     needs: validate
     if: >
-      (github.event_name == 'pull_request' && github.base_ref == 'dev') ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/dev') ||
       (github.event_name == 'workflow_dispatch' && inputs.target == 'dev')
     runs-on: macos-15
     environment: dev
@@ -401,7 +413,7 @@ jobs:
     name: Upload UAT TestFlight Build
     needs: validate
     if: >
-      (github.event_name == 'pull_request' && github.base_ref == 'uat') ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/uat') ||
       (github.event_name == 'workflow_dispatch' && inputs.target == 'uat')
     runs-on: macos-15
     environment: uat
