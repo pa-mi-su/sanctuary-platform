@@ -30,6 +30,8 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
@@ -134,6 +136,7 @@ import app.sanctuary.android.ui.AppLanguage
 import app.sanctuary.android.ui.LocalSanctuaryStrings
 import app.sanctuary.android.ui.SanctuaryStrings
 import app.sanctuary.android.ui.sanctuaryStrings
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 private fun Modifier.sanctuaryCardShadow(shape: RoundedCornerShape = RoundedCornerShape(24.dp)) =
@@ -745,6 +748,7 @@ private fun AuthenticatedShell(
     var showPrayerSearch by rememberSaveable { mutableStateOf(false) }
     var dailyReadingsUrl by rememberSaveable { mutableStateOf<String?>(null) }
     var dailyReadingError by rememberSaveable { mutableStateOf<String?>(null) }
+    var isLoadingDailyReadings by rememberSaveable { mutableStateOf(false) }
     var aboutDocument by rememberSaveable { mutableStateOf<AboutDocument?>(null) }
     var saintsCalendarMode by rememberSaveable { mutableStateOf(CalendarMode.Day) }
     var novenasCalendarMode by rememberSaveable { mutableStateOf(CalendarMode.Day) }
@@ -813,29 +817,46 @@ private fun AuthenticatedShell(
                     item {
                         HomeFeatureCard(
                             action = HomeAction.Saints,
-                            onClick = { showSaintSearch = true }
+                            onClick = {
+                                showSaintSearch = true
+                                if (saints.items.isEmpty() && !saints.isLoading) {
+                                    onReloadSaints()
+                                }
+                            }
                         )
                     }
                     item {
                         HomeFeatureCard(
                             action = HomeAction.Novenas,
-                            onClick = { showNovenaSearch = true }
+                            onClick = {
+                                showNovenaSearch = true
+                                if (novenas.items.isEmpty() && !novenas.isLoading) {
+                                    onReloadNovenas()
+                                }
+                            }
                         )
                     }
                     item {
                         HomeFeatureCard(
                             action = HomeAction.Prayers,
-                            onClick = { showPrayerSearch = true }
+                            onClick = {
+                                showPrayerSearch = true
+                                if (prayers.items.isEmpty() && !prayers.isLoading) {
+                                    onReloadPrayers()
+                                }
+                            }
                         )
                     }
                     item {
                         HomeFeatureCard(
                             action = HomeAction.Daily,
                             onClick = {
+                                isLoadingDailyReadings = true
                                 scope.launch {
                                     val today = LocalDate.now().toString()
                                     runCatching { fetchLiturgicalRange(today, today) }
                                         .onSuccess { days ->
+                                            isLoadingDailyReadings = false
                                             val readingsUrl = days.firstOrNull()?.readingsUrl
                                             if (!readingsUrl.isNullOrBlank()) {
                                                 dailyReadingsUrl = readingsUrl
@@ -844,6 +865,7 @@ private fun AuthenticatedShell(
                                             }
                                         }
                                         .onFailure {
+                                            isLoadingDailyReadings = false
                                             dailyReadingError = it.message ?: l10n.t("calendar.dailyReadingsOpenError")
                                         }
                                 }
@@ -853,13 +875,12 @@ private fun AuthenticatedShell(
                     item {
                         HomeFeatureCard(
                             action = HomeAction.Intentions,
-                            onClick = { showIntentionsSearch = true }
-                        )
-                    }
-                    item {
-                        HomeFeatureCard(
-                            action = HomeAction.Liturgical,
-                            onClick = { onTabSelected(AppTab.Liturgical) }
+                            onClick = {
+                                showIntentionsSearch = true
+                                if (intentions.items.isEmpty() && !intentions.isLoading) {
+                                    onReloadIntentions()
+                                }
+                            }
                         )
                     }
                     if (session.status != SessionStatus.Authenticated) {
@@ -960,6 +981,12 @@ private fun AuthenticatedShell(
         dailyReadingError?.let { message ->
             SanctuaryModalSheet(onDismissRequest = { dailyReadingError = null }) {
                 DetailErrorSheet(message = message, onDismiss = { dailyReadingError = null })
+            }
+        }
+
+        if (isLoadingDailyReadings) {
+            SanctuaryModalSheet(onDismissRequest = { isLoadingDailyReadings = false }) {
+                DetailLoadingSheet(l10n.t("common.loading"))
             }
         }
 
@@ -3087,6 +3114,11 @@ private fun <T> SearchListSheet(
     items: List<T>,
     itemContent: @Composable (T) -> Unit
 ) {
+    LaunchedEffect(query) {
+        delay(250)
+        onSubmit()
+    }
+
     DetailSheetScaffold(title = title) {
         SearchCard(
             title = title,
@@ -3952,12 +3984,15 @@ private fun shortLiturgicalLabel(detail: app.sanctuary.android.data.LiturgicalDa
     return "$first\n$second"
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun SeasonLegend() {
     val l10n = sanctuaryStrings()
-    Row(
+    FlowRow(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(14.dp)
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        maxItemsInEachRow = 3
     ) {
         SeasonDot(l10n.t("season.advent"), Color(0xFF8B5CF6))
         SeasonDot(l10n.t("season.christmas"), Color(0xFFE7C76A))
