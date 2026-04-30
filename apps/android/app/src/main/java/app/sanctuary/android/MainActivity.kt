@@ -1815,6 +1815,24 @@ private fun AboutOverviewSheet(
             PrimarySheetButton(title = l10n.t("about.link.desktop"), onClick = onOpenDesktop)
         }
 
+        AboutInfoCard(title = l10n.t("about.versionTitle")) {
+            Text(
+                "${l10n.t("about.versionLabel")}: ${BuildConfig.VERSION_NAME}",
+                color = Color(0xFFD0DFEA),
+                lineHeight = 21.sp
+            )
+            Text(
+                "${l10n.t("about.buildLabel")}: ${BuildConfig.VERSION_CODE}",
+                color = Color(0xFFD0DFEA),
+                lineHeight = 21.sp
+            )
+            Text(
+                "${l10n.t("about.environmentLabel")}: ${BuildConfig.ENVIRONMENT.uppercase()}",
+                color = Color(0xFFD0DFEA),
+                lineHeight = 21.sp
+            )
+        }
+
         AboutInfoCard(title = l10n.t("about.whatsInApp")) {
             Text("• ${l10n.t("about.whatsInApp.liturgical")}", color = Color(0xFFD0DFEA), lineHeight = 21.sp)
             Text("• ${l10n.t("about.whatsInApp.saints")}", color = Color(0xFFD0DFEA), lineHeight = 21.sp)
