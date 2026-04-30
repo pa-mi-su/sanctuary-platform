@@ -3160,8 +3160,14 @@ private fun <T> SearchListSheet(
             isLoading -> InlineLoading(sanctuaryStrings().t("inline.loading"))
             error != null -> Banner(error, isError = true)
             items.isEmpty() -> Text(emptyLabel, color = Color(0xFFD0DFEA))
-            else -> Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                items.forEach { item -> itemContent(item) }
+            else -> LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 520.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                contentPadding = PaddingValues(bottom = 8.dp)
+            ) {
+                items(items) { item -> itemContent(item) }
             }
         }
     }
