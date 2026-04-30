@@ -18,6 +18,7 @@ import app.sanctuary.android.data.SanctuaryApiFactory
 import app.sanctuary.android.data.SessionBootstrapResult
 import app.sanctuary.android.data.SessionRepository
 import app.sanctuary.android.data.StoredSession
+import app.sanctuary.android.data.CommitmentStatus
 import app.sanctuary.android.data.FavoriteItemType
 import app.sanctuary.android.data.UserFavorite
 import app.sanctuary.android.data.UserNovenaCommitment
@@ -76,6 +77,7 @@ data class NovenaProgressUiState(
 )
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
+    private val reminderScheduler = AndroidReminderScheduler(application.applicationContext)
     private val repository = SessionRepository(
         context = application.applicationContext,
         api = SanctuaryApiFactory.create {
@@ -149,9 +151,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     session = result.session,
                     profile = result.profile
                 )
+                syncReminderScheduler(
+                    profile = result.profile,
+                    activeCommitmentCount = 0
+                )
                 loadInitialContent()
                 refreshNovenaProgress()
             } else {
+                reminderScheduler.cancelAll()
                 _appLanguage.value = AppLanguage.fromCode(repository.currentLanguage())
                 _session.value = SessionUiState(
                     status = SessionStatus.SignedOut,
@@ -305,6 +312,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         session = result.session,
                         profile = result.profile
                     )
+                    syncReminderScheduler(
+                        profile = result.profile,
+                        activeCommitmentCount = 0
+                    )
                     loadInitialContent()
                     refreshNovenaProgress()
                 }.onFailure { failure ->
@@ -319,6 +330,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun logout() {
         repository.logout()
+        reminderScheduler.cancelAll()
         _session.value = SessionUiState(status = SessionStatus.SignedOut, isSavingReminderPreferences = false)
         _novenaProgress.value = NovenaProgressUiState()
         loadInitialContent()
@@ -331,6 +343,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             runCatching { repository.updatePreferredLanguage(language.code) }
                 .onSuccess { updatedProfile ->
                     if (updatedProfile != null) {
+                        syncReminderScheduler(
+                            profile = updatedProfile,
+                            activeCommitmentCount = _novenaProgress.value.commitments.count { it.status == CommitmentStatus.Active }
+                        )
                         _session.update {
                             it.copy(
                                 status = SessionStatus.Authenticated,
@@ -369,6 +385,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     dailyEnabled = dailyEnabled
                 )
             }.onSuccess { updatedProfile ->
+                syncReminderScheduler(
+                    profile = updatedProfile,
+                    activeCommitmentCount = _novenaProgress.value.commitments.count { it.status == CommitmentStatus.Active }
+                )
                 _session.update {
                     it.copy(
                         status = SessionStatus.Authenticated,
@@ -500,6 +520,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun refreshNovenaProgress() {
         if (_session.value.status != SessionStatus.Authenticated) {
+            reminderScheduler.cancelAll()
             _novenaProgress.value = NovenaProgressUiState()
             return
         }
@@ -531,6 +552,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                                     ?: allSaints.firstOrNull { it.id == id || it.slug == id }?.slug
                                     ?: id
                             }
+                            val activeCommitmentCount = commitments.count { it.status == CommitmentStatus.Active }
+                            syncReminderScheduler(
+                                profile = _session.value.profile,
+                                activeCommitmentCount = activeCommitmentCount
+                            )
 
                             _novenaProgress.value = NovenaProgressUiState(
                                 commitments = commitments,
@@ -641,6 +667,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         loadNovenas()
         loadPrayers()
         loadIntentions()
+    }
+
+    private fun syncReminderScheduler(profile: UserProfile?, activeCommitmentCount: Int) {
+        if (profile == null) {
+            reminderScheduler.cancelAll()
+            return
+        }
+        reminderScheduler.syncDigestReminder(
+            activeCommitmentCount = activeCommitmentCount,
+            novenaEnabled = profile.novenaRemindersEnabled,
+            generalDailyEnabled = profile.feastRemindersEnabled
+        )
     }
 
     private fun setBusy() {

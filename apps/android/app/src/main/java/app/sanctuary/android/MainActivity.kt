@@ -1,10 +1,16 @@
 package app.sanctuary.android
 
 import android.annotation.SuppressLint
+import android.Manifest
+import android.os.Build
 import android.os.Bundle
+import android.view.MotionEvent
+import android.view.View
 import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
@@ -17,6 +23,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -30,8 +37,6 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
@@ -108,6 +113,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.core.content.ContextCompat
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import java.time.LocalDate
@@ -1443,15 +1449,41 @@ private fun MeScreen(
     onUpdateReminderPreferences: (Boolean, Boolean) -> Unit
 ) {
     val l10n = sanctuaryStrings()
+    val context = LocalContext.current
     val profile = session.profile
     val favoriteNovenas = progress.favorites.filter { it.itemType == FavoriteItemType.Novena }
     val favoriteSaints = progress.favorites.filter { it.itemType == FavoriteItemType.Saint }
-    var novenaReminderToggle by remember(profile?.novenaRemindersEnabled) {
-        mutableStateOf(profile?.novenaRemindersEnabled == true)
+    val novenaReminderToggle = profile?.novenaRemindersEnabled == true
+    val dailyReminderToggle = profile?.feastRemindersEnabled == true
+    var pendingReminderUpdate by remember { mutableStateOf<Pair<Boolean, Boolean>?>(null) }
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        val update = pendingReminderUpdate
+        pendingReminderUpdate = null
+        if (granted && update != null) {
+            onUpdateReminderPreferences(update.first, update.second)
+        }
     }
-    var dailyReminderToggle by remember(profile?.feastRemindersEnabled) {
-        mutableStateOf(profile?.feastRemindersEnabled == true)
+
+    fun notificationsPermissionRequired(): Boolean {
+        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) != android.content.pm.PackageManager.PERMISSION_GRANTED
     }
+
+    fun requestReminderUpdate(nextNovenaEnabled: Boolean, nextDailyEnabled: Boolean) {
+        val needsPermission = (nextNovenaEnabled || nextDailyEnabled) && notificationsPermissionRequired()
+        if (needsPermission) {
+            pendingReminderUpdate = nextNovenaEnabled to nextDailyEnabled
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            onUpdateReminderPreferences(nextNovenaEnabled, nextDailyEnabled)
+        }
+    }
+
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Text(l10n.t("me.title"), color = Color.White, fontSize = 42.sp, fontWeight = FontWeight.Bold)
         Text(
@@ -1521,8 +1553,7 @@ private fun MeScreen(
                 checked = novenaReminderToggle,
                 enabled = !session.isSavingReminderPreferences,
                 onCheckedChange = { checked ->
-                    novenaReminderToggle = checked
-                    onUpdateReminderPreferences(checked, dailyReminderToggle)
+                    requestReminderUpdate(checked, dailyReminderToggle)
                 }
             )
             ReminderToggleRow(
@@ -1531,8 +1562,7 @@ private fun MeScreen(
                 checked = dailyReminderToggle,
                 enabled = !session.isSavingReminderPreferences,
                 onCheckedChange = { checked ->
-                    dailyReminderToggle = checked
-                    onUpdateReminderPreferences(novenaReminderToggle, checked)
+                    requestReminderUpdate(novenaReminderToggle, checked)
                 }
             )
         }
@@ -3130,8 +3160,14 @@ private fun <T> SearchListSheet(
             isLoading -> InlineLoading(sanctuaryStrings().t("inline.loading"))
             error != null -> Banner(error, isError = true)
             items.isEmpty() -> Text(emptyLabel, color = Color(0xFFD0DFEA))
-            else -> Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                items.forEach { item -> itemContent(item) }
+            else -> LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 520.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                contentPadding = PaddingValues(bottom = 8.dp)
+            ) {
+                items(items) { item -> itemContent(item) }
             }
         }
     }
@@ -3615,6 +3651,18 @@ private fun DailyReadingsWebView(url: String) {
                     settings.javaScriptEnabled = true
                     settings.domStorageEnabled = true
                     settings.loadsImagesAutomatically = true
+                    isVerticalScrollBarEnabled = true
+                    isHorizontalScrollBarEnabled = false
+                    overScrollMode = View.OVER_SCROLL_IF_CONTENT_SCROLLS
+                    setOnTouchListener { view, event ->
+                        when (event.actionMasked) {
+                            MotionEvent.ACTION_DOWN,
+                            MotionEvent.ACTION_MOVE -> view.parent?.requestDisallowInterceptTouchEvent(true)
+                            MotionEvent.ACTION_UP,
+                            MotionEvent.ACTION_CANCEL -> view.parent?.requestDisallowInterceptTouchEvent(false)
+                        }
+                        false
+                    }
                     loadUrl(url)
                 }
             },
@@ -3984,29 +4032,50 @@ private fun shortLiturgicalLabel(detail: app.sanctuary.android.data.LiturgicalDa
     return "$first\n$second"
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun SeasonLegend() {
     val l10n = sanctuaryStrings()
-    FlowRow(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-        maxItemsInEachRow = 3
-    ) {
-        SeasonDot(l10n.t("season.advent"), Color(0xFF8B5CF6))
-        SeasonDot(l10n.t("season.christmas"), Color(0xFFE7C76A))
-        SeasonDot(l10n.t("season.lent"), Color(0xFFD16BA5))
-        SeasonDot(l10n.t("season.easter"), Color(0xFFF5F5F5))
-        SeasonDot(l10n.t("season.ordinary"), Color(0xFF6FB56B))
+    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+        val compact = maxWidth < 380.dp
+        val fontSize = if (compact) 10.sp else 12.sp
+        val dotSize = if (compact) 6.dp else 7.dp
+        val spacing = if (compact) 8.dp else 14.dp
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            SeasonDot(l10n.t("season.advent"), Color(0xFF8B5CF6), fontSize, dotSize, spacing)
+            SeasonDot(l10n.t("season.christmas"), Color(0xFFE7C76A), fontSize, dotSize, spacing)
+            SeasonDot(l10n.t("season.lent"), Color(0xFFD16BA5), fontSize, dotSize, spacing)
+            SeasonDot(l10n.t("season.easter"), Color(0xFFF5F5F5), fontSize, dotSize, spacing)
+            SeasonDot(l10n.t("season.ordinary"), Color(0xFF6FB56B), fontSize, dotSize, spacing)
+        }
     }
 }
 
 @Composable
-private fun SeasonDot(label: String, color: Color) {
-    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-        Box(modifier = Modifier.size(7.dp).background(color, CircleShape))
-        Text(label, color = Color(0xFFD0DFEA), fontSize = 12.sp)
+private fun SeasonDot(
+    label: String,
+    color: Color,
+    fontSize: androidx.compose.ui.unit.TextUnit,
+    dotSize: androidx.compose.ui.unit.Dp,
+    spacing: androidx.compose.ui.unit.Dp
+) {
+    Row(
+        modifier = Modifier.width(intrinsicSize = androidx.compose.foundation.layout.IntrinsicSize.Min),
+        horizontalArrangement = Arrangement.spacedBy(spacing / 2),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(modifier = Modifier.size(dotSize).background(color, CircleShape))
+        Text(
+            text = label,
+            color = Color(0xFFD0DFEA),
+            fontSize = fontSize,
+            maxLines = 1,
+            softWrap = false
+        )
     }
 }
 
