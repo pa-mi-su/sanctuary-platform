@@ -4,12 +4,29 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
+import java.io.ByteArrayOutputStream
+
 val uploadKeystorePath = System.getenv("ANDROID_UPLOAD_KEYSTORE_PATH")
 val uploadKeystorePassword = System.getenv("ANDROID_UPLOAD_KEYSTORE_PASSWORD")
 val uploadKeyAlias = System.getenv("ANDROID_UPLOAD_KEY_ALIAS")
 val uploadKeyPassword = System.getenv("ANDROID_UPLOAD_KEY_PASSWORD")
+fun gitCommitCount(): Int? {
+    val output = ByteArrayOutputStream()
+    return try {
+        exec {
+            commandLine("git", "rev-list", "--count", "HEAD")
+            standardOutput = output
+            isIgnoreExitValue = true
+        }
+        output.toString().trim().toIntOrNull()
+    } catch (_: Exception) {
+        null
+    }
+}
+
 val ciVersionCode =
     System.getenv("ANDROID_VERSION_CODE")?.toIntOrNull()
+        ?: gitCommitCount()
         ?: System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull()
         ?: 1
 val hasUploadSigning =
