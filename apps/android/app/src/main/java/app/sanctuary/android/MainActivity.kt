@@ -4,6 +4,8 @@ import android.annotation.SuppressLint
 import android.Manifest
 import android.os.Build
 import android.os.Bundle
+import android.view.MotionEvent
+import android.view.View
 import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -3643,6 +3645,18 @@ private fun DailyReadingsWebView(url: String) {
                     settings.javaScriptEnabled = true
                     settings.domStorageEnabled = true
                     settings.loadsImagesAutomatically = true
+                    isVerticalScrollBarEnabled = true
+                    isHorizontalScrollBarEnabled = false
+                    overScrollMode = View.OVER_SCROLL_IF_CONTENT_SCROLLS
+                    setOnTouchListener { view, event ->
+                        when (event.actionMasked) {
+                            MotionEvent.ACTION_DOWN,
+                            MotionEvent.ACTION_MOVE -> view.parent?.requestDisallowInterceptTouchEvent(true)
+                            MotionEvent.ACTION_UP,
+                            MotionEvent.ACTION_CANCEL -> view.parent?.requestDisallowInterceptTouchEvent(false)
+                        }
+                        false
+                    }
                     loadUrl(url)
                 }
             },
