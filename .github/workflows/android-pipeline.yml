@@ -440,7 +440,7 @@ jobs:
           serviceAccountJsonPlainText: ${{ env.ANDROID_PLAY_SERVICE_ACCOUNT_JSON }}
           packageName: ${{ env.ANDROID_PLAY_PACKAGE_NAME }}
           releaseFiles: apps/android/app/build/outputs/bundle/uatRelease/app-uat-release.aab
-          track: beta
+          track: alpha
           status: draft
 
   build-prod:
