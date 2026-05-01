@@ -17,6 +17,7 @@ on:
       - main
     paths:
       - "apps/ios/**"
+      - ".github/workflows/ios-pipeline.yml"
   workflow_dispatch:
     inputs:
       target:
