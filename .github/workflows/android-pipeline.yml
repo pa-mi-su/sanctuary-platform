@@ -169,10 +169,13 @@ jobs:
                 "${api_base}/edits/${edit_id}/tracks/${track}")"
 
               if [[ "${http_code}" == "200" ]]; then
-                track_max="$(python3 -c '
-import json, sys
+                track_max="$(python3 - "${response_file}" <<'PY'
+import json
+import sys
+
 with open(sys.argv[1], "r", encoding="utf-8") as fh:
     payload = json.load(fh)
+
 codes = []
 for release in payload.get("releases", []):
     for value in release.get("versionCodes", []) or []:
@@ -180,8 +183,10 @@ for release in payload.get("releases", []):
             codes.append(int(value))
         except (TypeError, ValueError):
             pass
+
 print(max(codes) if codes else 0)
-' "${response_file}")"
+PY
+)"
 
                 if (( track_max > max_version_code )); then
                   max_version_code="${track_max}"
@@ -325,10 +330,13 @@ print(max(codes) if codes else 0)
                 "${api_base}/edits/${edit_id}/tracks/${track}")"
 
               if [[ "${http_code}" == "200" ]]; then
-                track_max="$(python3 -c '
-import json, sys
+                track_max="$(python3 - "${response_file}" <<'PY'
+import json
+import sys
+
 with open(sys.argv[1], "r", encoding="utf-8") as fh:
     payload = json.load(fh)
+
 codes = []
 for release in payload.get("releases", []):
     for value in release.get("versionCodes", []) or []:
@@ -336,8 +344,10 @@ for release in payload.get("releases", []):
             codes.append(int(value))
         except (TypeError, ValueError):
             pass
+
 print(max(codes) if codes else 0)
-' "${response_file}")"
+PY
+)"
 
                 if (( track_max > max_version_code )); then
                   max_version_code="${track_max}"
@@ -481,10 +491,13 @@ print(max(codes) if codes else 0)
                 "${api_base}/edits/${edit_id}/tracks/${track}")"
 
               if [[ "${http_code}" == "200" ]]; then
-                track_max="$(python3 -c '
-import json, sys
+                track_max="$(python3 - "${response_file}" <<'PY'
+import json
+import sys
+
 with open(sys.argv[1], "r", encoding="utf-8") as fh:
     payload = json.load(fh)
+
 codes = []
 for release in payload.get("releases", []):
     for value in release.get("versionCodes", []) or []:
@@ -492,8 +505,10 @@ for release in payload.get("releases", []):
             codes.append(int(value))
         except (TypeError, ValueError):
             pass
+
 print(max(codes) if codes else 0)
-' "${response_file}")"
+PY
+)"
 
                 if (( track_max > max_version_code )); then
                   max_version_code="${track_max}"
