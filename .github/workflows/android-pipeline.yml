@@ -96,6 +96,14 @@ jobs:
           java-version: 21
           cache: gradle
 
+      - name: Authenticate to Google Play
+        id: play-auth
+        if: env.ANDROID_PLAY_SERVICE_ACCOUNT_JSON != ''
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ env.ANDROID_PLAY_SERVICE_ACCOUNT_JSON }}
+          token_format: access_token
+
       - name: Prepare Android SDK path
         working-directory: apps/android
         shell: bash
@@ -115,12 +123,79 @@ jobs:
           fi
           chmod +x ./gradlew
 
+      - name: Resolve next Android version code
+        shell: bash
+        env:
+          PLAY_ACCESS_TOKEN: ${{ steps.play-auth.outputs.access_token }}
+        run: |
+          set -euo pipefail
+
+          next_version_code="${GITHUB_RUN_NUMBER:-1}"
+
+          if [[ -n "${PLAY_ACCESS_TOKEN:-}" ]]; then
+            api_base="https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${ANDROID_PLAY_PACKAGE_NAME}"
+
+            edit_response="$(curl -fsSL \
+              -X POST \
+              -H "Authorization: Bearer ${PLAY_ACCESS_TOKEN}" \
+              -H "Content-Type: application/json" \
+              -d '{}' \
+              "${api_base}/edits")"
+
+            edit_id="$(python3 -c 'import json,sys; print(json.load(sys.stdin).get("id",""))' <<< "${edit_response}")"
+
+            if [[ -z "${edit_id}" ]]; then
+              echo "::error::Unable to create Google Play edit for ${ANDROID_PLAY_PACKAGE_NAME}."
+              exit 1
+            fi
+
+            cleanup() {
+              curl -fsSL \
+                -X DELETE \
+                -H "Authorization: Bearer ${PLAY_ACCESS_TOKEN}" \
+                "${api_base}/edits/${edit_id}" >/dev/null || true
+            }
+
+            trap cleanup EXIT
+
+            max_version_code=0
+
+            for track in internal alpha beta production; do
+              response_file="$(mktemp)"
+              http_code="$(curl -sS \
+                -o "${response_file}" \
+                -w "%{http_code}" \
+                -H "Authorization: Bearer ${PLAY_ACCESS_TOKEN}" \
+                "${api_base}/edits/${edit_id}/tracks/${track}")"
+
+              if [[ "${http_code}" == "200" ]]; then
+                track_max="$(python3 -c 'import json,sys; payload=json.load(open(sys.argv[1], "r", encoding="utf-8")); codes=[int(value) for release in payload.get("releases", []) for value in (release.get("versionCodes", []) or []) if str(value).isdigit()]; print(max(codes) if codes else 0)' "${response_file}")"
+
+                if (( track_max > max_version_code )); then
+                  max_version_code="${track_max}"
+                fi
+              elif [[ "${http_code}" != "404" ]]; then
+                cat "${response_file}" >&2
+                echo "::error::Unable to inspect Google Play track '${track}'."
+                exit 1
+              fi
+
+              rm -f "${response_file}"
+            done
+
+            if (( max_version_code > 0 )); then
+              next_version_code="$((max_version_code + 1))"
+            fi
+          fi
+
+          echo "ANDROID_VERSION_CODE=${next_version_code}" >> "$GITHUB_ENV"
+          echo "Using Android version code ${next_version_code}."
+
       - name: Build Android dev release bundle
         working-directory: apps/android
         shell: bash
         run: |
           set -euo pipefail
-          export ANDROID_VERSION_CODE="$(git rev-list --count HEAD)"
           ./gradlew bundleDevRelease
 
       - name: Upload Android dev artifact
@@ -165,6 +240,14 @@ jobs:
           java-version: 21
           cache: gradle
 
+      - name: Authenticate to Google Play
+        id: play-auth
+        if: env.ANDROID_PLAY_SERVICE_ACCOUNT_JSON != ''
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ env.ANDROID_PLAY_SERVICE_ACCOUNT_JSON }}
+          token_format: access_token
+
       - name: Prepare Android SDK path
         working-directory: apps/android
         shell: bash
@@ -184,12 +267,79 @@ jobs:
           fi
           chmod +x ./gradlew
 
+      - name: Resolve next Android version code
+        shell: bash
+        env:
+          PLAY_ACCESS_TOKEN: ${{ steps.play-auth.outputs.access_token }}
+        run: |
+          set -euo pipefail
+
+          next_version_code="${GITHUB_RUN_NUMBER:-1}"
+
+          if [[ -n "${PLAY_ACCESS_TOKEN:-}" ]]; then
+            api_base="https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${ANDROID_PLAY_PACKAGE_NAME}"
+
+            edit_response="$(curl -fsSL \
+              -X POST \
+              -H "Authorization: Bearer ${PLAY_ACCESS_TOKEN}" \
+              -H "Content-Type: application/json" \
+              -d '{}' \
+              "${api_base}/edits")"
+
+            edit_id="$(python3 -c 'import json,sys; print(json.load(sys.stdin).get("id",""))' <<< "${edit_response}")"
+
+            if [[ -z "${edit_id}" ]]; then
+              echo "::error::Unable to create Google Play edit for ${ANDROID_PLAY_PACKAGE_NAME}."
+              exit 1
+            fi
+
+            cleanup() {
+              curl -fsSL \
+                -X DELETE \
+                -H "Authorization: Bearer ${PLAY_ACCESS_TOKEN}" \
+                "${api_base}/edits/${edit_id}" >/dev/null || true
+            }
+
+            trap cleanup EXIT
+
+            max_version_code=0
+
+            for track in internal alpha beta production; do
+              response_file="$(mktemp)"
+              http_code="$(curl -sS \
+                -o "${response_file}" \
+                -w "%{http_code}" \
+                -H "Authorization: Bearer ${PLAY_ACCESS_TOKEN}" \
+                "${api_base}/edits/${edit_id}/tracks/${track}")"
+
+              if [[ "${http_code}" == "200" ]]; then
+                track_max="$(python3 -c 'import json,sys; payload=json.load(open(sys.argv[1], "r", encoding="utf-8")); codes=[int(value) for release in payload.get("releases", []) for value in (release.get("versionCodes", []) or []) if str(value).isdigit()]; print(max(codes) if codes else 0)' "${response_file}")"
+
+                if (( track_max > max_version_code )); then
+                  max_version_code="${track_max}"
+                fi
+              elif [[ "${http_code}" != "404" ]]; then
+                cat "${response_file}" >&2
+                echo "::error::Unable to inspect Google Play track '${track}'."
+                exit 1
+              fi
+
+              rm -f "${response_file}"
+            done
+
+            if (( max_version_code > 0 )); then
+              next_version_code="$((max_version_code + 1))"
+            fi
+          fi
+
+          echo "ANDROID_VERSION_CODE=${next_version_code}" >> "$GITHUB_ENV"
+          echo "Using Android version code ${next_version_code}."
+
       - name: Build Android UAT release bundle
         working-directory: apps/android
         shell: bash
         run: |
           set -euo pipefail
-          export ANDROID_VERSION_CODE="$(git rev-list --count HEAD)"
           ./gradlew bundleUatRelease
 
       - name: Upload Android UAT artifact
@@ -234,6 +384,14 @@ jobs:
           java-version: 21
           cache: gradle
 
+      - name: Authenticate to Google Play
+        id: play-auth
+        if: env.ANDROID_PLAY_SERVICE_ACCOUNT_JSON != ''
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ env.ANDROID_PLAY_SERVICE_ACCOUNT_JSON }}
+          token_format: access_token
+
       - name: Prepare Android SDK path
         working-directory: apps/android
         shell: bash
@@ -253,12 +411,79 @@ jobs:
           fi
           chmod +x ./gradlew
 
+      - name: Resolve next Android version code
+        shell: bash
+        env:
+          PLAY_ACCESS_TOKEN: ${{ steps.play-auth.outputs.access_token }}
+        run: |
+          set -euo pipefail
+
+          next_version_code="${GITHUB_RUN_NUMBER:-1}"
+
+          if [[ -n "${PLAY_ACCESS_TOKEN:-}" ]]; then
+            api_base="https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${ANDROID_PLAY_PACKAGE_NAME}"
+
+            edit_response="$(curl -fsSL \
+              -X POST \
+              -H "Authorization: Bearer ${PLAY_ACCESS_TOKEN}" \
+              -H "Content-Type: application/json" \
+              -d '{}' \
+              "${api_base}/edits")"
+
+            edit_id="$(python3 -c 'import json,sys; print(json.load(sys.stdin).get("id",""))' <<< "${edit_response}")"
+
+            if [[ -z "${edit_id}" ]]; then
+              echo "::error::Unable to create Google Play edit for ${ANDROID_PLAY_PACKAGE_NAME}."
+              exit 1
+            fi
+
+            cleanup() {
+              curl -fsSL \
+                -X DELETE \
+                -H "Authorization: Bearer ${PLAY_ACCESS_TOKEN}" \
+                "${api_base}/edits/${edit_id}" >/dev/null || true
+            }
+
+            trap cleanup EXIT
+
+            max_version_code=0
+
+            for track in internal alpha beta production; do
+              response_file="$(mktemp)"
+              http_code="$(curl -sS \
+                -o "${response_file}" \
+                -w "%{http_code}" \
+                -H "Authorization: Bearer ${PLAY_ACCESS_TOKEN}" \
+                "${api_base}/edits/${edit_id}/tracks/${track}")"
+
+              if [[ "${http_code}" == "200" ]]; then
+                track_max="$(python3 -c 'import json,sys; payload=json.load(open(sys.argv[1], "r", encoding="utf-8")); codes=[int(value) for release in payload.get("releases", []) for value in (release.get("versionCodes", []) or []) if str(value).isdigit()]; print(max(codes) if codes else 0)' "${response_file}")"
+
+                if (( track_max > max_version_code )); then
+                  max_version_code="${track_max}"
+                fi
+              elif [[ "${http_code}" != "404" ]]; then
+                cat "${response_file}" >&2
+                echo "::error::Unable to inspect Google Play track '${track}'."
+                exit 1
+              fi
+
+              rm -f "${response_file}"
+            done
+
+            if (( max_version_code > 0 )); then
+              next_version_code="$((max_version_code + 1))"
+            fi
+          fi
+
+          echo "ANDROID_VERSION_CODE=${next_version_code}" >> "$GITHUB_ENV"
+          echo "Using Android version code ${next_version_code}."
+
       - name: Build Android prod release bundle
         working-directory: apps/android
         shell: bash
         run: |
           set -euo pipefail
-          export ANDROID_VERSION_CODE="$(git rev-list --count HEAD)"
           ./gradlew bundleProdRelease
 
       - name: Upload Android production artifact
