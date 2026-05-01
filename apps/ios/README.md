@@ -72,4 +72,3 @@ The next safe step is not another file move. It is to begin the application-laye
 
 This README may occasionally receive tiny no-op edits used only to verify iOS-only GitHub workflow routing and deploy behavior.
 Current no-op verification touch: 2026-05-01 round 2.
-Current no-op verification touch: 2026-05-01 UAT round 1.
