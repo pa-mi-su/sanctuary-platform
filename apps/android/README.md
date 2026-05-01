@@ -41,3 +41,4 @@ The GitHub workflow should only run when `apps/android/**` changes.
 ## Pipeline Test Note
 
 This README may occasionally receive tiny no-op edits used only to verify Android-only GitHub workflow routing and deploy behavior.
+Current no-op verification touch: 2026-05-01 round 2.
