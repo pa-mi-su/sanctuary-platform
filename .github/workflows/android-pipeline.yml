@@ -96,14 +96,6 @@ jobs:
           java-version: 21
           cache: gradle
 
-      - name: Authenticate to Google Play
-        id: play-auth
-        if: env.ANDROID_PLAY_SERVICE_ACCOUNT_JSON != ''
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ env.ANDROID_PLAY_SERVICE_ACCOUNT_JSON }}
-          token_format: access_token
-
       - name: Prepare Android SDK path
         working-directory: apps/android
         shell: bash
@@ -121,12 +113,62 @@ jobs:
             echo "${ANDROID_UPLOAD_KEYSTORE_BASE64}" | base64 --decode > "${RUNNER_TEMP}/android-upload-keystore.jks"
             echo "ANDROID_UPLOAD_KEYSTORE_PATH=${RUNNER_TEMP}/android-upload-keystore.jks" >> "$GITHUB_ENV"
           fi
+          if [[ -n "${ANDROID_PLAY_SERVICE_ACCOUNT_JSON:-}" ]]; then
+            printf '%s' "${ANDROID_PLAY_SERVICE_ACCOUNT_JSON}" > "${RUNNER_TEMP}/android-play-service-account.json"
+            echo "ANDROID_PLAY_SERVICE_ACCOUNT_JSON_PATH=${RUNNER_TEMP}/android-play-service-account.json" >> "$GITHUB_ENV"
+          fi
           chmod +x ./gradlew
+
+      - name: Generate Google Play access token
+        id: play-token
+        if: env.ANDROID_PLAY_SERVICE_ACCOUNT_JSON != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          credentials_path="${ANDROID_PLAY_SERVICE_ACCOUNT_JSON_PATH:-}"
+          if [[ -z "${credentials_path}" || ! -f "${credentials_path}" ]]; then
+            echo "::error::Google Play service account JSON was not written to disk."
+            exit 1
+          fi
+
+          client_email="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1], "r", encoding="utf-8"))["client_email"])' "${credentials_path}")"
+          token_uri="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1], "r", encoding="utf-8")).get("token_uri", "https://oauth2.googleapis.com/token"))' "${credentials_path}")"
+          python3 -c 'import json,sys; print(json.load(open(sys.argv[1], "r", encoding="utf-8"))["private_key"], end="")' "${credentials_path}" > "${RUNNER_TEMP}/android-play-private-key.pem"
+
+          base64url() {
+            openssl base64 -A | tr '+/' '-_' | tr -d '='
+          }
+
+          now="$(date +%s)"
+          exp="$((now + 3600))"
+          header='{"alg":"RS256","typ":"JWT"}'
+          payload="$(printf '{"iss":"%s","scope":"https://www.googleapis.com/auth/androidpublisher","aud":"%s","exp":%s,"iat":%s}' "${client_email}" "${token_uri}" "${exp}" "${now}")"
+
+          unsigned_token="$(printf '%s' "${header}" | base64url).$(printf '%s' "${payload}" | base64url)"
+          signature="$(printf '%s' "${unsigned_token}" | openssl dgst -sha256 -sign "${RUNNER_TEMP}/android-play-private-key.pem" -binary | base64url)"
+          assertion="${unsigned_token}.${signature}"
+
+          token_response="$(curl -fsSL \
+            -X POST \
+            -H 'Content-Type: application/x-www-form-urlencoded' \
+            --data-urlencode 'grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer' \
+            --data-urlencode "assertion=${assertion}" \
+            "${token_uri}")"
+
+          access_token="$(python3 -c 'import json,sys; print(json.load(sys.stdin).get("access_token",""))' <<< "${token_response}")"
+
+          if [[ -z "${access_token}" ]]; then
+            echo "::error::Unable to mint Google Play access token from the service account JSON."
+            exit 1
+          fi
+
+          echo "access_token=${access_token}" >> "$GITHUB_OUTPUT"
 
       - name: Resolve next Android version code
         shell: bash
         env:
-          PLAY_ACCESS_TOKEN: ${{ steps.play-auth.outputs.access_token }}
+          PLAY_ACCESS_TOKEN: ${{ steps.play-token.outputs.access_token }}
         run: |
           set -euo pipefail
 
@@ -240,14 +282,6 @@ jobs:
           java-version: 21
           cache: gradle
 
-      - name: Authenticate to Google Play
-        id: play-auth
-        if: env.ANDROID_PLAY_SERVICE_ACCOUNT_JSON != ''
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ env.ANDROID_PLAY_SERVICE_ACCOUNT_JSON }}
-          token_format: access_token
-
       - name: Prepare Android SDK path
         working-directory: apps/android
         shell: bash
@@ -265,12 +299,62 @@ jobs:
             echo "${ANDROID_UPLOAD_KEYSTORE_BASE64}" | base64 --decode > "${RUNNER_TEMP}/android-upload-keystore.jks"
             echo "ANDROID_UPLOAD_KEYSTORE_PATH=${RUNNER_TEMP}/android-upload-keystore.jks" >> "$GITHUB_ENV"
           fi
+          if [[ -n "${ANDROID_PLAY_SERVICE_ACCOUNT_JSON:-}" ]]; then
+            printf '%s' "${ANDROID_PLAY_SERVICE_ACCOUNT_JSON}" > "${RUNNER_TEMP}/android-play-service-account.json"
+            echo "ANDROID_PLAY_SERVICE_ACCOUNT_JSON_PATH=${RUNNER_TEMP}/android-play-service-account.json" >> "$GITHUB_ENV"
+          fi
           chmod +x ./gradlew
+
+      - name: Generate Google Play access token
+        id: play-token
+        if: env.ANDROID_PLAY_SERVICE_ACCOUNT_JSON != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          credentials_path="${ANDROID_PLAY_SERVICE_ACCOUNT_JSON_PATH:-}"
+          if [[ -z "${credentials_path}" || ! -f "${credentials_path}" ]]; then
+            echo "::error::Google Play service account JSON was not written to disk."
+            exit 1
+          fi
+
+          client_email="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1], "r", encoding="utf-8"))["client_email"])' "${credentials_path}")"
+          token_uri="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1], "r", encoding="utf-8")).get("token_uri", "https://oauth2.googleapis.com/token"))' "${credentials_path}")"
+          python3 -c 'import json,sys; print(json.load(open(sys.argv[1], "r", encoding="utf-8"))["private_key"], end="")' "${credentials_path}" > "${RUNNER_TEMP}/android-play-private-key.pem"
+
+          base64url() {
+            openssl base64 -A | tr '+/' '-_' | tr -d '='
+          }
+
+          now="$(date +%s)"
+          exp="$((now + 3600))"
+          header='{"alg":"RS256","typ":"JWT"}'
+          payload="$(printf '{"iss":"%s","scope":"https://www.googleapis.com/auth/androidpublisher","aud":"%s","exp":%s,"iat":%s}' "${client_email}" "${token_uri}" "${exp}" "${now}")"
+
+          unsigned_token="$(printf '%s' "${header}" | base64url).$(printf '%s' "${payload}" | base64url)"
+          signature="$(printf '%s' "${unsigned_token}" | openssl dgst -sha256 -sign "${RUNNER_TEMP}/android-play-private-key.pem" -binary | base64url)"
+          assertion="${unsigned_token}.${signature}"
+
+          token_response="$(curl -fsSL \
+            -X POST \
+            -H 'Content-Type: application/x-www-form-urlencoded' \
+            --data-urlencode 'grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer' \
+            --data-urlencode "assertion=${assertion}" \
+            "${token_uri}")"
+
+          access_token="$(python3 -c 'import json,sys; print(json.load(sys.stdin).get("access_token",""))' <<< "${token_response}")"
+
+          if [[ -z "${access_token}" ]]; then
+            echo "::error::Unable to mint Google Play access token from the service account JSON."
+            exit 1
+          fi
+
+          echo "access_token=${access_token}" >> "$GITHUB_OUTPUT"
 
       - name: Resolve next Android version code
         shell: bash
         env:
-          PLAY_ACCESS_TOKEN: ${{ steps.play-auth.outputs.access_token }}
+          PLAY_ACCESS_TOKEN: ${{ steps.play-token.outputs.access_token }}
         run: |
           set -euo pipefail
 
@@ -384,14 +468,6 @@ jobs:
           java-version: 21
           cache: gradle
 
-      - name: Authenticate to Google Play
-        id: play-auth
-        if: env.ANDROID_PLAY_SERVICE_ACCOUNT_JSON != ''
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ env.ANDROID_PLAY_SERVICE_ACCOUNT_JSON }}
-          token_format: access_token
-
       - name: Prepare Android SDK path
         working-directory: apps/android
         shell: bash
@@ -409,12 +485,62 @@ jobs:
             echo "${ANDROID_UPLOAD_KEYSTORE_BASE64}" | base64 --decode > "${RUNNER_TEMP}/android-upload-keystore.jks"
             echo "ANDROID_UPLOAD_KEYSTORE_PATH=${RUNNER_TEMP}/android-upload-keystore.jks" >> "$GITHUB_ENV"
           fi
+          if [[ -n "${ANDROID_PLAY_SERVICE_ACCOUNT_JSON:-}" ]]; then
+            printf '%s' "${ANDROID_PLAY_SERVICE_ACCOUNT_JSON}" > "${RUNNER_TEMP}/android-play-service-account.json"
+            echo "ANDROID_PLAY_SERVICE_ACCOUNT_JSON_PATH=${RUNNER_TEMP}/android-play-service-account.json" >> "$GITHUB_ENV"
+          fi
           chmod +x ./gradlew
+
+      - name: Generate Google Play access token
+        id: play-token
+        if: env.ANDROID_PLAY_SERVICE_ACCOUNT_JSON != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          credentials_path="${ANDROID_PLAY_SERVICE_ACCOUNT_JSON_PATH:-}"
+          if [[ -z "${credentials_path}" || ! -f "${credentials_path}" ]]; then
+            echo "::error::Google Play service account JSON was not written to disk."
+            exit 1
+          fi
+
+          client_email="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1], "r", encoding="utf-8"))["client_email"])' "${credentials_path}")"
+          token_uri="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1], "r", encoding="utf-8")).get("token_uri", "https://oauth2.googleapis.com/token"))' "${credentials_path}")"
+          python3 -c 'import json,sys; print(json.load(open(sys.argv[1], "r", encoding="utf-8"))["private_key"], end="")' "${credentials_path}" > "${RUNNER_TEMP}/android-play-private-key.pem"
+
+          base64url() {
+            openssl base64 -A | tr '+/' '-_' | tr -d '='
+          }
+
+          now="$(date +%s)"
+          exp="$((now + 3600))"
+          header='{"alg":"RS256","typ":"JWT"}'
+          payload="$(printf '{"iss":"%s","scope":"https://www.googleapis.com/auth/androidpublisher","aud":"%s","exp":%s,"iat":%s}' "${client_email}" "${token_uri}" "${exp}" "${now}")"
+
+          unsigned_token="$(printf '%s' "${header}" | base64url).$(printf '%s' "${payload}" | base64url)"
+          signature="$(printf '%s' "${unsigned_token}" | openssl dgst -sha256 -sign "${RUNNER_TEMP}/android-play-private-key.pem" -binary | base64url)"
+          assertion="${unsigned_token}.${signature}"
+
+          token_response="$(curl -fsSL \
+            -X POST \
+            -H 'Content-Type: application/x-www-form-urlencoded' \
+            --data-urlencode 'grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer' \
+            --data-urlencode "assertion=${assertion}" \
+            "${token_uri}")"
+
+          access_token="$(python3 -c 'import json,sys; print(json.load(sys.stdin).get("access_token",""))' <<< "${token_response}")"
+
+          if [[ -z "${access_token}" ]]; then
+            echo "::error::Unable to mint Google Play access token from the service account JSON."
+            exit 1
+          fi
+
+          echo "access_token=${access_token}" >> "$GITHUB_OUTPUT"
 
       - name: Resolve next Android version code
         shell: bash
         env:
-          PLAY_ACCESS_TOKEN: ${{ steps.play-auth.outputs.access_token }}
+          PLAY_ACCESS_TOKEN: ${{ steps.play-token.outputs.access_token }}
         run: |
           set -euo pipefail
 
