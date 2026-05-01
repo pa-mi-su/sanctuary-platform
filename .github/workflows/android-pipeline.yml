@@ -12,9 +12,12 @@ on:
       - ".github/workflows/android-pipeline.yml"
   push:
     branches:
+      - dev
+      - uat
       - main
     paths:
       - "apps/android/**"
+      - ".github/workflows/android-pipeline.yml"
   workflow_dispatch:
 
 permissions:
@@ -24,55 +27,604 @@ concurrency:
   group: android-pipeline-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  ANDROID_PLAY_PACKAGE_NAME: ${{ vars.ANDROID_PLAY_PACKAGE_NAME || 'com.pamisu.sanctuary' }}
+
 jobs:
   validate:
     name: Validate Android Build
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-    outputs:
-      has_gradle_wrapper: ${{ steps.detect.outputs.has_gradle_wrapper }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
-
-      - name: Detect Android build readiness
-        id: detect
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          if [[ -f "apps/android/gradlew" ]]; then
-            echo "has_gradle_wrapper=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "has_gradle_wrapper=false" >> "$GITHUB_OUTPUT"
-          fi
+        with:
+          fetch-depth: 0
 
       - name: Setup Java 21
-        if: steps.detect.outputs.has_gradle_wrapper == 'true'
         uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: 21
+          cache: gradle
 
-      - name: Validate Android Gradle project
-        if: steps.detect.outputs.has_gradle_wrapper == 'true'
+      - name: Prepare Android SDK path
         working-directory: apps/android
         shell: bash
         run: |
           set -euo pipefail
+
+          SDK_PATH="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          if [[ -z "${SDK_PATH}" ]]; then
+            echo "::error::Android SDK is not configured on this runner."
+            exit 1
+          fi
+
+          echo "sdk.dir=${SDK_PATH}" > local.properties
           chmod +x ./gradlew
-          ./gradlew help
 
-      - name: Android scaffold placeholder
-        if: steps.detect.outputs.has_gradle_wrapper != 'true'
-        run: echo "Android project scaffold is present. Add the Gradle wrapper next to enable real CI validation."
+      - name: Validate Android Gradle project
+        working-directory: apps/android
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./gradlew assembleDevDebug
 
-  upload-internal:
-    name: Upload Android Internal Build
-    needs: validate
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.validate.outputs.has_gradle_wrapper == 'true'
+  build-dev:
+    name: Upload Android Dev Artifact
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/dev'
     runs-on: ubuntu-latest
+    environment: dev
+    env:
+      ANDROID_UPLOAD_KEYSTORE_BASE64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_BASE64 }}
+      ANDROID_UPLOAD_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_PASSWORD }}
+      ANDROID_UPLOAD_KEY_ALIAS: ${{ secrets.ANDROID_UPLOAD_KEY_ALIAS }}
+      ANDROID_UPLOAD_KEY_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEY_PASSWORD }}
+      ANDROID_PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.ANDROID_PLAY_SERVICE_ACCOUNT_JSON }}
 
     steps:
-      - name: Android release placeholder
-        run: echo "Android Play upload automation will be added when signing and the Gradle wrapper are in place."
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup Java 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+
+      - name: Prepare Android SDK path
+        working-directory: apps/android
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          SDK_PATH="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          if [[ -z "${SDK_PATH}" ]]; then
+            echo "::error::Android SDK is not configured on this runner."
+            exit 1
+          fi
+
+          echo "sdk.dir=${SDK_PATH}" > local.properties
+          if [[ -n "${ANDROID_UPLOAD_KEYSTORE_BASE64:-}" ]]; then
+            echo "${ANDROID_UPLOAD_KEYSTORE_BASE64}" | base64 --decode > "${RUNNER_TEMP}/android-upload-keystore.jks"
+            echo "ANDROID_UPLOAD_KEYSTORE_PATH=${RUNNER_TEMP}/android-upload-keystore.jks" >> "$GITHUB_ENV"
+          fi
+          if [[ -n "${ANDROID_PLAY_SERVICE_ACCOUNT_JSON:-}" ]]; then
+            printf '%s' "${ANDROID_PLAY_SERVICE_ACCOUNT_JSON}" > "${RUNNER_TEMP}/android-play-service-account.json"
+            echo "ANDROID_PLAY_SERVICE_ACCOUNT_JSON_PATH=${RUNNER_TEMP}/android-play-service-account.json" >> "$GITHUB_ENV"
+          fi
+          chmod +x ./gradlew
+
+      - name: Generate Google Play access token
+        id: play-token
+        if: env.ANDROID_PLAY_SERVICE_ACCOUNT_JSON != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          credentials_path="${ANDROID_PLAY_SERVICE_ACCOUNT_JSON_PATH:-}"
+          if [[ -z "${credentials_path}" || ! -f "${credentials_path}" ]]; then
+            echo "::error::Google Play service account JSON was not written to disk."
+            exit 1
+          fi
+
+          client_email="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1], "r", encoding="utf-8"))["client_email"])' "${credentials_path}")"
+          token_uri="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1], "r", encoding="utf-8")).get("token_uri", "https://oauth2.googleapis.com/token"))' "${credentials_path}")"
+          python3 -c 'import json,sys; print(json.load(open(sys.argv[1], "r", encoding="utf-8"))["private_key"], end="")' "${credentials_path}" > "${RUNNER_TEMP}/android-play-private-key.pem"
+
+          base64url() {
+            openssl base64 -A | tr '+/' '-_' | tr -d '='
+          }
+
+          now="$(date +%s)"
+          exp="$((now + 3600))"
+          header='{"alg":"RS256","typ":"JWT"}'
+          payload="$(printf '{"iss":"%s","scope":"https://www.googleapis.com/auth/androidpublisher","aud":"%s","exp":%s,"iat":%s}' "${client_email}" "${token_uri}" "${exp}" "${now}")"
+
+          unsigned_token="$(printf '%s' "${header}" | base64url).$(printf '%s' "${payload}" | base64url)"
+          signature="$(printf '%s' "${unsigned_token}" | openssl dgst -sha256 -sign "${RUNNER_TEMP}/android-play-private-key.pem" -binary | base64url)"
+          assertion="${unsigned_token}.${signature}"
+
+          token_response="$(curl -fsSL \
+            -X POST \
+            -H 'Content-Type: application/x-www-form-urlencoded' \
+            --data-urlencode 'grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer' \
+            --data-urlencode "assertion=${assertion}" \
+            "${token_uri}")"
+
+          access_token="$(python3 -c 'import json,sys; print(json.load(sys.stdin).get("access_token",""))' <<< "${token_response}")"
+
+          if [[ -z "${access_token}" ]]; then
+            echo "::error::Unable to mint Google Play access token from the service account JSON."
+            exit 1
+          fi
+
+          echo "access_token=${access_token}" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve next Android version code
+        shell: bash
+        env:
+          PLAY_ACCESS_TOKEN: ${{ steps.play-token.outputs.access_token }}
+        run: |
+          set -euo pipefail
+
+          next_version_code="${GITHUB_RUN_NUMBER:-1}"
+
+          if [[ -n "${PLAY_ACCESS_TOKEN:-}" ]]; then
+            api_base="https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${ANDROID_PLAY_PACKAGE_NAME}"
+
+            edit_response="$(curl -fsSL \
+              -X POST \
+              -H "Authorization: Bearer ${PLAY_ACCESS_TOKEN}" \
+              -H "Content-Type: application/json" \
+              -d '{}' \
+              "${api_base}/edits")"
+
+            edit_id="$(python3 -c 'import json,sys; print(json.load(sys.stdin).get("id",""))' <<< "${edit_response}")"
+
+            if [[ -z "${edit_id}" ]]; then
+              echo "::error::Unable to create Google Play edit for ${ANDROID_PLAY_PACKAGE_NAME}."
+              exit 1
+            fi
+
+            cleanup() {
+              curl -fsSL \
+                -X DELETE \
+                -H "Authorization: Bearer ${PLAY_ACCESS_TOKEN}" \
+                "${api_base}/edits/${edit_id}" >/dev/null || true
+            }
+
+            trap cleanup EXIT
+
+            max_version_code=0
+
+            for track in internal alpha beta production; do
+              response_file="$(mktemp)"
+              http_code="$(curl -sS \
+                -o "${response_file}" \
+                -w "%{http_code}" \
+                -H "Authorization: Bearer ${PLAY_ACCESS_TOKEN}" \
+                "${api_base}/edits/${edit_id}/tracks/${track}")"
+
+              if [[ "${http_code}" == "200" ]]; then
+                track_max="$(python3 -c 'import json,sys; payload=json.load(open(sys.argv[1], "r", encoding="utf-8")); codes=[int(value) for release in payload.get("releases", []) for value in (release.get("versionCodes", []) or []) if str(value).isdigit()]; print(max(codes) if codes else 0)' "${response_file}")"
+
+                if (( track_max > max_version_code )); then
+                  max_version_code="${track_max}"
+                fi
+              elif [[ "${http_code}" != "404" ]]; then
+                cat "${response_file}" >&2
+                echo "::error::Unable to inspect Google Play track '${track}'."
+                exit 1
+              fi
+
+              rm -f "${response_file}"
+            done
+
+            if (( max_version_code > 0 )); then
+              next_version_code="$((max_version_code + 1))"
+            fi
+          fi
+
+          echo "ANDROID_VERSION_CODE=${next_version_code}" >> "$GITHUB_ENV"
+          echo "Using Android version code ${next_version_code}."
+      - name: Build Android dev release bundle
+        working-directory: apps/android
+        shell: bash
+        run: |
+          set -euo pipefail
+          export ANDROID_VERSION_CODE="${ANDROID_VERSION_CODE:-1}"
+          ./gradlew bundleDevRelease
+
+      - name: Upload Android dev artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sanctuary-android-dev-release-${{ github.sha }}
+          path: apps/android/app/build/outputs/bundle/devRelease/app-dev-release.aab
+          if-no-files-found: error
+
+      - name: Upload Android dev bundle to Play internal testing
+        if: env.ANDROID_PLAY_SERVICE_ACCOUNT_JSON != '' && env.ANDROID_UPLOAD_KEYSTORE_BASE64 != ''
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ env.ANDROID_PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: ${{ env.ANDROID_PLAY_PACKAGE_NAME }}
+          releaseFiles: apps/android/app/build/outputs/bundle/devRelease/app-dev-release.aab
+          track: internal
+          status: draft
+
+  build-uat:
+    name: Upload Android UAT Artifact
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/uat'
+    runs-on: ubuntu-latest
+    environment: uat
+    env:
+      ANDROID_UPLOAD_KEYSTORE_BASE64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_BASE64 }}
+      ANDROID_UPLOAD_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_PASSWORD }}
+      ANDROID_UPLOAD_KEY_ALIAS: ${{ secrets.ANDROID_UPLOAD_KEY_ALIAS }}
+      ANDROID_UPLOAD_KEY_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEY_PASSWORD }}
+      ANDROID_PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.ANDROID_PLAY_SERVICE_ACCOUNT_JSON }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup Java 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+
+      - name: Prepare Android SDK path
+        working-directory: apps/android
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          SDK_PATH="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          if [[ -z "${SDK_PATH}" ]]; then
+            echo "::error::Android SDK is not configured on this runner."
+            exit 1
+          fi
+
+          echo "sdk.dir=${SDK_PATH}" > local.properties
+          if [[ -n "${ANDROID_UPLOAD_KEYSTORE_BASE64:-}" ]]; then
+            echo "${ANDROID_UPLOAD_KEYSTORE_BASE64}" | base64 --decode > "${RUNNER_TEMP}/android-upload-keystore.jks"
+            echo "ANDROID_UPLOAD_KEYSTORE_PATH=${RUNNER_TEMP}/android-upload-keystore.jks" >> "$GITHUB_ENV"
+          fi
+          if [[ -n "${ANDROID_PLAY_SERVICE_ACCOUNT_JSON:-}" ]]; then
+            printf '%s' "${ANDROID_PLAY_SERVICE_ACCOUNT_JSON}" > "${RUNNER_TEMP}/android-play-service-account.json"
+            echo "ANDROID_PLAY_SERVICE_ACCOUNT_JSON_PATH=${RUNNER_TEMP}/android-play-service-account.json" >> "$GITHUB_ENV"
+          fi
+          chmod +x ./gradlew
+
+      - name: Generate Google Play access token
+        id: play-token
+        if: env.ANDROID_PLAY_SERVICE_ACCOUNT_JSON != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          credentials_path="${ANDROID_PLAY_SERVICE_ACCOUNT_JSON_PATH:-}"
+          if [[ -z "${credentials_path}" || ! -f "${credentials_path}" ]]; then
+            echo "::error::Google Play service account JSON was not written to disk."
+            exit 1
+          fi
+
+          client_email="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1], "r", encoding="utf-8"))["client_email"])' "${credentials_path}")"
+          token_uri="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1], "r", encoding="utf-8")).get("token_uri", "https://oauth2.googleapis.com/token"))' "${credentials_path}")"
+          python3 -c 'import json,sys; print(json.load(open(sys.argv[1], "r", encoding="utf-8"))["private_key"], end="")' "${credentials_path}" > "${RUNNER_TEMP}/android-play-private-key.pem"
+
+          base64url() {
+            openssl base64 -A | tr '+/' '-_' | tr -d '='
+          }
+
+          now="$(date +%s)"
+          exp="$((now + 3600))"
+          header='{"alg":"RS256","typ":"JWT"}'
+          payload="$(printf '{"iss":"%s","scope":"https://www.googleapis.com/auth/androidpublisher","aud":"%s","exp":%s,"iat":%s}' "${client_email}" "${token_uri}" "${exp}" "${now}")"
+
+          unsigned_token="$(printf '%s' "${header}" | base64url).$(printf '%s' "${payload}" | base64url)"
+          signature="$(printf '%s' "${unsigned_token}" | openssl dgst -sha256 -sign "${RUNNER_TEMP}/android-play-private-key.pem" -binary | base64url)"
+          assertion="${unsigned_token}.${signature}"
+
+          token_response="$(curl -fsSL \
+            -X POST \
+            -H 'Content-Type: application/x-www-form-urlencoded' \
+            --data-urlencode 'grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer' \
+            --data-urlencode "assertion=${assertion}" \
+            "${token_uri}")"
+
+          access_token="$(python3 -c 'import json,sys; print(json.load(sys.stdin).get("access_token",""))' <<< "${token_response}")"
+
+          if [[ -z "${access_token}" ]]; then
+            echo "::error::Unable to mint Google Play access token from the service account JSON."
+            exit 1
+          fi
+
+          echo "access_token=${access_token}" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve next Android version code
+        shell: bash
+        env:
+          PLAY_ACCESS_TOKEN: ${{ steps.play-token.outputs.access_token }}
+        run: |
+          set -euo pipefail
+
+          next_version_code="${GITHUB_RUN_NUMBER:-1}"
+
+          if [[ -n "${PLAY_ACCESS_TOKEN:-}" ]]; then
+            api_base="https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${ANDROID_PLAY_PACKAGE_NAME}"
+
+            edit_response="$(curl -fsSL \
+              -X POST \
+              -H "Authorization: Bearer ${PLAY_ACCESS_TOKEN}" \
+              -H "Content-Type: application/json" \
+              -d '{}' \
+              "${api_base}/edits")"
+
+            edit_id="$(python3 -c 'import json,sys; print(json.load(sys.stdin).get("id",""))' <<< "${edit_response}")"
+
+            if [[ -z "${edit_id}" ]]; then
+              echo "::error::Unable to create Google Play edit for ${ANDROID_PLAY_PACKAGE_NAME}."
+              exit 1
+            fi
+
+            cleanup() {
+              curl -fsSL \
+                -X DELETE \
+                -H "Authorization: Bearer ${PLAY_ACCESS_TOKEN}" \
+                "${api_base}/edits/${edit_id}" >/dev/null || true
+            }
+
+            trap cleanup EXIT
+
+            max_version_code=0
+
+            for track in internal alpha beta production; do
+              response_file="$(mktemp)"
+              http_code="$(curl -sS \
+                -o "${response_file}" \
+                -w "%{http_code}" \
+                -H "Authorization: Bearer ${PLAY_ACCESS_TOKEN}" \
+                "${api_base}/edits/${edit_id}/tracks/${track}")"
+
+              if [[ "${http_code}" == "200" ]]; then
+                track_max="$(python3 -c 'import json,sys; payload=json.load(open(sys.argv[1], "r", encoding="utf-8")); codes=[int(value) for release in payload.get("releases", []) for value in (release.get("versionCodes", []) or []) if str(value).isdigit()]; print(max(codes) if codes else 0)' "${response_file}")"
+
+                if (( track_max > max_version_code )); then
+                  max_version_code="${track_max}"
+                fi
+              elif [[ "${http_code}" != "404" ]]; then
+                cat "${response_file}" >&2
+                echo "::error::Unable to inspect Google Play track '${track}'."
+                exit 1
+              fi
+
+              rm -f "${response_file}"
+            done
+
+            if (( max_version_code > 0 )); then
+              next_version_code="$((max_version_code + 1))"
+            fi
+          fi
+
+          echo "ANDROID_VERSION_CODE=${next_version_code}" >> "$GITHUB_ENV"
+          echo "Using Android version code ${next_version_code}."
+      - name: Build Android UAT release bundle
+        working-directory: apps/android
+        shell: bash
+        run: |
+          set -euo pipefail
+          export ANDROID_VERSION_CODE="${ANDROID_VERSION_CODE:-1}"
+          ./gradlew bundleUatRelease
+
+      - name: Upload Android UAT artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sanctuary-android-uat-release-${{ github.sha }}
+          path: apps/android/app/build/outputs/bundle/uatRelease/app-uat-release.aab
+          if-no-files-found: error
+
+      - name: Upload Android UAT bundle to Play closed testing
+        if: env.ANDROID_PLAY_SERVICE_ACCOUNT_JSON != '' && env.ANDROID_UPLOAD_KEYSTORE_BASE64 != ''
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ env.ANDROID_PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: ${{ env.ANDROID_PLAY_PACKAGE_NAME }}
+          releaseFiles: apps/android/app/build/outputs/bundle/uatRelease/app-uat-release.aab
+          track: beta
+          status: draft
+
+  build-prod:
+    name: Upload Android Production Artifact
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: prod
+    env:
+      ANDROID_UPLOAD_KEYSTORE_BASE64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_BASE64 }}
+      ANDROID_UPLOAD_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_PASSWORD }}
+      ANDROID_UPLOAD_KEY_ALIAS: ${{ secrets.ANDROID_UPLOAD_KEY_ALIAS }}
+      ANDROID_UPLOAD_KEY_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEY_PASSWORD }}
+      ANDROID_PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.ANDROID_PLAY_SERVICE_ACCOUNT_JSON }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup Java 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+
+      - name: Prepare Android SDK path
+        working-directory: apps/android
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          SDK_PATH="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          if [[ -z "${SDK_PATH}" ]]; then
+            echo "::error::Android SDK is not configured on this runner."
+            exit 1
+          fi
+
+          echo "sdk.dir=${SDK_PATH}" > local.properties
+          if [[ -n "${ANDROID_UPLOAD_KEYSTORE_BASE64:-}" ]]; then
+            echo "${ANDROID_UPLOAD_KEYSTORE_BASE64}" | base64 --decode > "${RUNNER_TEMP}/android-upload-keystore.jks"
+            echo "ANDROID_UPLOAD_KEYSTORE_PATH=${RUNNER_TEMP}/android-upload-keystore.jks" >> "$GITHUB_ENV"
+          fi
+          if [[ -n "${ANDROID_PLAY_SERVICE_ACCOUNT_JSON:-}" ]]; then
+            printf '%s' "${ANDROID_PLAY_SERVICE_ACCOUNT_JSON}" > "${RUNNER_TEMP}/android-play-service-account.json"
+            echo "ANDROID_PLAY_SERVICE_ACCOUNT_JSON_PATH=${RUNNER_TEMP}/android-play-service-account.json" >> "$GITHUB_ENV"
+          fi
+          chmod +x ./gradlew
+
+      - name: Generate Google Play access token
+        id: play-token
+        if: env.ANDROID_PLAY_SERVICE_ACCOUNT_JSON != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          credentials_path="${ANDROID_PLAY_SERVICE_ACCOUNT_JSON_PATH:-}"
+          if [[ -z "${credentials_path}" || ! -f "${credentials_path}" ]]; then
+            echo "::error::Google Play service account JSON was not written to disk."
+            exit 1
+          fi
+
+          client_email="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1], "r", encoding="utf-8"))["client_email"])' "${credentials_path}")"
+          token_uri="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1], "r", encoding="utf-8")).get("token_uri", "https://oauth2.googleapis.com/token"))' "${credentials_path}")"
+          python3 -c 'import json,sys; print(json.load(open(sys.argv[1], "r", encoding="utf-8"))["private_key"], end="")' "${credentials_path}" > "${RUNNER_TEMP}/android-play-private-key.pem"
+
+          base64url() {
+            openssl base64 -A | tr '+/' '-_' | tr -d '='
+          }
+
+          now="$(date +%s)"
+          exp="$((now + 3600))"
+          header='{"alg":"RS256","typ":"JWT"}'
+          payload="$(printf '{"iss":"%s","scope":"https://www.googleapis.com/auth/androidpublisher","aud":"%s","exp":%s,"iat":%s}' "${client_email}" "${token_uri}" "${exp}" "${now}")"
+
+          unsigned_token="$(printf '%s' "${header}" | base64url).$(printf '%s' "${payload}" | base64url)"
+          signature="$(printf '%s' "${unsigned_token}" | openssl dgst -sha256 -sign "${RUNNER_TEMP}/android-play-private-key.pem" -binary | base64url)"
+          assertion="${unsigned_token}.${signature}"
+
+          token_response="$(curl -fsSL \
+            -X POST \
+            -H 'Content-Type: application/x-www-form-urlencoded' \
+            --data-urlencode 'grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer' \
+            --data-urlencode "assertion=${assertion}" \
+            "${token_uri}")"
+
+          access_token="$(python3 -c 'import json,sys; print(json.load(sys.stdin).get("access_token",""))' <<< "${token_response}")"
+
+          if [[ -z "${access_token}" ]]; then
+            echo "::error::Unable to mint Google Play access token from the service account JSON."
+            exit 1
+          fi
+
+          echo "access_token=${access_token}" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve next Android version code
+        shell: bash
+        env:
+          PLAY_ACCESS_TOKEN: ${{ steps.play-token.outputs.access_token }}
+        run: |
+          set -euo pipefail
+
+          next_version_code="${GITHUB_RUN_NUMBER:-1}"
+
+          if [[ -n "${PLAY_ACCESS_TOKEN:-}" ]]; then
+            api_base="https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${ANDROID_PLAY_PACKAGE_NAME}"
+
+            edit_response="$(curl -fsSL \
+              -X POST \
+              -H "Authorization: Bearer ${PLAY_ACCESS_TOKEN}" \
+              -H "Content-Type: application/json" \
+              -d '{}' \
+              "${api_base}/edits")"
+
+            edit_id="$(python3 -c 'import json,sys; print(json.load(sys.stdin).get("id",""))' <<< "${edit_response}")"
+
+            if [[ -z "${edit_id}" ]]; then
+              echo "::error::Unable to create Google Play edit for ${ANDROID_PLAY_PACKAGE_NAME}."
+              exit 1
+            fi
+
+            cleanup() {
+              curl -fsSL \
+                -X DELETE \
+                -H "Authorization: Bearer ${PLAY_ACCESS_TOKEN}" \
+                "${api_base}/edits/${edit_id}" >/dev/null || true
+            }
+
+            trap cleanup EXIT
+
+            max_version_code=0
+
+            for track in internal alpha beta production; do
+              response_file="$(mktemp)"
+              http_code="$(curl -sS \
+                -o "${response_file}" \
+                -w "%{http_code}" \
+                -H "Authorization: Bearer ${PLAY_ACCESS_TOKEN}" \
+                "${api_base}/edits/${edit_id}/tracks/${track}")"
+
+              if [[ "${http_code}" == "200" ]]; then
+                track_max="$(python3 -c 'import json,sys; payload=json.load(open(sys.argv[1], "r", encoding="utf-8")); codes=[int(value) for release in payload.get("releases", []) for value in (release.get("versionCodes", []) or []) if str(value).isdigit()]; print(max(codes) if codes else 0)' "${response_file}")"
+
+                if (( track_max > max_version_code )); then
+                  max_version_code="${track_max}"
+                fi
+              elif [[ "${http_code}" != "404" ]]; then
+                cat "${response_file}" >&2
+                echo "::error::Unable to inspect Google Play track '${track}'."
+                exit 1
+              fi
+
+              rm -f "${response_file}"
+            done
+
+            if (( max_version_code > 0 )); then
+              next_version_code="$((max_version_code + 1))"
+            fi
+          fi
+
+          echo "ANDROID_VERSION_CODE=${next_version_code}" >> "$GITHUB_ENV"
+          echo "Using Android version code ${next_version_code}."
+      - name: Build Android prod release bundle
+        working-directory: apps/android
+        shell: bash
+        run: |
+          set -euo pipefail
+          export ANDROID_VERSION_CODE="${ANDROID_VERSION_CODE:-1}"
+          ./gradlew bundleProdRelease
+
+      - name: Upload Android production artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sanctuary-android-prod-release-${{ github.sha }}
+          path: apps/android/app/build/outputs/bundle/prodRelease/app-prod-release.aab
+          if-no-files-found: error
+
+      - name: Upload Android production bundle to Play production draft
+        if: env.ANDROID_PLAY_SERVICE_ACCOUNT_JSON != '' && env.ANDROID_UPLOAD_KEYSTORE_BASE64 != ''
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ env.ANDROID_PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: ${{ env.ANDROID_PLAY_PACKAGE_NAME }}
+          releaseFiles: apps/android/app/build/outputs/bundle/prodRelease/app-prod-release.aab
+          track: production
+          status: draft
