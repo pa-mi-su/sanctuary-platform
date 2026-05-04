@@ -200,7 +200,7 @@ struct NovenasCalendarView: View {
 
             for entry in entries {
                 let day = calendar.component(.day, from: entry.date)
-                let featured = entry.startingNovena ?? entry.novenas.first
+                let featured = entry.startingNovena
                 guard let featured else { continue }
                 ids[day] = featured.id
                 titles[day] = featured.titleByLocale[localization.language.contentLocale]

@@ -65,4 +65,65 @@ class NovenaServingWindowResolverTest {
         assertEquals(LocalDate.of(2027, 3, 27), result.startDate());
         assertEquals(LocalDate.of(2027, 4, 4), result.endDate());
     }
+
+    @Test
+    void resolvesRelativeSundayWithLegacyZeroBasedWeekday() {
+        NovenaServingRule rule = new NovenaServingRule(
+            "holy_face_of_jesus",
+            "relative", null, null, "shrove_tuesday", -10, 0, null, null, null,
+            "anchor", null, null, "shrove_tuesday", null, null, null, null, null,
+            9,
+            9
+        );
+
+        var result = resolver.resolve(rule, 2026);
+        assertEquals(LocalDate.of(2026, 2, 8), result.startDate());
+        assertEquals(LocalDate.of(2026, 2, 17), result.feastDate());
+        assertEquals(LocalDate.of(2026, 2, 16), result.endDate());
+    }
+
+    @Test
+    void resolvesRelativeFridayWithLegacyZeroBasedWeekday() {
+        NovenaServingRule rule = new NovenaServingRule(
+            "sacred_heart",
+            "relative", null, null, "pentecost", 10, null, null, null, null,
+            "relative", null, null, "pentecost", 19, 5, null, null, null,
+            9,
+            9
+        );
+
+        var result = resolver.resolve(rule, 2026);
+        assertEquals(LocalDate.of(2026, 6, 3), result.startDate());
+        assertEquals(LocalDate.of(2026, 6, 12), result.feastDate());
+        assertEquals(LocalDate.of(2026, 6, 11), result.endDate());
+    }
+
+    @Test
+    void resolvesPreviouslyRawLiturgicalNovenaRules() {
+        NovenaServingRule holyFamily = new NovenaServingRule(
+            "holy_family",
+            "before_feast", null, null, "holy_family", null, null, null, null, 9,
+            "anchor", null, null, "holy_family", null, null, null, null, null,
+            9,
+            9
+        );
+        NovenaServingRule immaculateHeart = new NovenaServingRule(
+            "immaculate_heart_of_mary",
+            "before_feast", null, null, "immaculate_heart", null, null, null, null, 9,
+            "anchor", null, null, "immaculate_heart", null, null, null, null, null,
+            9,
+            9
+        );
+        NovenaServingRule maryQueenOfTheApostles = new NovenaServingRule(
+            "mary_queen_of_the_apostles",
+            "before_feast", null, null, "pentecost", null, null, null, null, 9,
+            "anchor", null, null, "pentecost", null, null, null, null, null,
+            9,
+            9
+        );
+
+        assertEquals(LocalDate.of(2026, 12, 27), resolver.resolve(holyFamily, 2026).feastDate());
+        assertEquals(LocalDate.of(2026, 6, 13), resolver.resolve(immaculateHeart, 2026).feastDate());
+        assertEquals(LocalDate.of(2026, 5, 24), resolver.resolve(maryQueenOfTheApostles, 2026).feastDate());
+    }
 }
