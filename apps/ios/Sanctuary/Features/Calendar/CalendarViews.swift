@@ -107,12 +107,8 @@ struct NovenasCalendarView: View {
                     showsAction: novenaIDForSelectedDay() != nil,
                     onTap: {
                         guard Date() >= suppressDayTapUntil else { return }
-                        let next = novenaIDForSelectedDay()
-                        if let next {
-                            selectedNovenaSelection = CalendarSelection(id: next)
-                        } else {
-                            tapFeedbackMessage = "\(localization.t("calendar.noNovenaMapped")) \(localization.monthName(selectedMonth)) \(selectedDay)."
-                        }
+                        guard let next = novenaIDForSelectedDay() else { return }
+                        selectedNovenaSelection = CalendarSelection(id: next)
                     }
                 )
             }
@@ -924,146 +920,157 @@ private struct DayCard: View {
         let outerShape = RoundedRectangle(cornerRadius: 28, style: .continuous)
         let innerShape = RoundedRectangle(cornerRadius: 22, style: .continuous)
         let borderWidth: CGFloat = borderColor == nil ? 0 : 8
-        Button(action: onTap) {
-            ZStack {
-                outerShape
-                    .fill(AppTheme.cardBackground)
-                    .overlay {
+
+        let card = ZStack {
+            outerShape
+                .fill(AppTheme.cardBackground)
+                .overlay {
+                    if let imageURL {
+                        GeometryReader { geo in
+                            AsyncImage(url: imageURL) { phase in
+                                switch phase {
+                                case .success(let image):
+                                    image
+                                        .resizable()
+                                        .scaledToFill()
+                                        .frame(width: geo.size.width, height: geo.size.height)
+                                        .blur(radius: 30)
+                                        .saturation(0.78)
+                                        .opacity(0.5)
+                                case .empty:
+                                    Color.clear
+                                case .failure:
+                                    Color.clear
+                                @unknown default:
+                                    Color.clear
+                                }
+                            }
+                        }
+                        .clipShape(outerShape)
+                    }
+                }
+
+            innerShape
+                .fill(AppTheme.cardBackground)
+                .overlay {
+                    ZStack {
                         if let imageURL {
                             GeometryReader { geo in
                                 AsyncImage(url: imageURL) { phase in
                                     switch phase {
                                     case .success(let image):
-                                        image
-                                            .resizable()
-                                            .scaledToFill()
-                                            .frame(width: geo.size.width, height: geo.size.height)
-                                            .blur(radius: 30)
-                                            .saturation(0.78)
-                                            .opacity(0.5)
-                                    case .empty:
-                                        Color.clear
-                                    case .failure:
-                                        Color.clear
-                                    @unknown default:
-                                        Color.clear
-                                    }
-                                }
-                            }
-                            .clipShape(outerShape)
-                        }
-                    }
-
-                innerShape
-                    .fill(AppTheme.cardBackground)
-                    .overlay {
-                        ZStack {
-                            if let imageURL {
-                                GeometryReader { geo in
-                                    AsyncImage(url: imageURL) { phase in
-                                        switch phase {
-                                        case .success(let image):
-                                            ZStack {
-                                                image
-                                                    .resizable()
-                                                    .scaledToFit()
-                                                    .frame(
-                                                        width: max(0, geo.size.width - 18),
-                                                        height: max(0, geo.size.height - 18)
+                                        ZStack {
+                                            image
+                                                .resizable()
+                                                .scaledToFit()
+                                                .frame(
+                                                    width: max(0, geo.size.width - 18),
+                                                    height: max(0, geo.size.height - 18)
+                                                )
+                                                .mask(
+                                                    LinearGradient(
+                                                        stops: [
+                                                            .init(color: .clear, location: 0.0),
+                                                            .init(color: .white.opacity(0.9), location: 0.18),
+                                                            .init(color: .white, location: 0.5),
+                                                            .init(color: .white.opacity(0.9), location: 0.82),
+                                                            .init(color: .clear, location: 1.0)
+                                                        ],
+                                                        startPoint: .leading,
+                                                        endPoint: .trailing
                                                     )
-                                                    .mask(
-                                                        LinearGradient(
-                                                            stops: [
-                                                                .init(color: .clear, location: 0.0),
-                                                                .init(color: .white.opacity(0.9), location: 0.18),
-                                                                .init(color: .white, location: 0.5),
-                                                                .init(color: .white.opacity(0.9), location: 0.82),
-                                                                .init(color: .clear, location: 1.0)
-                                                            ],
-                                                            startPoint: .leading,
-                                                            endPoint: .trailing
-                                                        )
-                                                    )
-                                                    .shadow(color: .black.opacity(0.22), radius: 6, x: 0, y: 2)
-                                            }
-                                        case .empty:
-                                            Color.white.opacity(0.08)
-                                        case .failure:
-                                            Color.white.opacity(0.08)
-                                        @unknown default:
-                                            Color.white.opacity(0.08)
+                                                )
+                                                .shadow(color: .black.opacity(0.22), radius: 6, x: 0, y: 2)
                                         }
+                                    case .empty:
+                                        Color.white.opacity(0.08)
+                                    case .failure:
+                                        Color.white.opacity(0.08)
+                                    @unknown default:
+                                        Color.white.opacity(0.08)
                                     }
                                 }
                             }
+                        }
 
-                            LinearGradient(
-                                colors: [Color.black.opacity(0.04), Color.black.opacity(0.24)],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
+                        LinearGradient(
+                            colors: [Color.black.opacity(0.04), Color.black.opacity(0.24)],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
 
-                            VStack(alignment: .leading, spacing: 10) {
-                                HStack(alignment: .top) {
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text(title)
-                                            .font(AppTheme.rounded(34, weight: .bold))
-                                            .foregroundStyle(.white)
-                                        Text(subtitle)
-                                            .font(AppTheme.rounded(17, weight: .semibold))
-                                            .foregroundStyle(.white.opacity(0.92))
-                                            .multilineTextAlignment(.leading)
-                                            .lineLimit(2)
-                                    }
-
-                                    Spacer()
-
-                                    if showsAction {
-                                        Image(systemName: "arrow.up.right")
-                                            .font(.system(size: 14, weight: .bold))
-                                            .foregroundStyle(.white.opacity(0.74))
-                                            .padding(10)
-                                            .background(Color.white.opacity(0.10))
-                                            .clipShape(Circle())
-                                    }
+                        VStack(alignment: .leading, spacing: 10) {
+                            HStack(alignment: .top) {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(title)
+                                        .font(AppTheme.rounded(34, weight: .bold))
+                                        .foregroundStyle(.white)
+                                    Text(subtitle)
+                                        .font(AppTheme.rounded(17, weight: .semibold))
+                                        .foregroundStyle(.white.opacity(0.92))
+                                        .multilineTextAlignment(.leading)
+                                        .lineLimit(showsAction ? 2 : nil)
+                                        .fixedSize(horizontal: false, vertical: true)
                                 }
-
-                                Spacer()
+                                .frame(maxWidth: .infinity, alignment: .leading)
 
                                 if showsAction {
-                                    Text(actionLabel ?? localization.t("calendar.openDetails"))
-                                        .font(AppTheme.rounded(13, weight: .semibold))
-                                        .foregroundStyle(.white.opacity(0.92))
-                                        .padding(.horizontal, 14)
-                                        .padding(.vertical, 8)
-                                        .background(Color.white.opacity(0.12))
-                                        .clipShape(Capsule())
+                                    Image(systemName: "arrow.up.right")
+                                        .font(.system(size: 14, weight: .bold))
+                                        .foregroundStyle(.white.opacity(0.74))
+                                        .padding(10)
+                                        .background(Color.white.opacity(0.10))
+                                        .clipShape(Circle())
                                 }
                             }
-                            .padding(18)
-                        }
-                        .clipShape(innerShape)
-                    }
-                    .overlay {
-                        innerShape
-                            .strokeBorder(Color.white.opacity(0.12), lineWidth: 1)
-                    }
-                    .padding(borderWidth)
 
-                if let borderColor {
-                    outerShape
-                        .strokeBorder(borderColor.opacity(0.98), lineWidth: 6)
+                            Spacer()
+
+                            if showsAction {
+                                Text(actionLabel ?? localization.t("calendar.openDetails"))
+                                    .font(AppTheme.rounded(13, weight: .semibold))
+                                    .foregroundStyle(.white.opacity(0.92))
+                                    .padding(.horizontal, 14)
+                                    .padding(.vertical, 8)
+                                    .background(Color.white.opacity(0.12))
+                                    .clipShape(Capsule())
+                            }
+                        }
+                        .padding(18)
+                    }
+                    .clipShape(innerShape)
                 }
+                .overlay {
+                    innerShape
+                        .strokeBorder(Color.white.opacity(0.12), lineWidth: 1)
+                }
+                .padding(borderWidth)
+
+            if let borderColor {
+                outerShape
+                    .strokeBorder(borderColor.opacity(0.98), lineWidth: 6)
             }
-            .frame(maxWidth: .infinity)
-            .frame(height: cardHeight)
-            .clipShape(outerShape)
         }
-        .contentShape(outerShape)
         .frame(maxWidth: .infinity)
         .frame(height: cardHeight)
-        .buttonStyle(.plain)
+        .clipShape(outerShape)
         .shadow(color: Color.black.opacity(0.2), radius: 18, x: 0, y: 10)
+
+        Group {
+            if showsAction {
+                Button(action: onTap) {
+                    card
+                }
+                .contentShape(outerShape)
+                .buttonStyle(.plain)
+            } else {
+                card
+                    .accessibilityElement(children: .combine)
+                    .accessibilityAddTraits(.isStaticText)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: cardHeight)
     }
 }
 
