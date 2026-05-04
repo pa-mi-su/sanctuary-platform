@@ -37,10 +37,20 @@ Store these outside the repo:
 - username
 - password
 
-Recommended storage:
+Production credential rule:
 
-- AWS Secrets Manager
-- or SSM Parameter Store
+- use the RDS-managed AWS Secrets Manager secret as the only production DB password source
+- inject `SANCTUARY_DB_PASSWORD` from the secret's `password` JSON field
+- do not create or use an SSM copy such as `/sanctuary/prod/db/password`
+
+Keep automatic RDS secret rotation disabled until production has automation that force-redeploys the API after every rotation.
+
+Manual rotation runbook:
+
+1. rotate the RDS-managed database secret/password
+2. force a production API deployment
+3. verify `/health`
+4. verify API logs show a successful PostgreSQL connection and Flyway validation
 
 ## Step 4: Point ECS To RDS
 
