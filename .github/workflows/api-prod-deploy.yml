@@ -97,6 +97,14 @@ jobs:
           echo "SANCTUARY_COGNITO_ISSUER_URI=$(echo -n "${SANCTUARY_COGNITO_ISSUER_URI}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
           echo "SANCTUARY_COGNITO_CLIENT_ID=$(echo -n "${SANCTUARY_COGNITO_CLIENT_ID}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
 
+      - name: Validate production DB secret source
+        run: |
+          if [[ "${API_PROD_DB_SECRET_ARN}" != arn:aws:secretsmanager:*:secret:rds\!* ]]; then
+            echo "API_PROD_DB_SECRET_ARN must be the RDS-managed Secrets Manager secret ARN."
+            echo "Do not use SSM parameters such as /sanctuary/prod/db/password for production DB credentials."
+            exit 1
+          fi
+
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2

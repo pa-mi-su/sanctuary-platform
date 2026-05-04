@@ -16,10 +16,11 @@ This guide defines the first production deployment path for the Sanctuary Java A
 
 Current trigger:
 
-- push to `prod-ready-web-shell`
-- manual `workflow_dispatch`
+- PRs into `dev`, `uat`, `prod`, and `main` run API tests
+- pushes to `main` deploy production
+- manual `workflow_dispatch` is available for controlled operations
 
-This mirrors the temporary production workflow choice already used for the Angular app while the real product state still lives on `prod-ready-web-shell`.
+Production deploys should run from `main` after the normal branch promotion flow.
 
 ## What The Workflow Does
 
@@ -84,7 +85,26 @@ Recommended ECS Express Mode environment variables:
 - `SANCTUARY_DB_USERNAME`
 - `SANCTUARY_DB_PASSWORD`
 
-Use ECS/Secrets Manager integration or SSM wherever possible for database credentials.
+Production has one database password source of truth:
+
+- the RDS-managed AWS Secrets Manager secret for `sanctuary-prod-db`
+
+The ECS task definition must inject:
+
+- `SANCTUARY_DB_PASSWORD` from the RDS secret `password` JSON field
+
+Do not use `/sanctuary/prod/db/password` or any other SSM copy for production API database credentials. Duplicate secret sources drift and can break the API after password changes.
+
+The ECS execution role must be allowed to read that RDS secret with `secretsmanager:GetSecretValue`.
+
+Automatic RDS secret rotation should stay disabled unless production also has automation that force-redeploys the API service immediately after every rotation. Without that redeploy, running ECS tasks keep the old injected password and eventually fail database authentication.
+
+Manual rotation runbook:
+
+1. rotate the RDS-managed database secret/password
+2. force a production API deployment
+3. verify `/health`
+4. verify API logs show a successful PostgreSQL connection and Flyway validation
 
 ## Important ECS Express Mode Behavior
 
