@@ -1,74 +1,116 @@
-## iOS App Workspace
+# Sanctuary iOS
 
-This directory is the home of the native Sanctuary iOS app inside the `sanctuary-platform` monorepo.
+`apps/ios` is the native iOS app for Sanctuary. It is a SwiftUI client that uses the shared Java backend for content, auth, profile state, favorites, and novena progress.
 
-The first structural import has been completed. The legacy Xcode project and app source tree now live here so we can migrate carefully and preserve:
+## Stack
 
-- build stability
-- Xcode project references
-- signing configuration
-- environment-specific bundle identifiers
-- a clean path from legacy local-data architecture to API-backed platform architecture
+- Swift
+- SwiftUI
+- Xcode project
+- Keychain-backed session storage
+- URLSession API client
+- Dev, UAT, and Prod schemes
+- TestFlight and App Store Connect pipeline
 
-## Migration Rules
-
-- Move first, rewrite second.
-- Do not copy partial feature folders into this directory.
-- Do not leave the app half on bundled JSON and half on API for the same domain.
-- Treat `apps/api` as the long-term source of truth for content and user state.
-- Keep release/signing verification in lockstep with structural migration.
-
-## Planned Contents
-
-This directory now contains the native iOS project and source tree in preserved relative layout:
+## Structure
 
 ```text
 apps/ios/
-  Sanctuary.xcodeproj
-  Sanctuary/
-  README.md
+├── Sanctuary.xcodeproj
+├── Sanctuary/
+│   ├── Core/
+│   │   ├── Application/    # Environment, API client, session/progress stores
+│   │   └── Domain/         # Entities and repository protocols
+│   ├── Features/           # Home, auth, calendar, saints, novenas, prayers, Me
+│   ├── Resources/          # Bundled legacy/source JSON resources
+│   ├── UI/                 # Shared theme/layout/localization
+│   └── SanctuaryApp.swift
+└── README.md
 ```
 
-## What Has Been Verified
+## Schemes And Environments
 
-- the standalone project was imported without changing its internal relative layout
-- the imported project still exposes:
-  - `Sanctuary-Prod`
-  - `Sanctuary-Dev`
-  - `Sanctuary-UAT`
-- simulator builds succeed from the monorepo for prod, dev, and UAT when validated via `xcodebuild`
+The project exposes:
 
-## Environment Routing
+- `Sanctuary-Dev`
+- `Sanctuary-UAT`
+- `Sanctuary-Prod`
 
-- `Sanctuary-Prod` points to the production API.
-- `Sanctuary-Dev` points to the production API.
-- `Sanctuary-UAT` points to the production API.
+Environment detection is based on bundle identifier suffix in [`Sanctuary/Core/Application/PlatformConfiguration.swift`](Sanctuary/Core/Application/PlatformConfiguration.swift):
 
-Important:
+- `.dev` -> `dev`
+- `.uat` -> `uat`
+- otherwise -> `prod`
 
-- iOS never talks directly to PostgreSQL or RDS.
-- All environments now point at the production AWS API, and that API is backed by the production RDS instance.
-- You can still override `SANCTUARY_API_BASE_URL` explicitly when you need to test against another backend.
+The API base URL defaults to the production ECS API URL. You can override it with:
 
-## Remaining Verification
+```text
+SANCTUARY_API_BASE_URL
+```
 
-Continue using the Apple-side release checklist in:
+iOS never talks directly to PostgreSQL or RDS. All data access goes through the Sanctuary API.
 
-- `docs/deployment/ios-app-store-verification-checklist.md`
+## Product Areas
 
-Also keep the migration tracker up to date:
+The app includes:
 
-- `docs/architecture/ios-to-platform-migration-tracker.md`
+- home
+- account access
+- liturgical calendar
+- saints list/detail
+- novenas list/detail
+- prayers
+- search
+- Me/profile
+- about/support/privacy
+- novena reminder scheduling foundation
 
-## Immediate Next Step
+## API And Auth
 
-The next safe step is not another file move. It is to begin the application-layer migration:
+The app creates its current environment through [`Sanctuary/Core/Application/AppEnvironment.swift`](Sanctuary/Core/Application/AppEnvironment.swift).
 
-- introduce shared environment configuration for iOS inside the monorepo
-- wire real platform auth and account flows
-- replace legacy local repositories domain by domain with API-backed implementations
+At runtime it uses:
 
-## Pipeline Test Note
+- `SanctuaryAPIClient` for backend calls
+- `APIContentRepository` for API-backed content
+- `RemoteUserProgressRepository` for authenticated user state
+- `AccountSessionStore` and `KeychainStore` for session persistence
 
-This README may occasionally receive tiny no-op edits used only to verify iOS-only GitHub workflow routing and deploy behavior.
-Current no-op verification touch: 2026-05-01 round 2.
+Legacy JSON files remain in [`Sanctuary/Resources`](Sanctuary/Resources) as bundled source/product material, but platform-backed content should flow through the API.
+
+## Local Build
+
+Validate the production scheme for simulator:
+
+```bash
+xcodebuild -project apps/ios/Sanctuary.xcodeproj -scheme Sanctuary-Prod -configuration Debug -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
+```
+
+Validate Dev:
+
+```bash
+xcodebuild -project apps/ios/Sanctuary.xcodeproj -scheme Sanctuary-Dev -configuration Debug -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
+```
+
+Validate UAT:
+
+```bash
+xcodebuild -project apps/ios/Sanctuary.xcodeproj -scheme Sanctuary-UAT -configuration Debug -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
+```
+
+## Release And CI
+
+The iOS workflow is [`../../.github/workflows/ios-pipeline.yml`](../../.github/workflows/ios-pipeline.yml).
+
+Release model:
+
+- PRs validate iOS builds
+- feature/dev promotion uploads Dev TestFlight builds
+- UAT promotion uploads UAT TestFlight builds
+- production builds upload to App Store Connect from `main`
+- final App Store release approval remains manual
+
+Related docs:
+
+- [`../../docs/architecture/ios-to-platform-migration-tracker.md`](../../docs/architecture/ios-to-platform-migration-tracker.md)
+- [`../../docs/deployment/ios-app-store-verification-checklist.md`](../../docs/deployment/ios-app-store-verification-checklist.md)
