@@ -205,7 +205,8 @@ The temporary branch decision matches the current web pipeline:
 
 - ECR repository
 - ECS Express Mode service per environment
-- Secrets Manager or Parameter Store config
+- Secrets Manager or Parameter Store config for non-production environments
+- production API DB password must come directly from the RDS-managed Secrets Manager secret
 - CORS origin configured to the matching web domain
 
 ### Required GitHub configuration
@@ -318,6 +319,12 @@ Recommended storage:
 
 - `AWS Secrets Manager`
 - `SSM Parameter Store`
+
+Production API database credentials are stricter:
+
+- `SANCTUARY_DB_PASSWORD` must be injected from the RDS-managed Secrets Manager secret
+- do not maintain an SSM copy such as `/sanctuary/prod/db/password`
+- keep automatic RDS secret rotation disabled until rotation also triggers an API force redeploy
 
 Do not commit production secrets.
 
