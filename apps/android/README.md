@@ -1,44 +1,148 @@
 # Sanctuary Android
 
-This is the native Android app foundation for Sanctuary.
+`apps/android` is the native Android app for Sanctuary. It is a Kotlin/Jetpack Compose client that uses the shared Java backend for content, auth, profile state, favorites, and novena progress.
 
-## Planned stack
+## Stack
 
 - Kotlin
 - Jetpack Compose
-- Same Sanctuary API and Cognito auth model as iOS and web
-- GitHub Actions automation scoped only to Android changes
+- Material 3
+- Navigation Compose
+- AndroidX Lifecycle/ViewModel
+- Retrofit
+- OkHttp
+- Gson converter
+- Coil
+- DataStore preferences
+- AndroidX Security Crypto
+- Gradle Kotlin DSL
 
-## Current status
+## Structure
 
-The project is scaffolded with:
+```text
+apps/android/
+├── app/
+│   ├── build.gradle.kts
+│   └── src/main/
+│       ├── java/app/sanctuary/android/
+│       │   ├── data/       # Retrofit API, models, session storage
+│       │   ├── ui/         # Localization and theme
+│       │   ├── MainActivity.kt
+│       │   └── MainViewModel.kt
+│       ├── assets/         # Home card SVG assets
+│       └── res/            # App icons, logo, values
+├── build.gradle.kts
+├── gradlew
+├── settings.gradle.kts
+└── README.md
+```
 
-- Gradle Kotlin DSL project files
-- Android app module
-- Compose app shell and theme
-- A simple home screen that maps the intended Sanctuary sections
+## Product Areas
 
-Current CI behavior:
+The Android app includes:
 
-- PRs only trigger the Android pipeline when `apps/android/**` changes.
-- Pushes to `main` only trigger Android release automation when `apps/android/**` changes.
-- Until the Gradle wrapper exists, the Android workflow succeeds with a placeholder step instead of blocking unrelated releases.
+- home
+- auth/account access
+- liturgical calendar
+- saints day/week/month/search/detail flows
+- novenas day/week/month/search/intentions/detail flows
+- prayers list/detail
+- Me/profile/about/support/privacy flows
+- favorites and novena progress foundations
+- reminder scheduler foundation
+- environment/version display
 
-The next implementation slices should be:
+## Flavors And Environment
 
-1. Gradle wrapper check-in
-2. Environment configuration for `dev`, `uat`, and `prod`
-3. API client + auth/session refresh flow
-4. Login/register/confirm/reset password
-5. Home, saints, novenas, intentions, prayers, liturgical, and Me flows
-6. Favorites, novena progress, and reminders
+Android defines three product flavors in [`app/build.gradle.kts`](app/build.gradle.kts):
 
-## CI/CD
+- `dev`
+- `uat`
+- `prod`
 
-Android is intended to stay independent from API, web, and iOS releases.
-The GitHub workflow should only run when `apps/android/**` changes.
+Each flavor sets:
 
-## Pipeline Test Note
+- app name
+- `BuildConfig.ENVIRONMENT`
+- `BuildConfig.API_BASE_URL`
+- `BuildConfig.AUTH_ENABLED`
 
-This README may occasionally receive tiny no-op edits used only to verify Android-only GitHub workflow routing and deploy behavior.
-Current no-op verification touch: 2026-05-01 round 2.
+All current flavors point to the shared Sanctuary API URL. Android never talks directly to PostgreSQL or RDS.
+
+## API And Auth
+
+Retrofit endpoints live in [`app/src/main/java/app/sanctuary/android/data/SanctuaryApiService.kt`](app/src/main/java/app/sanctuary/android/data/SanctuaryApiService.kt).
+
+The service covers:
+
+- auth registration/login/refresh/password reset
+- `/me`
+- favorites
+- novena commitments
+- saints
+- prayers
+- novenas
+- liturgical calendar ranges
+
+Authenticated calls attach bearer tokens through `AuthHeaderInterceptor`.
+
+Session persistence lives in [`app/src/main/java/app/sanctuary/android/data/SessionRepository.kt`](app/src/main/java/app/sanctuary/android/data/SessionRepository.kt).
+
+## Local Build
+
+From this directory:
+
+```bash
+./gradlew assembleDevDebug
+```
+
+Other useful builds:
+
+```bash
+./gradlew assembleUatRelease
+./gradlew assembleProdRelease
+```
+
+From the repo root:
+
+```bash
+cd apps/android
+./gradlew assembleDevDebug
+```
+
+If Android Studio rewrites `local.properties`, keep it local-only.
+
+## Signing And Versioning
+
+Release signing uses environment variables when available:
+
+- `ANDROID_UPLOAD_KEYSTORE_PATH`
+- `ANDROID_UPLOAD_KEYSTORE_PASSWORD`
+- `ANDROID_UPLOAD_KEY_ALIAS`
+- `ANDROID_UPLOAD_KEY_PASSWORD`
+
+`versionCode` is resolved from:
+
+1. `ANDROID_VERSION_CODE`
+2. git commit count
+3. `GITHUB_RUN_NUMBER`
+4. `1`
+
+Current `versionName` is defined in [`app/build.gradle.kts`](app/build.gradle.kts).
+
+## Release And CI
+
+The Android workflow is [`../../.github/workflows/android-pipeline.yml`](../../.github/workflows/android-pipeline.yml).
+
+Current behavior:
+
+- PRs validate Android when `apps/android/**` changes
+- pushes to `dev` build/upload Dev artifacts
+- pushes to `uat` build/upload UAT artifacts
+- production Google Play release setup is intentionally conservative until Play Console production configuration is ready
+- Android is path-scoped so Android work does not block unrelated API, web, or iOS releases
+
+Related docs:
+
+- [`../../docs/android-rollout-plan.md`](../../docs/android-rollout-plan.md)
+- [`../../docs/android-play-console-setup.md`](../../docs/android-play-console-setup.md)
