@@ -326,6 +326,11 @@
   margin-top: 16px;
 }
 
+.novena-empty-highlight {
+  grid-template-columns: 1fr;
+  min-height: 142px;
+}
+
 .saint-date {
   display: flex;
   flex-direction: column;

@@ -1434,7 +1434,9 @@ private fun HomeCard(session: SessionUiState) {
             ProfileMetric(l10n.t("me.metric.activeNovenas"), profile?.activeNovenaCount ?: 0)
             ProfileMetric(l10n.t("me.metric.favoriteNovenas"), profile?.favoriteNovenaCount ?: 0)
             ProfileMetric(l10n.t("me.metric.favoriteSaints"), profile?.favoriteSaintCount ?: 0)
-            ProfileMetric(l10n.t("me.metric.environment"), BuildConfig.ENVIRONMENT.uppercase())
+            if (BuildConfig.ENVIRONMENT != "prod") {
+                ProfileMetric(l10n.t("me.metric.environment"), BuildConfig.ENVIRONMENT.uppercase())
+            }
         }
     }
 }
@@ -1826,11 +1828,13 @@ private fun AboutOverviewSheet(
                 color = Color(0xFFD0DFEA),
                 lineHeight = 21.sp
             )
-            Text(
-                "${l10n.t("about.environmentLabel")}: ${BuildConfig.ENVIRONMENT.uppercase()}",
-                color = Color(0xFFD0DFEA),
-                lineHeight = 21.sp
-            )
+            if (BuildConfig.ENVIRONMENT != "prod") {
+                Text(
+                    "${l10n.t("about.environmentLabel")}: ${BuildConfig.ENVIRONMENT.uppercase()}",
+                    color = Color(0xFFD0DFEA),
+                    lineHeight = 21.sp
+                )
+            }
         }
 
         AboutInfoCard(title = l10n.t("about.whatsInApp")) {
@@ -3445,7 +3449,16 @@ private fun NovenasCalendarScreen(
                                 onClick = { onOpenNovena(preview.slug) }
                             )
                         } else {
-                            SectionHint(l10n.t("search.novenasTitle"), l10n.t("calendar.noLiturgicalBody"))
+                            DayPreviewCard(
+                                date = previewDate,
+                                title = l10n.t("calendar.noNovenaStarting"),
+                                subtitle = "",
+                                imageUrl = null,
+                                buttonLabel = null,
+                                enabled = false,
+                                showImage = false,
+                                onClick = {}
+                            )
                         }
                     }
                     CalendarMode.Week -> {
@@ -3791,12 +3804,15 @@ private fun DayPreviewCard(
     title: String,
     subtitle: String,
     imageUrl: String?,
-    buttonLabel: String,
+    buttonLabel: String?,
+    enabled: Boolean = true,
+    showImage: Boolean = true,
     onClick: () -> Unit
 ) {
     Card(
         colors = CardDefaults.cardColors(containerColor = Color(0xCC22394C)),
         shape = RoundedCornerShape(26.dp),
+        enabled = enabled,
         onClick = onClick
     ) {
         Row(
@@ -3809,30 +3825,36 @@ private fun DayPreviewCard(
             ) {
                 Text(date.dayOfMonth.toString(), color = Color.White, fontSize = 34.sp, fontWeight = FontWeight.Bold)
                 Text(title, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                Text(subtitle, color = Color(0xFFD0DFEA), maxLines = 3, overflow = TextOverflow.Ellipsis)
-                Text(buttonLabel, color = Color.White, fontWeight = FontWeight.Medium)
+                if (subtitle.isNotBlank()) {
+                    Text(subtitle, color = Color(0xFFD0DFEA), maxLines = 3, overflow = TextOverflow.Ellipsis)
+                }
+                if (buttonLabel != null) {
+                    Text(buttonLabel, color = Color.White, fontWeight = FontWeight.Medium)
+                }
             }
-            Box(modifier = Modifier.width(140.dp).aspectRatio(1.15f)) {
-                ThumbnailImage(
-                    imageUrl = imageUrl,
-                    contentDescription = title,
-                    modifier = Modifier.fillMaxSize(),
-                    shape = RoundedCornerShape(20.dp)
-                )
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(8.dp)
-                        .size(28.dp)
-                        .background(Color(0x22324456), CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.SouthEast,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(16.dp)
+            if (showImage) {
+                Box(modifier = Modifier.width(140.dp).aspectRatio(1.15f)) {
+                    ThumbnailImage(
+                        imageUrl = imageUrl,
+                        contentDescription = title,
+                        modifier = Modifier.fillMaxSize(),
+                        shape = RoundedCornerShape(20.dp)
                     )
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(8.dp)
+                            .size(28.dp)
+                            .background(Color(0x22324456), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.SouthEast,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
                 }
             }
         }

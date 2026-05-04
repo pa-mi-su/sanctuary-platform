@@ -104,6 +104,7 @@ struct NovenasCalendarView: View {
                     subtitle: selectedNovenaTitleForDay(),
                     imageURL: selectedNovenaImageURLForDay(),
                     borderColor: displayedSeasonBorderColor,
+                    showsAction: novenaIDForSelectedDay() != nil,
                     onTap: {
                         guard Date() >= suppressDayTapUntil else { return }
                         let next = novenaIDForSelectedDay()
@@ -166,7 +167,7 @@ struct NovenasCalendarView: View {
 
     private func selectedNovenaTitleForDay() -> String {
         guard let title = novenaTitleByDay[selectedDay] else {
-            return localization.t("calendar.noNovenaAvailable")
+            return localization.t("calendar.noNovenaStarting")
         }
         return title
     }
@@ -915,6 +916,7 @@ private struct DayCard: View {
     let imageURL: URL?
     var borderColor: Color? = AppTheme.lent
     var actionLabel: String? = nil
+    var showsAction = true
     let onTap: () -> Void
     private let cardHeight: CGFloat = 142
 
@@ -1016,23 +1018,27 @@ private struct DayCard: View {
 
                                     Spacer()
 
-                                    Image(systemName: "arrow.up.right")
-                                        .font(.system(size: 14, weight: .bold))
-                                        .foregroundStyle(.white.opacity(0.74))
-                                        .padding(10)
-                                        .background(Color.white.opacity(0.10))
-                                        .clipShape(Circle())
+                                    if showsAction {
+                                        Image(systemName: "arrow.up.right")
+                                            .font(.system(size: 14, weight: .bold))
+                                            .foregroundStyle(.white.opacity(0.74))
+                                            .padding(10)
+                                            .background(Color.white.opacity(0.10))
+                                            .clipShape(Circle())
+                                    }
                                 }
 
                                 Spacer()
 
-                                Text(actionLabel ?? localization.t("calendar.openDetails"))
-                                    .font(AppTheme.rounded(13, weight: .semibold))
-                                    .foregroundStyle(.white.opacity(0.92))
-                                    .padding(.horizontal, 14)
-                                    .padding(.vertical, 8)
-                                    .background(Color.white.opacity(0.12))
-                                    .clipShape(Capsule())
+                                if showsAction {
+                                    Text(actionLabel ?? localization.t("calendar.openDetails"))
+                                        .font(AppTheme.rounded(13, weight: .semibold))
+                                        .foregroundStyle(.white.opacity(0.92))
+                                        .padding(.horizontal, 14)
+                                        .padding(.vertical, 8)
+                                        .background(Color.white.opacity(0.12))
+                                        .clipShape(Capsule())
+                                }
                             }
                             .padding(18)
                         }

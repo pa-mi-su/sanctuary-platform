@@ -10,7 +10,7 @@ struct AboutView: View {
     private let wikipediaURL = "https://www.wikipedia.org/"
     private let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—"
     private let buildNumber = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "—"
-    private let environment = AboutView.appEnvironment
+    private let environment = AboutView.nonProductionEnvironmentLabel
 
     var body: some View {
         NavigationStack {
@@ -43,7 +43,9 @@ struct AboutView: View {
                         AboutCard(title: localization.t("about.versionTitle")) {
                             Text("\(localization.t("about.versionLabel")): \(appVersion)")
                             Text("\(localization.t("about.buildLabel")): \(buildNumber)")
-                            Text("\(localization.t("about.environmentLabel")): \(environment)")
+                            if let environment {
+                                Text("\(localization.t("about.environmentLabel")): \(environment)")
+                            }
                         }
 
                         AboutCard(title: localization.t("about.whatsInApp")) {
@@ -112,11 +114,11 @@ struct AboutView: View {
         .toolbarColorScheme(.dark, for: .navigationBar)
     }
 
-    private static var appEnvironment: String {
+    private static var nonProductionEnvironmentLabel: String? {
         let bundleID = Bundle.main.bundleIdentifier ?? ""
         if bundleID.hasSuffix(".dev") { return "DEV" }
         if bundleID.hasSuffix(".uat") { return "UAT" }
-        return "PROD"
+        return nil
     }
 }
 
