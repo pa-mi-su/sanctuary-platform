@@ -857,9 +857,9 @@ export class AppShellFacade {
 
   localizedNoNovenasCopy(): string {
     return this.translate(
-      'No novena is assigned to this date.',
-      'No hay una novena asignada a esta fecha.',
-      'Do tej daty nie przypisano nowenny.'
+      'Sanctuary does not have a novena starting on this day.',
+      'Sanctuary no tiene una novena que comience este día.',
+      'Sanctuary nie ma nowenny rozpoczynającej się tego dnia.'
     );
   }
 

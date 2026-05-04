@@ -2,6 +2,18 @@ import { Component, input, output } from '@angular/core';
 
 type AppLanguage = 'en' | 'es' | 'pl';
 
+interface WebBuildInfo {
+  version?: string;
+  build?: string;
+  environment?: string;
+}
+
+declare global {
+  interface Window {
+    SANCTUARY_BUILD_INFO?: WebBuildInfo;
+  }
+}
+
 @Component({
   selector: 'app-about-page',
   standalone: true,
@@ -115,6 +127,17 @@ type AppLanguage = 'en' | 'es' | 'pl';
           </div>
         </article>
 
+        <article class="about-card glass-subtle">
+          <h3>{{ t('App version', 'Versión de la app', 'Wersja aplikacji') }}</h3>
+          <div class="version-stack">
+            <p>{{ t('Version', 'Versión', 'Wersja') }}: {{ appVersion }}</p>
+            <p>{{ t('Build', 'Compilación', 'Kompilacja') }}: {{ appBuild }}</p>
+            @if (environmentLabel) {
+              <p>{{ t('Environment', 'Entorno', 'Środowisko') }}: {{ environmentLabel }}</p>
+            }
+          </div>
+        </article>
+
         <article class="about-card about-card--wide glass-subtle">
           <h3>{{ t('Contact & feedback', 'Contacto y comentarios', 'Kontakt i opinie') }}</h3>
           <p>
@@ -154,10 +177,30 @@ type AppLanguage = 'en' | 'es' | 'pl';
 })
 export class AboutPageComponent {
   protected readonly appStoreUrl = 'https://apps.apple.com/us/app/sanctuary-prayer-peace/id6759986068?uo=4';
+  private readonly buildInfo = globalThis.window?.SANCTUARY_BUILD_INFO ?? {};
+  protected readonly appVersion = this.buildInfo.version?.trim() || '0.0.0';
+  protected readonly appBuild = this.buildInfo.build?.trim() || 'local';
+  protected readonly environmentLabel = this.resolveEnvironmentLabel(this.buildInfo.environment);
 
   readonly currentLanguage = input<AppLanguage>('en');
   readonly openSupport = output<void>();
   readonly openPrivacy = output<void>();
+
+  private resolveEnvironmentLabel(rawEnvironment: string | undefined): string | null {
+    const hostname = globalThis.location?.hostname ?? '';
+    const normalizedEnvironment = rawEnvironment?.trim().toLowerCase();
+    const isProductionHost = hostname === 'mydailysanctuary.com' || hostname === 'www.mydailysanctuary.com';
+
+    if (isProductionHost || normalizedEnvironment === 'prod' || normalizedEnvironment === 'production') {
+      return null;
+    }
+
+    if (normalizedEnvironment === 'uat') {
+      return 'UAT';
+    }
+
+    return 'DEV';
+  }
 
   protected t(english: string, spanish: string, polish: string): string {
     switch (this.currentLanguage()) {

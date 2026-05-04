@@ -124,6 +124,13 @@ type AppLanguage = 'en' | 'es' | 'pl';
             <div class="saint-photo" [style.background-image]="selectedNovenaImageStyle()"></div>
             <div class="saint-action">↗</div>
           </button>
+        } @else {
+          <article class="saint-highlight novena-highlight novena-empty-highlight glass-subtle" [attr.data-season]="selectedSeasonKey()">
+            <div class="saint-date">
+              <strong>{{ selectedDateDayNumber() }}</strong>
+              <span>{{ noNovenasCopy() }}</span>
+            </div>
+          </article>
         }
 
         <section class="preview-grid">
@@ -238,11 +245,11 @@ export class NovenasPageComponent {
   }
 
   protected todayPrimaryNovena(): NovenaSummary | null {
-    return this.todayPrimaryNovenaInput() ?? this.featuredNovena(this.todayNovenas());
+    return this.todayPrimaryNovenaInput();
   }
 
   protected selectedPrimaryNovena(): NovenaSummary | null {
-    return this.selectedPrimaryNovenaInput() ?? this.featuredNovena(this.selectedNovenas());
+    return this.selectedPrimaryNovenaInput();
   }
 
   private featuredNovena(novenas: NovenaSummary[]): NovenaSummary | null {
