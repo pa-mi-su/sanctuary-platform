@@ -15,6 +15,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -907,7 +908,8 @@ private fun AuthenticatedShell(
                             onSearch = { showNovenaSearch = true },
                             onSearchIntentions = { showIntentionsSearch = true },
                             onOpenNovena = onOpenNovena,
-                            fetchNovenasInRange = fetchNovenasInRange
+                            fetchNovenasInRange = fetchNovenasInRange,
+                            fetchLiturgicalRange = fetchLiturgicalRange
                         )
                     }
                 }
@@ -930,7 +932,8 @@ private fun AuthenticatedShell(
                             onModeChange = { saintsCalendarMode = it },
                             onSearch = { showSaintSearch = true },
                             onOpenSaint = onOpenSaint,
-                            fetchSaintsInRange = fetchSaintsInRange
+                            fetchSaintsInRange = fetchSaintsInRange,
+                            fetchLiturgicalRange = fetchLiturgicalRange
                         )
                     }
                 }
@@ -3201,7 +3204,8 @@ private fun SaintsCalendarScreen(
     onModeChange: (CalendarMode) -> Unit,
     onSearch: () -> Unit,
     onOpenSaint: (String) -> Unit,
-    fetchSaintsInRange: suspend (String, String) -> List<app.sanctuary.android.data.SaintDateGroup>
+    fetchSaintsInRange: suspend (String, String) -> List<app.sanctuary.android.data.SaintDateGroup>,
+    fetchLiturgicalRange: suspend (String, String) -> List<app.sanctuary.android.data.LiturgicalDay>
 ) {
     val l10n = sanctuaryStrings()
     val today = LocalDate.now()
@@ -3218,6 +3222,14 @@ private fun SaintsCalendarScreen(
                 onSuccess = { CalendarLoadState.Ready(it) },
                 onFailure = { CalendarLoadState.Error(it.message ?: l10n.t("search.saintsTitle")) }
             )
+    }
+    val seasonByDate by produceState<Map<LocalDate, String>>(
+        initialValue = emptyMap(),
+        month, selectedYear, selectedMonth
+    ) {
+        value = runCatching { fetchLiturgicalRange(month.atDay(1).toString(), month.atEndOfMonth().toString()) }
+            .getOrDefault(emptyList())
+            .associate { LocalDate.parse(it.date) to it.season }
     }
 
     LaunchedEffect(selectedMonth, selectedYear) {
@@ -3301,6 +3313,7 @@ private fun SaintsCalendarScreen(
                                 subtitle = preview.feastLabel,
                                 imageUrl = preview.imageUrl,
                                 buttonLabel = l10n.t("common.openDetails"),
+                                borderColor = liturgicalBorderColor(seasonByDate[previewDate]),
                                 onClick = { onOpenSaint(preview.slug) }
                             )
                         } else {
@@ -3312,7 +3325,7 @@ private fun SaintsCalendarScreen(
                             month = month,
                             selectedDay = selectedDay,
                             labelForDay = { day -> saintByDate[month.atDay(day)]?.let { shortLabel(sanitizedSaintName(it.name)) } ?: "·" },
-                            borderColorForDay = { Color(0xFFF5F5F5) },
+                            borderColorForDay = { day -> liturgicalBorderColor(seasonByDate[month.atDay(day)]) },
                             onDaySelected = {
                                 selectedDay = it
                                 onModeChange(CalendarMode.Day)
@@ -3324,7 +3337,7 @@ private fun SaintsCalendarScreen(
                             month = month,
                             selectedDay = selectedDay,
                             labelForDay = { day -> saintByDate[month.atDay(day)]?.let { shortLabel(sanitizedSaintName(it.name)) } ?: "·" },
-                            borderColorForDay = { Color(0xFFF5F5F5) },
+                            borderColorForDay = { day -> liturgicalBorderColor(seasonByDate[month.atDay(day)]) },
                             onDaySelected = {
                                 selectedDay = it
                                 onModeChange(CalendarMode.Day)
@@ -3346,7 +3359,8 @@ private fun NovenasCalendarScreen(
     onSearch: () -> Unit,
     onSearchIntentions: () -> Unit,
     onOpenNovena: (String) -> Unit,
-    fetchNovenasInRange: suspend (String, String) -> List<app.sanctuary.android.data.NovenaCalendarDate>
+    fetchNovenasInRange: suspend (String, String) -> List<app.sanctuary.android.data.NovenaCalendarDate>,
+    fetchLiturgicalRange: suspend (String, String) -> List<app.sanctuary.android.data.LiturgicalDay>
 ) {
     val l10n = sanctuaryStrings()
     val today = LocalDate.now()
@@ -3363,6 +3377,14 @@ private fun NovenasCalendarScreen(
                 onSuccess = { CalendarLoadState.Ready(it) },
                 onFailure = { CalendarLoadState.Error(it.message ?: l10n.t("search.novenasTitle")) }
             )
+    }
+    val seasonByDate by produceState<Map<LocalDate, String>>(
+        initialValue = emptyMap(),
+        month, selectedYear, selectedMonth
+    ) {
+        value = runCatching { fetchLiturgicalRange(month.atDay(1).toString(), month.atEndOfMonth().toString()) }
+            .getOrDefault(emptyList())
+            .associate { LocalDate.parse(it.date) to it.season }
     }
 
     LaunchedEffect(selectedMonth, selectedYear) {
@@ -3446,6 +3468,7 @@ private fun NovenasCalendarScreen(
                                 subtitle = preview.description,
                                 imageUrl = preview.imageUrl,
                                 buttonLabel = l10n.t("common.openDetails"),
+                                borderColor = liturgicalBorderColor(seasonByDate[previewDate]),
                                 onClick = { onOpenNovena(preview.slug) }
                             )
                         } else {
@@ -3457,6 +3480,7 @@ private fun NovenasCalendarScreen(
                                 buttonLabel = null,
                                 enabled = false,
                                 showImage = false,
+                                borderColor = liturgicalBorderColor(seasonByDate[previewDate]),
                                 onClick = {}
                             )
                         }
@@ -3466,7 +3490,7 @@ private fun NovenasCalendarScreen(
                             month = month,
                             selectedDay = selectedDay,
                             labelForDay = { day -> novenaByDate[month.atDay(day)]?.let { shortLabel(it.title) } ?: "·" },
-                            borderColorForDay = { Color(0xFF7AC8EA) },
+                            borderColorForDay = { day -> liturgicalBorderColor(seasonByDate[month.atDay(day)]) },
                             onDaySelected = {
                                 selectedDay = it
                                 onModeChange(CalendarMode.Day)
@@ -3478,7 +3502,7 @@ private fun NovenasCalendarScreen(
                             month = month,
                             selectedDay = selectedDay,
                             labelForDay = { day -> novenaByDate[month.atDay(day)]?.let { shortLabel(it.title) } ?: "·" },
-                            borderColorForDay = { Color(0xFF7AC8EA) },
+                            borderColorForDay = { day -> liturgicalBorderColor(seasonByDate[month.atDay(day)]) },
                             onDaySelected = {
                                 selectedDay = it
                                 onModeChange(CalendarMode.Day)
@@ -3807,11 +3831,14 @@ private fun DayPreviewCard(
     buttonLabel: String?,
     enabled: Boolean = true,
     showImage: Boolean = true,
+    borderColor: Color = liturgicalBorderColor(null),
     onClick: () -> Unit
 ) {
+    val cardShape = RoundedCornerShape(26.dp)
     Card(
         colors = CardDefaults.cardColors(containerColor = Color(0xCC22394C)),
-        shape = RoundedCornerShape(26.dp),
+        shape = cardShape,
+        border = BorderStroke(4.dp, borderColor),
         enabled = enabled,
         onClick = onClick
     ) {
@@ -4042,16 +4069,17 @@ private fun LiturgicalDayPreviewCard(
         subtitle = detail.observances.firstOrNull().orEmpty().ifBlank { detail.season.replaceFirstChar { it.uppercase() } },
         imageUrl = null,
         buttonLabel = l10n.t("calendar.openDailyReadings"),
+        borderColor = liturgicalBorderColor(detail.season),
         onClick = onOpenReadings
     )
 }
 
 private fun liturgicalBorderColor(season: String?): Color = when (season?.lowercase()) {
-    "advent" -> Color(0xFF8B5CF6)
-    "christmas" -> Color(0xFFE7C76A)
-    "lent" -> Color(0xFFD16BA5)
-    "easter" -> Color(0xFFF5F5F5)
-    else -> Color(0xFF6FB56B)
+    "advent" -> Color(0xFF7858B9)
+    "christmas" -> Color.White
+    "lent" -> Color(0xFF9B5087)
+    "easter" -> Color.White
+    else -> Color(0xFF3C9B5F)
 }
 
 private fun shortLiturgicalLabel(detail: app.sanctuary.android.data.LiturgicalDay): String {
