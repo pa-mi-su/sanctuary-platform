@@ -427,7 +427,7 @@ export class AppShellFacade {
   readonly selectedSaintHeadline = computed(() => this.selectedSaintGroup()?.saints[0] ?? null);
   readonly selectedNovenaHeadline = computed(() => {
     const selectedDay = this.novenasByDate().get(this.selectedDate());
-    return selectedDay?.startingNovena ?? this.featuredNovena(selectedDay?.novenas ?? []);
+    return selectedDay?.startingNovena ?? null;
   });
   readonly selectedNovenaDay = computed(() => {
     const detail = this.novenaDetail();
@@ -999,11 +999,11 @@ export class AppShellFacade {
 
   previewPrimaryNovena(date: string): NovenaSummary | null {
     if (date === this.todayDateValue) {
-      return this.todayNovenasGroup()?.startingNovena ?? this.featuredNovena(this.todayNovenasGroup()?.novenas ?? []);
+      return this.todayNovenasGroup()?.startingNovena ?? null;
     }
 
     const day = this.novenasByDate().get(date);
-    return day?.startingNovena ?? this.featuredNovena(day?.novenas ?? []);
+    return day?.startingNovena ?? null;
   }
 
   previewSaints(date: string): SaintSummary[] {

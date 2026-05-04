@@ -51,7 +51,12 @@ public final class CalendarMath {
     }
 
     public static LocalDate alignToWeekday(LocalDate base, int targetWeekdayZeroBased, String policy) {
-        DayOfWeek target = DayOfWeek.of(targetWeekdayZeroBased + 1);
+        if (targetWeekdayZeroBased < 0 || targetWeekdayZeroBased > 6) {
+            throw new IllegalArgumentException("Weekday must use 0=Sunday through 6=Saturday");
+        }
+        DayOfWeek target = targetWeekdayZeroBased == 0
+            ? DayOfWeek.SUNDAY
+            : DayOfWeek.of(targetWeekdayZeroBased);
         LocalDate candidate = base;
         if ("onOrBefore".equals(policy)) {
             while (candidate.getDayOfWeek() != target) {

@@ -3429,7 +3429,7 @@ private fun NovenasCalendarScreen(
             is CalendarLoadState.Error -> Banner(current.message, isError = true)
             is CalendarLoadState.Ready -> {
                 val novenaByDate = current.value.mapNotNull { entry ->
-                    (entry.startingNovena ?: entry.novenas.firstOrNull())?.let { LocalDate.parse(entry.date) to it }
+                    entry.startingNovena?.let { LocalDate.parse(entry.date) to it }
                 }.toMap()
                 when (mode) {
                     CalendarMode.Day -> {
