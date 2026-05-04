@@ -8,6 +8,9 @@ struct AboutView: View {
     private let supportEmail = "mailto:info@mydailysanctuary.com"
     private let usccbURL = "https://bible.usccb.org/daily-bible-reading"
     private let wikipediaURL = "https://www.wikipedia.org/"
+    private let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—"
+    private let buildNumber = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "—"
+    private let environment = AboutView.appEnvironment
 
     var body: some View {
         NavigationStack {
@@ -35,6 +38,12 @@ struct AboutView: View {
                         AboutCard(title: localization.t("about.desktopVersion")) {
                             Text(localization.t("about.desktopBody"))
                             LinkButton(title: localization.t("about.link.desktop"), url: desktopURL)
+                        }
+
+                        AboutCard(title: localization.t("about.versionTitle")) {
+                            Text("\(localization.t("about.versionLabel")): \(appVersion)")
+                            Text("\(localization.t("about.buildLabel")): \(buildNumber)")
+                            Text("\(localization.t("about.environmentLabel")): \(environment)")
                         }
 
                         AboutCard(title: localization.t("about.whatsInApp")) {
@@ -101,6 +110,13 @@ struct AboutView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
         .toolbarColorScheme(.dark, for: .navigationBar)
+    }
+
+    private static var appEnvironment: String {
+        let bundleID = Bundle.main.bundleIdentifier ?? ""
+        if bundleID.hasSuffix(".dev") { return "DEV" }
+        if bundleID.hasSuffix(".uat") { return "UAT" }
+        return "PROD"
     }
 }
 
