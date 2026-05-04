@@ -102,25 +102,26 @@ Final behavior:
 
 ## 6. ECS Secret Handling Fix
 
-We had a deployment issue caused by misalignment between:
+Original April 2026 state:
 
 - what ECS was already using in AWS
 - what GitHub Actions was trying to inject during deploy
 
-The correct source of truth for the DB password in ECS is:
+At that time, ECS used:
 
 - `/sanctuary/prod/db/password`
 
-Important fix:
+Current production rule:
 
-- stopped relying on an extra GitHub indirection for the DB password secret path
-- aligned the API deploy workflow directly to the same AWS secret path ECS already uses
+- `SANCTUARY_DB_PASSWORD` must come directly from the RDS-managed AWS Secrets Manager secret for `sanctuary-prod-db`
+- do not use `/sanctuary/prod/db/password` or another SSM copy for production
+- keep automatic RDS secret rotation disabled unless an automatic API redeploy exists for every rotation
 
 Result:
 
-- future API deploys are cleaner and more deterministic
-- no duplicated DB secret strategy
-- ECS and deploy workflow now agree on the same runtime secret source
+- production has one DB password source of truth
+- future API deploys are deterministic
+- secret drift between SSM and Secrets Manager cannot recur
 
 ## 7. Branch Promotion and Environment Alignment
 
