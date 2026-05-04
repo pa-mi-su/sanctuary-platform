@@ -47,6 +47,20 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Stamp web build info
+        run: |
+          version="$(node -p "require('./apps/web/package.json').version")"
+          cat > apps/web/public/build-info.js <<EOF
+          (function () {
+            window.SANCTUARY_BUILD_INFO = {
+              version: '${version}',
+              build: '${GITHUB_RUN_NUMBER}',
+              environment: '${GITHUB_BASE_REF:-dev}',
+              commit: '${GITHUB_SHA}'
+            };
+          })();
+          EOF
+
       - name: Build Angular web app
         run: npm run build --workspace web
 
@@ -71,6 +85,20 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Stamp web build info
+        run: |
+          version="$(node -p "require('./apps/web/package.json').version")"
+          cat > apps/web/public/build-info.js <<EOF
+          (function () {
+            window.SANCTUARY_BUILD_INFO = {
+              version: '${version}',
+              build: '${GITHUB_RUN_NUMBER}',
+              environment: 'prod',
+              commit: '${GITHUB_SHA}'
+            };
+          })();
+          EOF
 
       - name: Build Angular web app
         run: npm run build --workspace web
