@@ -110,6 +110,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _prayers = MutableStateFlow(ContentListUiState<PrayerSummary>())
     val prayers: StateFlow<ContentListUiState<PrayerSummary>> = _prayers.asStateFlow()
 
+    private val _rosaries = MutableStateFlow(ContentListUiState<PrayerSummary>())
+    val rosaries: StateFlow<ContentListUiState<PrayerSummary>> = _rosaries.asStateFlow()
+
     private val _saintDetail = MutableStateFlow(ContentDetailUiState<SaintDetail>())
     val saintDetail: StateFlow<ContentDetailUiState<SaintDetail>> = _saintDetail.asStateFlow()
 
@@ -428,6 +431,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _prayers.update { it.copy(query = query) }
     }
 
+    fun updateRosaryQuery(query: String) {
+        _rosaries.update { it.copy(query = query) }
+    }
+
     fun updateIntentionsQuery(query: String) {
         _intentions.update { it.copy(query = query) }
     }
@@ -467,6 +474,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 _prayers.value = _prayers.value.copy(items = items, isLoading = false, error = null)
             }.onFailure { failure ->
                 _prayers.value = _prayers.value.copy(isLoading = false, error = failure.message)
+            }
+        }
+    }
+
+    fun loadRosaries() {
+        viewModelScope.launch {
+            _rosaries.update { it.copy(isLoading = true, error = null) }
+            runCatching {
+                repository.listRosaries(_rosaries.value.query)
+            }.onSuccess { items ->
+                _rosaries.value = _rosaries.value.copy(items = items, isLoading = false, error = null)
+            }.onFailure { failure ->
+                _rosaries.value = _rosaries.value.copy(isLoading = false, error = failure.message)
             }
         }
     }
@@ -666,6 +686,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         loadSaints()
         loadNovenas()
         loadPrayers()
+        loadRosaries()
         loadIntentions()
     }
 

@@ -120,7 +120,8 @@ struct PreviewContentRepository: ContentRepository, SaintRangeRepository {
         query: String?
     ) async throws -> [Prayer] {
         prayers.filter { prayer in
-            let matchesCategory = category.map { prayer.category.caseInsensitiveCompare($0) == .orderedSame } ?? true
+            let matchesCategory = category.map { prayer.category.caseInsensitiveCompare($0) == .orderedSame }
+                ?? (prayer.category.caseInsensitiveCompare("rosary") != .orderedSame)
             let matchesQuery = query.map { term in
                 let title = prayer.titleByLocale[locale] ?? prayer.titleByLocale[.en] ?? prayer.slug
                 return title.localizedCaseInsensitiveContains(term)

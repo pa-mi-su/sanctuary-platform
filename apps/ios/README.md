@@ -59,7 +59,7 @@ The app includes:
 - liturgical calendar
 - saints list/detail
 - novenas list/detail
-- prayers
+- prayers and rosary search/detail flows
 - search
 - Me/profile
 - about/support/privacy

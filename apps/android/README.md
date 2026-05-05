@@ -46,7 +46,7 @@ The Android app includes:
 - liturgical calendar
 - saints day/week/month/search/detail flows
 - novenas day/week/month/search/intentions/detail flows
-- prayers list/detail
+- prayers and rosary list/detail flows
 - Me/profile/about/support/privacy flows
 - favorites and novena progress foundations
 - reminder scheduler foundation

@@ -143,6 +143,17 @@
   background-size: cover;
 }
 
+.prayer-detail-hero {
+  grid-template-columns: 1fr;
+}
+
+.prayer-image {
+  min-height: clamp(360px, 58vh, 560px);
+  background-color: rgba(255, 255, 255, 0.94);
+  background-repeat: no-repeat;
+  background-size: contain;
+}
+
 .detail-meta {
   display: grid;
   align-content: start;

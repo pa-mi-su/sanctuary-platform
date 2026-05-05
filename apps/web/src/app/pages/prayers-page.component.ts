@@ -11,7 +11,7 @@ type AppLanguage = 'en' | 'es' | 'pl';
       <div class="screen-header">
           <button class="circle-button" type="button" (click)="goHome.emit()">‹</button>
           <div>
-          <h2>{{ t('Prayers', 'Oraciones', 'Modlitwy') }}</h2>
+          <h2>{{ title() }}</h2>
           <p class="meta-text">{{ resultsLabel() }}</p>
         </div>
       </div>
@@ -23,13 +23,13 @@ type AppLanguage = 'en' | 'es' | 'pl';
           type="text"
           [value]="query()"
           (input)="updateQuery.emit($any($event.target).value)"
-          [placeholder]="t('Search prayers', 'Buscar oraciones', 'Szukaj modlitw')"
+          [placeholder]="searchPlaceholder()"
         />
       </label>
 
       @if (loadFailed()) {
         <div class="mode-panel glass-subtle">
-          <strong>{{ t('Prayers', 'Oraciones', 'Modlitwy') }}</strong>
+          <strong>{{ title() }}</strong>
           <p>{{ apiErrorCopy() }}</p>
         </div>
       } @else {
@@ -42,10 +42,12 @@ type AppLanguage = 'en' | 'es' | 'pl';
                 }
               </div>
               <div class="content-card__body">
-                <h3>{{ prayer.title }}</h3>
-                <p>{{ prayerPreviewLabel(prayer) }}</p>
-                @if (visibleCategory(prayer.category); as category) {
+                <h3>{{ displayTitle(prayer) }}</h3>
+                @if (cardMeta(prayer); as category) {
                   <span class="content-tag">{{ category }}</span>
+                }
+                @if (cardSubtitle(prayer); as subtitle) {
+                  <p>{{ subtitle }}</p>
                 }
               </div>
             </button>
@@ -59,6 +61,9 @@ export class PrayersPageComponent {
   readonly isEnglish = input<boolean>(true);
   readonly currentLanguage = input<AppLanguage>('en');
   readonly query = input<string>('');
+  readonly title = input<string>('Prayers');
+  readonly searchPlaceholder = input<string>('Search prayers');
+  readonly mode = input<'prayers' | 'rosary'>('prayers');
   readonly resultsLabel = input.required<string>();
   readonly loadFailed = input<boolean>(false);
   readonly apiErrorCopy = input.required<string>();
@@ -68,17 +73,29 @@ export class PrayersPageComponent {
   readonly updateQuery = output<string>();
   readonly openPrayer = output<PrayerSummary>();
 
+  protected displayTitle(prayer: PrayerSummary): string {
+    return prayer.title;
+  }
+
   protected prayerPreviewLabel(prayer: PrayerSummary): string {
     return prayer.bodyPreview;
   }
 
-  protected visibleCategory(category: string | null | undefined): string | null {
+  protected cardSubtitle(prayer: PrayerSummary): string | null {
+    return this.mode() === 'rosary' ? null : prayer.bodyPreview;
+  }
+
+  protected cardMeta(prayer: PrayerSummary): string | null {
+    return this.mode() === 'rosary' ? prayer.bodyPreview : this.visibleCategory(prayer.category);
+  }
+
+  private visibleCategory(category: string | null | undefined): string | null {
     if (!category) {
       return null;
     }
 
     const normalized = category.trim();
-    if (!normalized || normalized.toLowerCase() === 'user_provided') {
+    if (!normalized || normalized.toLowerCase() === 'user_provided' || normalized.toLowerCase() === 'rosary') {
       return null;
     }
 

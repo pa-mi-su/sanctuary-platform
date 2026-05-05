@@ -19,8 +19,8 @@ public class PrayerContentService {
         this.repository = repository;
     }
 
-    public List<PrayerSummaryDto> list(String language, String query) {
-        return repository.list(SupportedLanguage.from(language), query);
+    public List<PrayerSummaryDto> list(String language, String query, String category, String excludeCategory) {
+        return repository.list(SupportedLanguage.from(language), query, category, excludeCategory);
     }
 
     public PrayerDetailDto getBySlug(String slug, String language) {
