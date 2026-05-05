@@ -134,16 +134,21 @@
 
 .linked-card {
   display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   gap: 14px;
+  align-content: start;
 }
 
 .linked-list {
   display: grid;
   gap: 10px;
+  align-content: start;
+  align-self: stretch;
 }
 
 .linked-row {
   width: 100%;
+  min-height: 78px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.06);
@@ -155,6 +160,7 @@
   color: inherit;
   text-align: left;
   cursor: pointer;
+  align-self: start;
 }
 
 .linked-row:hover {
@@ -214,6 +220,7 @@
   color: rgba(255, 255, 255, 0.72);
   font-size: 0.92rem;
   line-height: 1.45;
+  align-self: start;
 }
 
 .stat-card {
