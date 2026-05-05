@@ -3114,6 +3114,7 @@ private fun PrayerDetailSheet(
     onDismiss: () -> Unit
 ) {
     val l10n = sanctuaryStrings()
+    val bodyText = displayPrayerBody(detail)
     DetailSheetScaffold(
         title = detail.title,
         subtitle = visiblePrayerCategory(detail.category)
@@ -3129,12 +3130,31 @@ private fun PrayerDetailSheet(
         detail.alternateTitle?.takeIf { it.isNotBlank() }?.let {
             Text(it, color = Color(0xFF7AC8EA), lineHeight = 22.sp)
         }
-        Text(detail.body, color = Color.White, lineHeight = 24.sp)
+        Text(bodyText, color = Color.White, lineHeight = 24.sp)
         detail.note?.takeIf { it.isNotBlank() }?.let {
             Text(it, color = Color(0xFFD0DFEA), lineHeight = 22.sp)
         }
         PrimaryButton(l10n.t("common.close"), false, onClick = onDismiss)
     }
+}
+
+private fun displayPrayerBody(detail: PrayerDetail): String {
+    if (!detail.category.equals("rosary", ignoreCase = true)) {
+        return detail.body
+    }
+
+    val heading = detail.alternateTitle?.trim().orEmpty()
+    if (heading.isEmpty()) {
+        return detail.body
+    }
+
+    val normalized = detail.body.replace("\r\n", "\n").trimStart()
+    val lines = normalized.lines()
+    if (lines.firstOrNull()?.trim() != heading) {
+        return detail.body
+    }
+
+    return lines.drop(1).joinToString("\n").trimStart()
 }
 
 private fun visiblePrayerCategory(category: String?): String? {

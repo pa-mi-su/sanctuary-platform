@@ -179,9 +179,9 @@ Módlmy się: Boże, którego Jednorodzony Syn przez swoje życie, Śmierć i Zm
     '',
     '',
     '',
-    'Rosary • Wednesdays and Sundays outside Advent and Lent',
-    'Rosario • Miércoles y domingos fuera de Adviento y Cuaresma',
-    'Różaniec • Środy i niedziele poza Adwentem i Wielkim Postem',
+    'Rosary • Wednesdays and, outside the seasons of Advent and Lent, on Sundays',
+    'Rosario • Miércoles y, fuera de los tiempos de Adviento y Cuaresma, los domingos',
+    'Różaniec • Środy oraz, poza okresami Adwentu i Wielkiego Postu, w niedziele',
     NULL,
     'USCCB - How to Pray the Rosary',
     'usccb'
