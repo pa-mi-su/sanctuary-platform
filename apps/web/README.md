@@ -19,7 +19,7 @@ The web app includes:
 - liturgical calendar
 - saints calendar, search, and detail modal
 - novenas calendar, search, intention search, and detail modal
-- prayers list and detail modal
+- prayers and rosary list/detail flows with category-aware API filtering
 - account access screens
 - Me/profile/about screens
 - mobile navigation and responsive layouts

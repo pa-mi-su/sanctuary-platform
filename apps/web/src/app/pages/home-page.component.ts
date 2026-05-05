@@ -68,6 +68,20 @@ type AppLanguage = 'en' | 'es' | 'pl';
           <span class="nav-arrow">↗</span>
         </button>
 
+        <button class="nav-card action-card rosary-card" type="button" (click)="openRosaries.emit()">
+          <span class="card-illustration" aria-hidden="true">
+            <img src="home-cards/rosary.svg" alt="" />
+          </span>
+          <div class="nav-card__content">
+            <span class="nav-icon rosary">◌</span>
+            <div class="nav-text">
+              <strong>{{ t('Rosary', 'Rosario', 'Różaniec') }}</strong>
+              <span>{{ t('Mysteries by day', 'Misterios por día', 'Tajemnice na każdy dzień') }}</span>
+            </div>
+          </div>
+          <span class="nav-arrow">↗</span>
+        </button>
+
         <button class="nav-card action-card daily-card" type="button" (click)="openDaily.emit()">
           <span class="card-illustration" aria-hidden="true">
             <img src="home-cards/daily-readings.svg" alt="" />
@@ -106,6 +120,7 @@ export class HomePageComponent {
   readonly openSaints = output<void>();
   readonly openNovenas = output<void>();
   readonly openPrayers = output<void>();
+  readonly openRosaries = output<void>();
   readonly openDaily = output<void>();
   readonly openIntentions = output<void>();
 

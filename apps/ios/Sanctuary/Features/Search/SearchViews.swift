@@ -409,18 +409,17 @@ struct SearchResultCard: View {
                     .font(AppTheme.rounded(20, weight: .bold))
                     .foregroundStyle(AppTheme.cardText)
                     .lineLimit(2)
-                Text(subtitle)
-                    .font(AppTheme.rounded(15, weight: .medium))
-                    .foregroundStyle(AppTheme.cardText.opacity(0.78))
-                    .lineLimit(3)
                 if let meta, !meta.isEmpty {
                     Text(meta)
-                        .font(AppTheme.rounded(12, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.68))
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(AppTheme.cardBackgroundSoft)
-                        .clipShape(Capsule())
+                        .font(AppTheme.rounded(13, weight: .semibold))
+                        .foregroundStyle(accent)
+                        .lineLimit(3)
+                }
+                if !subtitle.isEmpty {
+                    Text(subtitle)
+                        .font(AppTheme.rounded(15, weight: .medium))
+                        .foregroundStyle(AppTheme.cardText.opacity(0.78))
+                        .lineLimit(3)
                 }
             }
 

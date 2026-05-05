@@ -529,9 +529,17 @@ actor SanctuaryAPIClient {
 
     func listPrayers(
         locale: ContentLocale,
+        category: String?,
+        excludeCategory: String?,
         query: String?
     ) async throws -> [APIPrayerSummaryResponse] {
         var queryItems = [URLQueryItem(name: "lang", value: locale.rawValue)]
+        if let category, !category.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            queryItems.append(URLQueryItem(name: "category", value: category))
+        }
+        if let excludeCategory, !excludeCategory.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            queryItems.append(URLQueryItem(name: "excludeCategory", value: excludeCategory))
+        }
         if let query, !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             queryItems.append(URLQueryItem(name: "query", value: query))
         }

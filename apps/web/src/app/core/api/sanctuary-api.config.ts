@@ -6,6 +6,14 @@ const LOCAL_API_BASE_URL = 'http://localhost:8080';
 
 export function resolveSanctuaryApiBaseUrl(): string {
   if (typeof window !== 'undefined') {
+    const apiTarget = new URLSearchParams(window.location.search).get('api');
+    if (apiTarget === 'prod') {
+      return PRODUCTION_API_BASE_URL;
+    }
+    if (apiTarget === 'local') {
+      return LOCAL_API_BASE_URL;
+    }
+
     const hostname = window.location.hostname;
     if (hostname === 'localhost' || hostname === '127.0.0.1') {
       return LOCAL_API_BASE_URL;

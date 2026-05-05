@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 260" role="img" aria-label="Rosary illustration">
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#43506b"/>
+      <stop offset="1" stop-color="#10394a"/>
+    </linearGradient>
+    <radialGradient id="halo" cx="68%" cy="30%" r="42%">
+      <stop offset="0" stop-color="#f7df91" stop-opacity=".52"/>
+      <stop offset=".45" stop-color="#f7df91" stop-opacity=".16"/>
+      <stop offset="1" stop-color="#f7df91" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="420" height="260" rx="28" fill="url(#bg)"/>
+  <circle cx="282" cy="82" r="96" fill="url(#halo)"/>
+  <path d="M90 182c50-38 108-58 174-58 36 0 68 8 96 24" fill="none" stroke="#8ee0f2" stroke-width="10" stroke-linecap="round" opacity=".42"/>
+  <path d="M122 204c44-28 92-42 144-42 30 0 58 6 84 18" fill="none" stroke="#0d2838" stroke-width="16" stroke-linecap="round" opacity=".42"/>
+  <path d="M150 204c36-20 76-30 118-30 28 0 54 5 78 16" fill="none" stroke="#f7df91" stroke-width="7" stroke-linecap="round" opacity=".72"/>
+  <g fill="#f7df91">
+    <circle cx="116" cy="164" r="9"/>
+    <circle cx="148" cy="148" r="9"/>
+    <circle cx="182" cy="136" r="9"/>
+    <circle cx="218" cy="130" r="9"/>
+    <circle cx="254" cy="130" r="9"/>
+    <circle cx="290" cy="136" r="9"/>
+    <circle cx="324" cy="150" r="9"/>
+    <circle cx="354" cy="170" r="9"/>
+  </g>
+  <path d="M238 70v54M211 97h54" stroke="#f7df91" stroke-width="10" stroke-linecap="round"/>
+  <circle cx="238" cy="97" r="58" fill="none" stroke="#f2e8d0" stroke-width="8" opacity=".7"/>
+  <path d="M238 155v46M215 178h46" stroke="#f7df91" stroke-width="9" stroke-linecap="round"/>
+</svg>

@@ -254,9 +254,21 @@ export class SanctuaryApiService {
     });
   }
 
-  listPrayers(language: 'en' | 'es' | 'pl', query: string): Observable<PrayerSummary[]> {
+  listPrayers(
+    language: 'en' | 'es' | 'pl',
+    query: string,
+    filters: { category?: string; excludeCategory?: string } = {}
+  ): Observable<PrayerSummary[]> {
+    let params = new HttpParams().set('lang', language).set('query', query);
+    if (filters.category) {
+      params = params.set('category', filters.category);
+    }
+    if (filters.excludeCategory) {
+      params = params.set('excludeCategory', filters.excludeCategory);
+    }
+
     return this.http.get<PrayerSummary[]>(`${this.apiBaseUrl}/content/prayers`, {
-      params: new HttpParams().set('lang', language).set('query', query),
+      params,
     });
   }
 

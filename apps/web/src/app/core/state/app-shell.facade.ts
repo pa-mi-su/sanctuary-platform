@@ -1,6 +1,6 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
-import { catchError, combineLatest, of, switchMap } from 'rxjs';
+import { catchError, combineLatest, map, of, switchMap } from 'rxjs';
 
 import {
   LiturgicalDayResponse,
@@ -21,7 +21,7 @@ import {
 } from '../api/sanctuary-api.service';
 import { SanctuaryAuthService } from '../auth/sanctuary-auth.service';
 
-export type AppTab = 'home' | 'novenas' | 'intentions' | 'liturgical' | 'saints' | 'prayers' | 'about' | 'auth' | 'me';
+export type AppTab = 'home' | 'novenas' | 'intentions' | 'liturgical' | 'saints' | 'prayers' | 'rosaries' | 'about' | 'auth' | 'me';
 export type CalendarView = 'day' | 'week' | 'month';
 export type SeasonKey = 'ADVENT' | 'CHRISTMAS' | 'LENT' | 'EASTER' | 'ORDINARY';
 export type CalendarCell = { date: string | null; dayNumber: number | null; label: string; seasonKey?: SeasonKey | null };
@@ -78,6 +78,7 @@ export class AppShellFacade {
   readonly selectedDate = signal(this.formatDateForApi(new Date()));
   readonly saintQuery = signal('');
   readonly prayerQuery = signal('');
+  readonly rosaryQuery = signal('');
   readonly novenaQuery = signal('');
   readonly selectedSaintSlug = signal<string | null>(null);
   readonly selectedPrayerSlug = signal<string | null>(null);
@@ -160,7 +161,23 @@ export class AppShellFacade {
   readonly prayerResults = toSignal(
     combineLatest([toObservable(this.prayerQuery), toObservable(this.language)]).pipe(
       switchMap(([query, language]) =>
-        this.api.listPrayers(this.apiLanguage(language), query).pipe(
+        this.api.listPrayers(this.apiLanguage(language), query, { excludeCategory: 'rosary' }).pipe(
+          map((prayers) => prayers.filter((prayer) => prayer.category?.toLowerCase() !== 'rosary')),
+          catchError(() => {
+            this.prayersLoadFailed.set(true);
+            return of<PrayerSummary[]>([]);
+          }),
+        ),
+      ),
+    ),
+    { initialValue: [] },
+  );
+
+  readonly rosaryResults = toSignal(
+    combineLatest([toObservable(this.rosaryQuery), toObservable(this.language)]).pipe(
+      switchMap(([query, language]) =>
+        this.api.listPrayers(this.apiLanguage(language), query, { category: 'rosary' }).pipe(
+          map((prayers) => prayers.filter((prayer) => prayer.category?.toLowerCase() === 'rosary')),
           catchError(() => {
             this.prayersLoadFailed.set(true);
             return of<PrayerSummary[]>([]);
@@ -654,6 +671,11 @@ export class AppShellFacade {
     this.prayersLoadFailed.set(false);
   }
 
+  updateRosaryQuery(value: string): void {
+    this.rosaryQuery.set(value);
+    this.prayersLoadFailed.set(false);
+  }
+
   updateSaintQuery(value: string): void {
     this.saintQuery.set(value);
     this.saintsLoadFailed.set(false);
@@ -831,6 +853,13 @@ export class AppShellFacade {
     this.resetViewportToTop();
   }
 
+  openRosariesList(): void {
+    this.setTab('rosaries');
+    this.rosaryQuery.set('');
+    this.prayersLoadFailed.set(false);
+    this.resetViewportToTop();
+  }
+
   localizedSaintsCountLabel(): string {
     return this.translate(
       'Selected day · Featured saint',
@@ -883,6 +912,30 @@ export class AppShellFacade {
       `${this.prayerResults().length} oraciones`,
       `${this.prayerResults().length} modlitw`
     );
+  }
+
+  localizedPrayerTitle(): string {
+    return this.translate('Prayers', 'Oraciones', 'Modlitwy');
+  }
+
+  localizedPrayerSearchPlaceholder(): string {
+    return this.translate('Search prayers', 'Buscar oraciones', 'Szukaj modlitw');
+  }
+
+  localizedRosaryResultsLabel(): string {
+    return this.translate(
+      `${this.rosaryResults().length} rosaries`,
+      `${this.rosaryResults().length} rosarios`,
+      `${this.rosaryResults().length} różańców`
+    );
+  }
+
+  localizedRosaryTitle(): string {
+    return this.translate('Rosary', 'Rosario', 'Różaniec');
+  }
+
+  localizedRosarySearchPlaceholder(): string {
+    return this.translate('Search rosaries', 'Buscar rosarios', 'Szukaj różańców');
   }
 
   localizedIntentionsResultsLabel(): string {
