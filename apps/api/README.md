@@ -144,7 +144,7 @@ The Maven enforcer requires Java 21.
 
 ### Prayers
 
-- `GET /content/prayers?query=&lang=`
+- `GET /content/prayers?query=&lang=&category=&excludeCategory=`
 - `GET /content/prayers/{slug}?lang=`
 
 ### Novenas

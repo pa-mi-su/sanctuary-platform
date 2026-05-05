@@ -229,6 +229,14 @@ private enum class HomeAction(
         listOf(Color(0xFFB08FCF), Color(0xFF5D4D7C)),
         "file:///android_asset/home_cards/prayers.svg"
     ),
+    Rosary(
+        "home.rosary",
+        "home.rosarySubtitle",
+        Icons.Filled.SelfImprovement,
+        Color(0xFFE7C76A),
+        listOf(Color(0xFF43506B), Color(0xFF10394A)),
+        "file:///android_asset/home_cards/rosary.svg"
+    ),
     Intentions(
         "home.intentions",
         "home.intentionsSubtitle",
@@ -256,6 +264,7 @@ private fun SanctuaryApp(viewModel: MainViewModel) {
     val novenas by viewModel.novenas.collectAsState()
     val intentions by viewModel.intentions.collectAsState()
     val prayers by viewModel.prayers.collectAsState()
+    val rosaries by viewModel.rosaries.collectAsState()
     val saintDetail by viewModel.saintDetail.collectAsState()
     val novenaDetail by viewModel.novenaDetail.collectAsState()
     val prayerDetail by viewModel.prayerDetail.collectAsState()
@@ -278,6 +287,7 @@ private fun SanctuaryApp(viewModel: MainViewModel) {
                     novenas = novenas,
                     intentions = intentions,
                     prayers = prayers,
+                    rosaries = rosaries,
                     selectedLanguage = appLanguage,
                     onUpdateLanguage = {
                         viewModel.updateLanguage(it)
@@ -292,10 +302,12 @@ private fun SanctuaryApp(viewModel: MainViewModel) {
                     onNovenaQueryChanged = viewModel::updateNovenaQuery,
                     onIntentionsQueryChanged = viewModel::updateIntentionsQuery,
                     onPrayerQueryChanged = viewModel::updatePrayerQuery,
+                    onRosaryQueryChanged = viewModel::updateRosaryQuery,
                     onReloadSaints = viewModel::loadSaints,
                     onReloadNovenas = viewModel::loadNovenas,
                     onReloadIntentions = viewModel::loadIntentions,
                     onReloadPrayers = viewModel::loadPrayers,
+                    onReloadRosaries = viewModel::loadRosaries,
                     onShowSaints = { selectedTab = AppTab.Saints },
                     onShowNovenas = { selectedTab = AppTab.Novenas },
                     saintDetail = saintDetail,
@@ -711,6 +723,7 @@ private fun AuthenticatedShell(
     novenas: ContentListUiState<NovenaSummary>,
     intentions: ContentListUiState<NovenaSummary>,
     prayers: ContentListUiState<PrayerSummary>,
+    rosaries: ContentListUiState<PrayerSummary>,
     selectedLanguage: AppLanguage,
     onUpdateLanguage: (AppLanguage) -> Unit,
     onShowLanguagePicker: () -> Unit,
@@ -722,10 +735,12 @@ private fun AuthenticatedShell(
     onNovenaQueryChanged: (String) -> Unit,
     onIntentionsQueryChanged: (String) -> Unit,
     onPrayerQueryChanged: (String) -> Unit,
+    onRosaryQueryChanged: (String) -> Unit,
     onReloadSaints: () -> Unit,
     onReloadNovenas: () -> Unit,
     onReloadIntentions: () -> Unit,
     onReloadPrayers: () -> Unit,
+    onReloadRosaries: () -> Unit,
     onShowSaints: () -> Unit,
     onShowNovenas: () -> Unit,
     saintDetail: ContentDetailUiState<SaintDetail>,
@@ -753,6 +768,7 @@ private fun AuthenticatedShell(
     var showNovenaSearch by rememberSaveable { mutableStateOf(false) }
     var showIntentionsSearch by rememberSaveable { mutableStateOf(false) }
     var showPrayerSearch by rememberSaveable { mutableStateOf(false) }
+    var showRosarySearch by rememberSaveable { mutableStateOf(false) }
     var dailyReadingsUrl by rememberSaveable { mutableStateOf<String?>(null) }
     var dailyReadingError by rememberSaveable { mutableStateOf<String?>(null) }
     var isLoadingDailyReadings by rememberSaveable { mutableStateOf(false) }
@@ -850,6 +866,17 @@ private fun AuthenticatedShell(
                                 showPrayerSearch = true
                                 if (prayers.items.isEmpty() && !prayers.isLoading) {
                                     onReloadPrayers()
+                                }
+                            }
+                        )
+                    }
+                    item {
+                        HomeFeatureCard(
+                            action = HomeAction.Rosary,
+                            onClick = {
+                                showRosarySearch = true
+                                if (rosaries.items.isEmpty() && !rosaries.isLoading) {
+                                    onReloadRosaries()
                                 }
                             }
                         )
@@ -1075,10 +1102,36 @@ private fun AuthenticatedShell(
                     ContentCard(
                         title = item.title,
                         subtitle = item.bodyPreview,
-                        detail = item.category,
+                        detail = visiblePrayerCategory(item.category),
                         imageUrl = item.imageUrl,
                         onClick = {
                             showPrayerSearch = false
+                            onOpenPrayer(item.slug)
+                        }
+                    )
+                }
+            }
+        }
+
+        if (showRosarySearch) {
+            SanctuaryModalSheet(onDismissRequest = { showRosarySearch = false }) {
+                SearchListSheet(
+                    title = l10n.t("search.rosaryTitle"),
+                    query = rosaries.query,
+                    onQueryChanged = onRosaryQueryChanged,
+                    onSubmit = onReloadRosaries,
+                    isLoading = rosaries.isLoading,
+                    error = rosaries.error,
+                    emptyLabel = l10n.t("search.rosaryTitle"),
+                    items = rosaries.items
+                ) { item ->
+                    ContentCard(
+                        title = item.title,
+                        subtitle = null,
+                        detail = item.bodyPreview,
+                        imageUrl = item.imageUrl,
+                        onClick = {
+                            showRosarySearch = false
                             onOpenPrayer(item.slug)
                         }
                     )
@@ -2281,6 +2334,9 @@ private fun HomeAction.cardBrush(): Brush = when (this) {
     HomeAction.Prayers -> Brush.linearGradient(
         listOf(Color(0xFF2C3144).copy(alpha = 0.90f), Color(0xFF15424D).copy(alpha = 0.72f))
     )
+    HomeAction.Rosary -> Brush.linearGradient(
+        listOf(Color(0xFF30384F).copy(alpha = 0.92f), Color(0xFF123E4D).copy(alpha = 0.74f))
+    )
     HomeAction.Intentions -> Brush.linearGradient(
         listOf(Color(0xFF4C3B56).copy(alpha = 0.90f), Color(0xFF15404B).copy(alpha = 0.74f))
     )
@@ -2398,6 +2454,22 @@ private fun HomeActionBadgeGlyph(
                     cap = StrokeCap.Round
                 )
             }
+            HomeAction.Rosary -> {
+                drawArc(
+                    color = gold,
+                    startAngle = 205f,
+                    sweepAngle = 130f,
+                    useCenter = false,
+                    topLeft = Offset(size.width * 0.18f, size.height * 0.34f),
+                    size = Size(size.width * 0.64f, size.height * 0.42f),
+                    style = Stroke(width = stroke * 0.72f, cap = StrokeCap.Round)
+                )
+                listOf(0.18f, 0.28f, 0.39f, 0.50f, 0.61f, 0.72f, 0.82f).forEach { x ->
+                    drawCircle(gold, radius = size.minDimension * 0.035f, center = Offset(size.width * x, size.height * 0.58f))
+                }
+                drawLine(gold, Offset(center.x, size.height * 0.34f), Offset(center.x, size.height * 0.66f), stroke, StrokeCap.Round)
+                drawLine(gold, Offset(size.width * 0.36f, size.height * 0.50f), Offset(size.width * 0.64f, size.height * 0.50f), stroke, StrokeCap.Round)
+            }
             HomeAction.Intentions -> {
                 val heart = androidx.compose.ui.graphics.Path().apply {
                     moveTo(center.x, size.height * 0.72f)
@@ -2457,6 +2529,7 @@ private fun HomeActionIllustration(
             HomeAction.Novenas -> 1.20f
             HomeAction.Liturgical -> 1.16f
             HomeAction.Prayers -> 1.18f
+            HomeAction.Rosary -> 1.18f
             HomeAction.Intentions -> 1.16f
             HomeAction.Daily -> 1.20f
         }
@@ -2465,6 +2538,7 @@ private fun HomeActionIllustration(
             HomeAction.Novenas -> -size.width * 0.03f
             HomeAction.Liturgical -> -size.width * 0.02f
             HomeAction.Prayers -> -size.width * 0.02f
+            HomeAction.Rosary -> -size.width * 0.02f
             HomeAction.Intentions -> -size.width * 0.02f
             HomeAction.Daily -> -size.width * 0.02f
         }
@@ -2473,6 +2547,7 @@ private fun HomeActionIllustration(
             HomeAction.Novenas -> size.height * 0.015f
             HomeAction.Liturgical -> size.height * 0.01f
             HomeAction.Prayers -> size.height * 0.01f
+            HomeAction.Rosary -> size.height * 0.01f
             HomeAction.Intentions -> size.height * 0.01f
             HomeAction.Daily -> size.height * 0.015f
         }
@@ -2574,6 +2649,25 @@ private fun HomeActionIllustration(
                 drawLine(Color(0xFF2C5363), Offset(size.width * 0.40f, size.height * 0.49f), Offset(size.width * 0.56f, size.height * 0.49f), stroke, StrokeCap.Round)
                 drawLine(cyan.copy(alpha = 0.35f), Offset(size.width * 0.14f, size.height * 0.78f), Offset(size.width * 0.48f, size.height * 0.70f), stroke * 1.1f, StrokeCap.Round)
                 drawLine(rose.copy(alpha = 0.40f), Offset(size.width * 0.56f, size.height * 0.70f), Offset(size.width * 0.86f, size.height * 0.78f), stroke * 1.1f, StrokeCap.Round)
+            }
+            HomeAction.Rosary -> {
+                drawCircle(gold.copy(alpha = 0.24f), radius = size.minDimension * 0.32f, center = Offset(size.width * 0.60f, size.height * 0.24f))
+                drawArc(
+                    color = cyan.copy(alpha = 0.42f),
+                    startAngle = 200f,
+                    sweepAngle = 140f,
+                    useCenter = false,
+                    topLeft = Offset(size.width * 0.18f, size.height * 0.36f),
+                    size = Size(size.width * 0.68f, size.height * 0.40f),
+                    style = Stroke(width = stroke * 1.1f, cap = StrokeCap.Round)
+                )
+                listOf(0.18f, 0.28f, 0.39f, 0.50f, 0.61f, 0.72f, 0.82f).forEach { x ->
+                    drawCircle(gold, radius = size.minDimension * 0.034f, center = Offset(size.width * x, size.height * 0.58f))
+                }
+                drawLine(gold, Offset(size.width * 0.50f, size.height * 0.28f), Offset(size.width * 0.50f, size.height * 0.64f), stroke * 1.1f, StrokeCap.Round)
+                drawLine(gold, Offset(size.width * 0.38f, size.height * 0.46f), Offset(size.width * 0.62f, size.height * 0.46f), stroke * 1.1f, StrokeCap.Round)
+                drawLine(gold, Offset(size.width * 0.50f, size.height * 0.72f), Offset(size.width * 0.50f, size.height * 0.88f), stroke, StrokeCap.Round)
+                drawLine(gold, Offset(size.width * 0.42f, size.height * 0.80f), Offset(size.width * 0.58f, size.height * 0.80f), stroke, StrokeCap.Round)
             }
             HomeAction.Intentions -> {
                 val heart = androidx.compose.ui.graphics.Path().apply {
@@ -2680,8 +2774,8 @@ private fun SearchCard(
 @Composable
 private fun ContentCard(
     title: String,
-    subtitle: String,
-    detail: String,
+    subtitle: String?,
+    detail: String?,
     imageUrl: String? = null,
     onClick: () -> Unit
 ) {
@@ -2707,14 +2801,18 @@ private fun ContentCard(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(title, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 18.sp)
-                Text(detail, color = Color(0xFF7AC8EA), style = MaterialTheme.typography.labelLarge)
-                Text(
-                    text = subtitle,
-                    color = Color(0xFFD0DFEA),
-                    maxLines = 3,
-                    overflow = TextOverflow.Ellipsis,
-                    lineHeight = 20.sp
-                )
+                detail?.takeIf { it.isNotBlank() }?.let {
+                    Text(it, color = Color(0xFF7AC8EA), style = MaterialTheme.typography.labelLarge)
+                }
+                subtitle?.takeIf { it.isNotBlank() }?.let {
+                    Text(
+                        text = it,
+                        color = Color(0xFFD0DFEA),
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis,
+                        lineHeight = 20.sp
+                    )
+                }
             }
             Icon(
                 imageVector = Icons.Filled.SouthEast,
@@ -3018,7 +3116,7 @@ private fun PrayerDetailSheet(
     val l10n = sanctuaryStrings()
     DetailSheetScaffold(
         title = detail.title,
-        subtitle = detail.category
+        subtitle = visiblePrayerCategory(detail.category)
     ) {
         ThumbnailImage(
             imageUrl = detail.imageUrl,
@@ -3037,6 +3135,18 @@ private fun PrayerDetailSheet(
         }
         PrimaryButton(l10n.t("common.close"), false, onClick = onDismiss)
     }
+}
+
+private fun visiblePrayerCategory(category: String?): String? {
+    val normalized = category?.trim().orEmpty()
+    if (
+        normalized.isBlank() ||
+        normalized.equals("user_provided", ignoreCase = true) ||
+        normalized.equals("rosary", ignoreCase = true)
+    ) {
+        return null
+    }
+    return normalized
 }
 
 @Composable

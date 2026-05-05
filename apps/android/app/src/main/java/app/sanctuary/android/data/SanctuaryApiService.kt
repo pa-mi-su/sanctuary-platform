@@ -103,7 +103,9 @@ interface SanctuaryApiService {
     @GET("content/prayers")
     suspend fun listPrayers(
         @Query("lang") lang: String = "en",
-        @Query("query") query: String = ""
+        @Query("query") query: String = "",
+        @Query("category") category: String = "",
+        @Query("excludeCategory") excludeCategory: String = ""
     ): List<PrayerSummaryResponse>
 
     @GET("content/prayers/{slug}")
