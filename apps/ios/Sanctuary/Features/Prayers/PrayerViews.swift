@@ -316,9 +316,10 @@ struct PrayerDetailView: View {
     }
 
     private var prayerText: String {
-        currentPrayer.bodyByLocale[locale]
+        let body = currentPrayer.bodyByLocale[locale]
             ?? currentPrayer.bodyByLocale[.en]
             ?? ""
+        return displayPrayerBody(body)
     }
 
     private var noteText: String {
@@ -333,6 +334,24 @@ struct PrayerDetailView: View {
 
     private var imageURL: URL? {
         currentPrayer.imageURL
+    }
+
+    private var isRosary: Bool {
+        currentPrayer.category.caseInsensitiveCompare("rosary") == .orderedSame
+    }
+
+    private func displayPrayerBody(_ body: String) -> String {
+        guard isRosary, !alternateTitle.isEmpty else {
+            return body
+        }
+
+        let normalized = body.replacingOccurrences(of: "\r\n", with: "\n")
+        let lines = normalized.split(separator: "\n", omittingEmptySubsequences: false)
+        guard lines.first?.trimmingCharacters(in: .whitespacesAndNewlines) == alternateTitle else {
+            return body
+        }
+
+        return lines.dropFirst().joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private func handleBack() {

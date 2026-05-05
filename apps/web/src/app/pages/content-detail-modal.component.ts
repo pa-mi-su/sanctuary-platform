@@ -68,7 +68,7 @@ type AppLanguage = 'en' | 'es' | 'pl';
           </div>
           <section class="detail-section">
             <h3>Prayer</h3>
-            <p class="detail-copy">{{ prayerDetail()!.body }}</p>
+            <p class="detail-copy">{{ displayPrayerBody(prayerDetail()!) }}</p>
           </section>
           <section class="detail-section">
             <h3>Note</h3>
@@ -205,6 +205,25 @@ export class ContentDetailModalComponent {
 
   protected prayerMeta(prayer: PrayerDetail): string | null {
     return this.visibleCategory(prayer.category);
+  }
+
+  protected displayPrayerBody(prayer: PrayerDetail): string {
+    if (prayer.category.toLowerCase() !== 'rosary') {
+      return prayer.body;
+    }
+
+    const heading = prayer.alternateTitle?.trim();
+    if (!heading) {
+      return prayer.body;
+    }
+
+    const normalized = prayer.body.replace(/\r\n/g, '\n').trimStart();
+    const lines = normalized.split('\n');
+    if (lines[0]?.trim() !== heading) {
+      return prayer.body;
+    }
+
+    return lines.slice(1).join('\n').trimStart();
   }
   readonly completeNovenaDay = output<void>();
   readonly toggleSaintFavorite = output<void>();
