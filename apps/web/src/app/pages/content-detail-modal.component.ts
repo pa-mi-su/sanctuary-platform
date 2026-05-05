@@ -57,10 +57,10 @@ type AppLanguage = 'en' | 'es' | 'pl';
 
       @if (prayerDetail()) {
         <div class="detail-stack">
-          <div class="detail-hero">
+          <div class="detail-hero prayer-detail-hero">
             <div class="detail-image prayer-image" [style.background-image]="imageStyle(prayerDetail()!.imageUrl)"></div>
             <div class="detail-meta">
-              @if (visibleCategory(prayerDetail()!.category); as category) {
+              @if (prayerMeta(prayerDetail()!); as category) {
                 <span class="content-tag">{{ category }}</span>
               }
               <p>{{ prayerDetail()!.alternateTitle }}</p>
@@ -196,11 +196,15 @@ export class ContentDetailModalComponent {
     }
 
     const normalized = category.trim();
-    if (!normalized || normalized.toLowerCase() === 'user_provided') {
+    if (!normalized || normalized.toLowerCase() === 'user_provided' || normalized.toLowerCase() === 'rosary') {
       return null;
     }
 
     return normalized;
+  }
+
+  protected prayerMeta(prayer: PrayerDetail): string | null {
+    return this.visibleCategory(prayer.category);
   }
   readonly completeNovenaDay = output<void>();
   readonly toggleSaintFavorite = output<void>();

@@ -8,6 +8,7 @@ struct HomeView: View {
     @State private var showLanguageDialog = false
     @State private var showAbout = false
     @State private var showPrayersSearch = false
+    @State private var showRosarySearch = false
     @State private var showSaintsList = false
     @State private var showNovenasSearch = false
     @State private var showIntentionsSearch = false
@@ -46,6 +47,15 @@ struct HomeView: View {
                 illustrationAssetName: "HomeCardPrayers"
             ) {
                 showPrayersSearch = true
+            },
+            HomeAction(
+                title: localization.t("home.rosary"),
+                subtitle: localization.t("home.rosarySubtitle"),
+                icon: "circle",
+                tint: AppTheme.glowGold,
+                illustrationAssetName: "HomeCardRosary"
+            ) {
+                showRosarySearch = true
             },
             HomeAction(
                 title: localization.t("home.daily"),
@@ -186,6 +196,9 @@ struct HomeView: View {
             }
             .fullScreenCover(isPresented: $showPrayersSearch) {
                 PrayersSearchView(environment: environment)
+            }
+            .fullScreenCover(isPresented: $showRosarySearch) {
+                PrayersSearchView(environment: environment, mode: .rosary)
             }
             .fullScreenCover(isPresented: $showSaintsList) {
                 SaintsSearchView(environment: environment)
@@ -368,6 +381,12 @@ private struct HomeFeatureCard: View {
         case "HomeCardPrayers":
             return LinearGradient(
                 colors: [Color(hex: "#2C3144").opacity(0.9), Color(hex: "#15424D").opacity(0.72)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        case "HomeCardRosary":
+            return LinearGradient(
+                colors: [Color(hex: "#30384F").opacity(0.92), Color(hex: "#123E4D").opacity(0.74)],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )

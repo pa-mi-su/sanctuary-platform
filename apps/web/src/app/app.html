@@ -50,22 +50,26 @@
         (openSaints)="facade.openSaintsList()"
         (openNovenas)="facade.openNovenasList()"
         (openPrayers)="facade.openPrayersList()"
+        (openRosaries)="facade.openRosariesList()"
         (openDaily)="facade.showDailyTab()"
         (openIntentions)="facade.openIntentions()"
       />
     }
 
-    @if (facade.currentTab() === 'prayers') {
+    @if (facade.currentTab() === 'prayers' || facade.currentTab() === 'rosaries') {
       <app-prayers-page
         [isEnglish]="facade.isEnglish()"
         [currentLanguage]="facade.language()"
-        [query]="facade.prayerQuery()"
-        [resultsLabel]="facade.localizedPrayerResultsLabel()"
+        [query]="facade.currentTab() === 'rosaries' ? facade.rosaryQuery() : facade.prayerQuery()"
+        [title]="facade.currentTab() === 'rosaries' ? facade.localizedRosaryTitle() : facade.localizedPrayerTitle()"
+        [searchPlaceholder]="facade.currentTab() === 'rosaries' ? facade.localizedRosarySearchPlaceholder() : facade.localizedPrayerSearchPlaceholder()"
+        [mode]="facade.currentTab() === 'rosaries' ? 'rosary' : 'prayers'"
+        [resultsLabel]="facade.currentTab() === 'rosaries' ? facade.localizedRosaryResultsLabel() : facade.localizedPrayerResultsLabel()"
         [loadFailed]="facade.prayersLoadFailed()"
         [apiErrorCopy]="facade.localizedApiErrorCopy('prayers')"
-        [prayers]="facade.prayerResults()"
+        [prayers]="facade.currentTab() === 'rosaries' ? facade.rosaryResults() : facade.prayerResults()"
         (goHome)="facade.setTab('home')"
-        (updateQuery)="facade.updatePrayerQuery($event)"
+        (updateQuery)="facade.currentTab() === 'rosaries' ? facade.updateRosaryQuery($event) : facade.updatePrayerQuery($event)"
         (openPrayer)="facade.openPrayerDetail($event)"
       />
     }

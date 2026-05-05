@@ -119,13 +119,18 @@ actor APIContentRepository: ContentRepository, SaintRangeRepository {
         category: String?,
         query: String?
     ) async throws -> [Prayer] {
-        let remotePrayers = try await apiClient.listPrayers(locale: locale, query: query)
+        let normalizedCategory = category?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let remotePrayers = try await apiClient.listPrayers(
+            locale: locale,
+            category: normalizedCategory?.isEmpty == false ? normalizedCategory : nil,
+            excludeCategory: normalizedCategory?.isEmpty == false ? nil : "rosary",
+            query: query
+        )
         let mapped = remotePrayers.map { mapPrayerSummary($0, locale: locale) }
-        guard let category, !category.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            return mapped
+        guard let normalizedCategory, !normalizedCategory.isEmpty else {
+            return mapped.filter { $0.category.caseInsensitiveCompare("rosary") != .orderedSame }
         }
-        let normalizedCategory = category.lowercased()
-        return mapped.filter { $0.category.lowercased() == normalizedCategory }
+        return mapped.filter { $0.category.lowercased() == normalizedCategory.lowercased() }
     }
 
     func fetchPrayer(

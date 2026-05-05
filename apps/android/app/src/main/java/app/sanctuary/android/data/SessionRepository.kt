@@ -163,7 +163,23 @@ class SessionRepository(
     }
 
     suspend fun listPrayers(query: String): List<PrayerSummary> = withContext(Dispatchers.IO) {
-        runApiCall { api.listPrayers(lang = currentLanguage(), query = query.trim()) }
+        runApiCall { api.listPrayers(lang = currentLanguage(), query = query.trim(), excludeCategory = "rosary") }
+            .filterNot { it.category.equals("rosary", ignoreCase = true) }
+            .map { prayer ->
+                PrayerSummary(
+                    id = prayer.id,
+                    slug = prayer.slug,
+                    title = prayer.title,
+                    bodyPreview = prayer.bodyPreview,
+                    category = prayer.category,
+                    imageUrl = prayer.imageUrl
+                )
+            }
+    }
+
+    suspend fun listRosaries(query: String): List<PrayerSummary> = withContext(Dispatchers.IO) {
+        runApiCall { api.listPrayers(lang = currentLanguage(), query = query.trim(), category = "rosary") }
+            .filter { it.category.equals("rosary", ignoreCase = true) }
             .map { prayer ->
                 PrayerSummary(
                     id = prayer.id,
