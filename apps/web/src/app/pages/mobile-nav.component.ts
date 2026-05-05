@@ -1,6 +1,6 @@
 import { Component, input, output } from '@angular/core';
 
-type AppTab = 'home' | 'novenas' | 'intentions' | 'liturgical' | 'saints' | 'prayers' | 'me';
+type AppTab = 'home' | 'novenas' | 'intentions' | 'liturgical' | 'saints' | 'prayers' | 'rosaries' | 'me';
 
 @Component({
   selector: 'app-mobile-nav',

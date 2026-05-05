@@ -25,9 +25,11 @@ public class PrayerContentController {
     @GetMapping
     public List<PrayerSummaryDto> listPrayers(
         @RequestParam(defaultValue = "en") String lang,
-        @RequestParam(defaultValue = "") String query
+        @RequestParam(defaultValue = "") String query,
+        @RequestParam(defaultValue = "") String category,
+        @RequestParam(defaultValue = "") String excludeCategory
     ) {
-        return prayerContentService.list(lang, query);
+        return prayerContentService.list(lang, query, category, excludeCategory);
     }
 
     @GetMapping("/{slug}")

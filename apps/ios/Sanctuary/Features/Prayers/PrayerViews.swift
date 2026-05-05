@@ -1,6 +1,56 @@
 import SwiftUI
 import Combine
 
+enum PrayerSearchMode {
+    case prayers
+    case rosary
+
+    var category: String? {
+        switch self {
+        case .prayers:
+            return nil
+        case .rosary:
+            return "rosary"
+        }
+    }
+
+    var titleKey: String {
+        switch self {
+        case .prayers:
+            return "search.prayersTitle"
+        case .rosary:
+            return "search.rosaryTitle"
+        }
+    }
+
+    var promptKey: String {
+        switch self {
+        case .prayers:
+            return "search.prayersPrompt"
+        case .rosary:
+            return "search.rosaryPrompt"
+        }
+    }
+
+    var accent: Color {
+        switch self {
+        case .prayers:
+            return AppTheme.glowRose
+        case .rosary:
+            return AppTheme.glowGold
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .prayers:
+            return "hands.sparkles.fill"
+        case .rosary:
+            return "circle"
+        }
+    }
+}
+
 @MainActor
 final class PrayersSearchViewModel: ObservableObject {
     private struct IndexedPrayer: Sendable {
@@ -13,13 +63,15 @@ final class PrayersSearchViewModel: ObservableObject {
     @Published private(set) var isLoading = false
 
     private let environment: AppEnvironment
+    private let mode: PrayerSearchMode
     private var locale: ContentLocale = .en
     private var allPrayers: [Prayer] = []
     private var indexedPrayers: [IndexedPrayer] = []
     private var filterTask: Task<Void, Never>?
 
-    init(environment: AppEnvironment) {
+    init(environment: AppEnvironment, mode: PrayerSearchMode) {
         self.environment = environment
+        self.mode = mode
     }
 
     func setLocale(_ locale: ContentLocale) {
@@ -32,7 +84,7 @@ final class PrayersSearchViewModel: ObservableObject {
         isLoading = true
         defer { isLoading = false }
         do {
-            allPrayers = try await environment.contentRepository.listPrayers(locale: locale, category: nil, query: nil)
+            allPrayers = try await environment.contentRepository.listPrayers(locale: locale, category: mode.category, query: nil)
             rebuildIndex()
             scheduleFilter(immediate: true)
         } catch {
@@ -51,9 +103,23 @@ final class PrayersSearchViewModel: ObservableObject {
     }
 
     func subtitle(for prayer: Prayer, locale: ContentLocale) -> String {
+        guard mode != .rosary else {
+            return ""
+        }
+
         let body = prayer.bodyByLocale[locale] ?? prayer.bodyByLocale[.en] ?? ""
         let firstLine = body.split(separator: "\n").first.map(String.init) ?? ""
         return firstLine.isEmpty ? "..." : firstLine
+    }
+
+    func meta(for prayer: Prayer, locale: ContentLocale) -> String? {
+        guard mode == .rosary else {
+            return nil
+        }
+
+        let note = prayer.noteByLocale[locale] ?? prayer.noteByLocale[.en] ?? ""
+        let preview = prayer.bodyByLocale[locale] ?? prayer.bodyByLocale[.en] ?? ""
+        return note.isEmpty ? preview : note
     }
 
     private func scheduleFilter(immediate: Bool = false) {
@@ -105,13 +171,15 @@ final class PrayersSearchViewModel: ObservableObject {
 
 struct PrayersSearchView: View {
     let environment: AppEnvironment
+    let mode: PrayerSearchMode
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var localization: LocalizationManager
     @StateObject private var viewModel: PrayersSearchViewModel
 
-    init(environment: AppEnvironment) {
+    init(environment: AppEnvironment, mode: PrayerSearchMode = .prayers) {
         self.environment = environment
-        _viewModel = StateObject(wrappedValue: PrayersSearchViewModel(environment: environment))
+        self.mode = mode
+        _viewModel = StateObject(wrappedValue: PrayersSearchViewModel(environment: environment, mode: mode))
     }
 
     private var locale: ContentLocale { localization.language.contentLocale }
@@ -138,7 +206,7 @@ struct PrayersSearchView: View {
                         .contentShape(Circle())
                         .highPriorityGesture(TapGesture().onEnded { dismiss() })
                         Spacer()
-                        Text(localization.t("search.prayersTitle"))
+                        Text(localization.t(mode.titleKey))
                             .font(.system(size: 24, weight: .heavy))
                             .foregroundStyle(.white)
                         Spacer()
@@ -152,7 +220,7 @@ struct PrayersSearchView: View {
                         TextField(
                             "",
                             text: $viewModel.query,
-                            prompt: Text(localization.t("search.prayersPrompt"))
+                            prompt: Text(localization.t(mode.promptKey))
                                 .foregroundColor(AppTheme.cardText.opacity(0.58))
                         )
                             .foregroundColor(AppTheme.cardText)
@@ -187,9 +255,9 @@ struct PrayersSearchView: View {
                                         SearchResultCard(
                                             title: viewModel.title(for: prayer, locale: locale),
                                             subtitle: viewModel.subtitle(for: prayer, locale: locale),
-                                            meta: nil,
-                                            accent: AppTheme.glowRose,
-                                            icon: "hands.sparkles.fill",
+                                            meta: viewModel.meta(for: prayer, locale: locale),
+                                            accent: mode.accent,
+                                            icon: mode.icon,
                                             imageURL: prayer.imageURL
                                         )
                                     }
