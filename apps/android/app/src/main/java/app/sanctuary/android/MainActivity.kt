@@ -2,6 +2,9 @@ package app.sanctuary.android
 
 import android.annotation.SuppressLint
 import android.Manifest
+import android.content.ActivityNotFoundException
+import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.view.MotionEvent
@@ -766,6 +769,7 @@ private fun AuthenticatedShell(
     fetchLiturgicalRange: suspend (String, String) -> List<app.sanctuary.android.data.LiturgicalDay>
 ) {
     val l10n = sanctuaryStrings()
+    val context = LocalContext.current
     var showAbout by rememberSaveable { mutableStateOf(false) }
     var showSaintSearch by rememberSaveable { mutableStateOf(false) }
     var showNovenaSearch by rememberSaveable { mutableStateOf(false) }
@@ -778,6 +782,17 @@ private fun AuthenticatedShell(
     var aboutDocument by rememberSaveable { mutableStateOf<AboutDocument?>(null) }
     var saintsCalendarMode by rememberSaveable { mutableStateOf(CalendarMode.Day) }
     var novenasCalendarMode by rememberSaveable { mutableStateOf(CalendarMode.Day) }
+    fun openSupportEmail() {
+        val intent = Intent(Intent.ACTION_SENDTO).apply {
+            data = Uri.parse("mailto:info@mydailysanctuary.com")
+            putExtra(Intent.EXTRA_SUBJECT, "Sanctuary support")
+        }
+        try {
+            context.startActivity(Intent.createChooser(intent, l10n.t("about.emailSupport")))
+        } catch (_: ActivityNotFoundException) {
+            dailyReadingError = "No email app is available on this device."
+        }
+    }
     var liturgicalCalendarMode by rememberSaveable { mutableStateOf(CalendarMode.Month) }
     val scope = rememberCoroutineScope()
 
@@ -1003,7 +1018,7 @@ private fun AuthenticatedShell(
                     onOpenWikipedia = { dailyReadingsUrl = "https://www.wikipedia.org/" },
                     onOpenSupport = { aboutDocument = AboutDocument.Support },
                     onOpenPrivacy = { aboutDocument = AboutDocument.Privacy },
-                    onEmailSupport = { dailyReadingsUrl = "mailto:info@mydailysanctuary.com" }
+                    onEmailSupport = { openSupportEmail() }
                 )
             }
         }
@@ -1012,7 +1027,7 @@ private fun AuthenticatedShell(
             SanctuaryModalSheet(onDismissRequest = { aboutDocument = null }) {
                 AboutDocumentSheet(
                     document = document,
-                    onEmailSupport = { dailyReadingsUrl = "mailto:info@mydailysanctuary.com" }
+                    onEmailSupport = { openSupportEmail() }
                 )
             }
         }
