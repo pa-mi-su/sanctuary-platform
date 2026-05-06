@@ -47,6 +47,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Language
@@ -113,6 +114,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.core.content.ContextCompat
 import coil3.compose.AsyncImage
@@ -3115,26 +3118,60 @@ private fun PrayerDetailSheet(
 ) {
     val l10n = sanctuaryStrings()
     val bodyText = displayPrayerBody(detail)
+    var isShowingExpandedImage by rememberSaveable { mutableStateOf(false) }
+    val canExpandHeroImage = detail.slug == "how_to_pray_the_rosary"
     DetailSheetScaffold(
         title = detail.title,
         subtitle = visiblePrayerCategory(detail.category)
     ) {
-        ThumbnailImage(
-            imageUrl = detail.imageUrl,
-            contentDescription = detail.title,
-            modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(1.4f),
-            shape = RoundedCornerShape(24.dp)
-        )
-        detail.alternateTitle?.takeIf { it.isNotBlank() }?.let {
-            Text(it, color = Color(0xFF7AC8EA), lineHeight = 22.sp)
+        Box {
+            ThumbnailImage(
+                imageUrl = detail.imageUrl,
+                contentDescription = detail.title,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(1.4f)
+                    .then(
+                        if (canExpandHeroImage) {
+                            Modifier.clickable { isShowingExpandedImage = true }
+                        } else {
+                            Modifier
+                        }
+                    ),
+                shape = RoundedCornerShape(24.dp)
+            )
+            if (canExpandHeroImage) {
+                Surface(
+                    color = Color(0xCC102232),
+                    shape = CircleShape,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(10.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.SouthEast,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier
+                            .size(34.dp)
+                            .padding(8.dp)
+                    )
+                }
+            }
         }
         Text(bodyText, color = Color.White, lineHeight = 24.sp)
         detail.note?.takeIf { it.isNotBlank() }?.let {
             Text(it, color = Color(0xFFD0DFEA), lineHeight = 22.sp)
         }
         PrimaryButton(l10n.t("common.close"), false, onClick = onDismiss)
+    }
+
+    if (isShowingExpandedImage) {
+        ExpandedPrayerImageDialog(
+            imageUrl = detail.imageUrl,
+            contentDescription = detail.title,
+            onDismiss = { isShowingExpandedImage = false }
+        )
     }
 }
 
@@ -3167,6 +3204,56 @@ private fun visiblePrayerCategory(category: String?): String? {
         return null
     }
     return normalized
+}
+
+@Composable
+private fun ExpandedPrayerImageDialog(
+    imageUrl: String?,
+    contentDescription: String,
+    onDismiss: () -> Unit
+) {
+    val resolvedUrl = resolveImageUrl(imageUrl)
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.94f))
+                .clickable { onDismiss() },
+            contentAlignment = Alignment.Center
+        ) {
+            if (resolvedUrl != null) {
+                AsyncImage(
+                    model = resolvedUrl,
+                    contentDescription = contentDescription,
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(18.dp)
+                )
+            }
+
+            Surface(
+                color = Color.White.copy(alpha = 0.16f),
+                shape = CircleShape,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(18.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Close,
+                    contentDescription = "Close",
+                    tint = Color.White,
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clickable { onDismiss() }
+                        .padding(10.dp)
+                )
+            }
+        }
+    }
 }
 
 @Composable
@@ -3255,10 +3342,7 @@ private fun ThumbnailImage(
     modifier: Modifier = Modifier,
     shape: RoundedCornerShape = RoundedCornerShape(16.dp)
 ) {
-    val resolvedUrl = imageUrl?.takeIf { it.isNotBlank() }?.let {
-        if (it.startsWith("http://") || it.startsWith("https://")) it
-        else "${BuildConfig.API_BASE_URL.trimEnd('/')}/$it"
-    }
+    val resolvedUrl = resolveImageUrl(imageUrl)
 
     if (resolvedUrl != null) {
         AsyncImage(
@@ -3286,6 +3370,12 @@ private fun ThumbnailImage(
         }
     }
 }
+
+private fun resolveImageUrl(imageUrl: String?): String? =
+    imageUrl?.takeIf { it.isNotBlank() }?.let {
+        if (it.startsWith("http://") || it.startsWith("https://")) it
+        else "${BuildConfig.API_BASE_URL.trimEnd('/')}/$it"
+    }
 
 @Composable
 private fun <T> SearchListSheet(
