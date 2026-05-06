@@ -295,6 +295,7 @@ struct PrayerDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var localization: LocalizationManager
     @State private var currentPrayer: Prayer
+    @State private var isShowingExpandedHeroImage = false
 
     init(contentRepository: any ContentRepository, prayer: Prayer) {
         self.contentRepository = contentRepository
@@ -338,6 +339,10 @@ struct PrayerDetailView: View {
 
     private var isRosary: Bool {
         currentPrayer.category.caseInsensitiveCompare("rosary") == .orderedSame
+    }
+
+    private var canExpandHeroImage: Bool {
+        currentPrayer.slug == "how_to_pray_the_rosary"
     }
 
     private func displayPrayerBody(_ body: String) -> String {
@@ -387,21 +392,12 @@ struct PrayerDetailView: View {
                     .zIndex(10)
 
                     if let imageURL {
-                        PrayerHeroImage(url: imageURL)
+                        PrayerHeroImage(
+                            url: imageURL,
+                            isExpandable: canExpandHeroImage,
+                            onTap: { isShowingExpandedHeroImage = true }
+                        )
                     }
-
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text(title)
-                            .font(AppTheme.rounded(52, weight: .bold))
-                            .minimumScaleFactor(0.62)
-                            .foregroundStyle(.white)
-
-                        if !alternateTitle.isEmpty {
-                            detailMetaChip(icon: "quote.bubble", text: alternateTitle)
-                        }
-                    }
-                    .padding(20)
-                    .appGlassCard(cornerRadius: 28)
 
                     PrayerSectionCard(title: localization.t("novena.prayer"), bodyText: prayerText)
 
@@ -418,6 +414,13 @@ struct PrayerDetailView: View {
             }
         }
         .toolbar(.hidden, for: .navigationBar)
+        .fullScreenCover(isPresented: $isShowingExpandedHeroImage) {
+            if let imageURL {
+                ExpandedPrayerImageView(url: imageURL) {
+                    isShowingExpandedHeroImage = false
+                }
+            }
+        }
         .task(id: "\(prayer.slug)-\(locale.rawValue)") {
             do {
                 if let loaded = try await contentRepository.fetchPrayer(slug: prayer.slug, locale: locale) {
@@ -471,6 +474,8 @@ private struct PrayerSectionCard: View {
 
 private struct PrayerHeroImage: View {
     let url: URL
+    var isExpandable = false
+    var onTap: () -> Void = {}
 
     var body: some View {
         GeometryReader { proxy in
@@ -530,11 +535,73 @@ private struct PrayerHeroImage: View {
                 outerShape
                     .stroke(Color.white.opacity(0.16), lineWidth: 1.5)
             )
+            .overlay(alignment: .topTrailing) {
+                if isExpandable {
+                    Image(systemName: "arrow.up.left.and.arrow.down.right")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundStyle(.white)
+                        .frame(width: 36, height: 36)
+                        .background(AppTheme.cardBackgroundSoft)
+                        .clipShape(Circle())
+                        .padding(14)
+                }
+            }
+            .contentShape(outerShape)
+            .onTapGesture {
+                if isExpandable {
+                    onTap()
+                }
+            }
         }
         .frame(maxWidth: .infinity)
         .frame(height: 280)
         .clipped()
-        .allowsHitTesting(false)
+        .accessibilityAddTraits(isExpandable ? .isButton : [])
         .shadow(color: Color.black.opacity(0.22), radius: 18, x: 0, y: 10)
+    }
+}
+
+private struct ExpandedPrayerImageView: View {
+    let url: URL
+    let onDismiss: () -> Void
+
+    var body: some View {
+        ZStack(alignment: .topTrailing) {
+            Color.black.opacity(0.96)
+                .ignoresSafeArea()
+                .onTapGesture { onDismiss() }
+
+            AsyncImage(url: url) { phase in
+                switch phase {
+                case .empty:
+                    ProgressView().tint(.white)
+                case .success(let image):
+                    image
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .padding(18)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                case .failure:
+                    Image(systemName: "photo")
+                        .font(.system(size: 54))
+                        .foregroundStyle(.white.opacity(0.72))
+                @unknown default:
+                    EmptyView()
+                }
+            }
+            .ignoresSafeArea()
+
+            Button(action: onDismiss) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 17, weight: .bold))
+                    .foregroundStyle(.white)
+                    .frame(width: 48, height: 48)
+                    .background(Color.white.opacity(0.16))
+                    .clipShape(Circle())
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 18)
+            .padding(.trailing, 18)
+        }
     }
 }
