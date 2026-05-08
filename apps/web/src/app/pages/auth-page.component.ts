@@ -329,8 +329,8 @@ export class AuthPageComponent {
   private passwordRulesFor(password: string): Array<{ label: string; met: boolean }> {
     return [
       {
-        label: this.t('At least 8 characters', 'Al menos 8 caracteres', 'Co najmniej 8 znaków'),
-        met: password.length >= 8,
+        label: this.t('At least 10 characters', 'Al menos 10 caracteres', 'Co najmniej 10 znaków'),
+        met: password.length >= 10,
       },
       {
         label: this.t('One uppercase letter', 'Una letra mayúscula', 'Jedna wielka litera'),
@@ -343,10 +343,6 @@ export class AuthPageComponent {
       {
         label: this.t('One number', 'Un número', 'Jedna cyfra'),
         met: /\d/.test(password),
-      },
-      {
-        label: this.t('One special character', 'Un carácter especial', 'Jeden znak specjalny'),
-        met: /[^A-Za-z0-9]/.test(password),
       },
     ];
   }

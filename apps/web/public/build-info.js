@@ -1,6 +1,6 @@
 (function () {
   window.SANCTUARY_BUILD_INFO = {
-    version: '0.0.0',
+    version: '1.0.5',
     build: 'local',
     environment: 'dev',
   };
