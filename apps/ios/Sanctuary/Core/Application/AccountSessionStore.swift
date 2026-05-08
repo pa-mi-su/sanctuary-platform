@@ -259,6 +259,12 @@ final class AccountSessionStore: ObservableObject {
             status = .authenticated
             clearMessage()
         } catch {
+            if isSessionRejected(error) {
+                clearStoredSession()
+                setMessage("Your session has ended. Please sign in again.", isError: true)
+                return
+            }
+
             if let fallbackSession {
                 profile = placeholderProfile(from: fallbackSession)
                 status = .authenticated
@@ -289,6 +295,11 @@ final class AccountSessionStore: ObservableObject {
             clearStoredSession()
             return true
         } catch {
+            if isSessionRejected(error) {
+                clearStoredSession()
+                return true
+            }
+
             status = .authenticated
             setMessage(error.localizedDescription, isError: true)
             return false
@@ -506,6 +517,14 @@ final class AccountSessionStore: ObservableObject {
     private func clearMessage() {
         message = nil
         isErrorMessage = false
+    }
+
+    private func isSessionRejected(_ error: Error) -> Bool {
+        guard case SanctuaryAPIError.serverStatus(let statusCode, _) = error else {
+            return false
+        }
+
+        return statusCode == 401 || statusCode == 403 || statusCode == 404 || statusCode == 410
     }
 }
 
