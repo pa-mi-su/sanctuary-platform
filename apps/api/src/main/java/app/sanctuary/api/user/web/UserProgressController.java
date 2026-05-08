@@ -46,6 +46,12 @@ public class UserProgressController {
         return userProfileService.getProfile(CurrentUser.from(authentication));
     }
 
+    @DeleteMapping
+    public ResponseEntity<Void> deleteAccount(Authentication authentication) {
+        userAccountService.deleteAccount(CurrentUser.from(authentication));
+        return ResponseEntity.noContent().build();
+    }
+
     @PutMapping("/preferences")
     public UserProfileDto updatePreferences(
         Authentication authentication,

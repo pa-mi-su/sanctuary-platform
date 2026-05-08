@@ -66,6 +66,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -304,6 +305,7 @@ private fun SanctuaryApp(viewModel: MainViewModel) {
                     selectedTab = selectedTab,
                     onTabSelected = { selectedTab = it },
                     onLogout = viewModel::logout,
+                    onDeleteAccount = viewModel::deleteAccount,
                     onSaintQueryChanged = viewModel::updateSaintQuery,
                     onNovenaQueryChanged = viewModel::updateNovenaQuery,
                     onIntentionsQueryChanged = viewModel::updateIntentionsQuery,
@@ -737,6 +739,7 @@ private fun AuthenticatedShell(
     selectedTab: AppTab,
     onTabSelected: (AppTab) -> Unit,
     onLogout: () -> Unit,
+    onDeleteAccount: () -> Unit,
     onSaintQueryChanged: (String) -> Unit,
     onNovenaQueryChanged: (String) -> Unit,
     onIntentionsQueryChanged: (String) -> Unit,
@@ -992,6 +995,7 @@ private fun AuthenticatedShell(
                                 onOpenNovena = onOpenNovena,
                                 onOpenSaint = onOpenSaint,
                                 onLogout = onLogout,
+                                onDeleteAccount = onDeleteAccount,
                                 onUpdateReminderPreferences = onUpdateReminderPreferences
                             )
                         }
@@ -1522,6 +1526,7 @@ private fun MeScreen(
     onOpenNovena: (String) -> Unit,
     onOpenSaint: (String) -> Unit,
     onLogout: () -> Unit,
+    onDeleteAccount: () -> Unit,
     onUpdateReminderPreferences: (Boolean, Boolean) -> Unit
 ) {
     val l10n = sanctuaryStrings()
@@ -1532,6 +1537,7 @@ private fun MeScreen(
     val novenaReminderToggle = profile?.novenaRemindersEnabled == true
     val dailyReminderToggle = profile?.feastRemindersEnabled == true
     var pendingReminderUpdate by remember { mutableStateOf<Pair<Boolean, Boolean>?>(null) }
+    var showDeleteAccountDialog by rememberSaveable { mutableStateOf(false) }
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { granted ->
@@ -1696,6 +1702,66 @@ private fun MeScreen(
                 }
             }
         }
+
+        MeSectionCard(title = l10n.t("me.deleteAccount.title")) {
+            Text(
+                l10n.t("me.deleteAccount.body"),
+                color = Color(0xFFD0DFEA),
+                lineHeight = 20.sp
+            )
+            Button(
+                onClick = { showDeleteAccountDialog = true },
+                enabled = !session.isDeletingAccount,
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF9C2630)),
+                shape = RoundedCornerShape(18.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                if (session.isDeletingAccount) {
+                    CircularProgressIndicator(
+                        modifier = Modifier
+                            .size(18.dp)
+                            .padding(end = 8.dp),
+                        color = Color.White,
+                        strokeWidth = 2.dp
+                    )
+                }
+                Text(
+                    l10n.t(if (session.isDeletingAccount) "me.deleteAccount.deleting" else "me.deleteAccount.action"),
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+    }
+
+    if (showDeleteAccountDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteAccountDialog = false },
+            title = {
+                Text(l10n.t("me.deleteAccount.confirmTitle"))
+            },
+            text = {
+                Text(l10n.t("me.deleteAccount.confirmBody"))
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteAccountDialog = false
+                        onDeleteAccount()
+                    }
+                ) {
+                    Text(l10n.t("me.deleteAccount.confirmAction"), color = Color(0xFFB3261E))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteAccountDialog = false }) {
+                    Text(l10n.t("common.cancel"))
+                }
+            },
+            containerColor = Color(0xFF172D3C),
+            titleContentColor = Color.White,
+            textContentColor = Color(0xFFD0DFEA)
+        )
     }
 }
 
