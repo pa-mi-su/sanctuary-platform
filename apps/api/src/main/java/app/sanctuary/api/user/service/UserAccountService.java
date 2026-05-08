@@ -39,15 +39,7 @@ public class UserAccountService {
 
     public void deleteAccount(CurrentUser currentUser) {
         UserAccountDto account = ensureAccount(currentUser);
-        cognitoAuthService.deleteUser(cognitoUsername(currentUser));
+        cognitoAuthService.deleteUser(currentUser.cognitoSub(), currentUser.email());
         repository.deleteById(account.id());
-    }
-
-    private String cognitoUsername(CurrentUser currentUser) {
-        if (currentUser.email() != null && !currentUser.email().isBlank()) {
-            return currentUser.email();
-        }
-
-        return currentUser.cognitoSub();
     }
 }
