@@ -349,6 +349,31 @@
   cursor: default;
 }
 
+.danger-card {
+  border-color: rgba(255, 143, 143, 0.24);
+}
+
+.danger-action {
+  min-height: 46px;
+  border: 1px solid rgba(255, 143, 143, 0.42);
+  border-radius: 16px;
+  padding: 0 18px;
+  background: rgba(129, 35, 46, 0.34);
+  color: rgba(255, 235, 235, 0.96);
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.danger-action:hover {
+  background: rgba(154, 42, 55, 0.42);
+}
+
+.danger-action:disabled {
+  opacity: 0.62;
+  cursor: default;
+}
+
 .status-copy {
   margin: 0;
   color: rgba(255, 255, 255, 0.7);

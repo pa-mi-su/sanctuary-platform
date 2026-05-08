@@ -21,10 +21,12 @@ import software.amazon.awssdk.services.cognitoidentityprovider.model.AttributeTy
 import software.amazon.awssdk.services.cognitoidentityprovider.model.AuthFlowType;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.CodeDeliveryFailureException;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.CodeMismatchException;
+import software.amazon.awssdk.services.cognitoidentityprovider.model.CognitoIdentityProviderException;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.ConfirmForgotPasswordRequest;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.ConfirmSignUpRequest;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.ExpiredCodeException;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.ForgotPasswordRequest;
+import software.amazon.awssdk.services.cognitoidentityprovider.model.AdminDeleteUserRequest;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.InitiateAuthRequest;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.InvalidPasswordException;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.InvalidParameterException;
@@ -244,6 +246,31 @@ public class CognitoAuthService {
             throw new AuthFlowException(HttpStatus.TOO_MANY_REQUESTS, "Too many attempts. Please wait a moment and try again.");
         } catch (InvalidParameterException exception) {
             throw new AuthFlowException(HttpStatus.BAD_REQUEST, friendlyMessage(exception.getMessage(), "Sanctuary could not refresh your session."));
+        }
+    }
+
+    public void deleteUser(String username) {
+        validateConfigured();
+
+        if (authProperties.userPoolId() == null || authProperties.userPoolId().isBlank()) {
+            throw new AuthFlowException(HttpStatus.SERVICE_UNAVAILABLE, "Authentication is not configured for this environment yet.");
+        }
+
+        try {
+            cognitoClient.adminDeleteUser(AdminDeleteUserRequest.builder()
+                .userPoolId(authProperties.userPoolId())
+                .username(cleaned(username))
+                .build());
+        } catch (UserNotFoundException exception) {
+            // Treat this as already deleted so local Sanctuary data can still be removed.
+        } catch (NotAuthorizedException exception) {
+            throw new AuthFlowException(HttpStatus.FORBIDDEN, "Sanctuary could not delete this account right now.");
+        } catch (TooManyRequestsException exception) {
+            throw new AuthFlowException(HttpStatus.TOO_MANY_REQUESTS, "Too many attempts. Please wait a moment and try again.");
+        } catch (InvalidParameterException exception) {
+            throw new AuthFlowException(HttpStatus.BAD_REQUEST, friendlyMessage(exception.getMessage(), "Sanctuary could not delete this account."));
+        } catch (CognitoIdentityProviderException exception) {
+            throw new AuthFlowException(HttpStatus.BAD_GATEWAY, "Sanctuary could not delete this account right now.");
         }
     }
 

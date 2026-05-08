@@ -90,6 +90,9 @@ export class AppShellFacade {
   readonly savePreferencesPending = signal(false);
   readonly savePreferencesMessage = signal<string | null>(null);
   readonly savePreferencesError = signal(false);
+  readonly deleteAccountPending = signal(false);
+  readonly deleteAccountMessage = signal<string | null>(null);
+  readonly deleteAccountError = signal(false);
 
   readonly liturgicalLoadFailed = signal(false);
   readonly saintsLoadFailed = signal(false);
@@ -555,10 +558,43 @@ export class AppShellFacade {
     this.favoriteOverrides.set({});
     this.savePreferencesMessage.set(null);
     this.savePreferencesError.set(false);
+    this.deleteAccountMessage.set(null);
+    this.deleteAccountError.set(false);
     this.auth.logout();
     if (this.currentTab() === 'me') {
       this.setTab('auth');
     }
+  }
+
+  deleteAccount(): void {
+    if (!this.isAuthenticated() || this.deleteAccountPending()) {
+      return;
+    }
+
+    this.deleteAccountPending.set(true);
+    this.deleteAccountMessage.set(null);
+    this.deleteAccountError.set(false);
+
+    this.api.deleteMe().subscribe({
+      next: () => {
+        this.deleteAccountPending.set(false);
+        this.userProfileOverride.set(null);
+        this.favoriteOverrides.set({});
+        this.auth.logout();
+        this.setTab('auth');
+      },
+      error: () => {
+        this.deleteAccountPending.set(false);
+        this.deleteAccountError.set(true);
+        this.deleteAccountMessage.set(
+          this.translate(
+            'We could not delete your account right now. Please try again.',
+            'No pudimos eliminar tu cuenta en este momento. Inténtalo de nuevo.',
+            'Nie mozna teraz usunac konta. Sprobuj ponownie.'
+          )
+        );
+      },
+    });
   }
 
   openLegalDocument(document: LegalDocumentType): void {

@@ -151,6 +151,23 @@ type AppLanguage = 'en' | 'es' | 'pl';
             </div>
           </dl>
         </article>
+
+        <article class="panel-card glass-subtle danger-card">
+          <div class="panel-heading">
+            <div>
+              <h3>{{ t('Delete account', 'Eliminar cuenta', 'Usuń konto') }}</h3>
+              <p>{{ t('Permanently remove your Sanctuary account, favorites, novena progress, and saved preferences.', 'Elimina permanentemente tu cuenta de Sanctuary, favoritos, progreso de novenas y preferencias guardadas.', 'Trwale usuń swoje konto Sanctuary, ulubione, postęp nowenn i zapisane preferencje.') }}</p>
+            </div>
+          </div>
+
+          <button class="danger-action" type="button" [disabled]="deleteAccountPending" (click)="confirmDeleteAccount()">
+            {{ deleteAccountPending ? t('Deleting account...', 'Eliminando cuenta...', 'Usuwanie konta...') : t('Delete my account', 'Eliminar mi cuenta', 'Usuń moje konto') }}
+          </button>
+
+          @if (deleteAccountMessage) {
+            <p class="status-copy" [class.status-copy--error]="deleteAccountError">{{ deleteAccountMessage }}</p>
+          }
+        </article>
       </section>
     </section>
   `,
@@ -162,8 +179,12 @@ export class MePageComponent {
   @Input() activeNovenas: MeLinkedItem[] = [];
   @Input() favoriteNovenas: MeLinkedItem[] = [];
   @Input() favoriteSaints: MeLinkedItem[] = [];
+  @Input() deleteAccountPending = false;
+  @Input() deleteAccountMessage: string | null = null;
+  @Input() deleteAccountError = false;
 
   @Output() readonly logout = new EventEmitter<void>();
+  @Output() readonly deleteAccount = new EventEmitter<void>();
   @Output() readonly openActiveNovena = new EventEmitter<MeLinkedItem>();
   @Output() readonly openFavoriteNovena = new EventEmitter<MeLinkedItem>();
   @Output() readonly openFavoriteSaint = new EventEmitter<MeLinkedItem>();
@@ -196,6 +217,20 @@ export class MePageComponent {
         return polish;
       default:
         return english;
+    }
+  }
+
+  protected confirmDeleteAccount(): void {
+    const confirmed = window.confirm(
+      this.t(
+        'Delete your Sanctuary account permanently? This removes your saved favorites, novena progress, and preferences.',
+        '¿Eliminar tu cuenta de Sanctuary permanentemente? Esto elimina tus favoritos guardados, progreso de novenas y preferencias.',
+        'Czy trwale usunąć konto Sanctuary? Spowoduje to usunięcie ulubionych, postępu nowenn i preferencji.'
+      )
+    );
+
+    if (confirmed) {
+      this.deleteAccount.emit();
     }
   }
 }

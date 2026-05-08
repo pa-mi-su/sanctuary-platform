@@ -117,7 +117,6 @@ final class AccountSessionStore: ObservableObject {
             return
         }
 
-        status = .loading
         clearMessage()
 
         do {
@@ -274,6 +273,26 @@ final class AccountSessionStore: ObservableObject {
 
     func logout() {
         clearStoredSession()
+    }
+
+    func deleteAccount() async -> Bool {
+        guard let activeSession = await activeSession() else {
+            setMessage("Please sign in to continue.", isError: true)
+            return false
+        }
+
+        status = .loading
+        clearMessage()
+
+        do {
+            try await apiClient.deleteMe(token: activeSession.idToken)
+            clearStoredSession()
+            return true
+        } catch {
+            status = .authenticated
+            setMessage(error.localizedDescription, isError: true)
+            return false
+        }
     }
 
     func clearTransientMessage() {
