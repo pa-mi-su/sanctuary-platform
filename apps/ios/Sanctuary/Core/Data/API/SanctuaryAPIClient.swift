@@ -313,6 +313,10 @@ actor SanctuaryAPIClient {
         try await performRequest(path: "/me", method: "GET", body: Optional<String>.none, token: token)
     }
 
+    func deleteMe(token: String) async throws {
+        try await performVoidRequest(path: "/me", method: "DELETE", body: Optional<String>.none, token: token)
+    }
+
     func updateMePreferences(
         request: APIUserPreferencesUpdateRequest,
         token: String

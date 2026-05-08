@@ -306,6 +306,10 @@ export class SanctuaryApiService {
     return this.http.get<UserProfile>(`${this.apiBaseUrl}/me`);
   }
 
+  deleteMe(): Observable<void> {
+    return this.http.delete<void>(`${this.apiBaseUrl}/me`);
+  }
+
   register(request: AuthRegisterRequest): Observable<AuthRegistrationResponse> {
     return this.http.post<AuthRegistrationResponse>(`${this.apiBaseUrl}/auth/register`, request);
   }
