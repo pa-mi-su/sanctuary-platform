@@ -426,6 +426,11 @@ class SessionRepository(
         clearSession()
     }
 
+    suspend fun deleteAccount() = withContext(Dispatchers.IO) {
+        runApiCall { authenticatedApi().deleteMe() }
+        clearSession()
+    }
+
     private suspend fun saveNovenaCommitment(
         novenaId: String,
         request: UserNovenaCommitmentRequest

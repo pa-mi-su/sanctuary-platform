@@ -44,6 +44,7 @@ data class SessionUiState(
     val status: SessionStatus = SessionStatus.Loading,
     val isBootstrapping: Boolean = false,
     val isSavingReminderPreferences: Boolean = false,
+    val isDeletingAccount: Boolean = false,
     val session: StoredSession? = null,
     val profile: UserProfile? = null,
     val pendingConfirmationEmail: String? = null,
@@ -337,6 +338,41 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _session.value = SessionUiState(status = SessionStatus.SignedOut, isSavingReminderPreferences = false)
         _novenaProgress.value = NovenaProgressUiState()
         loadInitialContent()
+    }
+
+    fun deleteAccount() {
+        val current = _session.value
+        if (current.status != SessionStatus.Authenticated || current.isDeletingAccount) return
+
+        viewModelScope.launch {
+            _session.update {
+                it.copy(
+                    isDeletingAccount = true,
+                    message = null,
+                    isErrorMessage = false
+                )
+            }
+
+            runCatching {
+                withTimeoutOrNull(20_000) {
+                    repository.deleteAccount()
+                } ?: throw IllegalStateException(l10n().t("status.deleteAccountTimeout"))
+            }.onSuccess {
+                reminderScheduler.cancelAll()
+                _session.value = SessionUiState(status = SessionStatus.SignedOut)
+                _novenaProgress.value = NovenaProgressUiState()
+                loadInitialContent()
+            }.onFailure { failure ->
+                _session.update {
+                    it.copy(
+                        status = SessionStatus.Authenticated,
+                        isDeletingAccount = false,
+                        message = failure.message ?: l10n().t("status.deleteAccountFailed"),
+                        isErrorMessage = true
+                    )
+                }
+            }
+        }
     }
 
     fun updateLanguage(language: AppLanguage) {

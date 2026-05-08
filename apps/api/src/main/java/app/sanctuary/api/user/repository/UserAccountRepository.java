@@ -143,6 +143,16 @@ public class UserAccountRepository {
         );
     }
 
+    public void deleteById(UUID userId) {
+        jdbcTemplate.update(
+            """
+                DELETE FROM users
+                WHERE id = ?
+                """,
+            userId
+        );
+    }
+
     private String emptyToNull(String value) {
         return value == null || value.isBlank() ? null : value;
     }

@@ -370,7 +370,14 @@ final class LocalizationManager: ObservableObject {
         "me.reminders.inProgressTitle": "Novenas in progress",
         "me.reminders.inProgressBody": "Send morning and evening reminders when you have a novena in progress.",
         "me.reminders.generalTitle": "Once-daily Sanctuary reminder",
-        "me.reminders.generalBody": "Send a gentle morning reminder when you do not have a novena in progress."
+        "me.reminders.generalBody": "Send a gentle morning reminder when you do not have a novena in progress.",
+        "me.deleteAccount.title": "Delete account",
+        "me.deleteAccount.body": "Permanently delete your Sanctuary account, favorites, novena progress, and preferences.",
+        "me.deleteAccount.action": "Delete my account",
+        "me.deleteAccount.deleting": "Deleting account...",
+        "me.deleteAccount.confirmTitle": "Delete your account?",
+        "me.deleteAccount.confirmBody": "This permanently removes your Sanctuary account and saved app data. This cannot be undone.",
+        "me.deleteAccount.confirmAction": "Delete account"
     ]
 
     private static let spanish: [String: String] = [
@@ -557,7 +564,14 @@ final class LocalizationManager: ObservableObject {
         "me.reminders.inProgressTitle": "Novenas en curso",
         "me.reminders.inProgressBody": "Envía recordatorios por la mañana y por la noche cuando tengas una novena en curso.",
         "me.reminders.generalTitle": "Recordatorio diario de Sanctuary",
-        "me.reminders.generalBody": "Envía un recordatorio suave por la mañana cuando no tengas una novena en curso."
+        "me.reminders.generalBody": "Envía un recordatorio suave por la mañana cuando no tengas una novena en curso.",
+        "me.deleteAccount.title": "Eliminar cuenta",
+        "me.deleteAccount.body": "Elimina permanentemente tu cuenta de Sanctuary, favoritos, progreso de novenas y preferencias.",
+        "me.deleteAccount.action": "Eliminar mi cuenta",
+        "me.deleteAccount.deleting": "Eliminando cuenta...",
+        "me.deleteAccount.confirmTitle": "¿Eliminar tu cuenta?",
+        "me.deleteAccount.confirmBody": "Esto elimina permanentemente tu cuenta de Sanctuary y los datos guardados en la app. No se puede deshacer.",
+        "me.deleteAccount.confirmAction": "Eliminar cuenta"
     ]
 
     private static let polish: [String: String] = [
@@ -744,6 +758,13 @@ final class LocalizationManager: ObservableObject {
         "me.reminders.inProgressTitle": "Nowenny w toku",
         "me.reminders.inProgressBody": "Wysyłaj poranne i wieczorne przypomnienia, gdy masz nowennę w toku.",
         "me.reminders.generalTitle": "Codzienne przypomnienie Sanctuary",
-        "me.reminders.generalBody": "Wysyłaj delikatne poranne przypomnienie, gdy nie masz nowenny w toku."
+        "me.reminders.generalBody": "Wysyłaj delikatne poranne przypomnienie, gdy nie masz nowenny w toku.",
+        "me.deleteAccount.title": "Usuń konto",
+        "me.deleteAccount.body": "Trwale usuń konto Sanctuary, ulubione elementy, postęp nowenn i preferencje.",
+        "me.deleteAccount.action": "Usuń moje konto",
+        "me.deleteAccount.deleting": "Usuwanie konta...",
+        "me.deleteAccount.confirmTitle": "Usunąć konto?",
+        "me.deleteAccount.confirmBody": "To trwale usunie konto Sanctuary i zapisane dane aplikacji. Tej operacji nie można cofnąć.",
+        "me.deleteAccount.confirmAction": "Usuń konto"
     ]
 }
