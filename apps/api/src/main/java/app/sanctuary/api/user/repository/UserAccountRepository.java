@@ -73,6 +73,22 @@ public class UserAccountRepository {
         );
     }
 
+    public boolean isDeletedIdentity(String cognitoSub, String emailHash) {
+        Integer count = jdbcTemplate.queryForObject(
+            """
+                SELECT COUNT(*)
+                FROM deleted_user_accounts
+                WHERE (cognito_sub IS NOT NULL AND cognito_sub = ?)
+                   OR (email_hash IS NOT NULL AND email_hash = ?)
+                """,
+            Integer.class,
+            emptyToNull(cognitoSub),
+            emptyToNull(emailHash)
+        );
+
+        return count != null && count > 0;
+    }
+
     public Optional<UserAccountDto> findByCognitoSub(String cognitoSub) {
         return jdbcTemplate.query(
             """
@@ -150,6 +166,25 @@ public class UserAccountRepository {
                 WHERE id = ?
                 """,
             userId
+        );
+    }
+
+    public void markDeleted(String cognitoSub, String emailHash) {
+        jdbcTemplate.update(
+            """
+                INSERT INTO deleted_user_accounts (
+                    cognito_sub,
+                    email_hash,
+                    deleted_at
+                )
+                VALUES (?, ?, NOW())
+                ON CONFLICT (cognito_sub)
+                DO UPDATE SET
+                    email_hash = COALESCE(EXCLUDED.email_hash, deleted_user_accounts.email_hash),
+                    deleted_at = NOW()
+                """,
+            emptyToNull(cognitoSub),
+            emptyToNull(emailHash)
         );
     }
 

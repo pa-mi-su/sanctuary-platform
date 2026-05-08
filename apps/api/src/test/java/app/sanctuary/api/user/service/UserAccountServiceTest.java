@@ -3,6 +3,7 @@ package app.sanctuary.api.user.service;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -15,6 +16,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import app.sanctuary.api.auth.service.AuthFlowException;
 import app.sanctuary.api.auth.service.CognitoAuthService;
 import app.sanctuary.api.user.dto.UserAccountDto;
 import app.sanctuary.api.user.repository.UserAccountRepository;
@@ -57,6 +59,8 @@ class UserAccountServiceTest {
             eq(currentUser.avatarUrl())
         ))
             .thenReturn(account);
+        when(repository.isDeletedIdentity(eq(currentUser.cognitoSub()), isNull()))
+            .thenReturn(false);
 
         UserAccountDto result = service.ensureAccount(currentUser);
 
@@ -76,6 +80,15 @@ class UserAccountServiceTest {
         CurrentUser currentUser = new CurrentUser(" ", "saint@example.com", "Saint", "User", "Saint User", null);
 
         assertThrows(IllegalArgumentException.class, () -> service.ensureAccount(currentUser));
+    }
+
+    @Test
+    void ensureAccountRejectsDeletedIdentity() {
+        CurrentUser currentUser = new CurrentUser("cognito-sub-123", "saint@example.com", "Saint", "User", "Saint User", null);
+        when(repository.isDeletedIdentity(eq(currentUser.cognitoSub()), isNull()))
+            .thenReturn(true);
+
+        assertThrows(AuthFlowException.class, () -> service.ensureAccount(currentUser));
     }
 
     @Test
@@ -103,10 +116,13 @@ class UserAccountServiceTest {
             eq(currentUser.avatarUrl())
         ))
             .thenReturn(account);
+        when(repository.isDeletedIdentity(eq(currentUser.cognitoSub()), isNull()))
+            .thenReturn(false);
 
         service.deleteAccount(currentUser);
 
         verify(cognitoAuthService).deleteUser(currentUser.cognitoSub(), currentUser.email());
+        verify(repository).markDeleted(currentUser.cognitoSub(), "8b268da13a7dc4b60332e56a7fd28ec6002733a56eb680c889e1eb5d66066d6c");
         verify(repository).deleteById(account.id());
     }
 }

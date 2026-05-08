@@ -198,7 +198,10 @@ object SanctuaryApiFactory {
     }
 }
 
-class SanctuaryApiException(message: String) : IOException(message)
+class SanctuaryApiException(
+    message: String,
+    val statusCode: Int? = null
+) : IOException(message)
 
 suspend fun <T> runApiCall(block: suspend () -> T): T {
     return try {
@@ -207,7 +210,8 @@ suspend fun <T> runApiCall(block: suspend () -> T): T {
         val message = exception.response()?.errorBody()?.string()
         val fallback = "Sanctuary could not complete that request right now."
         throw SanctuaryApiException(
-            ApiJson.parseErrorMessage(message) ?: fallback
+            ApiJson.parseErrorMessage(message) ?: fallback,
+            exception.code()
         )
     } catch (exception: IOException) {
         throw SanctuaryApiException(exception.message ?: "Sanctuary could not complete that request right now.")

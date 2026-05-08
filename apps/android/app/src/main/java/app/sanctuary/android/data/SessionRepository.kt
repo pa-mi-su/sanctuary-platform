@@ -427,7 +427,13 @@ class SessionRepository(
     }
 
     suspend fun deleteAccount() = withContext(Dispatchers.IO) {
-        runApiCall { authenticatedApi().deleteMe() }
+        try {
+            runApiCall { authenticatedApi().deleteMe() }
+        } catch (exception: SanctuaryApiException) {
+            if (!exception.isSessionRejected()) {
+                throw exception
+            }
+        }
         clearSession()
     }
 
@@ -497,6 +503,11 @@ class SessionRepository(
             persistLanguage(profile.preferredLanguage ?: currentLanguage())
             SessionBootstrapResult.authenticated(session, profile)
         } catch (exception: Exception) {
+            if (exception is SanctuaryApiException && exception.isSessionRejected()) {
+                clearSession()
+                return SessionBootstrapResult.signedOut()
+            }
+
             if (!session.refreshToken.isNullOrBlank()) {
                 refreshSession(session.refreshToken, session)
             } else {
@@ -561,6 +572,10 @@ data class SessionBootstrapResult(
             authenticated = false
         )
     }
+}
+
+private fun SanctuaryApiException.isSessionRejected(): Boolean {
+    return statusCode == 401 || statusCode == 403 || statusCode == 404 || statusCode == 410
 }
 
 private fun AuthSessionResponse.toStoredSession(fallbackRefreshToken: String? = null): StoredSession {
