@@ -10,10 +10,10 @@ public record AuthRegisterRequest(
     @NotBlank @Size(max = 120) String lastName,
     @Email @NotBlank String email,
     @NotBlank
-    @Size(min = 8, max = 120)
+    @Size(min = 10, max = 120)
     @Pattern(
-        regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[^A-Za-z0-9]).{8,120}$",
-        message = "Password must be at least 8 characters and include uppercase, lowercase, number, and special character."
+        regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d).{10,120}$",
+        message = "Password must be at least 10 characters and include uppercase, lowercase, and number."
     )
     String password
 ) {

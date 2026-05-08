@@ -1412,11 +1412,10 @@ private data class PasswordRuleUi(
 )
 
 private fun passwordRules(password: String, l10n: SanctuaryStrings): List<PasswordRuleUi> = listOf(
-    PasswordRuleUi(l10n.t("auth.rule.length"), password.length >= 8),
+    PasswordRuleUi(l10n.t("auth.rule.length"), password.length >= 10),
     PasswordRuleUi(l10n.t("auth.rule.upper"), password.any(Char::isUpperCase)),
     PasswordRuleUi(l10n.t("auth.rule.lower"), password.any(Char::isLowerCase)),
-    PasswordRuleUi(l10n.t("auth.rule.number"), password.any(Char::isDigit)),
-    PasswordRuleUi(l10n.t("auth.rule.special"), password.any { !it.isLetterOrDigit() })
+    PasswordRuleUi(l10n.t("auth.rule.number"), password.any(Char::isDigit))
 )
 
 private fun passwordsMatch(password: String, confirmation: String): Boolean =

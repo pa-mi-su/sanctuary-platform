@@ -424,11 +424,10 @@ struct AccountAccessView: View {
 
     private func passwordRules(for password: String) -> [(label: String, met: Bool)] {
         [
-            (copy("At least 8 characters", "Al menos 8 caracteres", "Co najmniej 8 znaków"), password.count >= 8),
+            (copy("At least 10 characters", "Al menos 10 caracteres", "Co najmniej 10 znaków"), password.count >= 10),
             (copy("One uppercase letter", "Una letra mayúscula", "Jedna wielka litera"), password.range(of: "[A-Z]", options: .regularExpression) != nil),
             (copy("One lowercase letter", "Una letra minúscula", "Jedna mała litera"), password.range(of: "[a-z]", options: .regularExpression) != nil),
             (copy("One number", "Un número", "Jedna cyfra"), password.range(of: "\\d", options: .regularExpression) != nil),
-            (copy("One special character", "Un carácter especial", "Jeden znak specjalny"), password.range(of: "[^A-Za-z0-9]", options: .regularExpression) != nil),
         ]
     }
 
