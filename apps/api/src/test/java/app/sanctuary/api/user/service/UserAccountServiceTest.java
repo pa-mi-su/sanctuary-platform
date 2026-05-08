@@ -15,6 +15,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import app.sanctuary.api.auth.service.CognitoAuthService;
 import app.sanctuary.api.user.dto.UserAccountDto;
 import app.sanctuary.api.user.repository.UserAccountRepository;
 import app.sanctuary.api.user.web.CurrentUser;
@@ -24,6 +25,9 @@ class UserAccountServiceTest {
 
     @Mock
     private UserAccountRepository repository;
+
+    @Mock
+    private CognitoAuthService cognitoAuthService;
 
     @InjectMocks
     private UserAccountService service;
@@ -72,5 +76,37 @@ class UserAccountServiceTest {
         CurrentUser currentUser = new CurrentUser(" ", "saint@example.com", "Saint", "User", "Saint User", null);
 
         assertThrows(IllegalArgumentException.class, () -> service.ensureAccount(currentUser));
+    }
+
+    @Test
+    void deleteAccountDeletesCognitoUserThenLocalAccount() {
+        CurrentUser currentUser = new CurrentUser("cognito-sub-123", "saint@example.com", "Saint", "User", "Saint User", null);
+        UserAccountDto account = new UserAccountDto(
+            UUID.randomUUID(),
+            currentUser.cognitoSub(),
+            currentUser.email(),
+            currentUser.firstName(),
+            currentUser.lastName(),
+            currentUser.displayName(),
+            "en",
+            null,
+            OffsetDateTime.now(),
+            OffsetDateTime.now()
+        );
+
+        when(repository.upsert(
+            eq(currentUser.cognitoSub()),
+            eq(currentUser.email()),
+            eq(currentUser.firstName()),
+            eq(currentUser.lastName()),
+            eq(currentUser.displayName()),
+            eq(currentUser.avatarUrl())
+        ))
+            .thenReturn(account);
+
+        service.deleteAccount(currentUser);
+
+        verify(cognitoAuthService).deleteUser(currentUser.cognitoSub(), currentUser.email());
+        verify(repository).deleteById(account.id());
     }
 }

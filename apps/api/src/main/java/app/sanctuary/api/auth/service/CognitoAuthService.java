@@ -2,6 +2,7 @@ package app.sanctuary.api.auth.service;
 
 import java.util.List;
 import java.util.Map;
+import java.util.LinkedHashSet;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -21,13 +22,16 @@ import software.amazon.awssdk.services.cognitoidentityprovider.model.AttributeTy
 import software.amazon.awssdk.services.cognitoidentityprovider.model.AuthFlowType;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.CodeDeliveryFailureException;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.CodeMismatchException;
+import software.amazon.awssdk.services.cognitoidentityprovider.model.CognitoIdentityProviderException;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.ConfirmForgotPasswordRequest;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.ConfirmSignUpRequest;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.ExpiredCodeException;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.ForgotPasswordRequest;
+import software.amazon.awssdk.services.cognitoidentityprovider.model.AdminDeleteUserRequest;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.InitiateAuthRequest;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.InvalidPasswordException;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.InvalidParameterException;
+import software.amazon.awssdk.services.cognitoidentityprovider.model.ListUsersRequest;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.NotAuthorizedException;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.ResendConfirmationCodeRequest;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.SignUpRequest;
@@ -244,6 +248,87 @@ public class CognitoAuthService {
             throw new AuthFlowException(HttpStatus.TOO_MANY_REQUESTS, "Too many attempts. Please wait a moment and try again.");
         } catch (InvalidParameterException exception) {
             throw new AuthFlowException(HttpStatus.BAD_REQUEST, friendlyMessage(exception.getMessage(), "Sanctuary could not refresh your session."));
+        }
+    }
+
+    public void deleteUser(String cognitoSub, String email) {
+        validateConfigured();
+
+        if (authProperties.userPoolId() == null || authProperties.userPoolId().isBlank()) {
+            throw new AuthFlowException(HttpStatus.SERVICE_UNAVAILABLE, "Authentication is not configured for this environment yet.");
+        }
+
+        var candidates = deleteUserCandidates(cognitoSub, email);
+        UserNotFoundException notFound = null;
+
+        for (String candidate : candidates) {
+            try {
+                cognitoClient.adminDeleteUser(AdminDeleteUserRequest.builder()
+                    .userPoolId(authProperties.userPoolId())
+                    .username(candidate)
+                    .build());
+                return;
+            } catch (UserNotFoundException exception) {
+                notFound = exception;
+            } catch (NotAuthorizedException exception) {
+                throw new AuthFlowException(HttpStatus.FORBIDDEN, "Sanctuary could not delete this account right now.");
+            } catch (TooManyRequestsException exception) {
+                throw new AuthFlowException(HttpStatus.TOO_MANY_REQUESTS, "Too many attempts. Please wait a moment and try again.");
+            } catch (InvalidParameterException exception) {
+                throw new AuthFlowException(HttpStatus.BAD_REQUEST, friendlyMessage(exception.getMessage(), "Sanctuary could not delete this account."));
+            } catch (CognitoIdentityProviderException exception) {
+                throw new AuthFlowException(HttpStatus.BAD_GATEWAY, "Sanctuary could not delete this account right now.");
+            }
+        }
+
+        throw new AuthFlowException(
+            HttpStatus.BAD_GATEWAY,
+            notFound == null
+                ? "Sanctuary could not identify this account in Cognito."
+                : "Sanctuary could not delete this account in Cognito."
+        );
+    }
+
+    private List<String> deleteUserCandidates(String cognitoSub, String email) {
+        var candidates = new LinkedHashSet<String>();
+        String sub = cleaned(cognitoSub);
+        String normalizedEmail = normalizedEmail(email);
+
+        findUsernameBySub(sub).forEach(candidates::add);
+        if (!sub.isBlank()) {
+            candidates.add(sub);
+        }
+        if (!normalizedEmail.isBlank()) {
+            candidates.add(normalizedEmail);
+        }
+
+        return candidates.stream()
+            .filter(value -> value != null && !value.isBlank())
+            .toList();
+    }
+
+    private List<String> findUsernameBySub(String cognitoSub) {
+        if (cognitoSub == null || cognitoSub.isBlank()) {
+            return List.of();
+        }
+
+        try {
+            return cognitoClient.listUsers(ListUsersRequest.builder()
+                .userPoolId(authProperties.userPoolId())
+                .filter("sub = \"" + cognitoSub.replace("\"", "\\\"") + "\"")
+                .limit(1)
+                .build())
+                .users()
+                .stream()
+                .map(user -> cleaned(user.username()))
+                .filter(username -> !username.isBlank())
+                .toList();
+        } catch (TooManyRequestsException exception) {
+            throw new AuthFlowException(HttpStatus.TOO_MANY_REQUESTS, "Too many attempts. Please wait a moment and try again.");
+        } catch (InvalidParameterException exception) {
+            throw new AuthFlowException(HttpStatus.BAD_REQUEST, friendlyMessage(exception.getMessage(), "Sanctuary could not find this account."));
+        } catch (CognitoIdentityProviderException exception) {
+            throw new AuthFlowException(HttpStatus.BAD_GATEWAY, "Sanctuary could not delete this account right now.");
         }
     }
 

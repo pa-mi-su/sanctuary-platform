@@ -2,6 +2,7 @@ package app.sanctuary.api.user.service;
 
 import org.springframework.stereotype.Service;
 
+import app.sanctuary.api.auth.service.CognitoAuthService;
 import app.sanctuary.api.user.dto.UserAccountDto;
 import app.sanctuary.api.user.repository.UserAccountRepository;
 import app.sanctuary.api.user.web.CurrentUser;
@@ -10,9 +11,11 @@ import app.sanctuary.api.user.web.CurrentUser;
 public class UserAccountService {
 
     private final UserAccountRepository repository;
+    private final CognitoAuthService cognitoAuthService;
 
-    public UserAccountService(UserAccountRepository repository) {
+    public UserAccountService(UserAccountRepository repository, CognitoAuthService cognitoAuthService) {
         this.repository = repository;
+        this.cognitoAuthService = cognitoAuthService;
     }
 
     public UserAccountDto ensureAccount(CurrentUser currentUser) {
@@ -32,5 +35,11 @@ public class UserAccountService {
 
     public UserAccountDto updatePreferredLanguage(java.util.UUID userId, String preferredLanguage) {
         return repository.updatePreferredLanguage(userId, preferredLanguage);
+    }
+
+    public void deleteAccount(CurrentUser currentUser) {
+        UserAccountDto account = ensureAccount(currentUser);
+        cognitoAuthService.deleteUser(currentUser.cognitoSub(), currentUser.email());
+        repository.deleteById(account.id());
     }
 }

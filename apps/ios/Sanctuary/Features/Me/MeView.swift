@@ -11,6 +11,8 @@ struct MeView: View {
     @State private var novenaReminderToggle = false
     @State private var dailyReminderToggle = false
     @State private var isSavingReminderPreferences = false
+    @State private var isShowingDeleteAccountConfirmation = false
+    @State private var isDeletingAccount = false
 
     var body: some View {
         ZStack {
@@ -24,6 +26,7 @@ struct MeView: View {
                         inProgressCard
                         favoriteNovenasCard
                         favoriteSaintsCard
+                        deleteAccountCard
                     } else {
                         AccountAccessView()
                     }
@@ -73,6 +76,14 @@ struct MeView: View {
                     onClose: { selectedRoute = nil }
                 )
             }
+        }
+        .alert(localization.t("me.deleteAccount.confirmTitle"), isPresented: $isShowingDeleteAccountConfirmation) {
+            Button(localization.t("common.cancel"), role: .cancel) {}
+            Button(localization.t("me.deleteAccount.confirmAction"), role: .destructive) {
+                deleteAccount()
+            }
+        } message: {
+            Text(localization.t("me.deleteAccount.confirmBody"))
         }
     }
 
@@ -227,6 +238,32 @@ struct MeView: View {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    private var deleteAccountCard: some View {
+        MeCard(title: localization.t("me.deleteAccount.title")) {
+            VStack(alignment: .leading, spacing: 12) {
+                Text(localization.t("me.deleteAccount.body"))
+                    .font(AppTheme.rounded(16, weight: .medium))
+                    .foregroundStyle(AppTheme.cardText.opacity(0.86))
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Button {
+                    isShowingDeleteAccountConfirmation = true
+                } label: {
+                    HStack {
+                        if isDeletingAccount {
+                            ProgressView()
+                                .tint(.white)
+                        }
+                        Text(localization.t(isDeletingAccount ? "me.deleteAccount.deleting" : "me.deleteAccount.action"))
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(DestructivePillButtonStyle())
+                .disabled(isDeletingAccount || accountStore.status == .loading)
             }
         }
     }
@@ -519,6 +556,19 @@ struct MeView: View {
             isSavingReminderPreferences = false
         }
     }
+
+    private func deleteAccount() {
+        guard !isDeletingAccount else { return }
+        isDeletingAccount = true
+
+        Task {
+            let deleted = await accountStore.deleteAccount()
+            if deleted {
+                await progressStore.setAuthenticatedUser(id: nil)
+            }
+            isDeletingAccount = false
+        }
+    }
 }
 
 private struct MeCard<Content: View>: View {
@@ -548,6 +598,25 @@ private struct MeCard<Content: View>: View {
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .appGlassCard(cornerRadius: 24)
+    }
+}
+
+private struct DestructivePillButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(AppTheme.rounded(16, weight: .bold))
+            .foregroundStyle(.white)
+            .padding(.vertical, 13)
+            .padding(.horizontal, 16)
+            .background(
+                Capsule()
+                    .fill(Color(red: 0.62, green: 0.14, blue: 0.18).opacity(configuration.isPressed ? 0.78 : 0.92))
+            )
+            .overlay(
+                Capsule()
+                    .stroke(Color.white.opacity(0.18), lineWidth: 1)
+            )
+            .opacity(configuration.isPressed ? 0.86 : 1)
     }
 }
 
