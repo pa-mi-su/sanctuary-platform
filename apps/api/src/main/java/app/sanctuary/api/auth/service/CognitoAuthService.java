@@ -18,6 +18,7 @@ import app.sanctuary.api.auth.dto.AuthSessionResponse;
 import app.sanctuary.api.auth.dto.AuthStatusResponse;
 import app.sanctuary.api.config.AuthProperties;
 import software.amazon.awssdk.services.cognitoidentityprovider.CognitoIdentityProviderClient;
+import software.amazon.awssdk.services.cognitoidentityprovider.model.AdminUserGlobalSignOutRequest;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.AttributeType;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.AuthFlowType;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.CodeDeliveryFailureException;
@@ -77,7 +78,7 @@ public class CognitoAuthService {
         } catch (InvalidPasswordException exception) {
             throw new AuthFlowException(
                 HttpStatus.BAD_REQUEST,
-                "Choose a password with at least 8 characters, plus uppercase, lowercase, number, and special character."
+                passwordPolicyMessage()
             );
         } catch (TooManyRequestsException exception) {
             throw new AuthFlowException(HttpStatus.TOO_MANY_REQUESTS, "Too many attempts. Please wait a moment and try again.");
@@ -166,7 +167,7 @@ public class CognitoAuthService {
         } catch (InvalidPasswordException exception) {
             throw new AuthFlowException(
                 HttpStatus.BAD_REQUEST,
-                "Choose a password with at least 8 characters, plus uppercase, lowercase, number, and special character."
+                passwordPolicyMessage()
             );
         } catch (TooManyRequestsException exception) {
             throw new AuthFlowException(HttpStatus.TOO_MANY_REQUESTS, "Too many attempts. Please wait a moment and try again.");
@@ -263,6 +264,7 @@ public class CognitoAuthService {
 
         for (String candidate : candidates) {
             try {
+                revokeUserSessions(candidate);
                 cognitoClient.adminDeleteUser(AdminDeleteUserRequest.builder()
                     .userPoolId(authProperties.userPoolId())
                     .username(candidate)
@@ -305,6 +307,18 @@ public class CognitoAuthService {
         return candidates.stream()
             .filter(value -> value != null && !value.isBlank())
             .toList();
+    }
+
+    private void revokeUserSessions(String username) {
+        try {
+            cognitoClient.adminUserGlobalSignOut(AdminUserGlobalSignOutRequest.builder()
+                .userPoolId(authProperties.userPoolId())
+                .username(username)
+                .build());
+        } catch (CognitoIdentityProviderException exception) {
+            // Account deletion is the hard guarantee. Global sign-out is best-effort because
+            // some environments may not grant this optional Cognito action yet.
+        }
     }
 
     private List<String> findUsernameBySub(String cognitoSub) {
@@ -410,9 +424,13 @@ public class CognitoAuthService {
 
         String normalized = rawMessage.toLowerCase();
         if (normalized.contains("password")) {
-            return "Choose a password with at least 8 characters, plus uppercase, lowercase, number, and special character.";
+            return passwordPolicyMessage();
         }
 
         return rawMessage;
+    }
+
+    private String passwordPolicyMessage() {
+        return "Choose a password with at least 10 characters, plus uppercase, lowercase, and number.";
     }
 }

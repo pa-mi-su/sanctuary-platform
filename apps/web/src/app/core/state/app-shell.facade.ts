@@ -1,5 +1,6 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
+import { HttpErrorResponse } from '@angular/common/http';
 import { catchError, combineLatest, map, of, switchMap } from 'rxjs';
 
 import {
@@ -281,8 +282,11 @@ export class AppShellFacade {
 
   readonly userProfileResponse = toSignal(
     combineLatest([toObservable(this.authState), toObservable(this.userProfileReloadToken)]).pipe(
-      switchMap(([authState]) => authState.status === 'authenticated' ? this.api.getMe() : of<UserProfile | null>(null)),
-      catchError(() => of<UserProfile | null>(null)),
+      switchMap(([authState]) =>
+        authState.status === 'authenticated'
+          ? this.api.getMe().pipe(catchError((error) => this.handleSessionReadError<UserProfile | null>(error, null)))
+          : of<UserProfile | null>(null)
+      ),
     ),
     { initialValue: null },
   );
@@ -290,16 +294,22 @@ export class AppShellFacade {
 
   readonly userFavorites = toSignal(
     combineLatest([toObservable(this.authState), toObservable(this.userCollectionsReloadToken)]).pipe(
-      switchMap(([authState]) => authState.status === 'authenticated' ? this.api.listFavorites() : of<UserFavorite[]>([])),
-      catchError(() => of<UserFavorite[]>([])),
+      switchMap(([authState]) =>
+        authState.status === 'authenticated'
+          ? this.api.listFavorites().pipe(catchError((error) => this.handleSessionReadError<UserFavorite[]>(error, [])))
+          : of<UserFavorite[]>([])
+      ),
     ),
     { initialValue: [] },
   );
 
   readonly userNovenaCommitments = toSignal(
     combineLatest([toObservable(this.authState), toObservable(this.userCollectionsReloadToken)]).pipe(
-      switchMap(([authState]) => authState.status === 'authenticated' ? this.api.listNovenaCommitments() : of<UserNovenaCommitment[]>([])),
-      catchError(() => of<UserNovenaCommitment[]>([])),
+      switchMap(([authState]) =>
+        authState.status === 'authenticated'
+          ? this.api.listNovenaCommitments().pipe(catchError((error) => this.handleSessionReadError<UserNovenaCommitment[]>(error, [])))
+          : of<UserNovenaCommitment[]>([])
+      ),
     ),
     { initialValue: [] },
   );
@@ -580,10 +590,23 @@ export class AppShellFacade {
         this.deleteAccountPending.set(false);
         this.userProfileOverride.set(null);
         this.favoriteOverrides.set({});
+        this.localNovenaProgress.set({});
+        this.persistLocalNovenaProgress({});
         this.auth.logout();
         this.setTab('auth');
       },
-      error: () => {
+      error: (error) => {
+        if (this.isSessionRejected(error)) {
+          this.deleteAccountPending.set(false);
+          this.userProfileOverride.set(null);
+          this.favoriteOverrides.set({});
+          this.localNovenaProgress.set({});
+          this.persistLocalNovenaProgress({});
+          this.auth.logout();
+          this.setTab('auth');
+          return;
+        }
+
         this.deleteAccountPending.set(false);
         this.deleteAccountError.set(true);
         this.deleteAccountMessage.set(
@@ -595,6 +618,21 @@ export class AppShellFacade {
         );
       },
     });
+  }
+
+  private handleSessionReadError<T>(error: unknown, fallback: T) {
+    if (this.isSessionRejected(error)) {
+      this.userProfileOverride.set(null);
+      this.favoriteOverrides.set({});
+      this.auth.logout();
+      this.setTab('auth');
+    }
+
+    return of(fallback);
+  }
+
+  private isSessionRejected(error: unknown): boolean {
+    return error instanceof HttpErrorResponse && [401, 403, 404, 410].includes(error.status);
   }
 
   openLegalDocument(document: LegalDocumentType): void {
