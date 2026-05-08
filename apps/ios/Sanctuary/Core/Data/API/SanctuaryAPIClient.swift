@@ -5,6 +5,7 @@ enum SanctuaryAPIError: LocalizedError, Sendable {
     case invalidURL
     case missingAccessToken
     case server(message: String)
+    case serverStatus(statusCode: Int, message: String)
     case transport(message: String)
     case decoding(message: String)
 
@@ -16,7 +17,7 @@ enum SanctuaryAPIError: LocalizedError, Sendable {
             return "Sanctuary is not configured with a valid API URL."
         case .missingAccessToken:
             return "Please sign in to continue."
-        case .server(let message), .transport(let message), .decoding(let message):
+        case .server(let message), .serverStatus(_, let message), .transport(let message), .decoding(let message):
             return message
         }
     }
@@ -670,10 +671,13 @@ actor SanctuaryAPIClient {
         guard (200 ... 299).contains(httpResponse.statusCode) else {
             if let envelope = try? decoder.decode(APIErrorEnvelope.self, from: data),
                !envelope.message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                throw SanctuaryAPIError.server(message: envelope.message)
+                throw SanctuaryAPIError.serverStatus(statusCode: httpResponse.statusCode, message: envelope.message)
             }
 
-            throw SanctuaryAPIError.server(message: "Sanctuary could not complete that request right now.")
+            throw SanctuaryAPIError.serverStatus(
+                statusCode: httpResponse.statusCode,
+                message: "Sanctuary could not complete that request right now."
+            )
         }
     }
 }

@@ -18,6 +18,7 @@ import app.sanctuary.api.auth.dto.AuthSessionResponse;
 import app.sanctuary.api.auth.dto.AuthStatusResponse;
 import app.sanctuary.api.config.AuthProperties;
 import software.amazon.awssdk.services.cognitoidentityprovider.CognitoIdentityProviderClient;
+import software.amazon.awssdk.services.cognitoidentityprovider.model.AdminUserGlobalSignOutRequest;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.AttributeType;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.AuthFlowType;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.CodeDeliveryFailureException;
@@ -263,6 +264,7 @@ public class CognitoAuthService {
 
         for (String candidate : candidates) {
             try {
+                revokeUserSessions(candidate);
                 cognitoClient.adminDeleteUser(AdminDeleteUserRequest.builder()
                     .userPoolId(authProperties.userPoolId())
                     .username(candidate)
@@ -305,6 +307,18 @@ public class CognitoAuthService {
         return candidates.stream()
             .filter(value -> value != null && !value.isBlank())
             .toList();
+    }
+
+    private void revokeUserSessions(String username) {
+        try {
+            cognitoClient.adminUserGlobalSignOut(AdminUserGlobalSignOutRequest.builder()
+                .userPoolId(authProperties.userPoolId())
+                .username(username)
+                .build());
+        } catch (CognitoIdentityProviderException exception) {
+            // Account deletion is the hard guarantee. Global sign-out is best-effort because
+            // some environments may not grant this optional Cognito action yet.
+        }
     }
 
     private List<String> findUsernameBySub(String cognitoSub) {
