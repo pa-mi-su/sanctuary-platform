@@ -106,7 +106,7 @@ class UserAccountServiceTest {
 
         service.deleteAccount(currentUser);
 
-        verify(cognitoAuthService).deleteUser(currentUser.email());
+        verify(cognitoAuthService).deleteUser(currentUser.cognitoSub(), currentUser.email());
         verify(repository).deleteById(account.id());
     }
 }
