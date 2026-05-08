@@ -77,7 +77,7 @@ public class CognitoAuthService {
         } catch (InvalidPasswordException exception) {
             throw new AuthFlowException(
                 HttpStatus.BAD_REQUEST,
-                "Choose a password with at least 8 characters, plus uppercase, lowercase, number, and special character."
+                passwordPolicyMessage()
             );
         } catch (TooManyRequestsException exception) {
             throw new AuthFlowException(HttpStatus.TOO_MANY_REQUESTS, "Too many attempts. Please wait a moment and try again.");
@@ -166,7 +166,7 @@ public class CognitoAuthService {
         } catch (InvalidPasswordException exception) {
             throw new AuthFlowException(
                 HttpStatus.BAD_REQUEST,
-                "Choose a password with at least 8 characters, plus uppercase, lowercase, number, and special character."
+                passwordPolicyMessage()
             );
         } catch (TooManyRequestsException exception) {
             throw new AuthFlowException(HttpStatus.TOO_MANY_REQUESTS, "Too many attempts. Please wait a moment and try again.");
@@ -410,9 +410,13 @@ public class CognitoAuthService {
 
         String normalized = rawMessage.toLowerCase();
         if (normalized.contains("password")) {
-            return "Choose a password with at least 8 characters, plus uppercase, lowercase, number, and special character.";
+            return passwordPolicyMessage();
         }
 
         return rawMessage;
+    }
+
+    private String passwordPolicyMessage() {
+        return "Choose a password with at least 10 characters, plus uppercase, lowercase, and number.";
     }
 }
