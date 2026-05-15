@@ -191,8 +191,10 @@ struct SaintDetailView: View {
                 .padding(.bottom, 26)
             }
         }
-        .safeAreaInset(edge: .top) {
-            StickyBackHeader(title: displayName, action: handleBack)
+        .overlay(alignment: .topLeading) {
+            FloatingBackButton(action: handleBack)
+                .padding(.leading, 16)
+                .padding(.top, 8)
         }
         .leftEdgeSwipeBack(handleBack)
         .toolbar(.hidden, for: .navigationBar)
