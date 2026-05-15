@@ -22,6 +22,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -48,9 +49,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Language
@@ -110,6 +111,8 @@ import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -2934,18 +2937,72 @@ private fun SanctuaryModalSheet(
     content: @Composable ColumnScope.() -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val edgeWidthPx = with(LocalDensity.current) { 48.dp.toPx() }
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
         sheetState = sheetState
     ) {
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .fillMaxHeight(0.96f)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.Top
+                .pointerInput(onDismissRequest) {
+                    var startedAtLeftEdge = false
+                    var horizontalDrag = 0f
+                    var verticalDrag = 0f
+                    detectDragGestures(
+                        onDragStart = { offset ->
+                            startedAtLeftEdge = offset.x <= edgeWidthPx
+                            horizontalDrag = 0f
+                            verticalDrag = 0f
+                        },
+                        onDragEnd = {
+                            if (startedAtLeftEdge && horizontalDrag > 96f && kotlin.math.abs(verticalDrag) < 72f) {
+                                onDismissRequest()
+                            }
+                        },
+                        onDragCancel = {
+                            startedAtLeftEdge = false
+                            horizontalDrag = 0f
+                            verticalDrag = 0f
+                        },
+                        onDrag = { change, dragAmount ->
+                            if (startedAtLeftEdge) {
+                                horizontalDrag += dragAmount.x
+                                verticalDrag += dragAmount.y
+                                change.consume()
+                            }
+                        }
+                    )
+                }
         ) {
-            content()
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .fillMaxHeight()
+                    .verticalScroll(rememberScrollState())
+                    .padding(top = 52.dp),
+                verticalArrangement = Arrangement.Top
+            ) {
+                content()
+            }
+            Surface(
+                color = Color(0xCC102232),
+                shape = CircleShape,
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(top = 8.dp, start = 18.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.ArrowBack,
+                    contentDescription = "Back",
+                    tint = Color.White,
+                    modifier = Modifier
+                        .size(42.dp)
+                        .clickable(onClick = onDismissRequest)
+                        .padding(10.dp)
+                )
+            }
         }
     }
 }
@@ -2962,7 +3019,6 @@ private fun DetailErrorSheet(message: String, onDismiss: () -> Unit) {
     val l10n = sanctuaryStrings()
     DetailSheetScaffold(title = l10n.t("detail.loadErrorTitle")) {
         Banner(message.ifBlank { l10n.t("detail.loadErrorBody") }, isError = true)
-        PrimaryButton(l10n.t("common.close"), false, onClick = onDismiss)
     }
 }
 
@@ -3013,7 +3069,6 @@ private fun SaintDetailSheet(
                 Text("• ${source.title}", color = Color(0xFFD0DFEA), lineHeight = 20.sp)
             }
         }
-        PrimaryButton(l10n.t("common.close"), false, onClick = onDismiss)
     }
 }
 
@@ -3187,7 +3242,6 @@ private fun NovenaDetailSheet(
             }
         }
 
-        PrimaryButton(l10n.t("common.close"), false, onClick = onDismiss)
     }
 }
 
@@ -3243,7 +3297,6 @@ private fun PrayerDetailSheet(
         detail.note?.takeIf { it.isNotBlank() }?.let {
             Text(it, color = Color(0xFFD0DFEA), lineHeight = 22.sp)
         }
-        PrimaryButton(l10n.t("common.close"), false, onClick = onDismiss)
     }
 
     if (isShowingExpandedImage) {
@@ -3323,8 +3376,8 @@ private fun ExpandedPrayerImageDialog(
                     .padding(18.dp)
             ) {
                 Icon(
-                    imageVector = Icons.Filled.Close,
-                    contentDescription = "Close",
+                    imageVector = Icons.Filled.ArrowBack,
+                    contentDescription = "Back",
                     tint = Color.White,
                     modifier = Modifier
                         .size(44.dp)
@@ -3984,7 +4037,6 @@ private fun DailyReadingsSheet(
         subtitle = l10n.t("calendar.dailyReadingsSubtitle")
     ) {
         DailyReadingsWebView(url = url)
-        PrimaryButton(l10n.t("common.close"), false, onClick = onDismiss)
     }
 }
 

@@ -369,28 +369,6 @@ struct PrayerDetailView: View {
 
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 14) {
-                    HStack(spacing: 16) {
-                        Button { handleBack() } label: {
-                            Image(systemName: "arrow.left")
-                                .font(.system(size: 20, weight: .bold))
-                                .foregroundStyle(.white)
-                                .frame(width: 52, height: 52)
-                                .background(AppTheme.cardBackgroundSoft)
-                                .overlay(Circle().stroke(Color.white.opacity(0.12), lineWidth: 1))
-                                .clipShape(Circle())
-                        }
-                        .buttonStyle(.plain)
-                        .contentShape(Circle())
-                        .highPriorityGesture(TapGesture().onEnded { handleBack() })
-
-                        Text(title)
-                            .font(.system(size: 20, weight: .bold))
-                            .foregroundStyle(.white)
-                            .lineLimit(2)
-                    }
-                    .padding(.top, 8)
-                    .zIndex(10)
-
                     if let imageURL {
                         PrayerHeroImage(
                             url: imageURL,
@@ -413,6 +391,12 @@ struct PrayerDetailView: View {
                 .padding(.bottom, 24)
             }
         }
+        .overlay(alignment: .topLeading) {
+            FloatingBackButton(action: handleBack)
+                .padding(.leading, 16)
+                .padding(.top, 8)
+        }
+        .leftEdgeSwipeBack(handleBack)
         .toolbar(.hidden, for: .navigationBar)
         .fullScreenCover(isPresented: $isShowingExpandedHeroImage) {
             if let imageURL {
@@ -592,8 +576,8 @@ private struct ExpandedPrayerImageView: View {
             .ignoresSafeArea()
 
             Button(action: onDismiss) {
-                Image(systemName: "xmark")
-                    .font(.system(size: 17, weight: .bold))
+                Image(systemName: "arrow.left")
+                    .font(.system(size: 20, weight: .bold))
                     .foregroundStyle(.white)
                     .frame(width: 48, height: 48)
                     .background(Color.white.opacity(0.16))
@@ -601,7 +585,8 @@ private struct ExpandedPrayerImageView: View {
             }
             .buttonStyle(.plain)
             .padding(.top, 18)
-            .padding(.trailing, 18)
+            .padding(.leading, 18)
         }
+        .leftEdgeSwipeBack(onDismiss)
     }
 }
