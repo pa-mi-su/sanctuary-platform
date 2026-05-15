@@ -1,34 +1,21 @@
 import SwiftUI
 
-struct StickyBackHeader: View {
-    let title: String
+struct FloatingBackButton: View {
     let action: () -> Void
 
     var body: some View {
-        HStack(spacing: 14) {
-            Button(action: action) {
-                Image(systemName: "arrow.left")
-                    .font(.system(size: 20, weight: .bold))
-                    .foregroundStyle(.white)
-                    .frame(width: 52, height: 52)
-                    .background(AppTheme.cardBackgroundSoft)
-                    .overlay(Circle().stroke(Color.white.opacity(0.12), lineWidth: 1))
-                    .clipShape(Circle())
-            }
-            .buttonStyle(.plain)
-            .contentShape(Circle())
-
-            Text(title)
+        Button(action: action) {
+            Image(systemName: "arrow.left")
                 .font(.system(size: 20, weight: .bold))
                 .foregroundStyle(.white)
-                .lineLimit(2)
-
-            Spacer()
+                .frame(width: 52, height: 52)
+                .background(AppTheme.cardBackgroundSoft)
+                .overlay(Circle().stroke(Color.white.opacity(0.12), lineWidth: 1))
+                .clipShape(Circle())
+                .shadow(color: .black.opacity(0.22), radius: 14, x: 0, y: 8)
         }
-        .padding(.horizontal, 16)
-        .padding(.top, 8)
-        .padding(.bottom, 10)
-        .background(.ultraThinMaterial.opacity(0.75))
+        .buttonStyle(.plain)
+        .contentShape(Circle())
     }
 }
 
