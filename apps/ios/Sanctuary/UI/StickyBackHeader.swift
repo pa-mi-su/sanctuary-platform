@@ -33,17 +33,4 @@ extension View {
                 }
         )
     }
-
-    func swipeDownToDismiss(_ action: @escaping () -> Void) -> some View {
-        simultaneousGesture(
-            DragGesture(minimumDistance: 28, coordinateSpace: .local)
-                .onEnded { value in
-                    guard value.translation.height >= 120,
-                          abs(value.translation.width) < 90 else {
-                        return
-                    }
-                    action()
-                }
-        )
-    }
 }
