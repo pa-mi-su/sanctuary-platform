@@ -321,6 +321,7 @@ struct NovenaDetailView: View {
                 .padding(.top, 8)
         }
         .leftEdgeSwipeBack(handleBack)
+        .swipeDownToDismiss(handleBack)
         .toolbar(.hidden, for: .navigationBar)
         .onAppear {
             isFavorite = progressStore.isFavorite(itemType: .novena, itemID: novena.id)
