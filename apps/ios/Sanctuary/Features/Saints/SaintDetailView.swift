@@ -142,7 +142,7 @@ struct SaintDetailView: View {
                         }
                     }
 
-                            if !currentSaint.patronages.isEmpty {
+                    if !currentSaint.patronages.isEmpty {
                         DetailCard(title: localization.t("detail.patronages")) {
                             VStack(alignment: .leading, spacing: 8) {
                                 ForEach(currentSaint.patronages, id: \.self) { patronage in
@@ -161,27 +161,6 @@ struct SaintDetailView: View {
                                     Text("• \(prayer)")
                                         .font(AppTheme.rounded(17, weight: .medium))
                                         .foregroundStyle(AppTheme.cardText.opacity(0.9))
-                                }
-                            }
-                        }
-                    }
-
-                    if !sources.isEmpty {
-                        DetailCard(title: localization.t("detail.sources")) {
-                            VStack(alignment: .leading, spacing: 8) {
-                                ForEach(sources, id: \.self) { source in
-                                    if let url = URL(string: source), source.lowercased().hasPrefix("http") {
-                                        Link(destination: url) {
-                                            Text("• \(source)")
-                                                .font(AppTheme.rounded(15, weight: .medium))
-                                                .underline()
-                                                .foregroundStyle(AppTheme.cardText.opacity(0.9))
-                                        }
-                                    } else {
-                                        Text("• \(source)")
-                                            .font(AppTheme.rounded(15, weight: .medium))
-                                            .foregroundStyle(AppTheme.cardText.opacity(0.9))
-                                    }
                                 }
                             }
                         }
@@ -228,10 +207,6 @@ struct SaintDetailView: View {
 
     private var imageURL: URL? {
         currentSaint.imageURL
-    }
-
-    private var sources: [String] {
-        currentSaint.sources
     }
 }
 
