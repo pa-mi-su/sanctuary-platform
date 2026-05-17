@@ -197,7 +197,6 @@ struct SaintDetailView: View {
                 .padding(.top, 8)
         }
         .leftEdgeSwipeBack(handleBack)
-        .swipeDownToDismiss(handleBack)
         .toolbar(.hidden, for: .navigationBar)
         .task {
             async let loadedSaint: Saint? = Task.detached(priority: .userInitiated) {
