@@ -196,7 +196,12 @@ actor APIContentRepository: ContentRepository, SaintRangeRepository {
             summaryByLocale: localizedValueMap(value: response.summary ?? "", locale: locale),
             biographyByLocale: localizedValueMap(value: response.biography ?? "", locale: locale),
             prayersByLocale: [:],
-            sources: response.sources
+            sources: response.sources.map { source in
+                if let url = source.url?.trimmingCharacters(in: .whitespacesAndNewlines), !url.isEmpty {
+                    return "\(source.text) \(url)"
+                }
+                return source.text
+            }
         )
     }
 
