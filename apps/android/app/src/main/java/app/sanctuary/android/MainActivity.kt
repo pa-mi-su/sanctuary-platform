@@ -3057,16 +3057,14 @@ private fun SaintDetailSheet(
                 Text(if (isFavorite) l10n.t("detail.favorite.saved") else l10n.t("detail.favorite.add"))
             }
         }
-        detail.summary?.takeIf { it.isNotBlank() }?.let {
-            Text(it, color = Color.White, lineHeight = 24.sp)
+        detail.summary?.takeIf { it.isNotBlank() }?.let { summary ->
+            DetailSectionCard(title = l10n.t("detail.summary")) {
+                Text(summary, color = Color(0xFFD0DFEA), lineHeight = 22.sp)
+            }
         }
-        detail.biography?.takeIf { it.isNotBlank() }?.let {
-            Text(it, color = Color(0xFFD0DFEA), lineHeight = 22.sp)
-        }
-        if (detail.sources.isNotEmpty()) {
-            Text(l10n.t("detail.sources"), color = Color.White, fontWeight = FontWeight.SemiBold)
-            detail.sources.take(3).forEach { source ->
-                Text("• ${source.title}", color = Color(0xFFD0DFEA), lineHeight = 20.sp)
+        detail.biography?.takeIf { it.isNotBlank() }?.let { biography ->
+            DetailSectionCard(title = l10n.t("detail.biography")) {
+                Text(biography, color = Color(0xFFD0DFEA), lineHeight = 22.sp)
             }
         }
     }
@@ -3395,7 +3393,9 @@ private fun DetailSectionCard(
     content: @Composable ColumnScope.() -> Unit
 ) {
     Card(
-        modifier = Modifier.sanctuaryCardShadow(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .sanctuaryCardShadow(),
         colors = CardDefaults.cardColors(containerColor = SanctuaryCardElevated),
         shape = RoundedCornerShape(24.dp)
     ) {

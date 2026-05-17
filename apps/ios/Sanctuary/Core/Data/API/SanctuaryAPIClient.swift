@@ -163,7 +163,12 @@ struct APIContentSaintDetailResponse: Decodable, Sendable {
     let summary: String?
     let biography: String?
     let imageUrl: String?
-    let sources: [String]
+    let sources: [APIContentSaintSourceResponse]
+}
+
+struct APIContentSaintSourceResponse: Decodable, Sendable {
+    let text: String
+    let url: String?
 }
 
 struct APIContentNovenaSummaryResponse: Decodable, Sendable {

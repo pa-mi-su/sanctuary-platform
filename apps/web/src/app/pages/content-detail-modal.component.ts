@@ -45,11 +45,14 @@ type AppLanguage = 'en' | 'es' | 'pl';
             <div class="detail-meta">
               <span class="content-tag">{{ saintFeastDateLabel(saintDetail()!) }}</span>
               <span class="content-tag">{{ saintDetail()!.feastLabel }}</span>
-              <p>{{ saintDetail()!.summary }}</p>
             </div>
           </div>
-          <section class="detail-section">
-            <h3>Biography</h3>
+          <section class="detail-section detail-info-card">
+            <h3>{{ t('Summary', 'Resumen', 'Podsumowanie') }}</h3>
+            <p>{{ saintDetail()!.summary }}</p>
+          </section>
+          <section class="detail-section detail-info-card">
+            <h3>{{ t('Biography', 'Biografía', 'Biografia') }}</h3>
             <p>{{ saintDetail()!.biography }}</p>
           </section>
         </div>
