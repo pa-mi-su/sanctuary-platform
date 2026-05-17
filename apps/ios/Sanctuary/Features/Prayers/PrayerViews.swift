@@ -397,6 +397,7 @@ struct PrayerDetailView: View {
                 .padding(.top, 8)
         }
         .leftEdgeSwipeBack(handleBack)
+        .swipeDownToDismiss(handleBack)
         .toolbar(.hidden, for: .navigationBar)
         .fullScreenCover(isPresented: $isShowingExpandedHeroImage) {
             if let imageURL {
@@ -588,5 +589,6 @@ private struct ExpandedPrayerImageView: View {
             .padding(.leading, 18)
         }
         .leftEdgeSwipeBack(onDismiss)
+        .swipeDownToDismiss(onDismiss)
     }
 }
