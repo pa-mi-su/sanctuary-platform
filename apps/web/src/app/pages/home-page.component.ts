@@ -18,9 +18,9 @@ type AppLanguage = 'en' | 'es' | 'pl';
           </div>
 
           <h1>{{ t('Welcome to your sanctuary', 'Bienvenido a tu santuario', 'Witamy w twoim sanktuarium') }}</h1>
-          <p class="hero-question">{{ t('How do you want to connect with God today?', '¿Cómo quieres conectarte con Dios hoy?', 'Jak chcesz dzisiaj polaczyc sie z Bogiem?') }}</p>
+          <p class="hero-question">{{ t('Find daily readings, pray the Rosary, or search saints, novenas, prayers, and intentions from the paths below.', 'Encuentra las lecturas diarias, reza el Rosario o busca santos, novenas, oraciones e intenciones desde las opciones de abajo.', 'Znajdź czytania dnia, odmów Różaniec albo wyszukaj świętych, nowenny, modlitwy i intencje w opcjach poniżej.') }}</p>
           <p class="hero-copy-text">
-            {{ t('Prayer, liturgy, saints, and novenas in one calm place.', 'Oración, liturgia, santos y novenas en un solo lugar de paz.', 'Modlitwa, liturgia, swieci i nowenny w jednym spokojnym miejscu.') }}
+            {{ t('Use the tabs to explore the liturgical calendar, saint feast days, and novena schedule.', 'Usa las pestañas para explorar el calendario litúrgico, las fiestas de santos y el calendario de novenas.', 'Użyj kart, aby przeglądać kalendarz liturgiczny, dni wspomnień świętych i harmonogram nowenn.') }}
           </p>
         </div>
       </section>
