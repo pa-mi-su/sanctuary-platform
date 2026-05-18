@@ -24,6 +24,7 @@ import app.sanctuary.api.auth.dto.AuthResendCodeRequest;
 import app.sanctuary.api.auth.dto.AuthSessionResponse;
 import app.sanctuary.api.auth.dto.AuthStatusResponse;
 import app.sanctuary.api.auth.service.AuthFlowException;
+import app.sanctuary.api.auth.service.BlockedEmailDomainException;
 import app.sanctuary.api.auth.service.CognitoAuthService;
 
 @RestController
@@ -74,6 +75,12 @@ public class AuthController {
     @ExceptionHandler(AuthFlowException.class)
     public ResponseEntity<Map<String, String>> handleAuthFlowException(AuthFlowException exception) {
         return ResponseEntity.status(exception.status())
+            .body(Map.of("message", exception.getMessage()));
+    }
+
+    @ExceptionHandler(BlockedEmailDomainException.class)
+    public ResponseEntity<Map<String, String>> handleBlockedEmailDomainException(BlockedEmailDomainException exception) {
+        return ResponseEntity.badRequest()
             .body(Map.of("message", exception.getMessage()));
     }
 
