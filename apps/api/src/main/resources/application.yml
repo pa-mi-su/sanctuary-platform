@@ -17,3 +17,23 @@ sanctuary:
   auth:
     enabled: false
     audience: ""
+    abuse:
+      enabled: true
+      register:
+        max-attempts: 5
+        window: 1h
+      login:
+        max-attempts: 20
+        window: 15m
+      forgot-password:
+        max-attempts: 5
+        window: 1h
+      resend-confirmation:
+        max-attempts: 5
+        window: 1h
+      blocked-signup-domains:
+        - example.com
+        - example.org
+        - example.net
+        - test.com
+        - invalid.com
