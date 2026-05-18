@@ -16,6 +16,7 @@ import app.sanctuary.api.auth.dto.AuthRegistrationResponse;
 import app.sanctuary.api.auth.dto.AuthResetPasswordRequest;
 import app.sanctuary.api.auth.dto.AuthSessionResponse;
 import app.sanctuary.api.auth.dto.AuthStatusResponse;
+import app.sanctuary.api.config.AuthAbuseProtectionProperties;
 import app.sanctuary.api.config.AuthProperties;
 import software.amazon.awssdk.services.cognitoidentityprovider.CognitoIdentityProviderClient;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.AdminUserGlobalSignOutRequest;
@@ -46,16 +47,23 @@ public class CognitoAuthService {
 
     private final CognitoIdentityProviderClient cognitoClient;
     private final AuthProperties authProperties;
+    private final AuthAbuseProtectionProperties abuseProperties;
 
-    public CognitoAuthService(CognitoIdentityProviderClient cognitoClient, AuthProperties authProperties) {
+    public CognitoAuthService(
+        CognitoIdentityProviderClient cognitoClient,
+        AuthProperties authProperties,
+        AuthAbuseProtectionProperties abuseProperties
+    ) {
         this.cognitoClient = cognitoClient;
         this.authProperties = authProperties;
+        this.abuseProperties = abuseProperties;
     }
 
     public AuthRegistrationResponse register(AuthRegisterRequest request) {
         validateConfigured();
 
         String email = normalizedEmail(request.email());
+        ensureSignupDomainAllowed(email);
         String firstName = cleaned(request.firstName());
         String lastName = cleaned(request.lastName());
 
@@ -365,6 +373,14 @@ public class CognitoAuthService {
 
     private String normalizedEmail(String value) {
         return cleaned(value).toLowerCase();
+    }
+
+    private void ensureSignupDomainAllowed(String email) {
+        int atIndex = email.lastIndexOf('@');
+        String domain = atIndex < 0 ? "" : email.substring(atIndex + 1);
+        if (abuseProperties.blockedSignupDomains().contains(domain)) {
+            throw new BlockedEmailDomainException("Please use a real email address to create an account.");
+        }
     }
 
     private String displayName(String firstName, String lastName) {
