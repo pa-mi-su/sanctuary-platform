@@ -1,6 +1,7 @@
 package app.sanctuary.api.auth.service;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
 
 import org.junit.jupiter.api.Test;
 import software.amazon.awssdk.services.cognitoidentityprovider.CognitoIdentityProviderClient;
@@ -14,7 +15,7 @@ class CognitoAuthServiceTest {
     @Test
     void rejectsBlockedSignupEmailDomainsBeforeCallingCognito() {
         CognitoAuthService service = new CognitoAuthService(
-            CognitoIdentityProviderClient.builder().build(),
+            mock(CognitoIdentityProviderClient.class),
             new AuthProperties(true, "client-id", "pool-id", "client-id"),
             new AuthAbuseProtectionProperties()
         );
