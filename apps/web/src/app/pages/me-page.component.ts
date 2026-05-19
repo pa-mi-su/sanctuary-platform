@@ -129,6 +129,38 @@ type AppLanguage = 'en' | 'es' | 'pl';
             <p class="empty-copy">{{ t('No favorite saints yet.', 'Todavía no hay santos favoritos.', 'Nie masz jeszcze ulubionych swietych.') }}</p>
           }
         </article>
+
+        <article class="panel-card glass-subtle linked-card">
+          <div class="panel-heading">
+            <div>
+              <h3>{{ t('Favorite prayers', 'Oraciones favoritas', 'Ulubione modlitwy') }}</h3>
+              <p>{{ t('Keep the prayers you return to most in one place.', 'Mantén en un solo lugar las oraciones a las que más vuelves.', 'Zachowaj modlitwy, do ktorych wracasz najczesciej, w jednym miejscu.') }}</p>
+            </div>
+          </div>
+
+          @if (favoritePrayers.length) {
+            <div class="linked-list">
+              @for (item of favoritePrayers; track item.id) {
+                <button class="linked-row" type="button" (click)="openFavoritePrayer.emit(item)">
+                  <span class="linked-thumb" [class.linked-thumb--empty]="!item.imageUrl">
+                    @if (item.imageUrl) {
+                      <img [src]="item.imageUrl" [alt]="item.title" />
+                    } @else {
+                      <span>{{ item.title.charAt(0) }}</span>
+                    }
+                  </span>
+                  <span class="linked-copy">
+                    <strong>{{ item.title }}</strong>
+                    <small>{{ item.subtitle }}</small>
+                  </span>
+                  <span class="linked-arrow">→</span>
+                </button>
+              }
+            </div>
+          } @else {
+            <p class="empty-copy">{{ t('No favorite prayers yet.', 'Todavía no hay oraciones favoritas.', 'Nie masz jeszcze ulubionych modlitw.') }}</p>
+          }
+        </article>
       </section>
 
       <section class="detail-grid">
@@ -179,6 +211,7 @@ export class MePageComponent {
   @Input() activeNovenas: MeLinkedItem[] = [];
   @Input() favoriteNovenas: MeLinkedItem[] = [];
   @Input() favoriteSaints: MeLinkedItem[] = [];
+  @Input() favoritePrayers: MeLinkedItem[] = [];
   @Input() deleteAccountPending = false;
   @Input() deleteAccountMessage: string | null = null;
   @Input() deleteAccountError = false;
@@ -188,6 +221,7 @@ export class MePageComponent {
   @Output() readonly openActiveNovena = new EventEmitter<MeLinkedItem>();
   @Output() readonly openFavoriteNovena = new EventEmitter<MeLinkedItem>();
   @Output() readonly openFavoriteSaint = new EventEmitter<MeLinkedItem>();
+  @Output() readonly openFavoritePrayer = new EventEmitter<MeLinkedItem>();
 
   protected get initials(): string {
     const label = this.userName?.trim() || this.profile?.email?.trim() || 'S';

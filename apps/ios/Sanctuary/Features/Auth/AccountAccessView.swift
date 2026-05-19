@@ -65,9 +65,9 @@ struct AccountAccessView: View {
                         eyebrow: copy("Returning to Sanctuary", "Volver a Sanctuary", "Powrót do Sanctuary"),
                         title: copy("Login", "Iniciar sesión", "Logowanie"),
                         body: copy(
-                            "Sign in to your saved saints, novenas, and progress.",
-                            "Inicia sesión para volver a tus santos, novenas y progreso.",
-                            "Zaloguj sie do zapisanych swietych, nowenn i postepow."
+                            "Sign in to your saved saints, novenas, prayers, and progress.",
+                            "Inicia sesión para volver a tus santos, novenas, oraciones y progreso.",
+                            "Zaloguj sie do zapisanych swietych, nowenn, modlitw i postepow."
                         )
                     ) {
                         step = .login
@@ -101,7 +101,7 @@ struct AccountAccessView: View {
 
             VStack(alignment: .leading, spacing: 10) {
                 benefitLine(copy("Track novenas in progress", "Rastrea novenas en curso", "Śledź nowenny w toku"))
-                benefitLine(copy("Save favorite saints and novenas", "Guarda santos y novenas favoritas", "Zapisuj ulubionych świętych i nowenny"))
+                benefitLine(copy("Save favorite saints, novenas, and prayers", "Guarda santos, novenas y oraciones favoritas", "Zapisuj ulubionych świętych, nowenny i modlitwy"))
                 benefitLine(copy("Resume later on web, iOS, and Android", "Continúa luego en web, iOS y Android", "Wracaj później na web, iOS i Android"))
             }
             .padding(.top, 6)
