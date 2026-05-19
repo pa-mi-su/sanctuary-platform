@@ -160,10 +160,42 @@ public class UserAccountRepository {
     }
 
     public void deleteById(UUID userId) {
+        deleteOwnedUserData(userId);
         jdbcTemplate.update(
             """
                 DELETE FROM users
                 WHERE id = ?
+                """,
+            userId
+        );
+    }
+
+    private void deleteOwnedUserData(UUID userId) {
+        jdbcTemplate.update(
+            """
+                DELETE FROM user_activity_events
+                WHERE user_id = ?
+                """,
+            userId
+        );
+        jdbcTemplate.update(
+            """
+                DELETE FROM user_preferences
+                WHERE user_id = ?
+                """,
+            userId
+        );
+        jdbcTemplate.update(
+            """
+                DELETE FROM user_novena_commitments
+                WHERE user_id = ?
+                """,
+            userId
+        );
+        jdbcTemplate.update(
+            """
+                DELETE FROM user_favorites
+                WHERE user_id = ?
                 """,
             userId
         );

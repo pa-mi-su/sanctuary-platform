@@ -336,8 +336,20 @@ export class AppShellFacade {
     { initialValue: [] },
   );
 
+  readonly mePrayerCatalog = toSignal(
+    toObservable(this.language).pipe(
+      switchMap((language) =>
+        this.api.listPrayers(this.apiLanguage(language), '').pipe(
+          catchError(() => of<PrayerSummary[]>([])),
+        ),
+      ),
+    ),
+    { initialValue: [] },
+  );
+
   readonly favoriteNovenaCount = computed(() => this.isAuthenticated() ? this.favoriteCount('novena') : 0);
   readonly favoriteSaintCount = computed(() => this.isAuthenticated() ? this.favoriteCount('saint') : 0);
+  readonly favoritePrayerCount = computed(() => this.isAuthenticated() ? this.favoriteCount('prayer') : 0);
   readonly activeNovenaCommitmentCount = computed(() =>
     this.isAuthenticated()
       ? this.userNovenaCommitments().filter((commitment) => commitment.status === 'active').length
@@ -417,6 +429,27 @@ export class AppShellFacade {
         imageUrl: saint.imageUrl,
       }));
   });
+  readonly meFavoritePrayerItems = computed(() => {
+    if (!this.isAuthenticated()) {
+      return [];
+    }
+
+    const prayersById = new Map(
+      this.mePrayerCatalog().flatMap((prayer) => [[prayer.id, prayer] as const, [prayer.slug, prayer] as const]),
+    );
+    return this.userFavorites()
+      .filter((favorite) => favorite.itemType === 'prayer')
+      .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
+      .map((favorite) => prayersById.get(favorite.itemId))
+      .filter((prayer): prayer is PrayerSummary => Boolean(prayer))
+      .map((prayer) => ({
+        id: prayer.id,
+        slug: prayer.slug,
+        title: prayer.title,
+        subtitle: this.translate('Prayer', 'Oración', 'Modlitwa'),
+        imageUrl: prayer.imageUrl,
+      }));
+  });
   readonly selectedNovenaProgress = computed(() => {
     if (!this.isAuthenticated()) {
       return null;
@@ -432,6 +465,10 @@ export class AppShellFacade {
   readonly selectedNovenaIsFavorite = computed(() => {
     const novena = this.novenaDetail();
     return novena ? this.isFavorite('novena', novena.id) : false;
+  });
+  readonly selectedPrayerIsFavorite = computed(() => {
+    const prayer = this.prayerDetail();
+    return prayer ? this.isFavorite('prayer', prayer.id) : false;
   });
 
   constructor() {
@@ -867,6 +904,13 @@ export class AppShellFacade {
     }
   }
 
+  toggleSelectedPrayerFavorite(): void {
+    const prayer = this.prayerDetail();
+    if (prayer) {
+      this.toggleFavorite('prayer', prayer.id);
+    }
+  }
+
   closeDetailModal(): void {
     this.selectedSaintSlug.set(null);
     this.selectedPrayerSlug.set(null);
@@ -1295,6 +1339,14 @@ export class AppShellFacade {
     if (saint) {
       this.openSaintDetail(saint);
       this.setTab('saints');
+    }
+  }
+
+  openMeFavoritePrayer(item: MeLinkedItem): void {
+    const prayer = this.mePrayerCatalog().find((entry) => entry.id === item.id || entry.slug === item.slug);
+    if (prayer) {
+      this.setTab(prayer.category?.toLowerCase() === 'rosary' ? 'rosaries' : 'prayers');
+      this.openPrayerDetail(prayer);
     }
   }
 

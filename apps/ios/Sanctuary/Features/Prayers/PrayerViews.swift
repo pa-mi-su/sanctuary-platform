@@ -294,7 +294,9 @@ struct PrayerDetailView: View {
     let prayer: Prayer
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var localization: LocalizationManager
+    @EnvironmentObject private var progressStore: UserProgressStore
     @State private var currentPrayer: Prayer
+    @State private var isFavorite = false
     @State private var isShowingExpandedHeroImage = false
 
     init(contentRepository: any ContentRepository, prayer: Prayer) {
@@ -369,6 +371,33 @@ struct PrayerDetailView: View {
 
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 14) {
+                    if progressStore.isAuthenticated {
+                        Button {
+                            Task {
+                                await progressStore.toggleFavorite(itemType: .prayer, itemID: currentPrayer.id)
+                                isFavorite = progressStore.isFavorite(itemType: .prayer, itemID: currentPrayer.id)
+                            }
+                        } label: {
+                            HStack(spacing: 10) {
+                                Image(systemName: isFavorite ? "heart.fill" : "heart")
+                                Text(isFavorite ? localization.t("detail.savedFavorites") : localization.t("detail.addFavorites"))
+                            }
+                            .font(AppTheme.rounded(16, weight: .bold))
+                            .foregroundStyle(.white)
+                            .padding(.vertical, 13)
+                            .padding(.horizontal, 18)
+                            .frame(maxWidth: .infinity)
+                            .background(isFavorite ? AnyShapeStyle(AppTheme.primaryButtonGradient) : AnyShapeStyle(AppTheme.cardBackgroundSoft))
+                            .overlay(
+                                Capsule()
+                                    .stroke(Color.white.opacity(0.16), lineWidth: 1)
+                            )
+                            .clipShape(Capsule())
+                        }
+                        .buttonStyle(.plain)
+                        .animation(.spring(response: 0.32, dampingFraction: 0.82), value: isFavorite)
+                    }
+
                     if let imageURL {
                         PrayerHeroImage(
                             url: imageURL,
@@ -409,10 +438,15 @@ struct PrayerDetailView: View {
             do {
                 if let loaded = try await contentRepository.fetchPrayer(slug: prayer.slug, locale: locale) {
                     currentPrayer = loaded
+                    isFavorite = progressStore.isFavorite(itemType: .prayer, itemID: loaded.id)
                 }
             } catch {
                 currentPrayer = prayer
+                isFavorite = progressStore.isFavorite(itemType: .prayer, itemID: prayer.id)
             }
+        }
+        .onAppear {
+            isFavorite = progressStore.isFavorite(itemType: .prayer, itemID: currentPrayer.id)
         }
     }
 

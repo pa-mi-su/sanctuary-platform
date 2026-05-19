@@ -36,7 +36,7 @@ type AppLanguage = 'en' | 'es' | 'pl';
           @if (isAuthenticated()) {
             <div class="detail-actions">
               <button class="favorite-button" [class.active]="isSaintFavorite()" type="button" (click)="toggleSaintFavorite.emit()">
-                {{ isSaintFavorite() ? 'Favorited Saint' : 'Favorite Saint' }}
+                {{ isSaintFavorite() ? t('Saved to Favorites', 'Guardado en favoritos', 'Zapisano w ulubionych') : t('Add to Favorites', 'Agregar a favoritos', 'Dodaj do ulubionych') }}
               </button>
             </div>
           }
@@ -60,6 +60,13 @@ type AppLanguage = 'en' | 'es' | 'pl';
 
       @if (prayerDetail()) {
         <div class="detail-stack">
+          @if (isAuthenticated()) {
+            <div class="detail-actions">
+              <button class="favorite-button" [class.active]="isPrayerFavorite()" type="button" (click)="togglePrayerFavorite.emit()">
+                {{ isPrayerFavorite() ? t('Saved to Favorites', 'Guardado en favoritos', 'Zapisano w ulubionych') : t('Add to Favorites', 'Agregar a favoritos', 'Dodaj do ulubionych') }}
+              </button>
+            </div>
+          }
           <div class="detail-hero prayer-detail-hero">
             <div class="detail-image prayer-image" [style.background-image]="imageStyle(prayerDetail()!.imageUrl)"></div>
             <div class="detail-meta">
@@ -92,7 +99,7 @@ type AppLanguage = 'en' | 'es' | 'pl';
           @if (isAuthenticated()) {
             <div class="detail-actions">
               <button class="favorite-button" [class.active]="isNovenaFavorite()" type="button" (click)="toggleNovenaFavorite.emit()">
-                {{ isNovenaFavorite() ? 'Favorited Novena' : 'Favorite Novena' }}
+                {{ isNovenaFavorite() ? t('Saved to Favorites', 'Guardado en favoritos', 'Zapisano w ulubionych') : t('Add to Favorites', 'Agregar a favoritos', 'Dodaj do ulubionych') }}
               </button>
               @if (!novenaProgress()) {
                 <button class="primary-action" type="button" (click)="startNovena.emit()">Start Novena</button>
@@ -187,6 +194,7 @@ export class ContentDetailModalComponent {
   readonly isAuthenticated = input<boolean>(false);
   readonly isSaintFavorite = input<boolean>(false);
   readonly isNovenaFavorite = input<boolean>(false);
+  readonly isPrayerFavorite = input<boolean>(false);
 
   readonly close = output<void>();
   readonly selectNovenaDay = output<number>();
@@ -231,6 +239,7 @@ export class ContentDetailModalComponent {
   readonly completeNovenaDay = output<void>();
   readonly toggleSaintFavorite = output<void>();
   readonly toggleNovenaFavorite = output<void>();
+  readonly togglePrayerFavorite = output<void>();
 
   protected imageStyle(imageUrl: string | null | undefined): string | null {
     if (!imageUrl) {
