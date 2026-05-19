@@ -2964,12 +2964,31 @@ private fun SanctuaryModalSheet(
     val edgeWidthPx = with(LocalDensity.current) { 48.dp.toPx() }
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
-        sheetState = sheetState
+        sheetState = sheetState,
+        containerColor = Color.Transparent,
+        dragHandle = {
+            Box(
+                modifier = Modifier
+                    .padding(top = 12.dp, bottom = 8.dp)
+                    .width(42.dp)
+                    .height(5.dp)
+                    .background(Color.White.copy(alpha = 0.72f), RoundedCornerShape(999.dp))
+            )
+        }
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .fillMaxHeight(0.96f)
+                .background(
+                    Brush.linearGradient(
+                        listOf(
+                            SanctuaryGradientTop,
+                            SanctuaryGradientMid,
+                            SanctuaryGradientBottom
+                        )
+                    )
+                )
                 .pointerInput(onDismissRequest) {
                     var startedAtLeftEdge = false
                     var horizontalDrag = 0f
