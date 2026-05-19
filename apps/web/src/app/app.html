@@ -11,6 +11,7 @@
     [isAuthenticated]="facade.isAuthenticated()"
     [isSaintFavorite]="facade.selectedSaintIsFavorite()"
     [isNovenaFavorite]="facade.selectedNovenaIsFavorite()"
+    [isPrayerFavorite]="facade.selectedPrayerIsFavorite()"
     (close)="facade.closeDetailModal()"
     (selectNovenaDay)="facade.selectNovenaDay($event)"
     (startNovena)="facade.startSelectedNovena()"
@@ -18,6 +19,7 @@
     (completeNovenaDay)="facade.completeSelectedNovenaDay()"
     (toggleSaintFavorite)="facade.toggleSelectedSaintFavorite()"
     (toggleNovenaFavorite)="facade.toggleSelectedNovenaFavorite()"
+    (togglePrayerFavorite)="facade.toggleSelectedPrayerFavorite()"
   />
 }
 
@@ -220,6 +222,7 @@
         [activeNovenas]="facade.meActiveNovenaItems()"
         [favoriteNovenas]="facade.meFavoriteNovenaItems()"
         [favoriteSaints]="facade.meFavoriteSaintItems()"
+        [favoritePrayers]="facade.meFavoritePrayerItems()"
         [deleteAccountPending]="facade.deleteAccountPending()"
         [deleteAccountMessage]="facade.deleteAccountMessage()"
         [deleteAccountError]="facade.deleteAccountError()"
@@ -228,6 +231,7 @@
         (openActiveNovena)="facade.openMeActiveNovena($event)"
         (openFavoriteNovena)="facade.openMeFavoriteNovena($event)"
         (openFavoriteSaint)="facade.openMeFavoriteSaint($event)"
+        (openFavoritePrayer)="facade.openMeFavoritePrayer($event)"
       />
     }
   </main>
