@@ -8,6 +8,7 @@ struct MeView: View {
     @State private var selectedRoute: MeSelectionRoute?
     @State private var saintDetailsByID: [String: Saint] = [:]
     @State private var novenaDetailsByID: [String: Novena] = [:]
+    @State private var prayerDetailsByID: [String: Prayer] = [:]
     @State private var novenaReminderToggle = false
     @State private var dailyReminderToggle = false
     @State private var isSavingReminderPreferences = false
@@ -26,6 +27,7 @@ struct MeView: View {
                         inProgressCard
                         favoriteNovenasCard
                         favoriteSaintsCard
+                        favoritePrayersCard
                         deleteAccountCard
                     } else {
                         AccountAccessView()
@@ -46,6 +48,9 @@ struct MeView: View {
         }
         .task(id: novenaLookupKey) {
             await loadNovenaDetails()
+        }
+        .task(id: favoritePrayerLookupKey) {
+            await loadFavoritePrayerDetails()
         }
         .task(id: reminderPreferenceKey) {
             novenaReminderToggle = accountStore.profile?.novenaRemindersEnabled ?? false
@@ -74,6 +79,11 @@ struct MeView: View {
                         days: []
                     ),
                     onClose: { selectedRoute = nil }
+                )
+            case .prayer(let prayer):
+                PrayerDetailView(
+                    contentRepository: environment.contentRepository,
+                    prayer: prayer
                 )
             }
         }
@@ -242,6 +252,26 @@ struct MeView: View {
         }
     }
 
+    private var favoritePrayersCard: some View {
+        MeCard(title: localization.t("me.favoritePrayers")) {
+            if favoritePrayers.isEmpty {
+                Text(localization.t("me.noneFavoritePrayers"))
+                    .font(AppTheme.rounded(16, weight: .medium))
+                    .foregroundStyle(AppTheme.cardText.opacity(0.85))
+            } else {
+                VStack(spacing: 10) {
+                    ForEach(favoritePrayers, id: \.itemID) { favorite in
+                        accountLinkedRow(title: prayerTitle(for: favorite.itemID), subtitle: nil) {
+                            Task {
+                                await openFavoritePrayer(favorite.itemID)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     private var deleteAccountCard: some View {
         MeCard(title: localization.t("me.deleteAccount.title")) {
             VStack(alignment: .leading, spacing: 12) {
@@ -365,6 +395,10 @@ struct MeView: View {
         progressStore.favorites(for: .saint)
     }
 
+    private var favoritePrayers: [UserFavorite] {
+        progressStore.favorites(for: .prayer)
+    }
+
     private var resolvedDisplayName: String {
         let firstAndLast = [
             accountStore.profile?.firstName?.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -421,6 +455,13 @@ struct MeView: View {
             ?? id
     }
 
+    private func prayerTitle(for id: String) -> String {
+        let locale = localization.language.contentLocale
+        return prayerDetailsByID[id]?.titleByLocale[locale]
+            ?? prayerDetailsByID[id]?.titleByLocale[.en]
+            ?? formattedFavoritePrayerName(from: id)
+    }
+
     private var favoriteSaintLookupKey: String {
         ([localization.language.contentLocale.rawValue] + favoriteSaints.map(\.itemID).sorted()).joined(separator: "|")
     }
@@ -434,6 +475,10 @@ struct MeView: View {
     private var novenaLookupKey: String {
         let allIDs = progressStore.activeCommitments.map(\.novenaID) + favoriteNovenas.map(\.itemID)
         return ([localization.language.contentLocale.rawValue] + allIDs.sorted()).joined(separator: "|")
+    }
+
+    private var favoritePrayerLookupKey: String {
+        ([localization.language.contentLocale.rawValue] + favoritePrayers.map(\.itemID).sorted()).joined(separator: "|")
     }
 
     private func novenaDuration(for id: String) -> Int {
@@ -474,6 +519,41 @@ struct MeView: View {
         saintDetailsByID = resolvedSaints
     }
 
+    private func loadFavoritePrayerDetails() async {
+        guard !favoritePrayers.isEmpty else {
+            prayerDetailsByID = [:]
+            return
+        }
+
+        let locale = localization.language.contentLocale
+        var resolvedPrayers: [String: Prayer] = [:]
+
+        if let summaries = try? await environment.contentRepository.listPrayers(
+            locale: locale,
+            category: nil,
+            query: nil
+        ) {
+            let favoritesByID = Set(favoritePrayers.map(\.itemID))
+            for prayer in summaries where favoritesByID.contains(prayer.id) || favoritesByID.contains(prayer.slug) {
+                resolvedPrayers[prayer.id] = prayer
+                resolvedPrayers[prayer.slug] = prayer
+            }
+        }
+
+        prayerDetailsByID = resolvedPrayers
+
+        for favorite in favoritePrayers {
+            let slug = resolvedPrayers[favorite.itemID]?.slug ?? favorite.itemID
+            if let prayer = try? await environment.contentRepository.fetchPrayer(slug: slug, locale: locale) {
+                resolvedPrayers[favorite.itemID] = prayer
+                resolvedPrayers[prayer.id] = prayer
+                resolvedPrayers[prayer.slug] = prayer
+            }
+        }
+
+        prayerDetailsByID = resolvedPrayers
+    }
+
     private func openFavoriteSaint(_ id: String) async {
         if let saint = saintDetailsByID[id] {
             selectedRoute = .saint(saint: saint)
@@ -484,6 +564,19 @@ struct MeView: View {
 
         if let saint = saintDetailsByID[id] {
             selectedRoute = .saint(saint: saint)
+        }
+    }
+
+    private func openFavoritePrayer(_ id: String) async {
+        if let prayer = prayerDetailsByID[id] {
+            selectedRoute = .prayer(prayer: prayer)
+            return
+        }
+
+        await loadFavoritePrayerDetails()
+
+        if let prayer = prayerDetailsByID[id] {
+            selectedRoute = .prayer(prayer: prayer)
         }
     }
 
@@ -507,6 +600,22 @@ struct MeView: View {
             .map { token in
                 let lower = token.lowercased()
                 guard let first = lower.first else { return token }
+                return first.uppercased() + lower.dropFirst()
+            }
+            .joined(separator: " ")
+    }
+
+    private func formattedFavoritePrayerName(from id: String) -> String {
+        let trimmed = id.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return id }
+
+        return trimmed
+            .replacingOccurrences(of: "_", with: " ")
+            .replacingOccurrences(of: "-", with: " ")
+            .split(whereSeparator: \.isWhitespace)
+            .map { token in
+                let lower = token.lowercased()
+                guard let first = lower.first else { return String(token) }
                 return first.uppercased() + lower.dropFirst()
             }
             .joined(separator: " ")
@@ -641,6 +750,7 @@ struct MeView_Previews: PreviewProvider {
 private enum MeSelectionRoute: Identifiable {
     case saint(saint: Saint)
     case novena(id: String)
+    case prayer(prayer: Prayer)
 
     var id: String {
         switch self {
@@ -648,6 +758,8 @@ private enum MeSelectionRoute: Identifiable {
             return "saint:\(saint.id)"
         case .novena(let id):
             return "novena:\(id)"
+        case .prayer(let prayer):
+            return "prayer:\(prayer.id)"
         }
     }
 }
