@@ -2964,12 +2964,31 @@ private fun SanctuaryModalSheet(
     val edgeWidthPx = with(LocalDensity.current) { 48.dp.toPx() }
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
-        sheetState = sheetState
+        sheetState = sheetState,
+        containerColor = Color.Transparent,
+        dragHandle = {
+            Box(
+                modifier = Modifier
+                    .padding(top = 12.dp, bottom = 8.dp)
+                    .width(42.dp)
+                    .height(5.dp)
+                    .background(Color.White.copy(alpha = 0.72f), RoundedCornerShape(999.dp))
+            )
+        }
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .fillMaxHeight(0.96f)
+                .background(
+                    Brush.linearGradient(
+                        listOf(
+                            SanctuaryGradientTop,
+                            SanctuaryGradientMid,
+                            SanctuaryGradientBottom
+                        )
+                    )
+                )
                 .pointerInput(onDismissRequest) {
                     var startedAtLeftEdge = false
                     var horizontalDrag = 0f
@@ -3284,24 +3303,6 @@ private fun PrayerDetailSheet(
         title = detail.title,
         subtitle = visiblePrayerCategory(detail.category)
     ) {
-        if (session.status == SessionStatus.Authenticated) {
-            Button(
-                onClick = { onToggleFavorite(FavoriteItemType.Prayer, detail.id) },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isFavorite) Color(0xFF5CAED4) else Color(0xFF22394C)
-                ),
-                shape = RoundedCornerShape(18.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.Favorite,
-                    contentDescription = null,
-                    tint = Color.White
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(if (isFavorite) l10n.t("detail.favorite.saved") else l10n.t("detail.favorite.add"))
-            }
-        }
         Box {
             ThumbnailImage(
                 imageUrl = detail.imageUrl,
@@ -3337,9 +3338,32 @@ private fun PrayerDetailSheet(
                 }
             }
         }
-        Text(bodyText, color = Color.White, lineHeight = 24.sp)
-        detail.note?.takeIf { it.isNotBlank() }?.let {
-            Text(it, color = Color(0xFFD0DFEA), lineHeight = 22.sp)
+        DetailSectionCard(title = detail.title) {
+            if (session.status == SessionStatus.Authenticated) {
+                Button(
+                    onClick = { onToggleFavorite(FavoriteItemType.Prayer, detail.id) },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (isFavorite) Color(0xFF5CAED4) else Color(0xFF22394C),
+                        contentColor = Color.White
+                    ),
+                    shape = RoundedCornerShape(18.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Favorite,
+                        contentDescription = null,
+                        tint = Color.White
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(if (isFavorite) l10n.t("detail.favorite.saved") else l10n.t("detail.favorite.add"))
+                }
+            }
+            detail.note?.takeIf { it.isNotBlank() }?.let {
+                Text(it, color = Color(0xFFD0DFEA), lineHeight = 22.sp)
+            }
+        }
+        DetailSectionCard(title = l10n.t("detail.prayer")) {
+            Text(bodyText, color = Color(0xFFD0DFEA), lineHeight = 24.sp)
         }
     }
 

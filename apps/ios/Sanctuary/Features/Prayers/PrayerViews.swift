@@ -371,33 +371,6 @@ struct PrayerDetailView: View {
 
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 14) {
-                    if progressStore.isAuthenticated {
-                        Button {
-                            Task {
-                                await progressStore.toggleFavorite(itemType: .prayer, itemID: currentPrayer.id)
-                                isFavorite = progressStore.isFavorite(itemType: .prayer, itemID: currentPrayer.id)
-                            }
-                        } label: {
-                            HStack(spacing: 10) {
-                                Image(systemName: isFavorite ? "heart.fill" : "heart")
-                                Text(isFavorite ? localization.t("detail.savedFavorites") : localization.t("detail.addFavorites"))
-                            }
-                            .font(AppTheme.rounded(16, weight: .bold))
-                            .foregroundStyle(.white)
-                            .padding(.vertical, 13)
-                            .padding(.horizontal, 18)
-                            .frame(maxWidth: .infinity)
-                            .background(isFavorite ? AnyShapeStyle(AppTheme.primaryButtonGradient) : AnyShapeStyle(AppTheme.cardBackgroundSoft))
-                            .overlay(
-                                Capsule()
-                                    .stroke(Color.white.opacity(0.16), lineWidth: 1)
-                            )
-                            .clipShape(Capsule())
-                        }
-                        .buttonStyle(.plain)
-                        .animation(.spring(response: 0.32, dampingFraction: 0.82), value: isFavorite)
-                    }
-
                     if let imageURL {
                         PrayerHeroImage(
                             url: imageURL,
@@ -406,11 +379,55 @@ struct PrayerDetailView: View {
                         )
                     }
 
-                    PrayerSectionCard(title: localization.t("novena.prayer"), bodyText: prayerText)
+                    VStack(alignment: .leading, spacing: 14) {
+                        Text(title)
+                            .font(AppTheme.rounded(48, weight: .bold))
+                            .minimumScaleFactor(0.58)
+                            .foregroundStyle(.white)
 
-                    if !noteText.isEmpty {
-                        PrayerSectionCard(title: localization.t("detail.note"), bodyText: noteText)
+                        if progressStore.isAuthenticated {
+                            HStack(spacing: 10) {
+                                Button {
+                                    Task {
+                                        await progressStore.toggleFavorite(itemType: .prayer, itemID: currentPrayer.id)
+                                        isFavorite = progressStore.isFavorite(itemType: .prayer, itemID: currentPrayer.id)
+                                    }
+                                } label: {
+                                    HStack(spacing: 10) {
+                                        Image(systemName: isFavorite ? "heart.fill" : "heart")
+                                        Text(isFavorite ? localization.t("detail.savedFavorites") : localization.t("detail.addFavorites"))
+                                    }
+                                    .font(AppTheme.rounded(16, weight: .semibold))
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 18)
+                                    .padding(.vertical, 12)
+                                    .background(isFavorite ? AnyShapeStyle(AppTheme.primaryButtonGradient) : AnyShapeStyle(AppTheme.cardBackgroundSoft))
+                                    .overlay(
+                                        Capsule()
+                                            .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                                    )
+                                    .clipShape(Capsule())
+                                }
+                                .buttonStyle(.plain)
+                                .animation(.spring(response: 0.32, dampingFraction: 0.82), value: isFavorite)
+
+                                Spacer()
+                            }
+                        }
+
+                        VStack(alignment: .leading, spacing: 10) {
+                            if !noteText.isEmpty {
+                                Text(noteText)
+                                    .font(AppTheme.rounded(18, weight: .medium))
+                                    .foregroundStyle(.white.opacity(0.95))
+                                    .padding(.top, 2)
+                            }
+                        }
                     }
+                    .padding(20)
+                    .appGlassCard(cornerRadius: 28)
+
+                    PrayerSectionCard(title: localization.t("novena.prayer"), bodyText: prayerText)
 
                     if !sourceTitle.isEmpty {
                         detailMetaChip(icon: "book.closed", text: sourceTitle)
