@@ -60,29 +60,30 @@ type AppLanguage = 'en' | 'es' | 'pl';
 
       @if (prayerDetail()) {
         <div class="detail-stack">
-          @if (isAuthenticated()) {
-            <div class="detail-actions">
-              <button class="favorite-button" [class.active]="isPrayerFavorite()" type="button" (click)="togglePrayerFavorite.emit()">
-                {{ isPrayerFavorite() ? t('Saved to Favorites', 'Guardado en favoritos', 'Zapisano w ulubionych') : t('Add to Favorites', 'Agregar a favoritos', 'Dodaj do ulubionych') }}
-              </button>
-            </div>
-          }
           <div class="detail-hero prayer-detail-hero">
             <div class="detail-image prayer-image" [style.background-image]="imageStyle(prayerDetail()!.imageUrl)"></div>
-            <div class="detail-meta">
+          </div>
+          <section class="detail-section detail-info-card prayer-info-card">
+            <h3>{{ prayerDetail()!.title }}</h3>
+            @if (isAuthenticated()) {
+              <div class="detail-actions">
+                <button class="favorite-button" [class.active]="isPrayerFavorite()" type="button" (click)="togglePrayerFavorite.emit()">
+                  {{ isPrayerFavorite() ? t('Saved to Favorites', 'Guardado en favoritos', 'Zapisano w ulubionych') : t('Add to Favorites', 'Agregar a favoritos', 'Dodaj do ulubionych') }}
+                </button>
+              </div>
+            }
+            <div class="detail-meta prayer-info-meta">
               @if (prayerMeta(prayerDetail()!); as category) {
                 <span class="content-tag">{{ category }}</span>
               }
-              <p>{{ prayerDetail()!.alternateTitle }}</p>
             </div>
-          </div>
-          <section class="detail-section">
+            @if (prayerDetail()!.note) {
+              <p>{{ prayerDetail()!.note }}</p>
+            }
+          </section>
+          <section class="detail-section detail-info-card">
             <h3>Prayer</h3>
             <p class="detail-copy">{{ displayPrayerBody(prayerDetail()!) }}</p>
-          </section>
-          <section class="detail-section">
-            <h3>Note</h3>
-            <p>{{ prayerDetail()!.note }}</p>
           </section>
           @if (prayerDetail()!.tags.length) {
             <section class="detail-chip-row">
