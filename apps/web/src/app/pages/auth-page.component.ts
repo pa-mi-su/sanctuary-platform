@@ -21,7 +21,7 @@ type AuthStep = 'landing' | 'login' | 'register' | 'confirm' | 'forgot' | 'reset
 
           <ul class="benefit-list">
             <li>{{ t('Track novenas in progress', 'Rastrea novenas en curso', 'Sledz rozpoczete nowenny') }}</li>
-            <li>{{ t('Save favorite saints and novenas', 'Guarda santos y novenas favoritas', 'Zapisuj ulubionych swietych i nowenny') }}</li>
+            <li>{{ t('Save favorite saints, novenas, and prayers', 'Guarda santos, novenas y oraciones favoritas', 'Zapisuj ulubionych swietych, nowenny i modlitwy') }}</li>
             <li>{{ t('Resume later on web, iOS, and Android', 'Continúa luego en web, iOS y Android', 'Wracaj pozniej na web, iOS i Android') }}</li>
           </ul>
         </div>
@@ -46,7 +46,7 @@ type AuthStep = 'landing' | 'login' | 'register' | 'confirm' | 'forgot' | 'reset
               <button class="choice-card" type="button" [disabled]="pending()" (click)="step.set('login')">
                 <span class="choice-card__eyebrow">{{ t('Returning to Sanctuary', 'Volver a Sanctuary', 'Powrót do Sanctuary') }}</span>
                 <strong>{{ t('Login', 'Iniciar sesión', 'Logowanie') }}</strong>
-                <small>{{ t('Sign in to your saved saints, novenas, and progress.', 'Inicia sesión para volver a tus santos, novenas y progreso.', 'Zaloguj sie do zapisanych swietych, nowenn i postepow.') }}</small>
+                <small>{{ t('Sign in to your saved saints, novenas, prayers, and progress.', 'Inicia sesión para volver a tus santos, novenas, oraciones y progreso.', 'Zaloguj sie do zapisanych swietych, nowenn, modlitw i postepow.') }}</small>
               </button>
 
               <button class="choice-card choice-card--register" type="button" [disabled]="pending()" (click)="step.set('register')">

@@ -73,6 +73,8 @@ data class NovenaProgressUiState(
     val saintSlugs: Map<String, String> = emptyMap(),
     val novenaTitles: Map<String, String> = emptyMap(),
     val novenaDurations: Map<String, Int> = emptyMap(),
+    val prayerTitles: Map<String, String> = emptyMap(),
+    val prayerSlugs: Map<String, String> = emptyMap(),
     val isLoading: Boolean = false,
     val error: String? = null
 )
@@ -590,9 +592,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                             val novenaIds = (commitments.map { it.novenaId } + favorites.filter { it.itemType == FavoriteItemType.Novena }.map { it.itemId })
                                 .distinct()
                             val saintIds = favorites.filter { it.itemType == FavoriteItemType.Saint }.map { it.itemId }.distinct()
+                            val prayerIds = favorites.filter { it.itemType == FavoriteItemType.Prayer }.map { it.itemId }.distinct()
 
                             val novenaDetails = novenaIds.associateWith { id ->
                                 runCatching { repository.fetchNovenaDetail(id) }.getOrNull()
+                            }
+                            val prayerDetails = prayerIds.associateWith { id ->
+                                runCatching { repository.fetchPrayerDetail(id) }.getOrNull()
                             }
                             val allSaints = runCatching { repository.listSaints("") }.getOrNull().orEmpty()
                             val saintDetails = saintIds.associateWith { id ->
@@ -621,6 +627,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                                 saintSlugs = saintSlugs,
                                 novenaTitles = novenaDetails.mapNotNull { (id, detail) -> detail?.let { id to it.title } }.toMap(),
                                 novenaDurations = novenaDetails.mapNotNull { (id, detail) -> detail?.let { id to it.durationDays } }.toMap(),
+                                prayerTitles = prayerDetails.mapNotNull { (id, detail) -> detail?.let { id to it.title } }.toMap(),
+                                prayerSlugs = prayerDetails.mapNotNull { (id, detail) -> detail?.let { id to it.slug } }.toMap(),
                                 isLoading = false
                             )
                         }.onFailure { failure ->
@@ -631,6 +639,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                                 saintSlugs = emptyMap(),
                                 novenaTitles = emptyMap(),
                                 novenaDurations = emptyMap(),
+                                prayerTitles = emptyMap(),
+                                prayerSlugs = emptyMap(),
                                 isLoading = false,
                                 error = failure.message
                             )
@@ -643,6 +653,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         saintSlugs = emptyMap(),
                         novenaTitles = emptyMap(),
                         novenaDurations = emptyMap(),
+                        prayerTitles = emptyMap(),
+                        prayerSlugs = emptyMap(),
                         isLoading = false,
                         error = failure.message
                     )

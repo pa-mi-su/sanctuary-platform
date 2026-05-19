@@ -997,6 +997,7 @@ private fun AuthenticatedShell(
                                 progress = novenaProgress,
                                 onOpenNovena = onOpenNovena,
                                 onOpenSaint = onOpenSaint,
+                                onOpenPrayer = onOpenPrayer,
                                 onLogout = onLogout,
                                 onDeleteAccount = onDeleteAccount,
                                 onUpdateReminderPreferences = onUpdateReminderPreferences
@@ -1232,6 +1233,9 @@ private fun AuthenticatedShell(
                     prayerDetail.error != null -> DetailErrorSheet(prayerDetail.error, onClosePrayerDetail)
                     prayerDetail.item != null -> PrayerDetailSheet(
                         detail = prayerDetail.item,
+                        session = session,
+                        progress = novenaProgress,
+                        onToggleFavorite = onToggleFavorite,
                         onDismiss = onClosePrayerDetail
                     )
                 }
@@ -1514,6 +1518,7 @@ private fun HomeCard(session: SessionUiState) {
             ProfileMetric(l10n.t("me.metric.activeNovenas"), profile?.activeNovenaCount ?: 0)
             ProfileMetric(l10n.t("me.metric.favoriteNovenas"), profile?.favoriteNovenaCount ?: 0)
             ProfileMetric(l10n.t("me.metric.favoriteSaints"), profile?.favoriteSaintCount ?: 0)
+            ProfileMetric(l10n.t("me.metric.favoritePrayers"), profile?.favoritePrayerCount ?: 0)
             if (BuildConfig.ENVIRONMENT != "prod") {
                 ProfileMetric(l10n.t("me.metric.environment"), BuildConfig.ENVIRONMENT.uppercase())
             }
@@ -1527,6 +1532,7 @@ private fun MeScreen(
     progress: NovenaProgressUiState,
     onOpenNovena: (String) -> Unit,
     onOpenSaint: (String) -> Unit,
+    onOpenPrayer: (String) -> Unit,
     onLogout: () -> Unit,
     onDeleteAccount: () -> Unit,
     onUpdateReminderPreferences: (Boolean, Boolean) -> Unit
@@ -1536,6 +1542,7 @@ private fun MeScreen(
     val profile = session.profile
     val favoriteNovenas = progress.favorites.filter { it.itemType == FavoriteItemType.Novena }
     val favoriteSaints = progress.favorites.filter { it.itemType == FavoriteItemType.Saint }
+    val favoritePrayers = progress.favorites.filter { it.itemType == FavoriteItemType.Prayer }
     val novenaReminderToggle = profile?.novenaRemindersEnabled == true
     val dailyReminderToggle = profile?.feastRemindersEnabled == true
     var pendingReminderUpdate by remember { mutableStateOf<Pair<Boolean, Boolean>?>(null) }
@@ -1699,6 +1706,23 @@ private fun MeScreen(
                                 ?: favorite.itemId.replace("_", " ").replace("-", " ").replaceFirstChar { it.uppercase() },
                             subtitle = null,
                             onClick = { onOpenSaint(progress.saintSlugs[favorite.itemId] ?: favorite.itemId) }
+                        )
+                    }
+                }
+            }
+        }
+
+        MeSectionCard(title = l10n.t("me.favoritePrayers")) {
+            if (favoritePrayers.isEmpty()) {
+                Text(l10n.t("me.noneFavoritePrayers"), color = Color(0xFFD0DFEA))
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    favoritePrayers.forEach { favorite ->
+                        LinkedMeRow(
+                            title = progress.prayerTitles[favorite.itemId]
+                                ?: favorite.itemId.replace("_", " ").replace("-", " ").replaceFirstChar { it.uppercase() },
+                            subtitle = null,
+                            onClick = { onOpenPrayer(progress.prayerSlugs[favorite.itemId] ?: favorite.itemId) }
                         )
                     }
                 }
@@ -3246,16 +3270,38 @@ private fun NovenaDetailSheet(
 @Composable
 private fun PrayerDetailSheet(
     detail: PrayerDetail,
+    session: SessionUiState,
+    progress: NovenaProgressUiState,
+    onToggleFavorite: (FavoriteItemType, String) -> Unit,
     onDismiss: () -> Unit
 ) {
     val l10n = sanctuaryStrings()
     val bodyText = displayPrayerBody(detail)
     var isShowingExpandedImage by rememberSaveable { mutableStateOf(false) }
     val canExpandHeroImage = detail.slug == "how_to_pray_the_rosary"
+    val isFavorite = progress.favorites.any { it.itemType == FavoriteItemType.Prayer && it.itemId == detail.id }
     DetailSheetScaffold(
         title = detail.title,
         subtitle = visiblePrayerCategory(detail.category)
     ) {
+        if (session.status == SessionStatus.Authenticated) {
+            Button(
+                onClick = { onToggleFavorite(FavoriteItemType.Prayer, detail.id) },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (isFavorite) Color(0xFF5CAED4) else Color(0xFF22394C)
+                ),
+                shape = RoundedCornerShape(18.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Favorite,
+                    contentDescription = null,
+                    tint = Color.White
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(if (isFavorite) l10n.t("detail.favorite.saved") else l10n.t("detail.favorite.add"))
+            }
+        }
         Box {
             ThumbnailImage(
                 imageUrl = detail.imageUrl,
