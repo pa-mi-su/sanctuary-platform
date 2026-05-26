@@ -109,10 +109,22 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
+      - name: Capture current ECS production task definition
+        run: |
+          current_task_definition="$(aws ecs describe-services \
+            --cluster "${API_ECS_CLUSTER}" \
+            --services "${API_ECS_SERVICE_NAME}" \
+            --region "${AWS_REGION}" \
+            | jq -r '.services[0].deployments[] | select(.status == "PRIMARY") | .taskDefinition')"
+
+          echo "PRE_DEPLOY_TASK_DEFINITION=${current_task_definition}" >> "$GITHUB_ENV"
+          echo "Current production task definition: ${current_task_definition}"
+
       - name: Build and push API image
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
+          echo "EXPECTED_API_IMAGE=${ECR_REGISTRY}/${API_ECR_REPOSITORY}:${IMAGE_TAG}" >> "$GITHUB_ENV"
           docker build -t "${ECR_REGISTRY}/${API_ECR_REPOSITORY}:${IMAGE_TAG}" -f apps/api/Dockerfile apps/api
           docker tag "${ECR_REGISTRY}/${API_ECR_REPOSITORY}:${IMAGE_TAG}" "${ECR_REGISTRY}/${API_ECR_REPOSITORY}:latest"
           docker push "${ECR_REGISTRY}/${API_ECR_REPOSITORY}:${IMAGE_TAG}"
@@ -151,3 +163,49 @@ jobs:
           max-task-count: 1
           subnets: subnet-0141079721351edf8,subnet-0dffd2400e13f49e4,subnet-02b055fa01680e51e,subnet-0fff729ae97ed1f58,subnet-0ffe1c33e4e0b665d,subnet-0cebbe66387ecc218
           security-groups: sg-000f4021f05813471
+
+      - name: Wait for ECS production service to stabilize
+        run: |
+          aws ecs wait services-stable \
+            --cluster "${API_ECS_CLUSTER}" \
+            --services "${API_ECS_SERVICE_NAME}" \
+            --region "${AWS_REGION}"
+
+      - name: Verify ECS production rollout completed
+        run: |
+          service_json="$(aws ecs describe-services \
+            --cluster "${API_ECS_CLUSTER}" \
+            --services "${API_ECS_SERVICE_NAME}" \
+            --region "${AWS_REGION}")"
+
+          primary_rollout_state="$(echo "${service_json}" | jq -r '.services[0].deployments[] | select(.status == "PRIMARY") | .rolloutState // "UNKNOWN"')"
+          primary_task_definition="$(echo "${service_json}" | jq -r '.services[0].deployments[] | select(.status == "PRIMARY") | .taskDefinition')"
+
+          echo "Primary task definition: ${primary_task_definition}"
+          echo "Primary rollout state: ${primary_rollout_state}"
+          echo "Pre-deploy task definition: ${PRE_DEPLOY_TASK_DEFINITION}"
+
+          if [[ "${primary_rollout_state}" != "COMPLETED" ]]; then
+            echo "ECS production deployment did not complete successfully."
+            echo "${service_json}" | jq '.services[0].deployments'
+            exit 1
+          fi
+
+          if [[ "${primary_task_definition}" == "${PRE_DEPLOY_TASK_DEFINITION}" ]]; then
+            echo "ECS stabilized on the pre-deploy task definition, which indicates rollback or no new revision."
+            echo "${service_json}" | jq '.services[0].deployments'
+            exit 1
+          fi
+
+          deployed_image="$(aws ecs describe-task-definition \
+            --task-definition "${primary_task_definition}" \
+            --region "${AWS_REGION}" \
+            | jq -r '.taskDefinition.containerDefinitions[0].image')"
+
+          echo "Expected API image: ${EXPECTED_API_IMAGE}"
+          echo "Deployed API image: ${deployed_image}"
+
+          if [[ "${deployed_image}" != "${EXPECTED_API_IMAGE}" ]]; then
+            echo "ECS stabilized, but the running task definition does not use the image built by this workflow."
+            exit 1
+          fi
