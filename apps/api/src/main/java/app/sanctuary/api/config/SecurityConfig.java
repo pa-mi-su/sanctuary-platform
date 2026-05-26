@@ -18,7 +18,7 @@ import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
-@EnableConfigurationProperties({ AuthProperties.class, AuthAbuseProtectionProperties.class })
+@EnableConfigurationProperties(AuthProperties.class)
 public class SecurityConfig {
 
     private final AuthProperties authProperties;
