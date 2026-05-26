@@ -1,7 +1,7 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { HttpErrorResponse } from '@angular/common/http';
-import { catchError, combineLatest, map, of, switchMap } from 'rxjs';
+import { catchError, combineLatest, map, of, startWith, switchMap } from 'rxjs';
 
 import {
   LiturgicalDayResponse,
@@ -84,6 +84,7 @@ export class AppShellFacade {
   readonly selectedSaintSlug = signal<string | null>(null);
   readonly selectedPrayerSlug = signal<string | null>(null);
   readonly selectedNovenaSlug = signal<string | null>(null);
+  readonly selectedNovenaId = signal<string | null>(null);
   readonly selectedNovenaDayNumber = signal(1);
   readonly selectedNovenaDayManuallyChanged = signal(false);
   readonly localNovenaProgress = signal<Record<string, LocalNovenaProgress>>(this.loadLocalNovenaProgress());
@@ -245,6 +246,7 @@ export class AppShellFacade {
         }
 
         return this.api.getNovenaDetail(slug, this.apiLanguage(language)).pipe(
+          startWith(null),
           catchError(() => of<NovenaDetail | null>(null)),
         );
       }),
@@ -457,7 +459,10 @@ export class AppShellFacade {
     }
 
     const detail = this.novenaDetail();
-    return detail ? this.novenaProgressForId(detail.id) : null;
+    return this.novenaProgressForNovena(
+      detail?.id ?? this.selectedNovenaId(),
+      detail?.slug ?? this.selectedNovenaSlug(),
+    );
   });
   readonly selectedSaintIsFavorite = computed(() => {
     const saint = this.saintDetail();
@@ -817,9 +822,10 @@ export class AppShellFacade {
   }
 
   openNovenaDetail(novena: NovenaSummary): void {
+    this.selectedNovenaId.set(novena.id);
     this.selectedNovenaSlug.set(novena.slug);
     this.selectedNovenaDayManuallyChanged.set(false);
-    this.selectedNovenaDayNumber.set(this.novenaProgressForId(novena.id)?.currentDay ?? 1);
+    this.selectedNovenaDayNumber.set(this.novenaProgressForNovena(novena.id, novena.slug)?.currentDay ?? 1);
   }
 
   selectNovenaDay(dayNumber: number): void {
@@ -925,6 +931,7 @@ export class AppShellFacade {
     this.selectedSaintSlug.set(null);
     this.selectedPrayerSlug.set(null);
     this.selectedNovenaSlug.set(null);
+    this.selectedNovenaId.set(null);
     this.selectedNovenaDayManuallyChanged.set(false);
     this.selectedNovenaDayNumber.set(1);
   }
@@ -1298,13 +1305,25 @@ export class AppShellFacade {
     return `${itemType}:${itemId}`;
   }
 
-  private novenaProgressForId(novenaId: string): LocalNovenaProgress | null {
-    const serverCommitment = this.userNovenaCommitments().find((commitment) => commitment.novenaId === novenaId);
+  private novenaProgressForNovena(novenaId: string | null | undefined, novenaSlug?: string | null): LocalNovenaProgress | null {
+    const candidateIds = [novenaId, novenaSlug].filter((value): value is string => Boolean(value));
+    if (!candidateIds.length) {
+      return null;
+    }
+
+    const serverCommitment = this.userNovenaCommitments().find((commitment) => candidateIds.includes(commitment.novenaId));
     if (serverCommitment) {
       return this.toLocalNovenaProgress(serverCommitment);
     }
 
-    return this.localNovenaProgress()[novenaId] ?? null;
+    for (const candidateId of candidateIds) {
+      const progress = this.localNovenaProgress()[candidateId];
+      if (progress) {
+        return progress;
+      }
+    }
+
+    return null;
   }
 
   private toLocalNovenaProgress(commitment: UserNovenaCommitment): LocalNovenaProgress {
