@@ -104,7 +104,7 @@ type AppLanguage = 'en' | 'es' | 'pl';
               </button>
               @if (!novenaProgress()) {
                 <button class="primary-action" type="button" (click)="startNovena.emit()">Start Novena</button>
-              } @else {
+              } @else if (novenaProgress()!.status === 'active' || novenaProgress()!.status === 'paused') {
                 <button class="danger-action" type="button" (click)="stopNovena.emit()">Stop Novena</button>
               }
             </div>
