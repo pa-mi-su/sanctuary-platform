@@ -240,6 +240,18 @@ jobs:
           export ANDROID_VERSION_CODE="${ANDROID_VERSION_CODE:-1}"
           ./gradlew bundleDevRelease
 
+      - name: Resolve Android dev release name
+        shell: bash
+        run: |
+          set -euo pipefail
+          version_name="$(sed -nE 's/^[[:space:]]*versionName[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/p' apps/android/app/build.gradle.kts | head -n 1)"
+          if [[ -z "${version_name}" ]]; then
+            echo "::error::Unable to resolve Android versionName."
+            exit 1
+          fi
+          echo "ANDROID_RELEASE_NAME=${version_name}-dev" >> "$GITHUB_ENV"
+          echo "Using Google Play release name ${version_name}-dev."
+
       - name: Upload Android dev artifact
         uses: actions/upload-artifact@v4
         with:
@@ -256,6 +268,7 @@ jobs:
           releaseFiles: apps/android/app/build/outputs/bundle/devRelease/app-dev-release.aab
           track: internal
           status: draft
+          releaseName: ${{ env.ANDROID_RELEASE_NAME }}
 
   build-uat:
     name: Upload Android UAT Artifact
@@ -426,6 +439,18 @@ jobs:
           export ANDROID_VERSION_CODE="${ANDROID_VERSION_CODE:-1}"
           ./gradlew bundleUatRelease
 
+      - name: Resolve Android UAT release name
+        shell: bash
+        run: |
+          set -euo pipefail
+          version_name="$(sed -nE 's/^[[:space:]]*versionName[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/p' apps/android/app/build.gradle.kts | head -n 1)"
+          if [[ -z "${version_name}" ]]; then
+            echo "::error::Unable to resolve Android versionName."
+            exit 1
+          fi
+          echo "ANDROID_RELEASE_NAME=${version_name}-uat" >> "$GITHUB_ENV"
+          echo "Using Google Play release name ${version_name}-uat."
+
       - name: Upload Android UAT artifact
         uses: actions/upload-artifact@v4
         with:
@@ -442,6 +467,7 @@ jobs:
           releaseFiles: apps/android/app/build/outputs/bundle/uatRelease/app-uat-release.aab
           track: alpha
           status: draft
+          releaseName: ${{ env.ANDROID_RELEASE_NAME }}
 
   build-prod:
     name: Upload Android Production Artifact
@@ -612,6 +638,18 @@ jobs:
           export ANDROID_VERSION_CODE="${ANDROID_VERSION_CODE:-1}"
           ./gradlew bundleProdRelease
 
+      - name: Resolve Android production release name
+        shell: bash
+        run: |
+          set -euo pipefail
+          version_name="$(sed -nE 's/^[[:space:]]*versionName[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/p' apps/android/app/build.gradle.kts | head -n 1)"
+          if [[ -z "${version_name}" ]]; then
+            echo "::error::Unable to resolve Android versionName."
+            exit 1
+          fi
+          echo "ANDROID_RELEASE_NAME=${version_name}" >> "$GITHUB_ENV"
+          echo "Using Google Play release name ${version_name}."
+
       - name: Upload Android production artifact
         uses: actions/upload-artifact@v4
         with:
@@ -628,3 +666,4 @@ jobs:
           releaseFiles: apps/android/app/build/outputs/bundle/prodRelease/app-prod-release.aab
           track: production
           status: draft
+          releaseName: ${{ env.ANDROID_RELEASE_NAME }}
