@@ -4,13 +4,13 @@ import { provideRouter } from '@angular/router';
 
 import { routes } from './app.routes';
 import { resolveSanctuaryApiBaseUrl, SANCTUARY_API_BASE_URL } from './core/api/sanctuary-api.config';
-import { authTokenInterceptor } from './core/auth/auth-token.interceptor';
+import { authCookieInterceptor } from './core/auth/auth-token.interceptor';
 import { resolveSanctuaryAuthConfig, SANCTUARY_AUTH_CONFIG } from './core/auth/sanctuary-auth.config';
 
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
-    provideHttpClient(withInterceptors([authTokenInterceptor])),
+    provideHttpClient(withInterceptors([authCookieInterceptor])),
     provideRouter(routes),
     {
       provide: SANCTUARY_API_BASE_URL,
