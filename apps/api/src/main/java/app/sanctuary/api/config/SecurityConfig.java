@@ -22,9 +22,11 @@ import org.springframework.security.web.SecurityFilterChain;
 public class SecurityConfig {
 
     private final AuthProperties authProperties;
+    private final CookieBearerTokenResolver cookieBearerTokenResolver;
 
-    public SecurityConfig(AuthProperties authProperties) {
+    public SecurityConfig(AuthProperties authProperties, CookieBearerTokenResolver cookieBearerTokenResolver) {
         this.authProperties = authProperties;
+        this.cookieBearerTokenResolver = cookieBearerTokenResolver;
     }
 
     @Bean
@@ -44,7 +46,10 @@ public class SecurityConfig {
                 .requestMatchers("/me/**").authenticated()
                 .anyRequest().denyAll()
             )
-            .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults()));
+            .oauth2ResourceServer(oauth2 -> oauth2
+                .bearerTokenResolver(cookieBearerTokenResolver)
+                .jwt(Customizer.withDefaults())
+            );
 
         return http.build();
     }

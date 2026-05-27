@@ -177,6 +177,12 @@ export interface AuthSessionResponse {
   displayName: string;
 }
 
+export interface AuthWebSessionResponse {
+  email: string;
+  displayName: string;
+  expiresIn: number;
+}
+
 export interface UserFavorite {
   itemType: 'saint' | 'novena' | 'prayer';
   itemId: string;
@@ -336,6 +342,18 @@ export class SanctuaryApiService {
 
   refreshSession(request: AuthRefreshRequest): Observable<AuthSessionResponse> {
     return this.http.post<AuthSessionResponse>(`${this.apiBaseUrl}/auth/refresh`, request);
+  }
+
+  loginWeb(request: AuthLoginRequest): Observable<AuthWebSessionResponse> {
+    return this.http.post<AuthWebSessionResponse>(`${this.apiBaseUrl}/auth/web/login`, request);
+  }
+
+  refreshWebSession(): Observable<AuthWebSessionResponse> {
+    return this.http.post<AuthWebSessionResponse>(`${this.apiBaseUrl}/auth/web/refresh`, null);
+  }
+
+  logoutWebSession(): Observable<void> {
+    return this.http.post<void>(`${this.apiBaseUrl}/auth/web/logout`, null);
   }
 
   updateMePreferences(request: UserPreferencesUpdateRequest): Observable<UserProfile> {

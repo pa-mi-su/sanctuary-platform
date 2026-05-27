@@ -1,19 +1,16 @@
 import { HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
 
-import { SanctuaryAuthService } from './sanctuary-auth.service';
+import { SANCTUARY_API_BASE_URL } from '../api/sanctuary-api.config';
 
-export const authTokenInterceptor: HttpInterceptorFn = (request, next) => {
-  const auth = inject(SanctuaryAuthService);
-  const token = auth.state().idToken ?? auth.state().accessToken;
+export const authCookieInterceptor: HttpInterceptorFn = (request, next) => {
+  const apiBaseUrl = inject(SANCTUARY_API_BASE_URL);
 
-  if (!token || !request.url.includes('/me')) {
+  if (!request.url.startsWith(apiBaseUrl)) {
     return next(request);
   }
 
   return next(request.clone({
-    setHeaders: {
-      Authorization: `Bearer ${token}`,
-    },
+    withCredentials: true,
   }));
 };
