@@ -17,6 +17,7 @@ public class WebConfig implements WebMvcConfigurer {
                 "https://www.mydailysanctuary.com"
             )
             .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
-            .allowedHeaders("*");
+            .allowedHeaders("*")
+            .allowCredentials(true);
     }
 }

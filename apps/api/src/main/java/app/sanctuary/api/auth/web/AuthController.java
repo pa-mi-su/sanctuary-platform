@@ -23,18 +23,24 @@ import app.sanctuary.api.auth.dto.AuthResetPasswordRequest;
 import app.sanctuary.api.auth.dto.AuthResendCodeRequest;
 import app.sanctuary.api.auth.dto.AuthSessionResponse;
 import app.sanctuary.api.auth.dto.AuthStatusResponse;
+import app.sanctuary.api.auth.dto.AuthWebSessionResponse;
 import app.sanctuary.api.auth.service.AuthFlowException;
 import app.sanctuary.api.auth.service.BlockedEmailDomainException;
 import app.sanctuary.api.auth.service.CognitoAuthService;
+import app.sanctuary.api.auth.service.WebAuthCookieService;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 @RestController
 @RequestMapping("/auth")
 public class AuthController {
 
     private final CognitoAuthService cognitoAuthService;
+    private final WebAuthCookieService webAuthCookieService;
 
-    public AuthController(CognitoAuthService cognitoAuthService) {
+    public AuthController(CognitoAuthService cognitoAuthService, WebAuthCookieService webAuthCookieService) {
         this.cognitoAuthService = cognitoAuthService;
+        this.webAuthCookieService = webAuthCookieService;
     }
 
     @PostMapping("/register")
@@ -60,6 +66,34 @@ public class AuthController {
     @PostMapping("/refresh")
     public AuthSessionResponse refresh(@Valid @RequestBody AuthRefreshRequest request) {
         return cognitoAuthService.refresh(request);
+    }
+
+    @PostMapping("/web/login")
+    public AuthWebSessionResponse webLogin(
+        @Valid @RequestBody AuthLoginRequest request,
+        HttpServletResponse response
+    ) {
+        AuthSessionResponse session = cognitoAuthService.login(request);
+        webAuthCookieService.setSessionCookies(response, session);
+        return AuthWebSessionResponse.from(session);
+    }
+
+    @PostMapping("/web/refresh")
+    public AuthWebSessionResponse webRefresh(HttpServletRequest request, HttpServletResponse response) {
+        String refreshToken = webAuthCookieService.refreshToken(request);
+        if (refreshToken == null || refreshToken.isBlank()) {
+            throw new AuthFlowException(org.springframework.http.HttpStatus.UNAUTHORIZED, "Your session has ended. Please sign in again.");
+        }
+
+        AuthSessionResponse session = cognitoAuthService.refresh(new AuthRefreshRequest(refreshToken));
+        webAuthCookieService.setSessionCookies(response, session);
+        return AuthWebSessionResponse.from(session);
+    }
+
+    @PostMapping("/web/logout")
+    public ResponseEntity<Void> webLogout(HttpServletResponse response) {
+        webAuthCookieService.clearSessionCookies(response);
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/forgot-password")

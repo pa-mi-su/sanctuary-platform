@@ -7,7 +7,9 @@ import {
   AuthLoginRequest,
   AuthRegisterRequest,
   AuthResetPasswordRequest,
+  AuthWebSessionResponse,
   SanctuaryApiService,
+  UserProfile,
 } from '../api/sanctuary-api.service';
 import { SANCTUARY_AUTH_CONFIG } from './sanctuary-auth.config';
 
@@ -69,8 +71,8 @@ export class SanctuaryAuthService {
     this.state.update((current) => ({ ...current, status: 'loading', message: null }));
 
     try {
-      const session = await firstValueFrom(this.api.login(request));
-      this.storeSession(session.accessToken, session.idToken, session.refreshToken ?? null, session.expiresIn);
+      const session = await firstValueFrom(this.api.loginWeb(request));
+      this.applyWebSession(session);
     } catch (error) {
       this.clearStoredSession();
       this.setError(this.extractMessage(error, 'Sanctuary could not sign you in.'));
@@ -158,70 +160,66 @@ export class SanctuaryAuthService {
   }
 
   logout(): void {
+    this.api.logoutWebSession().subscribe({ error: () => undefined });
     this.clearStoredSession();
-  }
-
-  private storeSession(accessToken: string, idToken: string | null, refreshToken: string | null, expiresIn: number): void {
-    const expiresAt = Date.now() + expiresIn * 1000;
-    localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
-    localStorage.setItem(ID_TOKEN_KEY, idToken ?? '');
-    if (refreshToken && refreshToken.length > 0) {
-      localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
-    }
-    localStorage.setItem(EXPIRES_AT_KEY, String(expiresAt));
-    this.applyTokens(accessToken, idToken, refreshToken, expiresAt);
   }
 
   private async restoreStoredSession(): Promise<void> {
-    const accessToken = localStorage.getItem(ACCESS_TOKEN_KEY);
-    const idToken = localStorage.getItem(ID_TOKEN_KEY);
-    const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
-    const expiresAt = Number(localStorage.getItem(EXPIRES_AT_KEY) ?? '0');
+    this.clearLegacyTokenStorage();
+    if (!this.config.enabled) {
+      return;
+    }
 
-    if ((!accessToken && !refreshToken) || !expiresAt) {
+    this.state.update((current) => ({ ...current, status: 'loading', message: null }));
+
+    try {
+      const profile = await firstValueFrom(this.api.getMe());
+      this.applyProfile(profile);
+      return;
+    } catch {
+      // Try the refresh cookie once before treating the browser session as signed out.
+    }
+
+    try {
+      const session = await firstValueFrom(this.api.refreshWebSession());
+      this.applyWebSession(session);
+    } catch {
       this.clearStoredSession();
-      return;
     }
-
-    if (accessToken && expiresAt > Date.now()) {
-      this.applyTokens(accessToken, idToken, refreshToken, expiresAt);
-      return;
-    }
-
-    if (refreshToken) {
-      await this.refreshStoredSession(refreshToken);
-      return;
-    }
-
-    this.clearStoredSession();
   }
 
-  private applyTokens(accessToken: string, idToken: string | null, refreshToken: string | null, expiresAt: number): void {
-    const claims = this.decodeJwt(idToken || accessToken);
+  private applyWebSession(session: AuthWebSessionResponse): void {
     this.state.set({
       configured: this.config.enabled,
       status: 'authenticated',
-      accessToken,
-      idToken,
-      email: this.stringClaim(claims, 'email'),
-      displayName:
-        this.stringClaim(claims, 'name') ??
-        this.joinNames(this.stringClaim(claims, 'given_name'), this.stringClaim(claims, 'family_name')) ??
-        this.stringClaim(claims, 'preferred_username') ??
-        this.stringClaim(claims, 'cognito:username') ??
-        this.stringClaim(claims, 'sub'),
+      accessToken: null,
+      idToken: null,
+      email: session.email,
+      displayName: session.displayName,
       message: null,
     });
 
-    this.scheduleRefresh(refreshToken, expiresAt);
+    this.scheduleRefresh(session.expiresIn);
+  }
+
+  private applyProfile(profile: UserProfile): void {
+    this.state.set({
+      configured: this.config.enabled,
+      status: 'authenticated',
+      accessToken: null,
+      idToken: null,
+      email: profile.email,
+      displayName:
+        profile.displayName ??
+        this.joinNames(profile.firstName ?? null, profile.lastName ?? null) ??
+        profile.email,
+      message: null,
+    });
   }
 
   private clearStoredSession(): void {
     this.cancelScheduledRefresh();
-    localStorage.removeItem(ACCESS_TOKEN_KEY);
-    localStorage.removeItem(ID_TOKEN_KEY);
-    localStorage.removeItem(REFRESH_TOKEN_KEY);
-    localStorage.removeItem(EXPIRES_AT_KEY);
+    this.clearLegacyTokenStorage();
     this.state.set({
       configured: this.config.enabled,
       status: 'signed-out',
@@ -233,15 +231,18 @@ export class SanctuaryAuthService {
     });
   }
 
-  private scheduleRefresh(refreshToken: string | null, expiresAt: number): void {
+  private clearLegacyTokenStorage(): void {
+    localStorage.removeItem(ACCESS_TOKEN_KEY);
+    localStorage.removeItem(ID_TOKEN_KEY);
+    localStorage.removeItem(REFRESH_TOKEN_KEY);
+    localStorage.removeItem(EXPIRES_AT_KEY);
+  }
+
+  private scheduleRefresh(expiresIn: number): void {
     this.cancelScheduledRefresh();
-    const delay = Math.max(expiresAt - Date.now() - 60_000, 5_000);
+    const delay = Math.max(expiresIn * 1000 - 60_000, 5_000);
     this.refreshTimer = window.setTimeout(() => {
-      if (refreshToken) {
-        void this.refreshStoredSession(refreshToken);
-      } else {
-        this.clearStoredSession();
-      }
+      void this.refreshStoredSession();
     }, delay);
   }
 
@@ -252,41 +253,13 @@ export class SanctuaryAuthService {
     }
   }
 
-  private async refreshStoredSession(refreshToken: string): Promise<void> {
+  private async refreshStoredSession(): Promise<void> {
     try {
-      const session = await firstValueFrom(this.api.refreshSession({ refreshToken }));
-      this.storeSession(session.accessToken, session.idToken, session.refreshToken ?? refreshToken, session.expiresIn);
+      const session = await firstValueFrom(this.api.refreshWebSession());
+      this.applyWebSession(session);
     } catch {
       this.clearStoredSession();
     }
-  }
-
-  private decodeJwt(token: string | null): Record<string, unknown> {
-    if (!token) {
-      return {};
-    }
-
-    try {
-      const payload = token.split('.')[1];
-      if (!payload) {
-        return {};
-      }
-      const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
-      const json = decodeURIComponent(
-        atob(normalized)
-          .split('')
-          .map((char) => `%${`00${char.charCodeAt(0).toString(16)}`.slice(-2)}`)
-          .join('')
-      );
-      return JSON.parse(json) as Record<string, unknown>;
-    } catch {
-      return {};
-    }
-  }
-
-  private stringClaim(claims: Record<string, unknown>, key: string): string | null {
-    const value = claims[key];
-    return typeof value === 'string' && value.length > 0 ? value : null;
   }
 
   private joinNames(firstName: string | null, lastName: string | null): string | null {

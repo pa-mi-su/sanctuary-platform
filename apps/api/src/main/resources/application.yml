@@ -17,6 +17,9 @@ sanctuary:
   auth:
     enabled: false
     audience: ""
+    cookie:
+      secure: true
+      same-site: None
     abuse:
       enabled: true
       register:
