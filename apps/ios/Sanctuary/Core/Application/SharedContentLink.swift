@@ -16,6 +16,20 @@ struct SharedContentLink: Identifiable, Equatable {
         URL(string: "https://mydailysanctuary.com/\(kind.rawValue)/\(slug)")!
     }
 
+    func shareText(title: String) -> String {
+        let message: String
+        switch kind {
+        case .saint:
+            message = "Look at this saint in Sanctuary: \(title)"
+        case .novena:
+            message = "Pray this novena with me in Sanctuary: \(title)"
+        case .prayer:
+            message = "Pray this with me in Sanctuary: \(title)"
+        }
+
+        return "\(message)\n\(url.absoluteString)"
+    }
+
     static func parse(_ url: URL) -> SharedContentLink? {
         guard url.host?.lowercased() == "mydailysanctuary.com" else {
             return nil

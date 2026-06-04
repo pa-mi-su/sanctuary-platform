@@ -148,11 +148,7 @@ struct NovenaDetailView: View {
                             }
                         }
 
-                        ShareLink(
-                            item: SharedContentLink(kind: .novena, slug: effectiveNovena.slug).url,
-                            subject: Text(effectiveNovena.title),
-                            message: Text("Pray this novena with me in Sanctuary: \(effectiveNovena.title)")
-                        ) {
+                        ShareLink(item: SharedContentLink(kind: .novena, slug: effectiveNovena.slug).shareText(title: effectiveNovena.title)) {
                             HStack(spacing: 10) {
                                 Image(systemName: "square.and.arrow.up")
                                 Text("Share")
