@@ -1,0 +1,14 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.pamisu.sanctuary",
+      "sha256_cert_fingerprints": [
+        "64:69:8A:1E:FF:A9:BE:50:97:38:93:4D:D5:4A:A2:2A:3E:31:DF:79:2E:31:10:49:A9:4E:16:DB:92:14:C5:29"
+      ]
+    }
+  }
+]

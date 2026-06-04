@@ -59,6 +59,7 @@ import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.SelfImprovement
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.SouthEast
 import androidx.compose.material.icons.filled.Today
 import androidx.compose.material.icons.filled.WbSunny
@@ -169,7 +170,51 @@ class MainActivity : ComponentActivity() {
                 SanctuaryApp(viewModel)
             }
         }
+        handleSharedContentIntent(intent)
     }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleSharedContentIntent(intent)
+    }
+
+    private fun handleSharedContentIntent(intent: Intent?) {
+        val uri = intent?.data ?: return
+        if (uri.scheme != "https" || uri.host != "mydailysanctuary.com") {
+            return
+        }
+
+        val segments = uri.pathSegments
+        if (segments.size < 2) {
+            return
+        }
+
+        when (segments[0]) {
+            "saints" -> viewModel.openSaint(segments[1])
+            "novenas" -> viewModel.openNovena(segments[1])
+            "prayers" -> viewModel.openPrayer(segments[1])
+        }
+    }
+}
+
+private enum class SharedContentKind(val path: String) {
+    Saint("saints"),
+    Novena("novenas"),
+    Prayer("prayers")
+}
+
+private fun sharedContentUrl(kind: SharedContentKind, slug: String): String =
+    "https://mydailysanctuary.com/${kind.path}/$slug"
+
+private fun shareContent(context: android.content.Context, title: String, message: String, url: String) {
+    val sendIntent = Intent(Intent.ACTION_SEND).apply {
+        type = "text/plain"
+        putExtra(Intent.EXTRA_TITLE, title)
+        putExtra(Intent.EXTRA_SUBJECT, title)
+        putExtra(Intent.EXTRA_TEXT, "$message\n$url")
+    }
+    context.startActivity(Intent.createChooser(sendIntent, "Share"))
 }
 
 private enum class AuthStep {
@@ -3074,6 +3119,7 @@ private fun SaintDetailSheet(
     onDismiss: () -> Unit
 ) {
     val l10n = sanctuaryStrings()
+    val context = LocalContext.current
     val isFavorite = progress.favorites.any { it.itemType == FavoriteItemType.Saint && it.itemId == detail.id }
     DetailSheetScaffold(
         title = detail.name,
@@ -3100,6 +3146,30 @@ private fun SaintDetailSheet(
                 Text(if (isFavorite) l10n.t("detail.favorite.saved") else l10n.t("detail.favorite.add"))
             }
         }
+        Button(
+            onClick = {
+                shareContent(
+                    context = context,
+                    title = detail.name,
+                    message = "Look at this saint in Sanctuary: ${detail.name}",
+                    url = sharedContentUrl(SharedContentKind.Saint, detail.slug)
+                )
+            },
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color(0xFF22394C),
+                contentColor = Color.White
+            ),
+            shape = RoundedCornerShape(18.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Share,
+                contentDescription = null,
+                tint = Color.White
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("Share")
+        }
         detail.summary?.takeIf { it.isNotBlank() }?.let { summary ->
             DetailSectionCard(title = l10n.t("detail.summary")) {
                 Text(summary, color = Color(0xFFD0DFEA), lineHeight = 22.sp)
@@ -3125,6 +3195,7 @@ private fun NovenaDetailSheet(
     onDismiss: () -> Unit
 ) {
     val l10n = sanctuaryStrings()
+    val context = LocalContext.current
     val activeCommitment = progress.commitments.firstOrNull {
         it.novenaId == detail.id && it.status == CommitmentStatus.Active
     }
@@ -3189,6 +3260,30 @@ private fun NovenaDetailSheet(
             ) {
                 Text(if (isFavorite) l10n.t("detail.favorite.saved") else l10n.t("detail.favorite.add"))
             }
+        }
+        Button(
+            onClick = {
+                shareContent(
+                    context = context,
+                    title = detail.title,
+                    message = "Pray this novena with me in Sanctuary: ${detail.title}",
+                    url = sharedContentUrl(SharedContentKind.Novena, detail.slug)
+                )
+            },
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color(0xFF22394C),
+                contentColor = Color.White
+            ),
+            shape = RoundedCornerShape(18.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Share,
+                contentDescription = null,
+                tint = Color.White
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("Share")
         }
 
         Text(l10n.t("calendar.chooseDay"), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 24.sp)
@@ -3295,6 +3390,7 @@ private fun PrayerDetailSheet(
     onDismiss: () -> Unit
 ) {
     val l10n = sanctuaryStrings()
+    val context = LocalContext.current
     val bodyText = displayPrayerBody(detail)
     var isShowingExpandedImage by rememberSaveable { mutableStateOf(false) }
     val canExpandHeroImage = detail.slug == "how_to_pray_the_rosary"
@@ -3357,6 +3453,30 @@ private fun PrayerDetailSheet(
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(if (isFavorite) l10n.t("detail.favorite.saved") else l10n.t("detail.favorite.add"))
                 }
+            }
+            Button(
+                onClick = {
+                    shareContent(
+                        context = context,
+                        title = detail.title,
+                        message = "Pray this with me in Sanctuary: ${detail.title}",
+                        url = sharedContentUrl(SharedContentKind.Prayer, detail.slug)
+                    )
+                },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF22394C),
+                    contentColor = Color.White
+                ),
+                shape = RoundedCornerShape(18.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Share,
+                    contentDescription = null,
+                    tint = Color.White
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Share")
             }
             detail.note?.takeIf { it.isNotBlank() }?.let {
                 Text(it, color = Color(0xFFD0DFEA), lineHeight = 22.sp)
