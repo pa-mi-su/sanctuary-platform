@@ -148,6 +148,24 @@ struct NovenaDetailView: View {
                             }
                         }
 
+                        ShareLink(item: SharedContentLink(kind: .novena, slug: effectiveNovena.slug).url) {
+                            HStack(spacing: 10) {
+                                Image(systemName: "square.and.arrow.up")
+                                Text("Share")
+                            }
+                            .font(AppTheme.rounded(16, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 18)
+                            .padding(.vertical, 12)
+                            .background(AppTheme.cardBackgroundSoft)
+                            .overlay(
+                                Capsule()
+                                    .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                            )
+                            .clipShape(Capsule())
+                        }
+                        .buttonStyle(.plain)
+
                         VStack(alignment: .leading, spacing: 10) {
                             if let novenaStartDateString {
                                 detailMetaChip(icon: "calendar.badge.clock", text: "\(localization.t("detail.novenaStartDate")): \(novenaStartDateString)")

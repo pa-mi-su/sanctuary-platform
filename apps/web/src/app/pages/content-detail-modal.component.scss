@@ -68,6 +68,7 @@
 }
 
 .favorite-button,
+.share-button,
 .primary-action,
 .danger-action {
   min-height: 44px;
@@ -87,6 +88,11 @@
 .favorite-button.active {
   border-color: rgba(229, 198, 106, 0.55);
   background: rgba(229, 198, 106, 0.16);
+}
+
+.share-button {
+  border: 1px solid rgba(122, 200, 234, 0.35);
+  background: rgba(122, 200, 234, 0.12);
 }
 
 .primary-action {
