@@ -56,14 +56,14 @@ for (const type of contentTypes) {
       imageUrl,
     });
 
-    const outputPath = path.join(OUTPUT_DIR, type.kind, item.slug, 'index.html');
+    const outputPath = path.join(OUTPUT_DIR, type.kind, item.slug);
     await mkdir(path.dirname(outputPath), { recursive: true });
     await writeFile(outputPath, html);
     generatedCount += 1;
   }
 }
 
-console.log(`Generated ${generatedCount} share preview pages in ${OUTPUT_DIR}.`);
+console.log(`Generated ${generatedCount} share preview route objects in ${OUTPUT_DIR}.`);
 
 async function fetchJson(url) {
   const response = await fetch(url, {
