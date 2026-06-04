@@ -207,12 +207,12 @@ private enum class SharedContentKind(val path: String) {
 private fun sharedContentUrl(kind: SharedContentKind, slug: String): String =
     "https://mydailysanctuary.com/${kind.path}/$slug"
 
-private fun shareContent(context: android.content.Context, title: String, url: String) {
+private fun shareContent(context: android.content.Context, title: String, message: String, url: String) {
     val sendIntent = Intent(Intent.ACTION_SEND).apply {
         type = "text/plain"
         putExtra(Intent.EXTRA_TITLE, title)
         putExtra(Intent.EXTRA_SUBJECT, title)
-        putExtra(Intent.EXTRA_TEXT, "$title\n$url")
+        putExtra(Intent.EXTRA_TEXT, "$message\n$url")
     }
     context.startActivity(Intent.createChooser(sendIntent, "Share"))
 }
@@ -3151,6 +3151,7 @@ private fun SaintDetailSheet(
                 shareContent(
                     context = context,
                     title = detail.name,
+                    message = "Look at this saint in Sanctuary: ${detail.name}",
                     url = sharedContentUrl(SharedContentKind.Saint, detail.slug)
                 )
             },
@@ -3265,6 +3266,7 @@ private fun NovenaDetailSheet(
                 shareContent(
                     context = context,
                     title = detail.title,
+                    message = "Pray this novena with me in Sanctuary: ${detail.title}",
                     url = sharedContentUrl(SharedContentKind.Novena, detail.slug)
                 )
             },
@@ -3457,6 +3459,7 @@ private fun PrayerDetailSheet(
                     shareContent(
                         context = context,
                         title = detail.title,
+                        message = "Pray this with me in Sanctuary: ${detail.title}",
                         url = sharedContentUrl(SharedContentKind.Prayer, detail.slug)
                     )
                 },

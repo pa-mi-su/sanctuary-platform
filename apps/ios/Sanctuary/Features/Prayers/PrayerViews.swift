@@ -418,7 +418,11 @@ struct PrayerDetailView: View {
                             }
                         }
 
-                        ShareLink(item: SharedContentLink(kind: .prayer, slug: currentPrayer.slug).url) {
+                        ShareLink(
+                            item: SharedContentLink(kind: .prayer, slug: currentPrayer.slug).url,
+                            subject: Text(currentPrayer.title),
+                            message: Text("Pray this with me in Sanctuary: \(currentPrayer.title)")
+                        ) {
                             HStack(spacing: 10) {
                                 Image(systemName: "square.and.arrow.up")
                                 Text("Share")
