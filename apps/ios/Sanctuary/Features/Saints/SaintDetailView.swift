@@ -116,7 +116,7 @@ struct SaintDetailView: View {
                             }
                         }
 
-                        ShareLink(item: SharedContentLink(kind: .saint, slug: currentSaint.slug).url) {
+                        ShareLink(item: SharedContentLink(kind: .saint, slug: currentSaint.slug).shareText(title: displayName)) {
                             HStack(spacing: 10) {
                                 Image(systemName: "square.and.arrow.up")
                                 Text("Share")

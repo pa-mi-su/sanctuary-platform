@@ -148,7 +148,7 @@ struct NovenaDetailView: View {
                             }
                         }
 
-                        ShareLink(item: SharedContentLink(kind: .novena, slug: effectiveNovena.slug).url) {
+                        ShareLink(item: SharedContentLink(kind: .novena, slug: effectiveNovena.slug).shareText(title: title)) {
                             HStack(spacing: 10) {
                                 Image(systemName: "square.and.arrow.up")
                                 Text("Share")

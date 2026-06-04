@@ -38,15 +38,6 @@ type AppLanguage = 'en' | 'es' | 'pl';
               <button class="favorite-button" [class.active]="isSaintFavorite()" type="button" (click)="toggleSaintFavorite.emit()">
                 {{ isSaintFavorite() ? t('Saved to Favorites', 'Guardado en favoritos', 'Zapisano w ulubionych') : t('Add to Favorites', 'Agregar a favoritos', 'Dodaj do ulubionych') }}
               </button>
-              <button class="share-button" type="button" (click)="shareSaint()">
-                {{ t('Share', 'Compartir', 'Udostępnij') }}
-              </button>
-            </div>
-          } @else {
-            <div class="detail-actions">
-              <button class="share-button" type="button" (click)="shareSaint()">
-                {{ t('Share', 'Compartir', 'Udostępnij') }}
-              </button>
             </div>
           }
           <div class="detail-hero">
@@ -78,15 +69,6 @@ type AppLanguage = 'en' | 'es' | 'pl';
               <div class="detail-actions">
                 <button class="favorite-button" [class.active]="isPrayerFavorite()" type="button" (click)="togglePrayerFavorite.emit()">
                   {{ isPrayerFavorite() ? t('Saved to Favorites', 'Guardado en favoritos', 'Zapisano w ulubionych') : t('Add to Favorites', 'Agregar a favoritos', 'Dodaj do ulubionych') }}
-                </button>
-                <button class="share-button" type="button" (click)="sharePrayer()">
-                  {{ t('Share', 'Compartir', 'Udostępnij') }}
-                </button>
-              </div>
-            } @else {
-              <div class="detail-actions">
-                <button class="share-button" type="button" (click)="sharePrayer()">
-                  {{ t('Share', 'Compartir', 'Udostępnij') }}
                 </button>
               </div>
             }
@@ -120,20 +102,11 @@ type AppLanguage = 'en' | 'es' | 'pl';
               <button class="favorite-button" [class.active]="isNovenaFavorite()" type="button" (click)="toggleNovenaFavorite.emit()">
                 {{ isNovenaFavorite() ? t('Saved to Favorites', 'Guardado en favoritos', 'Zapisano w ulubionych') : t('Add to Favorites', 'Agregar a favoritos', 'Dodaj do ulubionych') }}
               </button>
-              <button class="share-button" type="button" (click)="shareNovena()">
-                {{ t('Share', 'Compartir', 'Udostępnij') }}
-              </button>
               @if (!novenaProgress()) {
                 <button class="primary-action" type="button" (click)="startNovena.emit()">Start Novena</button>
               } @else if (novenaProgress()!.status === 'active' || novenaProgress()!.status === 'paused') {
                 <button class="danger-action" type="button" (click)="stopNovena.emit()">Stop Novena</button>
               }
-            </div>
-          } @else {
-            <div class="detail-actions">
-              <button class="share-button" type="button" (click)="shareNovena()">
-                {{ t('Share', 'Compartir', 'Udostępnij') }}
-              </button>
             </div>
           }
           <div class="detail-hero">
@@ -268,44 +241,6 @@ export class ContentDetailModalComponent {
   readonly toggleSaintFavorite = output<void>();
   readonly toggleNovenaFavorite = output<void>();
   readonly togglePrayerFavorite = output<void>();
-
-  protected shareSaint(): void {
-    const detail = this.saintDetail();
-    if (detail) {
-      void this.shareContent(detail.name, this.sharedContentUrl('saints', detail.slug));
-    }
-  }
-
-  protected sharePrayer(): void {
-    const detail = this.prayerDetail();
-    if (detail) {
-      void this.shareContent(detail.title, this.sharedContentUrl('prayers', detail.slug));
-    }
-  }
-
-  protected shareNovena(): void {
-    const detail = this.novenaDetail();
-    if (detail) {
-      void this.shareContent(detail.title, this.sharedContentUrl('novenas', detail.slug));
-    }
-  }
-
-  private sharedContentUrl(kind: 'saints' | 'novenas' | 'prayers', slug: string): string {
-    return `https://mydailysanctuary.com/${kind}/${encodeURIComponent(slug)}`;
-  }
-
-  private async shareContent(title: string, url: string): Promise<void> {
-    const nav = window.navigator as Navigator & {
-      share?: (data: { title: string; text: string; url: string }) => Promise<void>;
-    };
-
-    if (nav.share) {
-      await nav.share({ title, text: title, url });
-      return;
-    }
-
-    await navigator.clipboard?.writeText(`${title}\n${url}`);
-  }
 
   protected imageStyle(imageUrl: string | null | undefined): string | null {
     if (!imageUrl) {
