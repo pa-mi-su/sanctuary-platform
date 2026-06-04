@@ -117,6 +117,15 @@ jobs:
       - name: Sync web build to S3
         run: aws s3 sync apps/web/dist/web/browser "s3://${WEB_S3_BUCKET}" --delete
 
+      - name: Mark app link association files as JSON
+        run: |
+          aws s3 cp apps/web/dist/web/browser/.well-known/apple-app-site-association "s3://${WEB_S3_BUCKET}/.well-known/apple-app-site-association" \
+            --content-type "application/json" \
+            --metadata-directive REPLACE
+          aws s3 cp apps/web/dist/web/browser/.well-known/assetlinks.json "s3://${WEB_S3_BUCKET}/.well-known/assetlinks.json" \
+            --content-type "application/json" \
+            --metadata-directive REPLACE
+
       - name: Mark share preview routes as HTML
         run: |
           find apps/web/dist/web/browser/saints apps/web/dist/web/browser/novenas apps/web/dist/web/browser/prayers -type f ! -name '*.*' -print0 | while IFS= read -r -d '' file; do
