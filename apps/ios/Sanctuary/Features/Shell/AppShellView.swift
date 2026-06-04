@@ -11,6 +11,7 @@ enum AppTab: Hashable {
 struct AppShellView: View {
     let environment: AppEnvironment
     @State private var selectedTab: AppTab = .home
+    @State private var sharedContentLink: SharedContentLink?
     @StateObject private var localization: LocalizationManager
     @StateObject private var accountStore: AccountSessionStore
     @StateObject private var progressStore: UserProgressStore
@@ -88,12 +89,100 @@ struct AppShellView: View {
                 generalDailyEnabled: accountStore.profile?.feastRemindersEnabled ?? false
             )
         }
+        .onOpenURL { url in
+            openSharedContent(url)
+        }
+        .onContinueUserActivity(NSUserActivityTypeBrowsingWeb) { activity in
+            if let url = activity.webpageURL {
+                openSharedContent(url)
+            }
+        }
+        .fullScreenCover(item: $sharedContentLink) { link in
+            sharedContentDestination(for: link)
+        }
     }
 
     private var reminderPreferenceSyncKey: String {
         let novena = accountStore.profile?.novenaRemindersEnabled == true ? "1" : "0"
         let general = accountStore.profile?.feastRemindersEnabled == true ? "1" : "0"
         return "\(novena)-\(general)-\(accountStore.profile?.userID ?? "signed-out")"
+    }
+
+    private func openSharedContent(_ url: URL) {
+        guard let link = SharedContentLink.parse(url) else {
+            return
+        }
+
+        switch link.kind {
+        case .saint:
+            selectedTab = .saints
+        case .novena:
+            selectedTab = .novenas
+        case .prayer:
+            selectedTab = .home
+        }
+        sharedContentLink = link
+    }
+
+    @ViewBuilder
+    private func sharedContentDestination(for link: SharedContentLink) -> some View {
+        switch link.kind {
+        case .saint:
+            SaintDetailView(
+                contentRepository: environment.contentRepository,
+                saint: Saint(
+                    id: link.slug,
+                    slug: link.slug,
+                    name: "",
+                    nameByLocale: [.en: ""],
+                    feastMonth: 1,
+                    feastDay: 1,
+                    imageURL: nil,
+                    tags: [],
+                    patronages: [],
+                    feastLabelByLocale: [:],
+                    summaryByLocale: [:],
+                    biographyByLocale: [:],
+                    prayersByLocale: [:],
+                    sources: []
+                ),
+                onClose: { sharedContentLink = nil }
+            )
+        case .novena:
+            NovenaDetailView(
+                contentRepository: environment.contentRepository,
+                novena: Novena(
+                    id: link.slug,
+                    slug: link.slug,
+                    titleByLocale: [.en: ""],
+                    descriptionByLocale: [:],
+                    durationDays: 9,
+                    tags: [],
+                    intentions: [],
+                    imageURL: nil,
+                    days: []
+                ),
+                onClose: { sharedContentLink = nil }
+            )
+        case .prayer:
+            PrayerDetailView(
+                contentRepository: environment.contentRepository,
+                prayer: Prayer(
+                    id: link.slug,
+                    slug: link.slug,
+                    category: "prayer",
+                    titleByLocale: [.en: ""],
+                    bodyByLocale: [:],
+                    alternateTitleByLocale: [:],
+                    noteByLocale: [:],
+                    imageURL: nil,
+                    sourceTitle: nil,
+                    sourceType: nil,
+                    tags: []
+                ),
+                onClose: { sharedContentLink = nil }
+            )
+        }
     }
 }
 

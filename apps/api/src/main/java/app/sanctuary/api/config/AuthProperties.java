@@ -64,6 +64,7 @@ public class AuthProperties {
         private String domain;
         private boolean secure = true;
         private String sameSite = "None";
+        private int refreshMaxAgeDays = 30;
 
         public String domain() {
             return domain;
@@ -87,6 +88,14 @@ public class AuthProperties {
 
         public void setSameSite(String sameSite) {
             this.sameSite = sameSite;
+        }
+
+        public int refreshMaxAgeDays() {
+            return refreshMaxAgeDays <= 0 ? 30 : refreshMaxAgeDays;
+        }
+
+        public void setRefreshMaxAgeDays(int refreshMaxAgeDays) {
+            this.refreshMaxAgeDays = refreshMaxAgeDays;
         }
     }
 }

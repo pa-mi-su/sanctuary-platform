@@ -17,8 +17,6 @@ public class WebAuthCookieService {
     public static final String ID_COOKIE = "sanctuary_id";
     public static final String REFRESH_COOKIE = "sanctuary_refresh";
 
-    private static final Duration REFRESH_COOKIE_MAX_AGE = Duration.ofDays(30);
-
     private final AuthProperties authProperties;
 
     public WebAuthCookieService(AuthProperties authProperties) {
@@ -28,7 +26,13 @@ public class WebAuthCookieService {
     public void setSessionCookies(HttpServletResponse response, AuthSessionResponse session) {
         addCookie(response, ID_COOKIE, session.idToken(), "/me", Duration.ofSeconds(session.expiresIn()));
         if (session.refreshToken() != null && !session.refreshToken().isBlank()) {
-            addCookie(response, REFRESH_COOKIE, session.refreshToken(), "/auth/web/refresh", REFRESH_COOKIE_MAX_AGE);
+            addCookie(
+                response,
+                REFRESH_COOKIE,
+                session.refreshToken(),
+                "/auth/web/refresh",
+                Duration.ofDays(authProperties.cookie().refreshMaxAgeDays())
+            );
         }
     }
 

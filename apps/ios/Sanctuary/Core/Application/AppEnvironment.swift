@@ -12,7 +12,7 @@ struct AppEnvironment {
 
     static func current() -> AppEnvironment {
         let platformConfiguration = PlatformConfiguration.current()
-        let apiClient = SanctuaryAPIClient(baseURL: platformConfiguration.apiBaseURL)
+        let apiClient = SanctuaryAPIClient(baseURL: platformConfiguration.apiBaseURL, session: apiSession())
         let contentRepository = APIContentRepository(apiClient: apiClient)
         let searchRepository = LocalSearchRepository(contentRepository: contentRepository)
 
@@ -26,5 +26,13 @@ struct AppEnvironment {
 
     static func local() -> AppEnvironment {
         current()
+    }
+
+    private static func apiSession() -> URLSession {
+        let configuration = URLSessionConfiguration.default
+        configuration.timeoutIntervalForRequest = 15
+        configuration.timeoutIntervalForResource = 25
+        configuration.waitsForConnectivity = true
+        return URLSession(configuration: configuration)
     }
 }
