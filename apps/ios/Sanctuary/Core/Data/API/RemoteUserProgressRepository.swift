@@ -10,8 +10,9 @@ actor RemoteUserProgressRepository: UserProgressRepository {
     }
 
     func listFavorites(userID: String) async throws -> [UserFavorite] {
-        let token = try await profileToken()
-        let favorites = try await apiClient.favorites(token: token)
+        let favorites = try await authenticatedRequest { token in
+            try await apiClient.favorites(token: token)
+        }
         return favorites.compactMap { favorite in
             guard let itemType = FavoriteItemType(rawValue: favorite.itemType.lowercased()) else {
                 return nil
@@ -27,18 +28,21 @@ actor RemoteUserProgressRepository: UserProgressRepository {
     }
 
     func addFavorite(userID: String, itemType: FavoriteItemType, itemID: String) async throws {
-        let token = try await profileToken()
-        try await apiClient.saveFavorite(itemType: itemType.rawValue, itemId: itemID, token: token)
+        try await authenticatedRequest { token in
+            try await apiClient.saveFavorite(itemType: itemType.rawValue, itemId: itemID, token: token)
+        }
     }
 
     func removeFavorite(userID: String, itemType: FavoriteItemType, itemID: String) async throws {
-        let token = try await profileToken()
-        try await apiClient.deleteFavorite(itemType: itemType.rawValue, itemId: itemID, token: token)
+        try await authenticatedRequest { token in
+            try await apiClient.deleteFavorite(itemType: itemType.rawValue, itemId: itemID, token: token)
+        }
     }
 
     func listNovenaCommitments(userID: String) async throws -> [UserNovenaCommitment] {
-        let token = try await profileToken()
-        let commitments = try await apiClient.novenaCommitments(token: token)
+        let commitments = try await authenticatedRequest { token in
+            try await apiClient.novenaCommitments(token: token)
+        }
         return commitments.compactMap { dto in
             guard let status = CommitmentStatus(rawValue: dto.status.lowercased()) else {
                 return nil
@@ -63,21 +67,22 @@ actor RemoteUserProgressRepository: UserProgressRepository {
     }
 
     func upsertNovenaCommitment(_ commitment: UserNovenaCommitment) async throws {
-        let token = try await profileToken()
-        _ = try await apiClient.saveNovenaCommitment(
-            novenaId: commitment.novenaID,
-            request: APIUserNovenaCommitmentRequest(
-                startedAt: commitment.startedAt,
-                currentDay: commitment.currentDay,
-                completedDays: commitment.completedDays,
-                reminderEnabled: commitment.reminder.enabled,
-                reminderMorningHour: commitment.reminder.morningHour,
-                reminderEveningHour: commitment.reminder.eveningHour,
-                reminderTimeZoneId: commitment.reminder.timeZoneID,
-                status: commitment.status.rawValue
-            ),
-            token: token
-        )
+        _ = try await authenticatedRequest { token in
+            try await apiClient.saveNovenaCommitment(
+                novenaId: commitment.novenaID,
+                request: APIUserNovenaCommitmentRequest(
+                    startedAt: commitment.startedAt,
+                    currentDay: commitment.currentDay,
+                    completedDays: commitment.completedDays,
+                    reminderEnabled: commitment.reminder.enabled,
+                    reminderMorningHour: commitment.reminder.morningHour,
+                    reminderEveningHour: commitment.reminder.eveningHour,
+                    reminderTimeZoneId: commitment.reminder.timeZoneID,
+                    status: commitment.status.rawValue
+                ),
+                token: token
+            )
+        }
     }
 
     func completeNovenaDay(
@@ -108,15 +113,41 @@ actor RemoteUserProgressRepository: UserProgressRepository {
     }
 
     func removeNovenaCommitment(userID: String, novenaID: String) async throws {
-        let token = try await profileToken()
-        try await apiClient.deleteNovenaCommitment(novenaId: novenaID, token: token)
+        try await authenticatedRequest { token in
+            try await apiClient.deleteNovenaCommitment(novenaId: novenaID, token: token)
+        }
     }
 
     private func profileToken() async throws -> String {
-        let token = await MainActor.run { sessionStore.idToken ?? sessionStore.accessToken }
+        let token = await sessionStore.authorizationToken()
         guard let token, !token.isEmpty else {
             throw SanctuaryAPIError.missingAccessToken
         }
         return token
+    }
+
+    private func authenticatedRequest<Response>(
+        _ request: (String) async throws -> Response
+    ) async throws -> Response {
+        let token = try await profileToken()
+        do {
+            return try await request(token)
+        } catch {
+            guard isSessionRejected(error),
+                  let refreshedToken = await sessionStore.refreshAuthorizationTokenAfterRejection()
+            else {
+                throw error
+            }
+
+            return try await request(refreshedToken)
+        }
+    }
+
+    private func isSessionRejected(_ error: Error) -> Bool {
+        guard case SanctuaryAPIError.serverStatus(let statusCode, _) = error else {
+            return false
+        }
+
+        return statusCode == 401 || statusCode == 403 || statusCode == 404 || statusCode == 410
     }
 }
