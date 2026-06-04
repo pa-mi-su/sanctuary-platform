@@ -81,6 +81,27 @@ final class AccountSessionStore: ObservableObject {
         session?.idToken
     }
 
+    func authorizationToken() async -> String? {
+        guard let activeSession = await activeSession() else {
+            return nil
+        }
+
+        return activeSession.idToken.isEmpty ? activeSession.accessToken : activeSession.idToken
+    }
+
+    func refreshAuthorizationTokenAfterRejection() async -> String? {
+        guard let existing = session,
+              let refreshToken = existing.refreshToken,
+              !refreshToken.isEmpty,
+              let refreshed = await refreshSessionTokens(using: refreshToken, preserving: existing)
+        else {
+            clearStoredSession()
+            return nil
+        }
+
+        return refreshed.idToken.isEmpty ? refreshed.accessToken : refreshed.idToken
+    }
+
     func bootstrap() async {
         guard isConfigured else {
             setMessage("Authentication is not configured for this environment yet.", isError: true)
@@ -260,8 +281,20 @@ final class AccountSessionStore: ObservableObject {
             clearMessage()
         } catch {
             if isSessionRejected(error) {
-                clearStoredSession()
-                setMessage("Your session has ended. Please sign in again.", isError: true)
+                guard let refreshedToken = await refreshAuthorizationTokenAfterRejection() else {
+                    setMessage("Your session has ended. Please sign in again.", isError: true)
+                    return
+                }
+
+                do {
+                    let response = try await apiClient.me(token: refreshedToken)
+                    profile = mapProfile(response, fallbackSession: session)
+                    status = .authenticated
+                    clearMessage()
+                } catch {
+                    clearStoredSession()
+                    setMessage("Your session has ended. Please sign in again.", isError: true)
+                }
                 return
             }
 
@@ -440,7 +473,7 @@ final class AccountSessionStore: ObservableObject {
     private func activeSession(fallbackSession: AccountSession? = nil) async -> AccountSession? {
         let candidate = session ?? fallbackSession
         guard let candidate else { return nil }
-        if candidate.expiresAt > Date() {
+        if candidate.expiresAt > Date().addingTimeInterval(60) {
             return candidate
         }
         guard let refreshToken = candidate.refreshToken, !refreshToken.isEmpty else {
@@ -451,12 +484,21 @@ final class AccountSessionStore: ObservableObject {
 
     @discardableResult
     private func refreshSession(using refreshToken: String, preserving existing: AccountSession) async -> AccountSession? {
+        guard let refreshed = await refreshSessionTokens(using: refreshToken, preserving: existing) else {
+            return nil
+        }
+
+        await refreshProfile(fallbackSession: refreshed)
+        return refreshed
+    }
+
+    @discardableResult
+    private func refreshSessionTokens(using refreshToken: String, preserving existing: AccountSession) async -> AccountSession? {
         do {
             let response = try await apiClient.refreshSession(refreshToken: refreshToken)
             let refreshed = buildSession(from: response, fallbackRefreshToken: existing.refreshToken)
             session = refreshed
             try persist(refreshed)
-            await refreshProfile(fallbackSession: refreshed)
             return refreshed
         } catch {
             clearStoredSession()

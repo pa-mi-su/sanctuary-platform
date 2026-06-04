@@ -1,10 +1,10 @@
 {
   "name": "web",
-  "version": "1.0.10",
+  "version": "1.0.11",
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
-    "build": "ng build",
+    "build": "ng build && node scripts/generate-share-previews.mjs",
     "watch": "ng build --watch --configuration development",
     "test": "ng test"
   },

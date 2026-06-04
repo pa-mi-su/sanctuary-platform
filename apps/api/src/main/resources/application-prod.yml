@@ -22,3 +22,4 @@ sanctuary:
       domain: ${SANCTUARY_AUTH_COOKIE_DOMAIN:}
       secure: ${SANCTUARY_AUTH_COOKIE_SECURE:true}
       same-site: ${SANCTUARY_AUTH_COOKIE_SAME_SITE:None}
+      refresh-max-age-days: ${SANCTUARY_AUTH_COOKIE_REFRESH_MAX_AGE_DAYS:30}

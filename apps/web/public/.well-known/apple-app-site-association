@@ -1,0 +1,31 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "Z9L9BZFYLS.com.pamisu.Sanctuary",
+        "paths": [
+          "/saints/*",
+          "/novenas/*",
+          "/prayers/*"
+        ]
+      },
+      {
+        "appID": "Z9L9BZFYLS.com.pamisu.Sanctuary.uat",
+        "paths": [
+          "/saints/*",
+          "/novenas/*",
+          "/prayers/*"
+        ]
+      },
+      {
+        "appID": "Z9L9BZFYLS.com.pamisu.Sanctuary.dev",
+        "paths": [
+          "/saints/*",
+          "/novenas/*",
+          "/prayers/*"
+        ]
+      }
+    ]
+  }
+}
