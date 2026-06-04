@@ -292,6 +292,7 @@ struct PrayersSearchView: View {
 struct PrayerDetailView: View {
     let contentRepository: any ContentRepository
     let prayer: Prayer
+    var onClose: (() -> Void)? = nil
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var localization: LocalizationManager
     @EnvironmentObject private var progressStore: UserProgressStore
@@ -299,9 +300,10 @@ struct PrayerDetailView: View {
     @State private var isFavorite = false
     @State private var isShowingExpandedHeroImage = false
 
-    init(contentRepository: any ContentRepository, prayer: Prayer) {
+    init(contentRepository: any ContentRepository, prayer: Prayer, onClose: (() -> Void)? = nil) {
         self.contentRepository = contentRepository
         self.prayer = prayer
+        self.onClose = onClose
         _currentPrayer = State(initialValue: prayer)
     }
 
@@ -363,6 +365,7 @@ struct PrayerDetailView: View {
 
     private func handleBack() {
         dismiss()
+        onClose?()
     }
 
     var body: some View {
@@ -414,6 +417,24 @@ struct PrayerDetailView: View {
                                 Spacer()
                             }
                         }
+
+                        ShareLink(item: SharedContentLink(kind: .prayer, slug: currentPrayer.slug).url) {
+                            HStack(spacing: 10) {
+                                Image(systemName: "square.and.arrow.up")
+                                Text("Share")
+                            }
+                            .font(AppTheme.rounded(16, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 18)
+                            .padding(.vertical, 12)
+                            .background(AppTheme.cardBackgroundSoft)
+                            .overlay(
+                                Capsule()
+                                    .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                            )
+                            .clipShape(Capsule())
+                        }
+                        .buttonStyle(.plain)
 
                         VStack(alignment: .leading, spacing: 10) {
                             if !noteText.isEmpty {

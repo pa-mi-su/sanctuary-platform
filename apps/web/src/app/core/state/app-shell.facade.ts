@@ -104,6 +104,7 @@ export class AppShellFacade {
   private readonly userProfileReloadToken = signal(0);
   private readonly userCollectionsReloadToken = signal(0);
   private readonly userProfileOverride = signal<UserProfile | null>(null);
+  private suppressNextHistoryUpdate = false;
 
   readonly liturgicalRange = toSignal(
     combineLatest([
@@ -479,6 +480,12 @@ export class AppShellFacade {
 
   constructor() {
     void this.auth.completeRedirectIfPresent();
+    if (typeof window !== 'undefined') {
+      this.openSharedContentFromPath(window.location.pathname, false);
+      window.addEventListener('popstate', () => {
+        this.openSharedContentFromPath(window.location.pathname, false);
+      });
+    }
   }
 
   readonly selectedDateLabel = computed(() =>
@@ -815,10 +822,12 @@ export class AppShellFacade {
 
   openSaintDetail(saint: SaintSummary): void {
     this.selectedSaintSlug.set(saint.slug);
+    this.pushSharedContentPath('saints', saint.slug);
   }
 
   openPrayerDetail(prayer: PrayerSummary): void {
     this.selectedPrayerSlug.set(prayer.slug);
+    this.pushSharedContentPath('prayers', prayer.slug);
   }
 
   openNovenaDetail(novena: NovenaSummary): void {
@@ -826,6 +835,7 @@ export class AppShellFacade {
     this.selectedNovenaSlug.set(novena.slug);
     this.selectedNovenaDayManuallyChanged.set(false);
     this.selectedNovenaDayNumber.set(this.novenaProgressForNovena(novena.id, novena.slug)?.currentDay ?? 1);
+    this.pushSharedContentPath('novenas', novena.slug);
   }
 
   selectNovenaDay(dayNumber: number): void {
@@ -934,6 +944,59 @@ export class AppShellFacade {
     this.selectedNovenaId.set(null);
     this.selectedNovenaDayManuallyChanged.set(false);
     this.selectedNovenaDayNumber.set(1);
+    if (typeof window !== 'undefined' && window.location.pathname !== '/') {
+      window.history.pushState({}, '', '/');
+    }
+  }
+
+  private openSharedContentFromPath(pathname: string, updateHistory: boolean): void {
+    const [kind, slug] = pathname.split('/').filter(Boolean);
+    if (!kind || !slug) {
+      if (!updateHistory) {
+        this.selectedSaintSlug.set(null);
+        this.selectedPrayerSlug.set(null);
+        this.selectedNovenaSlug.set(null);
+        this.selectedNovenaId.set(null);
+      }
+      return;
+    }
+
+    this.suppressNextHistoryUpdate = !updateHistory;
+    switch (kind) {
+      case 'saints':
+        this.setTab('saints');
+        this.selectedSaintSlug.set(decodeURIComponent(slug));
+        break;
+      case 'novenas':
+        this.setTab('novenas');
+        this.selectedNovenaSlug.set(decodeURIComponent(slug));
+        this.selectedNovenaId.set(null);
+        this.selectedNovenaDayManuallyChanged.set(false);
+        this.selectedNovenaDayNumber.set(1);
+        break;
+      case 'prayers':
+        this.setTab('prayers');
+        this.selectedPrayerSlug.set(decodeURIComponent(slug));
+        break;
+      default:
+        this.suppressNextHistoryUpdate = false;
+    }
+  }
+
+  private pushSharedContentPath(kind: 'saints' | 'novenas' | 'prayers', slug: string): void {
+    if (this.suppressNextHistoryUpdate) {
+      this.suppressNextHistoryUpdate = false;
+      return;
+    }
+
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    const path = `/${kind}/${encodeURIComponent(slug)}`;
+    if (window.location.pathname !== path) {
+      window.history.pushState({}, '', path);
+    }
   }
 
   showDailyTab(): void {
