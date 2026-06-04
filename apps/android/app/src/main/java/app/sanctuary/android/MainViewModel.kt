@@ -311,19 +311,28 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 } ?: throw IllegalStateException(l10n().t("status.loginTimeout"))
             }
                 .onSuccess { result ->
-                    _session.value = SessionUiState(
-                        status = SessionStatus.Authenticated,
-                        isBootstrapping = false,
-                        isSavingReminderPreferences = false,
-                        session = result.session,
-                        profile = result.profile
-                    )
-                    syncReminderScheduler(
-                        profile = result.profile,
-                        activeCommitmentCount = 0
-                    )
-                    loadInitialContent()
-                    refreshNovenaProgress()
+                    if (result.authenticated) {
+                        _session.value = SessionUiState(
+                            status = SessionStatus.Authenticated,
+                            isBootstrapping = false,
+                            isSavingReminderPreferences = false,
+                            session = result.session,
+                            profile = result.profile
+                        )
+                        syncReminderScheduler(
+                            profile = result.profile,
+                            activeCommitmentCount = 0
+                        )
+                        loadInitialContent()
+                        refreshNovenaProgress()
+                    } else {
+                        reminderScheduler.cancelAll()
+                        _session.value = SessionUiState(
+                            status = SessionStatus.Failed,
+                            message = result.errorMessage ?: l10n().t("status.loginFailed"),
+                            isErrorMessage = true
+                        )
+                    }
                 }.onFailure { failure ->
                     _session.value = SessionUiState(
                         status = SessionStatus.Failed,

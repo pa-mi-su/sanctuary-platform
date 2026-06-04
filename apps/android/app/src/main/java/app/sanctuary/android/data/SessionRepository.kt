@@ -55,9 +55,9 @@ class SessionRepository(
     suspend fun updatePreferredLanguage(language: String): UserProfile? = withContext(Dispatchers.IO) {
         persistLanguage(language)
         val session = loadSession() ?: return@withContext null
-        val currentProfile = runApiCall { authenticatedApi(session).me() }.toUserProfile(session)
-        val updatedProfile = runApiCall {
-            authenticatedApi(session).updateMePreferences(
+        val currentProfile = authenticatedCall(session) { it.me() }.toUserProfile(loadSession() ?: session)
+        val updatedProfile = authenticatedCall {
+            it.updateMePreferences(
                 UserPreferencesUpdateRequest(
                     preferredLanguage = language,
                     timeZoneId = currentProfile.timeZoneId ?: java.util.TimeZone.getDefault().id,
@@ -266,7 +266,7 @@ class SessionRepository(
     }
 
     suspend fun listNovenaCommitments(): List<UserNovenaCommitment> = withContext(Dispatchers.IO) {
-        runApiCall { authenticatedApi().listNovenaCommitments() }
+        authenticatedCall { it.listNovenaCommitments() }
             .mapNotNull { response ->
                 val status = when (response.status.lowercase()) {
                     "active" -> CommitmentStatus.Active
@@ -292,7 +292,7 @@ class SessionRepository(
     }
 
     suspend fun listFavorites(): List<UserFavorite> = withContext(Dispatchers.IO) {
-        runApiCall { authenticatedApi().listFavorites() }
+        authenticatedCall { it.listFavorites() }
             .mapNotNull { response ->
                 val itemType = when (response.itemType.lowercase()) {
                     "saint" -> FavoriteItemType.Saint
@@ -314,9 +314,9 @@ class SessionRepository(
         dailyEnabled: Boolean
     ): UserProfile = withContext(Dispatchers.IO) {
         val session = loadSession() ?: throw SanctuaryApiException("Please sign in to continue.")
-        val currentProfile = runApiCall { authenticatedApi(session).me() }.toUserProfile(session)
-        val updatedProfile = runApiCall {
-            authenticatedApi(session).updateMePreferences(
+        val currentProfile = authenticatedCall(session) { it.me() }.toUserProfile(loadSession() ?: session)
+        val updatedProfile = authenticatedCall {
+            it.updateMePreferences(
                 UserPreferencesUpdateRequest(
                     preferredLanguage = currentProfile.preferredLanguage ?: "en",
                     timeZoneId = currentProfile.timeZoneId ?: java.util.TimeZone.getDefault().id,
@@ -336,9 +336,9 @@ class SessionRepository(
         enabled: Boolean
     ) = withContext(Dispatchers.IO) {
         if (enabled) {
-            runApiCall { authenticatedApi().saveFavorite(itemType.name.lowercase(), itemId) }
+            authenticatedCall { it.saveFavorite(itemType.name.lowercase(), itemId) }
         } else {
-            runApiCall { authenticatedApi().deleteFavorite(itemType.name.lowercase(), itemId) }
+            authenticatedCall { it.deleteFavorite(itemType.name.lowercase(), itemId) }
         }
     }
 
@@ -360,7 +360,7 @@ class SessionRepository(
     }
 
     suspend fun stopNovena(novenaId: String) = withContext(Dispatchers.IO) {
-        runApiCall { api.deleteNovenaCommitment(novenaId) }
+        authenticatedCall { it.deleteNovenaCommitment(novenaId) }
     }
 
     suspend fun completeCurrentNovenaDay(
@@ -428,7 +428,7 @@ class SessionRepository(
 
     suspend fun deleteAccount() = withContext(Dispatchers.IO) {
         try {
-            runApiCall { authenticatedApi().deleteMe() }
+            authenticatedCall { it.deleteMe() }
         } catch (exception: SanctuaryApiException) {
             if (!exception.isSessionRejected()) {
                 throw exception
@@ -441,7 +441,7 @@ class SessionRepository(
         novenaId: String,
         request: UserNovenaCommitmentRequest
     ): UserNovenaCommitment {
-        return runApiCall { authenticatedApi().saveNovenaCommitment(novenaId, request) }
+        return authenticatedCall { it.saveNovenaCommitment(novenaId, request) }
             .let { response ->
                 UserNovenaCommitment(
                     novenaId = response.novenaId,
@@ -499,17 +499,16 @@ class SessionRepository(
 
     private suspend fun loadProfile(session: StoredSession): SessionBootstrapResult {
         return try {
-            val profile = runApiCall { authenticatedApi(session).me() }.toUserProfile(session)
+            val resolvedSession = loadSession() ?: session
+            val profile = authenticatedCall(resolvedSession) { it.me() }.toUserProfile(loadSession() ?: resolvedSession)
             persistLanguage(profile.preferredLanguage ?: currentLanguage())
-            SessionBootstrapResult.authenticated(session, profile)
+            SessionBootstrapResult.authenticated(loadSession() ?: resolvedSession, profile)
         } catch (exception: Exception) {
-            if (exception is SanctuaryApiException && exception.isSessionRejected()) {
-                clearSession()
-                return SessionBootstrapResult.signedOut()
-            }
-
             if (!session.refreshToken.isNullOrBlank()) {
                 refreshSession(session.refreshToken, session)
+            } else if (exception is SanctuaryApiException && exception.isSessionRejected()) {
+                clearSession()
+                SessionBootstrapResult.signedOut()
             } else {
                 clearSession()
                 SessionBootstrapResult.failed(exception.message ?: "Please sign in to continue.")
@@ -521,6 +520,51 @@ class SessionRepository(
         val activeSession = session ?: throw SanctuaryApiException("Please sign in to continue.")
         return SanctuaryApiFactory.create {
             activeSession.idToken.ifBlank { activeSession.accessToken }
+        }
+    }
+
+    private suspend fun <T> authenticatedCall(
+        session: StoredSession? = loadSession(),
+        block: suspend (SanctuaryApiService) -> T
+    ): T {
+        var activeSession = session ?: throw SanctuaryApiException("Please sign in to continue.")
+        if (activeSession.expiresAtMillis <= System.currentTimeMillis() + 60_000L) {
+            val refreshToken = activeSession.refreshToken
+            activeSession = if (refreshToken.isNullOrBlank()) {
+                throw SanctuaryApiException("Please sign in to continue.", 401)
+            } else {
+                refreshStoredSession(refreshToken, activeSession)
+                    ?: throw SanctuaryApiException("Please sign in to continue.", 401)
+            }
+        }
+
+        return try {
+            runApiCall { block(authenticatedApi(activeSession)) }
+        } catch (exception: SanctuaryApiException) {
+            val refreshToken = activeSession.refreshToken
+            if (!exception.isSessionRejected() || refreshToken.isNullOrBlank()) {
+                throw exception
+            }
+
+            val refreshed = refreshStoredSession(refreshToken, activeSession)
+                ?: throw exception
+
+            runApiCall { block(authenticatedApi(refreshed)) }
+        }
+    }
+
+    private suspend fun refreshStoredSession(
+        refreshToken: String,
+        previous: StoredSession
+    ): StoredSession? {
+        return try {
+            val response = runApiCall {
+                api.refresh(AuthRefreshRequest(refreshToken = refreshToken))
+            }
+            response.toStoredSession(previous.refreshToken).also(::persistSession)
+        } catch (_: Exception) {
+            clearSession()
+            null
         }
     }
 }
