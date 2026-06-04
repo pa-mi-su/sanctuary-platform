@@ -7,6 +7,7 @@ const API_BASE_URL =
   'https://sa-d7fe5f77e3bd409caf712e69b701f1e8.ecs.us-east-1.on.aws';
 const OUTPUT_DIR = process.env.SANCTUARY_SHARE_PREVIEW_OUTPUT_DIR ?? path.resolve('dist/web/browser');
 const FALLBACK_IMAGE_URL = `${SITE_ORIGIN}/brand-logo.png`;
+const IOS_APP_STORE_ID = '6759986068';
 
 const contentTypes = [
   {
@@ -83,6 +84,7 @@ async function fetchJson(url) {
 function renderPreviewHtml(html, metadata) {
   const tags = [
     ['meta', { name: 'description', content: metadata.description }],
+    ['meta', { name: 'apple-itunes-app', content: `app-id=${IOS_APP_STORE_ID}, app-argument=${metadata.url}` }],
     ['meta', { property: 'og:type', content: 'article' }],
     ['meta', { property: 'og:site_name', content: 'Sanctuary' }],
     ['meta', { property: 'og:title', content: metadata.title }],
@@ -102,6 +104,7 @@ function renderPreviewHtml(html, metadata) {
 
   return html
     .replace(/<title>.*?<\/title>/, `<title>${escapeHtml(metadata.title)}</title>`)
+    .replace(/<meta name="apple-itunes-app" content="[^"]*"\s*\/?>\s*/g, '')
     .replace('</head>', `    ${tags}\n  </head>`);
 }
 
