@@ -38,7 +38,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -867,7 +866,16 @@ private fun AuthenticatedShell(
                         NavigationBarItem(
                             selected = selectedTab == tab,
                             onClick = { onTabSelected(tab) },
-                            label = { Text(tab.label(l10n)) },
+                            label = {
+                                Text(
+                                    tab.label(l10n),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    fontSize = 11.sp,
+                                    lineHeight = 12.sp,
+                                    textAlign = TextAlign.Center
+                                )
+                            },
                             colors = NavigationBarItemDefaults.colors(
                                 selectedIconColor = SanctuaryTabActive,
                                 selectedTextColor = SanctuaryTabActive,
@@ -2332,131 +2340,212 @@ private fun HomeFeatureCard(
     onClick: () -> Unit
 ) {
     val l10n = sanctuaryStrings()
+    val fontScale = LocalDensity.current.fontScale
     Card(
         modifier = Modifier.shadow(18.dp, RoundedCornerShape(28.dp), clip = false),
         colors = CardDefaults.cardColors(containerColor = Color.Transparent),
         shape = RoundedCornerShape(28.dp),
         onClick = onClick
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(188.dp)
-                .background(
-                    brush = action.cardBrush(),
-                    shape = RoundedCornerShape(28.dp)
-                )
-                .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(28.dp))
-        ) {
+        BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+            val compact = maxWidth < 360.dp || fontScale >= 1.18f
+            val cardHeight = if (compact) 148.dp else 188.dp
+            val artworkWidth = if (maxWidth < 420.dp) 128.dp else 156.dp
+            val artworkHeight = if (maxWidth < 420.dp) 88.dp else 108.dp
+
             Box(
                 modifier = Modifier
-                    .matchParentSize()
+                    .fillMaxWidth()
+                    .height(cardHeight)
                     .background(
-                        brush = Brush.linearGradient(
-                            listOf(Color.White.copy(alpha = 0.06f), Color.Transparent, Color.Black.copy(alpha = 0.18f))
-                        ),
+                        brush = action.cardBrush(),
                         shape = RoundedCornerShape(28.dp)
                     )
-            )
-
-            Column(
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .padding(start = 22.dp, end = 148.dp, bottom = 20.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(42.dp)
-                            .background(Color.White.copy(alpha = 0.12f), RoundedCornerShape(14.dp)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        HomeActionBadgeGlyph(
-                            action = action,
-                            modifier = Modifier.size(22.dp)
-                        )
-                    }
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(
-                            l10n.t(action.titleKey),
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 22.sp
-                        )
-                        Text(
-                            l10n.t(action.subtitleKey),
-                            color = Color(0xFFD0DFEA),
-                            fontSize = 14.sp,
-                            lineHeight = 20.sp
-                        )
-                    }
-                }
-            }
-
-            Box(
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(top = 16.dp, end = 16.dp)
-                    .size(width = 156.dp, height = 108.dp)
+                    .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(28.dp))
             ) {
                 Box(
                     modifier = Modifier
                         .matchParentSize()
-                        .clip(RoundedCornerShape(22.dp))
                         .background(
-                            brush = Brush.linearGradient(action.illustrationColors)
+                            brush = Brush.linearGradient(
+                                listOf(Color.White.copy(alpha = 0.06f), Color.Transparent, Color.Black.copy(alpha = 0.18f))
+                            ),
+                            shape = RoundedCornerShape(28.dp)
                         )
-                        .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(22.dp))
                 )
 
-                if (action.artworkAssetPath != null) {
-                    HomeActionArtwork(
-                        assetPath = action.artworkAssetPath,
-                        contentDescription = l10n.t(action.titleKey),
+                if (compact) {
+                    Row(
                         modifier = Modifier
-                            .align(Alignment.Center)
                             .fillMaxSize()
-                            .padding(start = 18.dp, end = 12.dp, top = 10.dp, bottom = 8.dp)
-                    )
-                } else {
-                        HomeActionIllustration(
-                            action = action,
+                            .padding(horizontal = 18.dp, vertical = 18.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        Box(
                             modifier = Modifier
-                            .align(Alignment.Center)
-                            .size(width = 118.dp, height = 78.dp)
-                            .offset(x = (-8).dp, y = 4.dp)
-                    )
+                                .size(48.dp)
+                                .background(Color.White.copy(alpha = 0.12f), RoundedCornerShape(16.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            HomeActionBadgeGlyph(
+                                action = action,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Text(
+                                l10n.t(action.titleKey),
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 21.sp,
+                                lineHeight = 25.sp,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                l10n.t(action.subtitleKey),
+                                color = Color(0xFFD0DFEA),
+                                fontSize = 14.sp,
+                                lineHeight = 19.sp,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .background(Color.White.copy(alpha = 0.12f), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.SouthEast,
+                                contentDescription = null,
+                                tint = Color.White.copy(alpha = 0.78f),
+                                modifier = Modifier.size(19.dp)
+                            )
+                        }
+                    }
+                } else {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(start = 22.dp, top = 16.dp, end = 16.dp, bottom = 20.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.weight(1f),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(42.dp)
+                                    .background(Color.White.copy(alpha = 0.12f), RoundedCornerShape(14.dp)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                HomeActionBadgeGlyph(
+                                    action = action,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Text(
+                                    l10n.t(action.titleKey),
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 22.sp,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    l10n.t(action.subtitleKey),
+                                    color = Color(0xFFD0DFEA),
+                                    fontSize = 14.sp,
+                                    lineHeight = 20.sp,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                        HomeFeatureArtwork(
+                            action = action,
+                            contentDescription = l10n.t(action.titleKey),
+                            modifier = Modifier.size(width = artworkWidth, height = artworkHeight)
+                        )
+                    }
                 }
-
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(10.dp)
-                        .size(28.dp)
-                        .background(Color.White.copy(alpha = 0.12f), CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.SouthEast,
-                        contentDescription = null,
-                        tint = Color.White.copy(alpha = 0.78f),
-                        modifier = Modifier.size(15.dp)
-                    )
-                }
-
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(bottom = 10.dp)
-                        .size(width = 78.dp, height = 4.dp)
-                        .background(Color.White.copy(alpha = 0.22f), RoundedCornerShape(999.dp))
-                )
             }
         }
+    }
+}
+
+@Composable
+private fun HomeFeatureArtwork(
+    action: HomeAction,
+    contentDescription: String,
+    modifier: Modifier = Modifier
+) {
+    Box(modifier = modifier) {
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .clip(RoundedCornerShape(22.dp))
+                .background(
+                    brush = Brush.linearGradient(action.illustrationColors)
+                )
+                .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(22.dp))
+        )
+
+        if (action.artworkAssetPath != null) {
+            HomeActionArtwork(
+                assetPath = action.artworkAssetPath,
+                contentDescription = contentDescription,
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .fillMaxSize()
+                    .padding(start = 16.dp, end = 12.dp, top = 10.dp, bottom = 8.dp)
+            )
+        } else {
+            HomeActionIllustration(
+                action = action,
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .fillMaxSize()
+                    .padding(horizontal = 18.dp, vertical = 14.dp)
+            )
+        }
+
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(10.dp)
+                .size(28.dp)
+                .background(Color.White.copy(alpha = 0.12f), CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Filled.SouthEast,
+                contentDescription = null,
+                tint = Color.White.copy(alpha = 0.78f),
+                modifier = Modifier.size(15.dp)
+            )
+        }
+
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 10.dp)
+                .size(width = 78.dp, height = 4.dp)
+                .background(Color.White.copy(alpha = 0.22f), RoundedCornerShape(999.dp))
+        )
     }
 }
 
