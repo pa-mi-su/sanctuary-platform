@@ -52,6 +52,17 @@
 
                 <data
                     android:scheme="https"
+                    android:host="www.mydailysanctuary.com"
+                    android:pathPrefix="/saints/" />
+            </intent-filter>
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data
+                    android:scheme="https"
                     android:host="mydailysanctuary.com"
                     android:pathPrefix="/novenas/" />
             </intent-filter>
@@ -63,7 +74,29 @@
 
                 <data
                     android:scheme="https"
+                    android:host="www.mydailysanctuary.com"
+                    android:pathPrefix="/novenas/" />
+            </intent-filter>
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data
+                    android:scheme="https"
                     android:host="mydailysanctuary.com"
+                    android:pathPrefix="/prayers/" />
+            </intent-filter>
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data
+                    android:scheme="https"
+                    android:host="www.mydailysanctuary.com"
                     android:pathPrefix="/prayers/" />
             </intent-filter>
         </activity>
