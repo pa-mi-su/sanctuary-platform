@@ -181,7 +181,8 @@ class MainActivity : ComponentActivity() {
 
     private fun handleSharedContentIntent(intent: Intent?) {
         val uri = intent?.data ?: return
-        if (uri.scheme != "https" || uri.host != "mydailysanctuary.com") {
+        val host = uri.host?.lowercase()
+        if (uri.scheme != "https" || (host != "mydailysanctuary.com" && host != "www.mydailysanctuary.com")) {
             return
         }
 

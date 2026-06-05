@@ -31,7 +31,8 @@ struct SharedContentLink: Identifiable, Equatable {
     }
 
     static func parse(_ url: URL) -> SharedContentLink? {
-        guard url.host?.lowercased() == "mydailysanctuary.com" else {
+        let host = url.host?.lowercased()
+        guard host == "mydailysanctuary.com" || host == "www.mydailysanctuary.com" else {
             return nil
         }
 
@@ -42,6 +43,6 @@ struct SharedContentLink: Identifiable, Equatable {
             return nil
         }
 
-        return SharedContentLink(kind: kind, slug: components[1])
+        return SharedContentLink(kind: kind, slug: components[1].removingPercentEncoding ?? components[1])
     }
 }
