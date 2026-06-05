@@ -126,63 +126,11 @@ struct AppShellView: View {
 
     @ViewBuilder
     private func sharedContentDestination(for link: SharedContentLink) -> some View {
-        switch link.kind {
-        case .saint:
-            SaintDetailView(
-                contentRepository: environment.contentRepository,
-                saint: Saint(
-                    id: link.slug,
-                    slug: link.slug,
-                    name: "",
-                    nameByLocale: [.en: ""],
-                    feastMonth: 1,
-                    feastDay: 1,
-                    imageURL: nil,
-                    tags: [],
-                    patronages: [],
-                    feastLabelByLocale: [:],
-                    summaryByLocale: [:],
-                    biographyByLocale: [:],
-                    prayersByLocale: [:],
-                    sources: []
-                ),
-                onClose: { sharedContentLink = nil }
-            )
-        case .novena:
-            NovenaDetailView(
-                contentRepository: environment.contentRepository,
-                novena: Novena(
-                    id: link.slug,
-                    slug: link.slug,
-                    titleByLocale: [.en: ""],
-                    descriptionByLocale: [:],
-                    durationDays: 9,
-                    tags: [],
-                    intentions: [],
-                    imageURL: nil,
-                    days: []
-                ),
-                onClose: { sharedContentLink = nil }
-            )
-        case .prayer:
-            PrayerDetailView(
-                contentRepository: environment.contentRepository,
-                prayer: Prayer(
-                    id: link.slug,
-                    slug: link.slug,
-                    category: "prayer",
-                    titleByLocale: [.en: ""],
-                    bodyByLocale: [:],
-                    alternateTitleByLocale: [:],
-                    noteByLocale: [:],
-                    imageURL: nil,
-                    sourceTitle: nil,
-                    sourceType: nil,
-                    tags: []
-                ),
-                onClose: { sharedContentLink = nil }
-            )
-        }
+        SharedContentDestinationView(
+            environment: environment,
+            link: link,
+            onClose: { sharedContentLink = nil }
+        )
     }
 }
 
@@ -201,6 +149,126 @@ private struct LazyTabContent<Content: View>: View {
                 Color.clear
             }
         }
+    }
+}
+
+private struct SharedContentDestinationView: View {
+    let environment: AppEnvironment
+    let link: SharedContentLink
+    let onClose: () -> Void
+
+    @EnvironmentObject private var localization: LocalizationManager
+    @State private var saint: Saint?
+    @State private var novena: Novena?
+    @State private var prayer: Prayer?
+    @State private var isLoading = true
+    @State private var didFail = false
+
+    var body: some View {
+        Group {
+            if let saint {
+                SaintDetailView(
+                    contentRepository: environment.contentRepository,
+                    saint: saint,
+                    onClose: onClose
+                )
+            } else if let novena {
+                NovenaDetailView(
+                    contentRepository: environment.contentRepository,
+                    novena: novena,
+                    onClose: onClose
+                )
+            } else if let prayer {
+                PrayerDetailView(
+                    contentRepository: environment.contentRepository,
+                    prayer: prayer,
+                    onClose: onClose
+                )
+            } else {
+                sharedContentLoadingView
+            }
+        }
+        .task(id: link.id) {
+            await loadSharedContent()
+        }
+    }
+
+    private var sharedContentLoadingView: some View {
+        ZStack(alignment: .topLeading) {
+            AppBackdrop()
+
+            VStack {
+                Spacer()
+
+                if didFail {
+                    VStack(spacing: 12) {
+                        Text("Unable to open this shared link.")
+                            .font(AppTheme.rounded(20, weight: .bold))
+                            .foregroundStyle(.white)
+                            .multilineTextAlignment(.center)
+
+                        Text("Please try the link again in a moment.")
+                            .font(AppTheme.rounded(15, weight: .medium))
+                            .foregroundStyle(AppTheme.subtitleText)
+                            .multilineTextAlignment(.center)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 22)
+                    .appGlassCard(cornerRadius: 24)
+                    .padding(.horizontal, 24)
+                } else {
+                    SanctuaryLoadingCard(
+                        title: localization.t("common.loading"),
+                        detail: isLoading ? localization.t("common.loadingDetail") : nil
+                    )
+                    .padding(.horizontal, 24)
+                }
+
+                Spacer()
+            }
+
+            FloatingBackButton(action: onClose)
+                .padding(.leading, 22)
+                .padding(.top, 18)
+        }
+        .leftEdgeSwipeBack(onClose)
+    }
+
+    @MainActor
+    private func loadSharedContent() async {
+        isLoading = true
+        didFail = false
+        saint = nil
+        novena = nil
+        prayer = nil
+
+        do {
+            switch link.kind {
+            case .saint:
+                saint = try await environment.contentRepository.fetchSaint(
+                    slug: link.slug,
+                    locale: localization.language.contentLocale
+                )
+                didFail = saint == nil
+            case .novena:
+                novena = try await environment.contentRepository.fetchNovena(
+                    slug: link.slug,
+                    locale: localization.language.contentLocale
+                )
+                didFail = novena == nil
+            case .prayer:
+                prayer = try await environment.contentRepository.fetchPrayer(
+                    slug: link.slug,
+                    locale: localization.language.contentLocale
+                )
+                didFail = prayer == nil
+            }
+        } catch {
+            didFail = true
+        }
+
+        isLoading = false
     }
 }
 
