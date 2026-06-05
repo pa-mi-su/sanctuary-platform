@@ -99,6 +99,9 @@ struct AppShellView: View {
         }
         .fullScreenCover(item: $sharedContentLink) { link in
             sharedContentDestination(for: link)
+                .environmentObject(localization)
+                .environmentObject(accountStore)
+                .environmentObject(progressStore)
         }
     }
 
@@ -129,6 +132,9 @@ struct AppShellView: View {
         SharedContentDestinationView(
             environment: environment,
             link: link,
+            locale: localization.language.contentLocale,
+            loadingTitle: localization.t("common.loading"),
+            loadingDetail: localization.t("common.loadingDetail"),
             onClose: { sharedContentLink = nil }
         )
     }
@@ -155,9 +161,11 @@ private struct LazyTabContent<Content: View>: View {
 private struct SharedContentDestinationView: View {
     let environment: AppEnvironment
     let link: SharedContentLink
+    let locale: ContentLocale
+    let loadingTitle: String
+    let loadingDetail: String
     let onClose: () -> Void
 
-    @EnvironmentObject private var localization: LocalizationManager
     @State private var saint: Saint?
     @State private var novena: Novena?
     @State private var prayer: Prayer?
@@ -219,8 +227,8 @@ private struct SharedContentDestinationView: View {
                     .padding(.horizontal, 24)
                 } else {
                     SanctuaryLoadingCard(
-                        title: localization.t("common.loading"),
-                        detail: isLoading ? localization.t("common.loadingDetail") : nil
+                        title: loadingTitle,
+                        detail: isLoading ? loadingDetail : nil
                     )
                     .padding(.horizontal, 24)
                 }
@@ -248,19 +256,19 @@ private struct SharedContentDestinationView: View {
             case .saint:
                 saint = try await environment.contentRepository.fetchSaint(
                     slug: link.slug,
-                    locale: localization.language.contentLocale
+                    locale: locale
                 )
                 didFail = saint == nil
             case .novena:
                 novena = try await environment.contentRepository.fetchNovena(
                     slug: link.slug,
-                    locale: localization.language.contentLocale
+                    locale: locale
                 )
                 didFail = novena == nil
             case .prayer:
                 prayer = try await environment.contentRepository.fetchPrayer(
                     slug: link.slug,
-                    locale: localization.language.contentLocale
+                    locale: locale
                 )
                 didFail = prayer == nil
             }
