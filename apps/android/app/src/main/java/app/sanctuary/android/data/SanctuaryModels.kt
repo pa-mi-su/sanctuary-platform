@@ -211,6 +211,11 @@ data class NovenaCalendarDateResponse(
     val startingNovena: NovenaSummaryResponse?
 )
 
+data class IntentionSearchResultResponse(
+    val novenas: List<NovenaSummaryResponse>,
+    val saints: List<SaintSummaryResponse>
+)
+
 data class LiturgicalDayResponse(
     val date: String,
     val season: String,
@@ -349,6 +354,11 @@ data class NovenaSummary(
     val durationDays: Int,
     val intentions: List<String>,
     val imageUrl: String?
+)
+
+data class IntentionSearchResult(
+    val novenas: List<NovenaSummary>,
+    val saints: List<SaintSummary>
 )
 
 data class NovenaDetail(

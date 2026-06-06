@@ -60,6 +60,11 @@ struct NovenaCalendarDay: Hashable, Sendable {
     let startingNovena: Novena?
 }
 
+struct IntentionSearchResult: Hashable, Sendable {
+    let novenas: [Novena]
+    let saints: [Saint]
+}
+
 struct NovenaServingWindowInfo: Hashable, Sendable {
     let novenaID: String
     let startDate: Date

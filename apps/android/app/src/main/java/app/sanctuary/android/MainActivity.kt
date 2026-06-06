@@ -777,7 +777,7 @@ private fun AuthenticatedShell(
     session: SessionUiState,
     saints: ContentListUiState<SaintSummary>,
     novenas: ContentListUiState<NovenaSummary>,
-    intentions: ContentListUiState<NovenaSummary>,
+    intentions: IntentionSearchUiState,
     prayers: ContentListUiState<PrayerSummary>,
     rosaries: ContentListUiState<PrayerSummary>,
     selectedLanguage: AppLanguage,
@@ -989,7 +989,7 @@ private fun AuthenticatedShell(
                             action = HomeAction.Intentions,
                             onClick = {
                                 showIntentionsSearch = true
-                                if (intentions.items.isEmpty() && !intentions.isLoading) {
+                                if (intentions.result.novenas.isEmpty() && intentions.result.saints.isEmpty() && !intentions.isLoading) {
                                     onReloadIntentions()
                                 }
                             }
@@ -1221,7 +1221,7 @@ private fun AuthenticatedShell(
 
         if (showIntentionsSearch) {
             SanctuaryModalSheet(onDismissRequest = { showIntentionsSearch = false }) {
-                SearchListSheet(
+                IntentionSearchSheet(
                     title = l10n.t("search.intentionsTitle"),
                     query = intentions.query,
                     onQueryChanged = onIntentionsQueryChanged,
@@ -1229,19 +1229,17 @@ private fun AuthenticatedShell(
                     isLoading = intentions.isLoading,
                     error = intentions.error,
                     emptyLabel = l10n.t("search.intentionsTitle"),
-                    items = intentions.items
-                ) { item ->
-                    ContentCard(
-                        title = item.title,
-                        subtitle = item.description,
-                        detail = item.intentions.take(3).joinToString(" • ").ifBlank { "${item.durationDays}-day novena" },
-                        imageUrl = item.imageUrl,
-                        onClick = {
-                            showIntentionsSearch = false
-                            onOpenNovena(item.slug)
-                        }
-                    )
-                }
+                    saints = intentions.result.saints,
+                    novenas = intentions.result.novenas,
+                    onOpenSaint = {
+                        showIntentionsSearch = false
+                        onOpenSaint(it)
+                    },
+                    onOpenNovena = {
+                        showIntentionsSearch = false
+                        onOpenNovena(it)
+                    }
+                )
             }
         }
 
@@ -3789,6 +3787,89 @@ private fun resolveImageUrl(imageUrl: String?): String? =
         if (it.startsWith("http://") || it.startsWith("https://")) it
         else "${BuildConfig.API_BASE_URL.trimEnd('/')}/$it"
     }
+
+@Composable
+private fun IntentionSearchSheet(
+    title: String,
+    query: String,
+    onQueryChanged: (String) -> Unit,
+    onSubmit: () -> Unit,
+    isLoading: Boolean,
+    error: String?,
+    emptyLabel: String,
+    saints: List<SaintSummary>,
+    novenas: List<NovenaSummary>,
+    onOpenSaint: (String) -> Unit,
+    onOpenNovena: (String) -> Unit
+) {
+    val l10n = sanctuaryStrings()
+
+    LaunchedEffect(query) {
+        delay(250)
+        onSubmit()
+    }
+
+    DetailSheetScaffold(title = title) {
+        SearchCard(
+            title = title,
+            query = query,
+            onQueryChanged = onQueryChanged,
+            onSubmit = onSubmit
+        )
+        when {
+            isLoading -> InlineLoading(l10n.t("inline.loading"))
+            error != null -> Banner(error, isError = true)
+            saints.isEmpty() && novenas.isEmpty() -> Text(emptyLabel, color = Color(0xFFD0DFEA))
+            else -> LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 560.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                contentPadding = PaddingValues(bottom = 8.dp)
+            ) {
+                if (saints.isNotEmpty()) {
+                    item {
+                        Text(
+                            l10n.t("tab.saints"),
+                            color = Color.White,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 16.sp
+                        )
+                    }
+                    items(saints) { saint ->
+                        ContentCard(
+                            title = saint.name,
+                            subtitle = saint.summary,
+                            detail = saint.feastLabel,
+                            imageUrl = saint.imageUrl,
+                            onClick = { onOpenSaint(saint.slug) }
+                        )
+                    }
+                }
+                if (novenas.isNotEmpty()) {
+                    item {
+                        Text(
+                            l10n.t("tab.novenas"),
+                            color = Color.White,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 16.sp,
+                            modifier = Modifier.padding(top = if (saints.isNotEmpty()) 8.dp else 0.dp)
+                        )
+                    }
+                    items(novenas) { novena ->
+                        ContentCard(
+                            title = novena.title,
+                            subtitle = novena.description,
+                            detail = novena.intentions.take(3).joinToString(" • ").ifBlank { "${novena.durationDays}-day novena" },
+                            imageUrl = novena.imageUrl,
+                            onClick = { onOpenNovena(novena.slug) }
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
 
 @Composable
 private fun <T> SearchListSheet(

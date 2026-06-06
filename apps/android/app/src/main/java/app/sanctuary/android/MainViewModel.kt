@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import app.sanctuary.android.data.AuthRegistrationResponse
+import app.sanctuary.android.data.IntentionSearchResult
 import app.sanctuary.android.data.LiturgicalDay
 import app.sanctuary.android.data.NovenaCalendarDate
 import app.sanctuary.android.data.NovenaDayDetail
@@ -60,6 +61,13 @@ data class ContentListUiState<T>(
     val error: String? = null
 )
 
+data class IntentionSearchUiState(
+    val result: IntentionSearchResult = IntentionSearchResult(novenas = emptyList(), saints = emptyList()),
+    val isLoading: Boolean = false,
+    val query: String = "",
+    val error: String? = null
+)
+
 data class ContentDetailUiState<T>(
     val item: T? = null,
     val isLoading: Boolean = false,
@@ -107,8 +115,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _novenas = MutableStateFlow(ContentListUiState<NovenaSummary>())
     val novenas: StateFlow<ContentListUiState<NovenaSummary>> = _novenas.asStateFlow()
 
-    private val _intentions = MutableStateFlow(ContentListUiState<NovenaSummary>())
-    val intentions: StateFlow<ContentListUiState<NovenaSummary>> = _intentions.asStateFlow()
+    private val _intentions = MutableStateFlow(IntentionSearchUiState())
+    val intentions: StateFlow<IntentionSearchUiState> = _intentions.asStateFlow()
 
     private val _prayers = MutableStateFlow(ContentListUiState<PrayerSummary>())
     val prayers: StateFlow<ContentListUiState<PrayerSummary>> = _prayers.asStateFlow()
@@ -542,9 +550,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             _intentions.update { it.copy(isLoading = true, error = null) }
             runCatching {
-                repository.listNovenasByIntentions(_intentions.value.query)
-            }.onSuccess { items ->
-                _intentions.value = _intentions.value.copy(items = items, isLoading = false, error = null)
+                repository.searchIntentions(_intentions.value.query)
+            }.onSuccess { result ->
+                _intentions.value = _intentions.value.copy(result = result, isLoading = false, error = null)
             }.onFailure { failure ->
                 _intentions.value = _intentions.value.copy(isLoading = false, error = failure.message)
             }

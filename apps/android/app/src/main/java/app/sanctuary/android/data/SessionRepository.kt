@@ -395,6 +395,11 @@ class SessionRepository(
             .map { it.toDomain() }
     }
 
+    suspend fun searchIntentions(query: String): IntentionSearchResult = withContext(Dispatchers.IO) {
+        runApiCall { api.searchIntentions(lang = currentLanguage(), query = query.trim()) }
+            .toDomain()
+    }
+
     suspend fun listNovenaCalendarRange(start: String, end: String): List<NovenaCalendarDate> = withContext(Dispatchers.IO) {
         runApiCall { api.listNovenasCalendarRange(start = start, end = end, lang = currentLanguage()) }
             .map { entry ->
@@ -586,6 +591,11 @@ private fun NovenaSummaryResponse.toDomain(): NovenaSummary = NovenaSummary(
     durationDays = durationDays,
     intentions = intentions.orEmpty(),
     imageUrl = imageUrl
+)
+
+private fun IntentionSearchResultResponse.toDomain(): IntentionSearchResult = IntentionSearchResult(
+    novenas = novenas.map { it.toDomain() },
+    saints = saints.map { it.toDomain() }
 )
 
 data class SessionBootstrapResult(

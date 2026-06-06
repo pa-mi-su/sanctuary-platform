@@ -126,7 +126,8 @@
         [previewSelectedTitle]="facade.localizedPreviewTitle('selected')"
         [todayPreviewLabel]="facade.previewDateLabel(facade.todayDate())"
         [selectedPreviewLabel]="facade.previewDateLabel(facade.selectedDate())"
-        [searchResults]="facade.novenaSearchResults()"
+        [searchResults]="facade.currentTab() === 'intentions' ? facade.intentionNovenaResults() : facade.novenaSearchResults()"
+        [intentionSaintResults]="facade.intentionSaintResults()"
         [todayNovenas]="facade.previewNovenas(facade.todayDate())"
         [selectedNovenas]="facade.previewNovenas(facade.selectedDate())"
         [todayPrimaryNovena]="facade.previewPrimaryNovena(facade.todayDate())"
@@ -141,6 +142,7 @@
         (updateQuery)="facade.updateNovenaQuery($event)"
         (pickDate)="facade.selectDateFromGrid($event)"
         (openNovena)="facade.openNovenaDetail($event)"
+        (openSaint)="facade.openSaintDetail($event)"
       />
     }
 

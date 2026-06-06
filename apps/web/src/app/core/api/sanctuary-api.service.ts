@@ -93,6 +93,11 @@ export interface NovenaCalendarDateResponse {
   startingNovena: NovenaSummary | null;
 }
 
+export interface IntentionSearchResult {
+  novenas: NovenaSummary[];
+  saints: SaintSummary[];
+}
+
 export interface UserProfile {
   userId: string;
   email: string | null;
@@ -292,6 +297,12 @@ export class SanctuaryApiService {
 
   listNovenaIntentions(language: 'en' | 'es' | 'pl', query: string): Observable<NovenaSummary[]> {
     return this.http.get<NovenaSummary[]>(`${this.apiBaseUrl}/content/novenas/intentions`, {
+      params: new HttpParams().set('lang', language).set('query', query),
+    });
+  }
+
+  searchIntentions(language: 'en' | 'es' | 'pl', query: string): Observable<IntentionSearchResult> {
+    return this.http.get<IntentionSearchResult>(`${this.apiBaseUrl}/content/intentions/search`, {
       params: new HttpParams().set('lang', language).set('query', query),
     });
   }
