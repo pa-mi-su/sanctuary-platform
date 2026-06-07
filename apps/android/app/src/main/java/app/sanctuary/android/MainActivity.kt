@@ -1011,7 +1011,6 @@ private fun AuthenticatedShell(
                             mode = novenasCalendarMode,
                             onModeChange = { novenasCalendarMode = it },
                             onSearch = { showNovenaSearch = true },
-                            onSearchIntentions = { showIntentionsSearch = true },
                             onOpenNovena = onOpenNovena,
                             fetchNovenasInRange = fetchNovenasInRange,
                             fetchLiturgicalRange = fetchLiturgicalRange
@@ -4071,7 +4070,6 @@ private fun NovenasCalendarScreen(
     mode: CalendarMode,
     onModeChange: (CalendarMode) -> Unit,
     onSearch: () -> Unit,
-    onSearchIntentions: () -> Unit,
     onOpenNovena: (String) -> Unit,
     fetchNovenasInRange: suspend (String, String) -> List<app.sanctuary.android.data.NovenaCalendarDate>,
     fetchLiturgicalRange: suspend (String, String) -> List<app.sanctuary.android.data.LiturgicalDay>
@@ -4225,7 +4223,6 @@ private fun NovenasCalendarScreen(
                     }
                 }
                 PrimaryButton(l10n.t("calendar.searchNovenas"), false, onClick = onSearch)
-                PrimaryButton(l10n.t("calendar.searchIntentions"), false, onClick = onSearchIntentions)
                 SeasonLegend()
             }
         }
