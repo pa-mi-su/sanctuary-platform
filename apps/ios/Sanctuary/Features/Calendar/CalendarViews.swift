@@ -587,6 +587,7 @@ struct SaintsCalendarView: View {
                     imageURL: nil,
                     tags: [],
                     patronages: [],
+                    intentions: [],
                     feastLabelByLocale: [:],
                     summaryByLocale: [:],
                     biographyByLocale: [:],

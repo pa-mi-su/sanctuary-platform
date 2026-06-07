@@ -114,7 +114,8 @@ public class SaintContentRepository {
             rs.getInt("feast_day"),
             rs.getString("feast_label"),
             rs.getString("summary"),
-            rs.getString("image_url")
+            rs.getString("image_url"),
+            List.of()
         );
     }
 

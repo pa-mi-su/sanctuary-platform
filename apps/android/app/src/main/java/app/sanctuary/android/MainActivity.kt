@@ -3839,7 +3839,7 @@ private fun IntentionSearchSheet(
                         ContentCard(
                             title = saint.name,
                             subtitle = saint.summary,
-                            detail = saint.feastLabel,
+                            detail = saint.intentions.take(3).joinToString(" • ").ifBlank { saint.feastLabel },
                             imageUrl = saint.imageUrl,
                             onClick = { onOpenSaint(saint.slug) }
                         )

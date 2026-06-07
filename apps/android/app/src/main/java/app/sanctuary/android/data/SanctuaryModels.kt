@@ -122,7 +122,8 @@ data class SaintSummaryResponse(
     val feastDay: Int,
     val feastLabel: String,
     val summary: String?,
-    val imageUrl: String?
+    val imageUrl: String?,
+    val intentions: List<String>?
 )
 
 data class SaintDetailResponse(
@@ -299,7 +300,8 @@ data class SaintSummary(
     val name: String,
     val feastLabel: String,
     val summary: String?,
-    val imageUrl: String?
+    val imageUrl: String?,
+    val intentions: List<String> = emptyList()
 )
 
 data class SaintDetail(

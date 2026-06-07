@@ -146,6 +146,7 @@ struct APIContentSaintSummaryResponse: Decodable, Sendable {
     let feastLabel: String
     let summary: String?
     let imageUrl: String?
+    let intentions: [String]?
 }
 
 struct APIContentSaintRangeDateResponse: Decodable, Sendable {

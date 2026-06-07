@@ -257,14 +257,16 @@ struct NovenasSearchView: View {
         let saintItems = results.saints.map { saint in
             let title = saint.displayName(locale: locale)
             let summary = saint.summaryByLocale[locale] ?? saint.summaryByLocale[.en] ?? ""
-            let meta = saint.feastLabelByLocale[locale]
+            let intentionSummary = formattedIntentions(saint.intentions)
+            let feastLabel = saint.feastLabelByLocale[locale]
                 ?? saint.feastLabelByLocale[.en]
                 ?? localization.formatMonthDay(month: saint.feastMonth, day: saint.feastDay)
+            let meta = intentionSummary.isEmpty ? feastLabel : intentionSummary
             let document = SearchMatcher.Document(
                 itemID: "saint-\(saint.id)",
-                primaryText: title,
-                secondaryText: "\(saint.slug) \((saint.tags).joined(separator: " ")) \((saint.patronages).joined(separator: " "))",
-                auxiliaryText: "\(summary) \(meta)"
+                primaryText: intentionSummary,
+                secondaryText: "",
+                auxiliaryText: ""
             )
             return IntentionSearchItem(
                 id: "saint-\(saint.id)",
@@ -284,9 +286,9 @@ struct NovenasSearchView: View {
             let intentionsSummary = formattedIntentions(for: novena)
             let document = SearchMatcher.Document(
                 itemID: novena.id,
-                primaryText: title,
-                secondaryText: "\(novena.slug) \((novena.tags).joined(separator: " ")) \((novena.intentions).joined(separator: " "))",
-                auxiliaryText: "\(summary) \(intentionsSummary)"
+                primaryText: intentionsSummary,
+                secondaryText: "",
+                auxiliaryText: ""
             )
             return IntentionSearchItem(
                 id: "novena-\(novena.id)",
@@ -304,7 +306,11 @@ struct NovenasSearchView: View {
     }
 
     private func formattedIntentions(for novena: Novena) -> String {
-        let cleaned = novena.intentions
+        formattedIntentions(novena.intentions)
+    }
+
+    private func formattedIntentions(_ intentions: [String]) -> String {
+        let cleaned = intentions
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
 

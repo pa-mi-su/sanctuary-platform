@@ -44,8 +44,6 @@ public class IntentionContentRepository {
             JOIN content_intentions ci ON ci.id = nil.intention_id
             WHERE (? = ''
                 OR ci.label_%s ILIKE ?
-                OR n.title_%s ILIKE ?
-                OR n.slug ILIKE ?
                 OR EXISTS (
                     SELECT 1
                     FROM content_intention_aliases cia
@@ -54,7 +52,7 @@ public class IntentionContentRepository {
                       AND cia.alias_text ILIKE ?
                 ))
             ORDER BY title
-            """.formatted(locale, locale, locale, locale);
+            """.formatted(locale, locale, locale);
 
         return jdbcTemplate.query(
             sql,
@@ -71,8 +69,6 @@ public class IntentionContentRepository {
                 );
             },
             filter,
-            likeQuery,
-            likeQuery,
             likeQuery,
             locale,
             likeQuery
@@ -95,9 +91,6 @@ public class IntentionContentRepository {
             JOIN content_intentions ci ON ci.id = sil.intention_id
             WHERE (? = ''
                 OR ci.label_%s ILIKE ?
-                OR s.name_%s ILIKE ?
-                OR s.summary_%s ILIKE ?
-                OR s.slug ILIKE ?
                 OR EXISTS (
                     SELECT 1
                     FROM content_intention_aliases cia
@@ -106,24 +99,25 @@ public class IntentionContentRepository {
                       AND cia.alias_text ILIKE ?
                 ))
             ORDER BY s.feast_month, s.feast_day, name
-            """.formatted(locale, locale, locale, locale, locale, locale);
+            """.formatted(locale, locale, locale, locale);
 
         return jdbcTemplate.query(
             sql,
-            (rs, rowNum) -> new SaintSummaryDto(
-                rs.getString("id"),
-                rs.getString("slug"),
-                rs.getString("name"),
-                rs.getInt("feast_month"),
-                rs.getInt("feast_day"),
-                rs.getString("feast_label"),
-                rs.getString("summary"),
-                rs.getString("image_url")
-            ),
+            (rs, rowNum) -> {
+                String saintId = rs.getString("id");
+                return new SaintSummaryDto(
+                    saintId,
+                    rs.getString("slug"),
+                    rs.getString("name"),
+                    rs.getInt("feast_month"),
+                    rs.getInt("feast_day"),
+                    rs.getString("feast_label"),
+                    rs.getString("summary"),
+                    rs.getString("image_url"),
+                    fetchSaintIntentions(saintId, locale)
+                );
+            },
             filter,
-            likeQuery,
-            likeQuery,
-            likeQuery,
             likeQuery,
             locale,
             likeQuery
@@ -141,6 +135,20 @@ public class IntentionContentRepository {
                 """.formatted(locale),
             (rs, rowNum) -> rs.getString("intention_text"),
             novenaId
+        );
+    }
+
+    private List<String> fetchSaintIntentions(String saintId, String locale) {
+        return jdbcTemplate.query(
+            """
+                SELECT ci.label_%s AS intention_text
+                FROM saint_intention_links sil
+                JOIN content_intentions ci ON ci.id = sil.intention_id
+                WHERE sil.saint_id = ?
+                ORDER BY sil.sort_order, ci.id
+                """.formatted(locale),
+            (rs, rowNum) -> rs.getString("intention_text"),
+            saintId
         );
     }
 }

@@ -27,6 +27,7 @@ export interface SaintSummary {
   feastLabel: string;
   summary: string;
   imageUrl: string | null;
+  intentions?: string[];
 }
 
 export interface SaintSource {

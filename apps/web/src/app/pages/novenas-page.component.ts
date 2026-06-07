@@ -105,7 +105,7 @@ type AppLanguage = 'en' | 'es' | 'pl';
                   <div class="content-card__body">
                     <h3>{{ saint.name }}</h3>
                     <p>{{ saint.summary }}</p>
-                    <span class="content-tag">{{ saint.feastLabel }}</span>
+                    <span class="content-tag">{{ intentionLabels(saint.intentions) || saint.feastLabel }}</span>
                   </div>
                 </button>
               }
@@ -126,7 +126,7 @@ type AppLanguage = 'en' | 'es' | 'pl';
                 <div class="content-card__body">
                   <h3>{{ novena.title }}</h3>
                   <p>{{ novena.description }}</p>
-                  <span class="content-tag">{{ mode() === 'intentions' ? intentionsSummary(novena) : novenaDayCountLabel(novena) }}</span>
+                  <span class="content-tag">{{ mode() === 'intentions' ? intentionLabels(novena.intentions) : novenaDayCountLabel(novena) }}</span>
                 </div>
               </button>
             }
@@ -300,13 +300,13 @@ export class NovenasPageComponent {
     return `linear-gradient(180deg, rgba(6, 12, 18, 0.05), rgba(6, 12, 18, 0.28)), url(${imageUrl})`;
   }
 
-  protected intentionsSummary(novena: NovenaSummary): string {
-    const cleaned = (novena.intentions ?? [])
+  protected intentionLabels(intentions: string[] | null | undefined): string {
+    const cleaned = (intentions ?? [])
       .map((intention) => intention.trim())
       .filter(Boolean);
 
     if (!cleaned.length) {
-      return this.t('Intentions', 'Intenciones', 'Intencje');
+      return '';
     }
 
     return cleaned.slice(0, 3).join(' • ');

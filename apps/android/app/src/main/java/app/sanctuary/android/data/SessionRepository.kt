@@ -580,7 +580,8 @@ private fun SaintSummaryResponse.toDomain(): SaintSummary = SaintSummary(
     name = name,
     feastLabel = feastLabel,
     summary = summary,
-    imageUrl = imageUrl
+    imageUrl = imageUrl,
+    intentions = intentions.orEmpty()
 )
 
 private fun NovenaSummaryResponse.toDomain(): NovenaSummary = NovenaSummary(

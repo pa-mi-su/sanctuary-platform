@@ -327,6 +327,7 @@ struct SaintDetailView_Previews: PreviewProvider {
         imageURL: nil,
         tags: ["guardian", "family"],
         patronages: ["Fathers", "Workers"],
+        intentions: ["family"],
         feastLabelByLocale: [.en: "March 19"],
         summaryByLocale: [.en: "Guardian of the Holy Family and a steady patron for daily life."],
         biographyByLocale: [.en: "Saint Joseph is honored as the faithful guardian of Jesus and Mary, a model of quiet obedience and trust."],
