@@ -136,6 +136,7 @@ data class SaintDetailResponse(
     val summary: String?,
     val biography: String?,
     val imageUrl: String?,
+    val intentions: List<String>?,
     val sources: List<SaintSourceResponse>?
 )
 
@@ -312,6 +313,7 @@ data class SaintDetail(
     val summary: String?,
     val biography: String?,
     val imageUrl: String?,
+    val intentions: List<String>,
     val sources: List<SaintSource>
 )
 

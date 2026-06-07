@@ -52,6 +52,12 @@ struct SaintDetailView: View {
         currentSaint.prayersByLocale[locale] ?? currentSaint.prayersByLocale[.en] ?? []
     }
 
+    private var intentions: [String] {
+        currentSaint.intentions
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+    }
+
     private var feastLabel: String {
         currentSaint.feastLabelByLocale[locale]
             ?? currentSaint.feastLabelByLocale[.en]
@@ -149,6 +155,18 @@ struct SaintDetailView: View {
                             Text(summary)
                                 .font(AppTheme.rounded(18, weight: .medium))
                                 .foregroundStyle(AppTheme.cardText.opacity(0.9))
+                        }
+                    }
+
+                    if !intentions.isEmpty {
+                        DetailCard(title: localization.t("search.intentionsLabel")) {
+                            VStack(alignment: .leading, spacing: 8) {
+                                ForEach(intentions, id: \.self) { intention in
+                                    Text("• \(intention)")
+                                        .font(AppTheme.rounded(17, weight: .medium))
+                                        .foregroundStyle(AppTheme.cardText.opacity(0.9))
+                                }
+                            }
                         }
                     }
 

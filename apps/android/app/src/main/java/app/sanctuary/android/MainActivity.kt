@@ -3262,6 +3262,15 @@ private fun SaintDetailSheet(
                 Text(summary, color = Color(0xFFD0DFEA), lineHeight = 22.sp)
             }
         }
+        if (detail.intentions.isNotEmpty()) {
+            DetailSectionCard(title = l10n.t("detail.intentions")) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    detail.intentions.forEach { intention ->
+                        Text("• $intention", color = Color(0xFFD0DFEA), lineHeight = 20.sp)
+                    }
+                }
+            }
+        }
         detail.biography?.takeIf { it.isNotBlank() }?.let { biography ->
             DetailSectionCard(title = l10n.t("detail.biography")) {
                 Text(biography, color = Color(0xFFD0DFEA), lineHeight = 22.sp)

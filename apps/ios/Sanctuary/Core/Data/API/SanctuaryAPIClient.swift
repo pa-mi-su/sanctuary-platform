@@ -164,6 +164,7 @@ struct APIContentSaintDetailResponse: Decodable, Sendable {
     let summary: String?
     let biography: String?
     let imageUrl: String?
+    let intentions: [String]?
     let sources: [APIContentSaintSourceResponse]
 }
 

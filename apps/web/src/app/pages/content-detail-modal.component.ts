@@ -51,6 +51,14 @@ type AppLanguage = 'en' | 'es' | 'pl';
             <h3>{{ t('Summary', 'Resumen', 'Podsumowanie') }}</h3>
             <p>{{ saintDetail()!.summary }}</p>
           </section>
+          @if (saintDetail()!.intentions?.length) {
+            <section class="detail-section">
+              <h3>{{ t('Intentions', 'Intenciones', 'Intencje') }}</h3>
+              @for (intention of saintDetail()!.intentions; track intention) {
+                <div class="detail-list-row"><span>{{ intention }}</span></div>
+              }
+            </section>
+          }
           <section class="detail-section detail-info-card">
             <h3>{{ t('Biography', 'Biografía', 'Biografia') }}</h3>
             <p>{{ saintDetail()!.biography }}</p>

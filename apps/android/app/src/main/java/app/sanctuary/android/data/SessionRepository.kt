@@ -147,6 +147,7 @@ class SessionRepository(
                     summary = it.summary,
                     biography = it.biography,
                     imageUrl = it.imageUrl,
+                    intentions = it.intentions.orEmpty(),
                     sources = it.sources.orEmpty().map { source ->
                         SaintSource(
                             title = source.text ?: source.url ?: "Source",

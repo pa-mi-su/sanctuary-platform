@@ -205,7 +205,7 @@ actor APIContentRepository: ContentRepository, SaintRangeRepository {
             imageURL: url(from: response.imageUrl),
             tags: [],
             patronages: [],
-            intentions: [],
+            intentions: response.intentions ?? [],
             feastLabelByLocale: localizedValueMap(value: response.feastLabel, locale: locale),
             summaryByLocale: localizedValueMap(value: response.summary ?? "", locale: locale),
             biographyByLocale: localizedValueMap(value: response.biography ?? "", locale: locale),
