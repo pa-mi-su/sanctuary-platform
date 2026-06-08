@@ -1,0 +1,251 @@
+name: API Dev Pipeline
+
+on:
+  pull_request:
+    branches:
+      - dev
+    paths:
+      - "apps/api/**"
+      - ".github/workflows/api-dev-deploy.yml"
+  push:
+    branches:
+      - dev
+    paths:
+      - "apps/api/**"
+      - ".github/workflows/api-dev-deploy.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: api-dev-pipeline-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Setup Java 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: maven
+
+      - name: Run API tests
+        run: mvn -q test
+        working-directory: apps/api
+
+  deploy:
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/dev') || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    environment: dev
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+      AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID || '160885294528' }}
+      API_ECR_REPOSITORY: ${{ vars.API_DEV_ECR_REPOSITORY || 'sanctuary-api-dev' }}
+      API_ECS_SERVICE_NAME: ${{ vars.API_DEV_ECS_SERVICE_NAME || 'sanctuary-api-dev' }}
+      API_ECS_CLUSTER: ${{ vars.API_DEV_ECS_CLUSTER || 'sanctuary-dev' }}
+      SANCTUARY_DB_URL: ${{ vars.API_DEV_DB_URL || 'jdbc:postgresql://sanctuary-dev-db.cwh6808ko1sb.us-east-1.rds.amazonaws.com:5432/sanctuary' }}
+      SANCTUARY_DB_USERNAME: ${{ vars.API_DEV_DB_USERNAME || 'sanctuary' }}
+      API_DEV_DB_SECRET_ARN: ${{ vars.API_DEV_DB_SECRET_ARN || 'arn:aws:secretsmanager:us-east-1:160885294528:secret:rds!db-b1c8d5a7-86da-4f49-a850-f928a84fad13-wwsw4C' }}
+      SANCTUARY_AUTH_ENABLED: ${{ vars.API_DEV_AUTH_ENABLED || 'true' }}
+      SANCTUARY_COGNITO_ISSUER_URI: ${{ vars.API_DEV_COGNITO_ISSUER_URI || 'https://cognito-idp.us-east-1.amazonaws.com/us-east-1_oCrXzjKbV' }}
+      SANCTUARY_COGNITO_CLIENT_ID: ${{ vars.API_DEV_COGNITO_CLIENT_ID || '2ukk5f1esf1gmgi9aadvvbjjgs' }}
+      IMAGE_TAG: ${{ github.sha }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Setup Java 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: maven
+
+      - name: Run API tests
+        run: mvn -q test
+        working-directory: apps/api
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Normalize deploy variables
+        run: |
+          echo "AWS_ACCOUNT_ID=$(echo -n "${AWS_ACCOUNT_ID}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
+          echo "API_ECR_REPOSITORY=$(echo -n "${API_ECR_REPOSITORY}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
+          echo "API_ECS_SERVICE_NAME=$(echo -n "${API_ECS_SERVICE_NAME}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
+          echo "API_ECS_CLUSTER=$(echo -n "${API_ECS_CLUSTER}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
+          echo "SANCTUARY_DB_URL=$(echo -n "${SANCTUARY_DB_URL}" | tr -d '\r\n')" >> "$GITHUB_ENV"
+          echo "SANCTUARY_DB_USERNAME=$(echo -n "${SANCTUARY_DB_USERNAME}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
+          echo "API_DEV_DB_SECRET_ARN=$(echo -n "${API_DEV_DB_SECRET_ARN}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
+          echo "SANCTUARY_AUTH_ENABLED=$(echo -n "${SANCTUARY_AUTH_ENABLED}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
+          echo "SANCTUARY_COGNITO_ISSUER_URI=$(echo -n "${SANCTUARY_COGNITO_ISSUER_URI}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
+          echo "SANCTUARY_COGNITO_CLIENT_ID=$(echo -n "${SANCTUARY_COGNITO_CLIENT_ID}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
+
+      - name: Validate dev DB secret source
+        run: |
+          if [[ "${API_DEV_DB_SECRET_ARN}" != arn:aws:secretsmanager:*:secret:rds\!* ]]; then
+            echo "API_DEV_DB_SECRET_ARN must be the RDS-managed Secrets Manager secret ARN."
+            echo "Do not use raw GitHub secrets or SSM parameters for dev DB credentials."
+            exit 1
+          fi
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push API image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          echo "EXPECTED_API_IMAGE=${ECR_REGISTRY}/${API_ECR_REPOSITORY}:${IMAGE_TAG}" >> "$GITHUB_ENV"
+          docker build -t "${ECR_REGISTRY}/${API_ECR_REPOSITORY}:${IMAGE_TAG}" -f apps/api/Dockerfile apps/api
+          docker tag "${ECR_REGISTRY}/${API_ECR_REPOSITORY}:${IMAGE_TAG}" "${ECR_REGISTRY}/${API_ECR_REPOSITORY}:latest"
+          docker push "${ECR_REGISTRY}/${API_ECR_REPOSITORY}:${IMAGE_TAG}"
+          docker push "${ECR_REGISTRY}/${API_ECR_REPOSITORY}:latest"
+
+      - name: Check for existing ECS dev service
+        run: |
+          service_json="$(aws ecs describe-services \
+            --cluster "${API_ECS_CLUSTER}" \
+            --services "${API_ECS_SERVICE_NAME}" \
+            --region "${AWS_REGION}")"
+
+          service_status="$(echo "${service_json}" | jq -r '.services[0].status // "MISSING"')"
+          echo "ECS dev service status: ${service_status}"
+
+          if [[ "${service_status}" != "ACTIVE" ]]; then
+            echo "ECS_DEV_SERVICE_EXISTS=false" >> "$GITHUB_ENV"
+            echo "::notice::Pushed the dev API image to ECR. Create the ${API_ECS_SERVICE_NAME} ECS service, then rerun this workflow to deploy it."
+            exit 0
+          fi
+
+          current_task_definition="$(echo "${service_json}" | jq -r '.services[0].deployments[] | select(.status == "PRIMARY") | .taskDefinition')"
+          echo "ECS_DEV_SERVICE_EXISTS=true" >> "$GITHUB_ENV"
+          echo "PRE_DEPLOY_TASK_DEFINITION=${current_task_definition}" >> "$GITHUB_ENV"
+          echo "Current dev task definition: ${current_task_definition}"
+
+      - name: Register ECS dev task definition revision
+        if: env.ECS_DEV_SERVICE_EXISTS == 'true'
+        run: |
+          aws ecs describe-task-definition \
+            --task-definition "${PRE_DEPLOY_TASK_DEFINITION}" \
+            --region "${AWS_REGION}" \
+            --query taskDefinition > task-definition.json
+
+          jq \
+            --arg image "${EXPECTED_API_IMAGE}" \
+            --arg db_url "${SANCTUARY_DB_URL}" \
+            --arg db_username "${SANCTUARY_DB_USERNAME}" \
+            --arg auth_enabled "${SANCTUARY_AUTH_ENABLED}" \
+            --arg cognito_issuer "${SANCTUARY_COGNITO_ISSUER_URI}" \
+            --arg cognito_client_id "${SANCTUARY_COGNITO_CLIENT_ID}" \
+            --arg db_secret "${API_DEV_DB_SECRET_ARN}:password::" \
+            'del(
+              .taskDefinitionArn,
+              .revision,
+              .status,
+              .requiresAttributes,
+              .compatibilities,
+              .registeredAt,
+              .registeredBy
+            )
+            | .containerDefinitions |= map(
+              if .name == "Main" then
+                .image = $image
+                | .environment = [
+                  {"name": "SPRING_PROFILES_ACTIVE", "value": "prod"},
+                  {"name": "SANCTUARY_API_PORT", "value": "8080"},
+                  {"name": "SANCTUARY_DB_URL", "value": $db_url},
+                  {"name": "SANCTUARY_DB_USERNAME", "value": $db_username},
+                  {"name": "SANCTUARY_AUTH_ENABLED", "value": $auth_enabled},
+                  {"name": "SANCTUARY_COGNITO_ISSUER_URI", "value": $cognito_issuer},
+                  {"name": "SANCTUARY_COGNITO_CLIENT_ID", "value": $cognito_client_id}
+                ]
+                | .secrets = [
+                  {"name": "SANCTUARY_DB_PASSWORD", "valueFrom": $db_secret}
+                ]
+              else
+                .
+              end
+            )' task-definition.json > new-task-definition.json
+
+          new_task_definition="$(aws ecs register-task-definition \
+            --cli-input-json file://new-task-definition.json \
+            --region "${AWS_REGION}" \
+            --query 'taskDefinition.taskDefinitionArn' \
+            --output text)"
+
+          echo "NEW_TASK_DEFINITION=${new_task_definition}" >> "$GITHUB_ENV"
+          echo "Registered dev task definition: ${new_task_definition}"
+
+      - name: Deploy ECS dev service
+        if: env.ECS_DEV_SERVICE_EXISTS == 'true'
+        run: |
+          aws ecs update-service \
+            --cluster "${API_ECS_CLUSTER}" \
+            --service "${API_ECS_SERVICE_NAME}" \
+            --task-definition "${NEW_TASK_DEFINITION}" \
+            --force-new-deployment \
+            --region "${AWS_REGION}"
+
+      - name: Wait for ECS dev service to stabilize
+        if: env.ECS_DEV_SERVICE_EXISTS == 'true'
+        run: |
+          aws ecs wait services-stable \
+            --cluster "${API_ECS_CLUSTER}" \
+            --services "${API_ECS_SERVICE_NAME}" \
+            --region "${AWS_REGION}"
+
+      - name: Verify ECS dev rollout completed
+        if: env.ECS_DEV_SERVICE_EXISTS == 'true'
+        run: |
+          service_json="$(aws ecs describe-services \
+            --cluster "${API_ECS_CLUSTER}" \
+            --services "${API_ECS_SERVICE_NAME}" \
+            --region "${AWS_REGION}")"
+
+          primary_rollout_state="$(echo "${service_json}" | jq -r '.services[0].deployments[] | select(.status == "PRIMARY") | .rolloutState // "UNKNOWN"')"
+          primary_task_definition="$(echo "${service_json}" | jq -r '.services[0].deployments[] | select(.status == "PRIMARY") | .taskDefinition')"
+
+          echo "Primary task definition: ${primary_task_definition}"
+          echo "Primary rollout state: ${primary_rollout_state}"
+          echo "Pre-deploy task definition: ${PRE_DEPLOY_TASK_DEFINITION}"
+
+          if [[ "${primary_rollout_state}" != "COMPLETED" ]]; then
+            echo "ECS dev deployment did not complete successfully."
+            echo "${service_json}" | jq '.services[0].deployments'
+            exit 1
+          fi
+
+          if [[ "${primary_task_definition}" == "${PRE_DEPLOY_TASK_DEFINITION}" ]]; then
+            echo "ECS stabilized on the pre-deploy task definition, which indicates rollback or no new revision."
+            echo "${service_json}" | jq '.services[0].deployments'
+            exit 1
+          fi
+
+          deployed_image="$(aws ecs describe-task-definition \
+            --task-definition "${primary_task_definition}" \
+            --region "${AWS_REGION}" \
+            | jq -r '.taskDefinition.containerDefinitions[] | select(.name == "Main") | .image')"
+
+          echo "Expected API image: ${EXPECTED_API_IMAGE}"
+          echo "Deployed API image: ${deployed_image}"
+
+          if [[ "${deployed_image}" != "${EXPECTED_API_IMAGE}" ]]; then
+            echo "ECS stabilized, but the running task definition does not use the image built by this workflow."
+            exit 1
+          fi
