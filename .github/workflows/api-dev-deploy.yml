@@ -203,7 +203,7 @@ jobs:
             --service "${API_ECS_SERVICE_NAME}" \
             --task-definition "${NEW_TASK_DEFINITION}" \
             --force-new-deployment \
-            --health-check-grace-period-seconds 120 \
+            --health-check-grace-period-seconds 300 \
             --region "${AWS_REGION}"
 
       - name: Verify ECS dev rollout completed
@@ -213,7 +213,7 @@ jobs:
           primary_rollout_state="UNKNOWN"
           primary_task_definition=""
 
-          for attempt in {1..36}; do
+          for attempt in {1..72}; do
             service_json="$(aws ecs describe-services \
               --cluster "${API_ECS_CLUSTER}" \
               --services "${API_ECS_SERVICE_NAME}" \
@@ -222,7 +222,7 @@ jobs:
             primary_rollout_state="$(echo "${service_json}" | jq -r '.services[0].deployments[] | select(.status == "PRIMARY") | .rolloutState // "UNKNOWN"')"
             primary_task_definition="$(echo "${service_json}" | jq -r '.services[0].deployments[] | select(.status == "PRIMARY") | .taskDefinition')"
 
-            echo "ECS rollout check ${attempt}/36: ${primary_rollout_state}"
+            echo "ECS rollout check ${attempt}/72: ${primary_rollout_state}"
             echo "Primary task definition: ${primary_task_definition}"
 
             if [[ "${primary_rollout_state}" == "COMPLETED" || "${primary_rollout_state}" == "FAILED" ]]; then
@@ -276,13 +276,13 @@ jobs:
           target_health_json=""
           healthy_target_count="0"
 
-          for attempt in {1..36}; do
+          for attempt in {1..72}; do
             target_health_json="$(aws elbv2 describe-target-health \
               --target-group-arn "${ECS_TARGET_GROUP_ARN}" \
               --region "${AWS_REGION}")"
             healthy_target_count="$(echo "${target_health_json}" | jq '[.TargetHealthDescriptions[] | select(.TargetHealth.State == "healthy")] | length')"
 
-            echo "Target health check ${attempt}/36: ${healthy_target_count} healthy target(s)"
+            echo "Target health check ${attempt}/72: ${healthy_target_count} healthy target(s)"
 
             if [[ "${healthy_target_count}" -gt 0 ]]; then
               break
