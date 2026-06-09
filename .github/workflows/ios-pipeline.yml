@@ -137,6 +137,16 @@ jobs:
               ;;
           esac
 
+      - name: Verify iOS platform configuration
+        run: |
+          CLANG_MODULE_CACHE_PATH="${RUNNER_TEMP}/swift-module-cache" \
+            swiftc \
+              apps/ios/Sanctuary/Core/Application/PlatformConfiguration.swift \
+              apps/ios/Scripts/verify-platform-configuration.swift \
+              -o "${RUNNER_TEMP}/verify-platform-configuration"
+
+          "${RUNNER_TEMP}/verify-platform-configuration"
+
       - name: Build iOS app for simulator
         run: |
           if [[ "${{ steps.changes.outputs.has_ios_app_changes }}" != "true" ]]; then
