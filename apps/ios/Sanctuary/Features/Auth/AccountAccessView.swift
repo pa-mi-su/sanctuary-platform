@@ -1,13 +1,28 @@
 import SwiftUI
 import Combine
 
-private enum AccountAccessStep {
+private enum AccountAccessStep: Equatable {
     case landing
     case login
     case register
     case confirm
     case forgotPassword
     case resetPassword
+}
+
+private enum AccountAccessField: Hashable {
+    case loginEmail
+    case loginPassword
+    case registerFirstName
+    case registerLastName
+    case registerEmail
+    case registerPassword
+    case registerPasswordConfirmation
+    case confirmationCode
+    case forgotPasswordEmail
+    case resetPasswordCode
+    case resetPassword
+    case resetPasswordConfirmation
 }
 
 struct AccountAccessView: View {
@@ -27,6 +42,7 @@ struct AccountAccessView: View {
     @State private var resetPasswordCode = ""
     @State private var resetPassword = ""
     @State private var resetPasswordConfirmation = ""
+    @FocusState private var focusedField: AccountAccessField?
 
     private var isBusy: Bool {
         accountStore.status == .loading
@@ -113,6 +129,17 @@ struct AccountAccessView: View {
                 step = .confirm
             }
         }
+        .toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button(copy("Done", "Listo", "Gotowe")) {
+                    focusedField = nil
+                }
+            }
+        }
+        .onChange(of: step) { _ in
+            focusedField = nil
+        }
     }
 
     @ViewBuilder
@@ -120,9 +147,27 @@ struct AccountAccessView: View {
         switch step {
         case .login:
             VStack(alignment: .leading, spacing: 14) {
-                authTextField(title: copy("Email", "Correo", "Email"), text: $loginEmail, keyboardType: .emailAddress, textContentType: .emailAddress)
-                authSecureField(title: copy("Password", "Contraseña", "Hasło"), text: $loginPassword, textContentType: .password)
+                authTextField(
+                    title: copy("Email", "Correo", "Email"),
+                    text: $loginEmail,
+                    keyboardType: .emailAddress,
+                    textContentType: .emailAddress,
+                    focus: .loginEmail,
+                    submitLabel: .next
+                ) {
+                    focusedField = .loginPassword
+                }
+                authSecureField(
+                    title: copy("Password", "Contraseña", "Hasło"),
+                    text: $loginPassword,
+                    textContentType: .password,
+                    focus: .loginPassword,
+                    submitLabel: .go
+                ) {
+                    submitLogin()
+                }
                 Button(copy("Forgot password?", "¿Olvidaste tu contraseña?", "Nie pamiętasz hasła?")) {
+                    focusedField = nil
                     forgotPasswordEmail = loginEmail.trimmed
                     step = .forgotPassword
                     accountStore.clearTransientMessage()
@@ -133,10 +178,7 @@ struct AccountAccessView: View {
                 .disabled(isBusy)
 
                 Button {
-                    guard !isBusy else { return }
-                    Task {
-                        await accountStore.login(email: loginEmail.trimmed, password: loginPassword)
-                    }
+                    submitLogin()
                 } label: {
                     authActionLabel(
                         idleTitle: copy("Login", "Iniciar sesión", "Zaloguj się"),
@@ -149,24 +191,32 @@ struct AccountAccessView: View {
 
         case .register:
             VStack(alignment: .leading, spacing: 14) {
-                authTextField(title: copy("First name", "Nombre", "Imię"), text: $registerFirstName, textContentType: .givenName)
-                authTextField(title: copy("Last name", "Apellido", "Nazwisko"), text: $registerLastName, textContentType: .familyName)
-                authTextField(title: copy("Email", "Correo", "Email"), text: $registerEmail, keyboardType: .emailAddress, textContentType: .emailAddress)
-                authSecureField(title: copy("Password", "Contraseña", "Hasło"), text: $registerPassword, textContentType: .newPassword)
-                authSecureField(title: copy("Confirm password", "Confirmar contraseña", "Potwierdź hasło"), text: $registerPasswordConfirmation, textContentType: .newPassword)
+                authTextField(title: copy("First name", "Nombre", "Imię"), text: $registerFirstName, textContentType: .givenName, focus: .registerFirstName) {
+                    focusedField = .registerLastName
+                }
+                authTextField(title: copy("Last name", "Apellido", "Nazwisko"), text: $registerLastName, textContentType: .familyName, focus: .registerLastName) {
+                    focusedField = .registerEmail
+                }
+                authTextField(title: copy("Email", "Correo", "Email"), text: $registerEmail, keyboardType: .emailAddress, textContentType: .emailAddress, focus: .registerEmail) {
+                    focusedField = .registerPassword
+                }
+                authSecureField(title: copy("Password", "Contraseña", "Hasło"), text: $registerPassword, textContentType: .newPassword, focus: .registerPassword) {
+                    focusedField = .registerPasswordConfirmation
+                }
+                authSecureField(
+                    title: copy("Confirm password", "Confirmar contraseña", "Potwierdź hasło"),
+                    text: $registerPasswordConfirmation,
+                    textContentType: .newPassword,
+                    focus: .registerPasswordConfirmation,
+                    submitLabel: .go
+                ) {
+                    submitRegistration()
+                }
 
                 passwordPanel
 
                 Button {
-                    guard !isBusy else { return }
-                    Task {
-                        await accountStore.register(
-                            firstName: registerFirstName.trimmed,
-                            lastName: registerLastName.trimmed,
-                            email: registerEmail.trimmed,
-                            password: registerPassword
-                        )
-                    }
+                    submitRegistration()
                 } label: {
                     authActionLabel(
                         idleTitle: copy("Create account", "Crear cuenta", "Utwórz konto"),
@@ -189,45 +239,15 @@ struct AccountAccessView: View {
                     title: copy("Verification code", "Código de verificación", "Kod weryfikacyjny"),
                     text: $confirmationCode,
                     keyboardType: .numberPad,
-                    textContentType: .oneTimeCode
-                )
+                    textContentType: .oneTimeCode,
+                    focus: .confirmationCode,
+                    submitLabel: .go
+                ) {
+                    submitConfirmation()
+                }
 
                 Button {
-                    guard !isBusy else { return }
-                    Task {
-                        let email = accountStore.pendingConfirmationEmail ?? registerEmail.trimmed
-                        let password = registerPassword
-                        let confirmed = await accountStore.confirmRegistration(code: confirmationCode.trimmed)
-
-                        guard confirmed else { return }
-
-                        confirmationCode = ""
-
-                        if !email.isEmpty && !password.isEmpty {
-                            await accountStore.login(email: email, password: password)
-
-                            if accountStore.isAuthenticated {
-                                step = .landing
-                                loginEmail = ""
-                                loginPassword = ""
-                                registerFirstName = ""
-                                registerLastName = ""
-                                registerEmail = ""
-                                registerPassword = ""
-                                registerPasswordConfirmation = ""
-                            } else {
-                                loginEmail = email
-                                loginPassword = ""
-                                accountStore.setConfirmedPrompt()
-                                step = .login
-                            }
-                        } else {
-                            loginEmail = email
-                            loginPassword = ""
-                            accountStore.setConfirmedPrompt()
-                            step = .login
-                        }
-                    }
+                    submitConfirmation()
                 } label: {
                     authActionLabel(
                         idleTitle: copy("Confirm account", "Confirmar cuenta", "Potwierdź konto"),
@@ -239,6 +259,7 @@ struct AccountAccessView: View {
 
                 Button {
                     guard !isBusy else { return }
+                    focusedField = nil
                     Task {
                         await accountStore.resendConfirmation()
                     }
@@ -254,21 +275,19 @@ struct AccountAccessView: View {
 
         case .forgotPassword:
             VStack(alignment: .leading, spacing: 14) {
-                authTextField(title: copy("Email", "Correo", "Email"), text: $forgotPasswordEmail, keyboardType: .emailAddress, textContentType: .emailAddress)
+                authTextField(
+                    title: copy("Email", "Correo", "Email"),
+                    text: $forgotPasswordEmail,
+                    keyboardType: .emailAddress,
+                    textContentType: .emailAddress,
+                    focus: .forgotPasswordEmail,
+                    submitLabel: .go
+                ) {
+                    submitForgotPassword()
+                }
 
                 Button {
-                    guard !isBusy else { return }
-                    Task {
-                        let email = forgotPasswordEmail.trimmed
-                        await accountStore.forgotPassword(email: email)
-                        if accountStore.isErrorMessage == false {
-                            forgotPasswordEmail = email
-                            resetPasswordCode = ""
-                            resetPassword = ""
-                            resetPasswordConfirmation = ""
-                            step = .resetPassword
-                        }
-                    }
+                    submitForgotPassword()
                 } label: {
                     authActionLabel(
                         idleTitle: copy("Send reset code", "Enviar código", "Wyślij kod"),
@@ -291,11 +310,24 @@ struct AccountAccessView: View {
                     title: copy("Reset code", "Código de restablecimiento", "Kod resetujący"),
                     text: $resetPasswordCode,
                     keyboardType: .numberPad,
-                    textContentType: .oneTimeCode
-                )
+                    textContentType: .oneTimeCode,
+                    focus: .resetPasswordCode
+                ) {
+                    focusedField = .resetPassword
+                }
 
-                authSecureField(title: copy("New password", "Nueva contraseña", "Nowe hasło"), text: $resetPassword, textContentType: .newPassword)
-                authSecureField(title: copy("Confirm new password", "Confirmar nueva contraseña", "Potwierdź nowe hasło"), text: $resetPasswordConfirmation, textContentType: .newPassword)
+                authSecureField(title: copy("New password", "Nueva contraseña", "Nowe hasło"), text: $resetPassword, textContentType: .newPassword, focus: .resetPassword) {
+                    focusedField = .resetPasswordConfirmation
+                }
+                authSecureField(
+                    title: copy("Confirm new password", "Confirmar nueva contraseña", "Potwierdź nowe hasło"),
+                    text: $resetPasswordConfirmation,
+                    textContentType: .newPassword,
+                    focus: .resetPasswordConfirmation,
+                    submitLabel: .go
+                ) {
+                    submitResetPassword()
+                }
 
                 passwordPanel(
                     password: resetPassword,
@@ -308,24 +340,7 @@ struct AccountAccessView: View {
                 )
 
                 Button {
-                    guard !isBusy else { return }
-                    Task {
-                        let email = accountStore.pendingPasswordResetEmail ?? forgotPasswordEmail.trimmed
-                        let reset = await accountStore.resetPassword(
-                            email: email,
-                            code: resetPasswordCode.trimmed,
-                            newPassword: resetPassword
-                        )
-
-                        guard reset else { return }
-
-                        loginEmail = email
-                        loginPassword = ""
-                        resetPasswordCode = ""
-                        resetPassword = ""
-                        resetPasswordConfirmation = ""
-                        step = .login
-                    }
+                    submitResetPassword()
                 } label: {
                     authActionLabel(
                         idleTitle: copy("Save new password", "Guardar nueva contraseña", "Zapisz nowe hasło"),
@@ -337,6 +352,7 @@ struct AccountAccessView: View {
 
                 Button {
                     guard !isBusy else { return }
+                    focusedField = nil
                     Task {
                         let email = accountStore.pendingPasswordResetEmail ?? forgotPasswordEmail.trimmed
                         await accountStore.forgotPassword(email: email)
@@ -588,11 +604,117 @@ struct AccountAccessView: View {
         .frame(maxWidth: .infinity)
     }
 
+    private func submitLogin() {
+        guard !isBusy, !loginEmail.trimmed.isEmpty, !loginPassword.isEmpty else { return }
+        focusedField = nil
+        Task {
+            await accountStore.login(email: loginEmail.trimmed, password: loginPassword)
+        }
+    }
+
+    private func submitRegistration() {
+        guard !isBusy, canSubmitRegistration else { return }
+        focusedField = nil
+        Task {
+            await accountStore.register(
+                firstName: registerFirstName.trimmed,
+                lastName: registerLastName.trimmed,
+                email: registerEmail.trimmed,
+                password: registerPassword
+            )
+        }
+    }
+
+    private func submitConfirmation() {
+        guard !isBusy, !confirmationCode.trimmed.isEmpty else { return }
+        focusedField = nil
+        Task {
+            let email = accountStore.pendingConfirmationEmail ?? registerEmail.trimmed
+            let password = registerPassword
+            let confirmed = await accountStore.confirmRegistration(code: confirmationCode.trimmed)
+
+            guard confirmed else { return }
+
+            confirmationCode = ""
+
+            if !email.isEmpty && !password.isEmpty {
+                await accountStore.login(email: email, password: password)
+
+                if accountStore.isAuthenticated {
+                    step = .landing
+                    loginEmail = ""
+                    loginPassword = ""
+                    registerFirstName = ""
+                    registerLastName = ""
+                    registerEmail = ""
+                    registerPassword = ""
+                    registerPasswordConfirmation = ""
+                } else {
+                    loginEmail = email
+                    loginPassword = ""
+                    accountStore.setConfirmedPrompt()
+                    step = .login
+                }
+            } else {
+                loginEmail = email
+                loginPassword = ""
+                accountStore.setConfirmedPrompt()
+                step = .login
+            }
+        }
+    }
+
+    private func submitForgotPassword() {
+        guard !isBusy, !forgotPasswordEmail.trimmed.isEmpty else { return }
+        focusedField = nil
+        Task {
+            let email = forgotPasswordEmail.trimmed
+            await accountStore.forgotPassword(email: email)
+            if accountStore.isErrorMessage == false {
+                forgotPasswordEmail = email
+                resetPasswordCode = ""
+                resetPassword = ""
+                resetPasswordConfirmation = ""
+                step = .resetPassword
+            }
+        }
+    }
+
+    private func submitResetPassword() {
+        guard !isBusy,
+              !resetPasswordCode.trimmed.isEmpty,
+              isPasswordReady(resetPassword),
+              passwordsMatch(resetPassword, resetPasswordConfirmation)
+        else { return }
+
+        focusedField = nil
+        Task {
+            let email = accountStore.pendingPasswordResetEmail ?? forgotPasswordEmail.trimmed
+            let reset = await accountStore.resetPassword(
+                email: email,
+                code: resetPasswordCode.trimmed,
+                newPassword: resetPassword
+            )
+
+            guard reset else { return }
+
+            loginEmail = email
+            loginPassword = ""
+            resetPasswordCode = ""
+            resetPassword = ""
+            resetPasswordConfirmation = ""
+            step = .login
+        }
+    }
+
     private func authTextField(
         title: String,
         text: Binding<String>,
         keyboardType: UIKeyboardType = .default,
-        textContentType: UITextContentType? = nil
+        textContentType: UITextContentType? = nil,
+        focus: AccountAccessField,
+        submitLabel: SubmitLabel = .next,
+        onSubmit: @escaping () -> Void = {}
     ) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title)
@@ -603,6 +725,9 @@ struct AccountAccessView: View {
                 .autocorrectionDisabled()
                 .keyboardType(keyboardType)
                 .textContentType(textContentType)
+                .focused($focusedField, equals: focus)
+                .submitLabel(submitLabel)
+                .onSubmit(onSubmit)
                 .font(AppTheme.rounded(16, weight: .medium))
                 .foregroundStyle(.white)
                 .padding(.horizontal, 14)
@@ -621,7 +746,10 @@ struct AccountAccessView: View {
     private func authSecureField(
         title: String,
         text: Binding<String>,
-        textContentType: UITextContentType
+        textContentType: UITextContentType,
+        focus: AccountAccessField,
+        submitLabel: SubmitLabel = .next,
+        onSubmit: @escaping () -> Void = {}
     ) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title)
@@ -629,6 +757,9 @@ struct AccountAccessView: View {
                 .foregroundStyle(.white)
             SecureField("", text: text)
                 .textContentType(textContentType)
+                .focused($focusedField, equals: focus)
+                .submitLabel(submitLabel)
+                .onSubmit(onSubmit)
                 .font(AppTheme.rounded(16, weight: .medium))
                 .foregroundStyle(.white)
                 .padding(.horizontal, 14)

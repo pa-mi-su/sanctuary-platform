@@ -25,7 +25,6 @@ struct NovenasCalendarView: View {
     @State private var selectedMonth = currentLiturgicalDateComponents().month ?? 1
     @State private var selectedYear = currentLiturgicalDateComponents().year ?? 2000
     @State private var showSearch = false
-    @State private var showIntentionsSearch = false
     @State private var selectedNovenaSelection: CalendarSelection?
     @State private var tapFeedbackMessage: String?
     @State private var suppressDayTapUntil: Date = .distantPast
@@ -59,9 +58,9 @@ struct NovenasCalendarView: View {
             subtitle: localization.t("calendar.subtitle.novenas"),
             mode: $mode,
             searchTitle: localization.t("calendar.searchNovenas"),
-            secondarySearchTitle: localization.t("calendar.searchIntentions"),
+            secondarySearchTitle: nil,
             onSearchTap: { showSearch = true },
-            onSecondarySearchTap: { showIntentionsSearch = true },
+            onSecondarySearchTap: nil,
             onPrev: { goPrevious() },
             onNext: { goNext() },
             onToday: {
@@ -119,9 +118,6 @@ struct NovenasCalendarView: View {
         }
         .fullScreenCover(isPresented: $showSearch) {
             NovenasSearchView(environment: environment)
-        }
-        .fullScreenCover(isPresented: $showIntentionsSearch) {
-            NovenasSearchView(environment: environment, mode: .intentions)
         }
         .fullScreenCover(item: $selectedNovenaSelection) { selection in
             NovenaDetailView(
@@ -591,6 +587,7 @@ struct SaintsCalendarView: View {
                     imageURL: nil,
                     tags: [],
                     patronages: [],
+                    intentions: [],
                     feastLabelByLocale: [:],
                     summaryByLocale: [:],
                     biographyByLocale: [:],

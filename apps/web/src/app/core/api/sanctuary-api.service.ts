@@ -27,6 +27,7 @@ export interface SaintSummary {
   feastLabel: string;
   summary: string;
   imageUrl: string | null;
+  intentions?: string[];
 }
 
 export interface SaintSource {
@@ -91,6 +92,11 @@ export interface NovenaCalendarDateResponse {
   date: string;
   novenas: NovenaSummary[];
   startingNovena: NovenaSummary | null;
+}
+
+export interface IntentionSearchResult {
+  novenas: NovenaSummary[];
+  saints: SaintSummary[];
 }
 
 export interface UserProfile {
@@ -292,6 +298,12 @@ export class SanctuaryApiService {
 
   listNovenaIntentions(language: 'en' | 'es' | 'pl', query: string): Observable<NovenaSummary[]> {
     return this.http.get<NovenaSummary[]>(`${this.apiBaseUrl}/content/novenas/intentions`, {
+      params: new HttpParams().set('lang', language).set('query', query),
+    });
+  }
+
+  searchIntentions(language: 'en' | 'es' | 'pl', query: string): Observable<IntentionSearchResult> {
+    return this.http.get<IntentionSearchResult>(`${this.apiBaseUrl}/content/intentions/search`, {
       params: new HttpParams().set('lang', language).set('query', query),
     });
   }
