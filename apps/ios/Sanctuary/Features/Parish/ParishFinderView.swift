@@ -132,6 +132,7 @@ struct ParishFinderView: View {
 #endif
             }
         }
+        .leftEdgeSwipeBack(dismiss.callAsFunction)
     }
 }
 

@@ -48,6 +48,7 @@ struct NovenasListView: View {
                         }
                     }
                 }
+                .scrollDismissesKeyboard(.interactively)
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
