@@ -36,6 +36,7 @@ struct MeView: View {
                 .padding(16)
                 .padding(.bottom, 28)
             }
+            .scrollDismissesKeyboard(.interactively)
         }
         .task {
             if accountStore.isAuthenticated {

@@ -147,6 +147,7 @@ class SessionRepository(
                     summary = it.summary,
                     biography = it.biography,
                     imageUrl = it.imageUrl,
+                    intentions = it.intentions.orEmpty(),
                     sources = it.sources.orEmpty().map { source ->
                         SaintSource(
                             title = source.text ?: source.url ?: "Source",
@@ -395,6 +396,11 @@ class SessionRepository(
             .map { it.toDomain() }
     }
 
+    suspend fun searchIntentions(query: String): IntentionSearchResult = withContext(Dispatchers.IO) {
+        runApiCall { api.searchIntentions(lang = currentLanguage(), query = query.trim()) }
+            .toDomain()
+    }
+
     suspend fun listNovenaCalendarRange(start: String, end: String): List<NovenaCalendarDate> = withContext(Dispatchers.IO) {
         runApiCall { api.listNovenasCalendarRange(start = start, end = end, lang = currentLanguage()) }
             .map { entry ->
@@ -575,7 +581,8 @@ private fun SaintSummaryResponse.toDomain(): SaintSummary = SaintSummary(
     name = name,
     feastLabel = feastLabel,
     summary = summary,
-    imageUrl = imageUrl
+    imageUrl = imageUrl,
+    intentions = intentions.orEmpty()
 )
 
 private fun NovenaSummaryResponse.toDomain(): NovenaSummary = NovenaSummary(
@@ -586,6 +593,11 @@ private fun NovenaSummaryResponse.toDomain(): NovenaSummary = NovenaSummary(
     durationDays = durationDays,
     intentions = intentions.orEmpty(),
     imageUrl = imageUrl
+)
+
+private fun IntentionSearchResultResponse.toDomain(): IntentionSearchResult = IntentionSearchResult(
+    novenas = novenas.map { it.toDomain() },
+    saints = saints.map { it.toDomain() }
 )
 
 data class SessionBootstrapResult(

@@ -129,6 +129,12 @@ interface SanctuaryApiService {
         @Query("query") query: String = ""
     ): List<NovenaSummaryResponse>
 
+    @GET("content/intentions/search")
+    suspend fun searchIntentions(
+        @Query("lang") lang: String = "en",
+        @Query("query") query: String = ""
+    ): IntentionSearchResultResponse
+
     @GET("content/novenas/calendar")
     suspend fun listNovenasCalendarRange(
         @Query("start") start: String,

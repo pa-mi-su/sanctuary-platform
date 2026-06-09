@@ -4,6 +4,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { catchError, combineLatest, map, of, startWith, switchMap } from 'rxjs';
 
 import {
+  IntentionSearchResult,
   LiturgicalDayResponse,
   NovenaCalendarDateResponse,
   NovenaDetail,
@@ -46,6 +47,7 @@ export interface LocalNovenaProgress {
 }
 
 const LOCAL_NOVENA_PROGRESS_KEY = 'sanctuary.localNovenaProgress';
+const EMPTY_INTENTION_SEARCH_RESULT: IntentionSearchResult = { novenas: [], saints: [] };
 
 @Injectable({ providedIn: 'root' })
 export class AppShellFacade {
@@ -550,7 +552,7 @@ export class AppShellFacade {
     combineLatest([toObservable(this.novenaQuery), toObservable(this.language), toObservable(this.novenasMode)]).pipe(
       switchMap(([query, language, mode]) => {
         const request = mode === 'intentions'
-          ? this.api.listNovenaIntentions(this.apiLanguage(language), query)
+          ? of<NovenaSummary[]>([])
           : this.api.listNovenas(this.apiLanguage(language), query);
 
         return request.pipe(
@@ -563,6 +565,27 @@ export class AppShellFacade {
     ),
     { initialValue: [] },
   );
+
+  readonly intentionSearchResults = toSignal(
+    combineLatest([toObservable(this.novenaQuery), toObservable(this.language), toObservable(this.currentTab)]).pipe(
+      switchMap(([query, language, tab]) => {
+        if (tab !== 'intentions') {
+          return of(EMPTY_INTENTION_SEARCH_RESULT);
+        }
+
+        return this.api.searchIntentions(this.apiLanguage(language), query).pipe(
+          catchError(() => {
+            this.novenasLoadFailed.set(true);
+            return of(EMPTY_INTENTION_SEARCH_RESULT);
+          }),
+        );
+      }),
+    ),
+    { initialValue: EMPTY_INTENTION_SEARCH_RESULT },
+  );
+
+  readonly intentionNovenaResults = computed(() => this.intentionSearchResults().novenas);
+  readonly intentionSaintResults = computed(() => this.intentionSearchResults().saints);
 
   readonly weekdayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -1147,9 +1170,9 @@ export class AppShellFacade {
     }
 
     return this.translate(
-      `${this.novenaSearchResults().length} novenas with intentions`,
-      `${this.novenaSearchResults().length} novenas con intenciones`,
-      `${this.novenaSearchResults().length} nowenn z intencjami`
+      `${this.intentionNovenaResults().length} novenas and ${this.intentionSaintResults().length} saints`,
+      `${this.intentionNovenaResults().length} novenas y ${this.intentionSaintResults().length} santos`,
+      `${this.intentionNovenaResults().length} nowenn i ${this.intentionSaintResults().length} świętych`
     );
   }
 
@@ -1185,9 +1208,9 @@ export class AppShellFacade {
     }
 
     return this.translate(
-      'Browse the available intention novenas or search for a specific intention.',
-      'Revisa las novenas con intenciones disponibles o busca una intención específica.',
-      'Przegladaj dostepne nowenny intencyjne lub szukaj konkretnej intencji.'
+      'Browse saints and novenas by intention, or search for a specific need.',
+      'Revisa santos y novenas por intención, o busca una necesidad específica.',
+      'Przeglądaj świętych i nowenny według intencji albo wyszukaj konkretną potrzebę.'
     );
   }
 

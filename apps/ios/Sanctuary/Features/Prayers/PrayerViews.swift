@@ -175,6 +175,7 @@ struct PrayersSearchView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var localization: LocalizationManager
     @StateObject private var viewModel: PrayersSearchViewModel
+    @FocusState private var isSearchFocused: Bool
 
     init(environment: AppEnvironment, mode: PrayerSearchMode = .prayers) {
         self.environment = environment
@@ -226,12 +227,24 @@ struct PrayersSearchView: View {
                             .foregroundColor(AppTheme.cardText)
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled()
+                            .focused($isSearchFocused)
                             .submitLabel(.search)
-                            .onSubmit { Task { await viewModel.search() } }
+                            .onSubmit {
+                                isSearchFocused = false
+                                Task { await viewModel.search() }
+                            }
                     }
                     .padding(.horizontal, 18)
                     .padding(.vertical, 14)
                     .appGlassCard(cornerRadius: 28)
+                    .toolbar {
+                        ToolbarItemGroup(placement: .keyboard) {
+                            Spacer()
+                            Button(localization.t("common.done")) {
+                                isSearchFocused = false
+                            }
+                        }
+                    }
 
                     if viewModel.isLoading {
                         SanctuaryLoadingCard(
@@ -266,6 +279,7 @@ struct PrayersSearchView: View {
                             }
                             .padding(.bottom, 24)
                         }
+                        .scrollDismissesKeyboard(.interactively)
                     }
                 }
                 .padding(.horizontal, 14)
@@ -273,6 +287,7 @@ struct PrayersSearchView: View {
             }
             .toolbar(.hidden, for: .navigationBar)
         }
+        .leftEdgeSwipeBack(dismiss.callAsFunction)
         .task {
             viewModel.setLocale(locale)
             await viewModel.load()
