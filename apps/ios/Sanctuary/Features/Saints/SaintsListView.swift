@@ -48,6 +48,7 @@ struct SaintsListView: View {
                         }
                     }
                 }
+                .scrollDismissesKeyboard(.interactively)
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)

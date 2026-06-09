@@ -44,7 +44,7 @@ android {
         minSdk = 26
         targetSdk = 35
         versionCode = ciVersionCode
-        versionName = "1.0.9"
+        versionName = "1.0.10"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -60,7 +60,7 @@ android {
             versionNameSuffix = "-dev"
             resValue("string", "app_name", "Sanctuary Dev")
             buildConfigField("String", "ENVIRONMENT", "\"dev\"")
-            buildConfigField("String", "API_BASE_URL", "\"https://sa-d7fe5f77e3bd409caf712e69b701f1e8.ecs.us-east-1.on.aws\"")
+            buildConfigField("String", "API_BASE_URL", "\"https://dev-api.mydailysanctuary.com\"")
             buildConfigField("boolean", "AUTH_ENABLED", "true")
         }
 

@@ -21,6 +21,7 @@ struct Saint: Codable, Identifiable, Hashable, Sendable {
     let imageURL: URL?
     let tags: [String]
     let patronages: [String]
+    let intentions: [String]
     let feastLabelByLocale: [ContentLocale: String]
     let summaryByLocale: [ContentLocale: String]
     let biographyByLocale: [ContentLocale: String]
@@ -58,6 +59,11 @@ struct NovenaCalendarDay: Hashable, Sendable {
     let date: Date
     let novenas: [Novena]
     let startingNovena: Novena?
+}
+
+struct IntentionSearchResult: Hashable, Sendable {
+    let novenas: [Novena]
+    let saints: [Saint]
 }
 
 struct NovenaServingWindowInfo: Hashable, Sendable {

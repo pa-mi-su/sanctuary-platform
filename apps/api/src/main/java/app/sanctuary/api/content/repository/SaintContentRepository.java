@@ -88,6 +88,17 @@ public class SaintContentRepository {
         }
 
         SaintDetailDto saint = saints.getFirst();
+        List<String> intentions = jdbcTemplate.query(
+            """
+                SELECT ci.label_%s AS intention_text
+                FROM saint_intention_links sil
+                JOIN content_intentions ci ON ci.id = sil.intention_id
+                WHERE sil.saint_id = ?
+                ORDER BY sil.sort_order, ci.id
+                """.formatted(locale),
+            (rs, rowNum) -> rs.getString("intention_text"),
+            saint.id()
+        );
         List<SaintSourceDto> sources = jdbcTemplate.query(
             """
                 SELECT source_text, source_url
@@ -102,7 +113,7 @@ public class SaintContentRepository {
             saint.id()
         );
 
-        return Optional.of(saint.withSources(sources));
+        return Optional.of(saint.withIntentions(intentions).withSources(sources));
     }
 
     private RowMapper<SaintSummaryDto> saintSummaryMapper() {
@@ -114,7 +125,8 @@ public class SaintContentRepository {
             rs.getInt("feast_day"),
             rs.getString("feast_label"),
             rs.getString("summary"),
-            rs.getString("image_url")
+            rs.getString("image_url"),
+            List.of()
         );
     }
 
@@ -129,6 +141,7 @@ public class SaintContentRepository {
             rs.getString("summary"),
             rs.getString("biography"),
             rs.getString("image_url"),
+            List.of(),
             List.of()
         );
     }

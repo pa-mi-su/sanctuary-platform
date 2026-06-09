@@ -22,6 +22,7 @@ enum PlatformEnvironment: String, Sendable {
 
 struct PlatformConfiguration: Sendable {
     private static let apiBaseURLInfoKey = "SanctuaryAPIBaseURL"
+    private static let devAPIBaseURL = "https://dev-api.mydailysanctuary.com"
     private static let productionAPIBaseURL = "https://sa-d7fe5f77e3bd409caf712e69b701f1e8.ecs.us-east-1.on.aws"
 
     let environment: PlatformEnvironment
@@ -33,7 +34,7 @@ struct PlatformConfiguration: Sendable {
         processInfo: ProcessInfo = .processInfo
     ) -> PlatformConfiguration {
         let environment = PlatformEnvironment.current(bundle: bundle)
-        let apiBaseURL = resolveAPIBaseURL(environment: environment, processInfo: processInfo)
+        let apiBaseURL = resolveAPIBaseURL(bundle: bundle, environment: environment, processInfo: processInfo)
 
         return PlatformConfiguration(
             environment: environment,
@@ -61,6 +62,15 @@ struct PlatformConfiguration: Sendable {
             return url
         }
 
-        return URL(string: productionAPIBaseURL)!
+        return defaultAPIBaseURL(for: environment)
+    }
+
+    private static func defaultAPIBaseURL(for environment: PlatformEnvironment) -> URL {
+        switch environment {
+        case .dev:
+            return URL(string: devAPIBaseURL)!
+        case .uat, .prod:
+            return URL(string: productionAPIBaseURL)!
+        }
     }
 }

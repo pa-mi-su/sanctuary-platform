@@ -112,6 +112,7 @@ struct AboutView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
         .toolbarColorScheme(.dark, for: .navigationBar)
+        .leftEdgeSwipeBack(dismiss.callAsFunction)
     }
 
     private static var nonProductionEnvironmentLabel: String? {

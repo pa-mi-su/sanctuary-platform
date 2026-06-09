@@ -146,6 +146,7 @@ struct APIContentSaintSummaryResponse: Decodable, Sendable {
     let feastLabel: String
     let summary: String?
     let imageUrl: String?
+    let intentions: [String]?
 }
 
 struct APIContentSaintRangeDateResponse: Decodable, Sendable {
@@ -163,6 +164,7 @@ struct APIContentSaintDetailResponse: Decodable, Sendable {
     let summary: String?
     let biography: String?
     let imageUrl: String?
+    let intentions: [String]?
     let sources: [APIContentSaintSourceResponse]
 }
 
@@ -206,6 +208,11 @@ struct APIContentNovenaCalendarDateResponse: Decodable, Sendable {
     let date: String
     let novenas: [APIContentNovenaSummaryResponse]
     let startingNovena: APIContentNovenaSummaryResponse?
+}
+
+struct APIContentIntentionSearchResultResponse: Decodable, Sendable {
+    let novenas: [APIContentNovenaSummaryResponse]
+    let saints: [APIContentSaintSummaryResponse]
 }
 
 struct APINovenaServingWindowResponse: Decodable, Sendable {
@@ -434,6 +441,24 @@ actor SanctuaryAPIClient {
 
         return try await performRequest(
             path: "/content/novenas/intentions",
+            queryItems: queryItems,
+            method: "GET",
+            body: Optional<String>.none,
+            token: nil
+        )
+    }
+
+    func searchIntentions(
+        locale: ContentLocale,
+        query: String
+    ) async throws -> APIContentIntentionSearchResultResponse {
+        let queryItems = [
+            URLQueryItem(name: "lang", value: locale.rawValue),
+            URLQueryItem(name: "query", value: query)
+        ]
+
+        return try await performRequest(
+            path: "/content/intentions/search",
             queryItems: queryItems,
             method: "GET",
             body: Optional<String>.none,
