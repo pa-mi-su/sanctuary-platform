@@ -2,7 +2,10 @@ import { InjectionToken } from '@angular/core';
 
 export const SANCTUARY_API_BASE_URL = new InjectionToken<string>('SANCTUARY_API_BASE_URL');
 const PRODUCTION_API_BASE_URL = 'https://sa-d7fe5f77e3bd409caf712e69b701f1e8.ecs.us-east-1.on.aws';
+const DEV_API_BASE_URL = 'https://dev-api.mydailysanctuary.com';
 const LOCAL_API_BASE_URL = 'http://localhost:8080';
+const DEV_WEB_HOSTS = new Set(['dev.mydailysanctuary.com']);
+const LOCAL_WEB_HOSTS = new Set(['localhost', '127.0.0.1']);
 
 export function resolveSanctuaryApiBaseUrl(): string {
   if (typeof window !== 'undefined') {
@@ -10,12 +13,18 @@ export function resolveSanctuaryApiBaseUrl(): string {
     if (apiTarget === 'prod') {
       return PRODUCTION_API_BASE_URL;
     }
+    if (apiTarget === 'dev') {
+      return DEV_API_BASE_URL;
+    }
     if (apiTarget === 'local') {
       return LOCAL_API_BASE_URL;
     }
 
     const hostname = window.location.hostname;
-    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    if (DEV_WEB_HOSTS.has(hostname)) {
+      return DEV_API_BASE_URL;
+    }
+    if (LOCAL_WEB_HOSTS.has(hostname)) {
       return LOCAL_API_BASE_URL;
     }
   }
