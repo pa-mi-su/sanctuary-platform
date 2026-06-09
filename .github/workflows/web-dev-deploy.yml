@@ -1,0 +1,156 @@
+name: Web Dev Pipeline
+
+on:
+  pull_request:
+    branches:
+      - dev
+    paths:
+      - "apps/web/**"
+      - "package-lock.json"
+      - "package.json"
+      - ".github/workflows/web-dev-deploy.yml"
+  push:
+    branches:
+      - dev
+    paths:
+      - "apps/web/**"
+      - "package-lock.json"
+      - "package.json"
+      - ".github/workflows/web-dev-deploy.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: web-dev-pipeline-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Stamp web build info
+        run: |
+          version="$(node -p "require('./apps/web/package.json').version")"
+          cat > apps/web/public/build-info.js <<EOF
+          (function () {
+            window.SANCTUARY_BUILD_INFO = {
+              version: '${version}',
+              build: '${GITHUB_RUN_NUMBER}',
+              environment: 'dev',
+              commit: '${GITHUB_SHA}'
+            };
+          })();
+          EOF
+
+      - name: Build Angular web app
+        run: npm run build --workspace web
+
+  deploy:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
+    runs-on: ubuntu-latest
+    environment: dev
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      WEB_S3_BUCKET: ${{ vars.WEB_DEV_S3_BUCKET }}
+      WEB_CLOUDFRONT_DISTRIBUTION_ID: ${{ vars.WEB_DEV_CLOUDFRONT_DISTRIBUTION_ID }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Stamp web build info
+        run: |
+          version="$(node -p "require('./apps/web/package.json').version")"
+          cat > apps/web/public/build-info.js <<EOF
+          (function () {
+            window.SANCTUARY_BUILD_INFO = {
+              version: '${version}',
+              build: '${GITHUB_RUN_NUMBER}',
+              environment: 'dev',
+              commit: '${GITHUB_SHA}'
+            };
+          })();
+          EOF
+
+      - name: Build Angular web app
+        run: npm run build --workspace web
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Normalize deploy variables
+        run: |
+          echo "WEB_S3_BUCKET=$(echo -n "${WEB_S3_BUCKET}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
+          echo "WEB_CLOUDFRONT_DISTRIBUTION_ID=$(echo -n "${WEB_CLOUDFRONT_DISTRIBUTION_ID}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
+
+      - name: Validate dev deploy target
+        run: |
+          if [ -z "${WEB_S3_BUCKET}" ]; then
+            echo "WEB_DEV_S3_BUCKET is required in the GitHub dev environment." >&2
+            exit 1
+          fi
+          if [ -z "${WEB_CLOUDFRONT_DISTRIBUTION_ID}" ]; then
+            echo "WEB_DEV_CLOUDFRONT_DISTRIBUTION_ID is required in the GitHub dev environment." >&2
+            exit 1
+          fi
+          if [ "${WEB_S3_BUCKET}" != "dev.mydailysanctuary.com" ]; then
+            echo "Refusing to deploy dev web to unexpected bucket: ${WEB_S3_BUCKET}" >&2
+            exit 1
+          fi
+          if [ "${WEB_CLOUDFRONT_DISTRIBUTION_ID}" = "E34NUCAHSMCJFM" ]; then
+            echo "Refusing to invalidate the prod CloudFront distribution from the dev workflow." >&2
+            exit 1
+          fi
+
+      - name: Sync web build to S3
+        run: aws s3 sync apps/web/dist/web/browser "s3://${WEB_S3_BUCKET}" --delete
+
+      - name: Mark app link association files as JSON
+        run: |
+          aws s3 cp apps/web/dist/web/browser/.well-known/apple-app-site-association "s3://${WEB_S3_BUCKET}/.well-known/apple-app-site-association" \
+            --content-type "application/json" \
+            --metadata-directive REPLACE
+          aws s3 cp apps/web/dist/web/browser/.well-known/assetlinks.json "s3://${WEB_S3_BUCKET}/.well-known/assetlinks.json" \
+            --content-type "application/json" \
+            --metadata-directive REPLACE
+
+      - name: Mark share preview routes as HTML
+        run: |
+          find apps/web/dist/web/browser/saints apps/web/dist/web/browser/novenas apps/web/dist/web/browser/prayers -type f ! -name '*.*' -print0 | while IFS= read -r -d '' file; do
+            key="${file#apps/web/dist/web/browser/}"
+            aws s3 cp "$file" "s3://${WEB_S3_BUCKET}/${key}" \
+              --content-type "text/html; charset=utf-8" \
+              --metadata-directive REPLACE
+          done
+
+      - name: Invalidate CloudFront cache
+        run: aws cloudfront create-invalidation --distribution-id "${WEB_CLOUDFRONT_DISTRIBUTION_ID}" --paths "/*"

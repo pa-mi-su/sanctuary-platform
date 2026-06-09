@@ -13,6 +13,11 @@ server:
   port: ${SANCTUARY_API_PORT:8080}
 
 sanctuary:
+  web:
+    allowed-origins:
+      - http://localhost:4200
+      - http://127.0.0.1:4200
+      - https://dev.mydailysanctuary.com
   auth:
     enabled: ${SANCTUARY_AUTH_ENABLED:false}
     audience: ${SANCTUARY_COGNITO_CLIENT_ID:}
