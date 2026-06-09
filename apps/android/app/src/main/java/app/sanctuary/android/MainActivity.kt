@@ -477,6 +477,17 @@ private fun AccountAccessScreen(
             step = AuthStep.Confirm
             registerEmail = session.pendingConfirmationEmail.orEmpty()
         }
+        if (
+            session.status == SessionStatus.SignedOut &&
+            step == AuthStep.Confirm &&
+            !session.isErrorMessage &&
+            !session.message.isNullOrBlank()
+        ) {
+            step = AuthStep.Login
+            loginEmail = session.pendingConfirmationEmail ?: registerEmail.trim()
+            loginPassword = ""
+            confirmationCode = ""
+        }
         if (!session.pendingPasswordResetEmail.isNullOrBlank()) {
             step = AuthStep.ResetPassword
             resetEmail = session.pendingPasswordResetEmail.orEmpty()
@@ -727,7 +738,7 @@ private fun AccountAccessContent(
                 )
                 TextFieldBlock(l10n.t("auth.verificationCode"), confirmationCode, keyboardType = KeyboardType.Number, onValueChange = onConfirmationCodeChange)
                 PrimaryButton(l10n.t("auth.confirmAccountCta"), isBusy, enabled = confirmationCode.trim().isNotEmpty()) {
-                    onAction.confirmRegistration(confirmationCode.trim())
+                    onAction.confirmRegistration(confirmationCode.trim(), registerPassword)
                 }
                 SecondaryButton(l10n.t("auth.sendNewCode"), isBusy, enabled = true, onClick = onAction::resendConfirmation)
             }
