@@ -64,12 +64,14 @@ struct SaintsSearchView: View {
                             }
                             .padding(.bottom, 24)
                         }
+                        .scrollDismissesKeyboard(.interactively)
                     }
                 }
                 .padding(.horizontal, 14)
                 .padding(.bottom, 10)
             }
             .toolbar(.hidden, for: .navigationBar)
+            .leftEdgeSwipeBack(dismiss.callAsFunction)
             .task {
                 viewModel.setLocale(localization.language.contentLocale)
                 await viewModel.load()
@@ -159,6 +161,7 @@ struct NovenasSearchView: View {
                                 }
                                 .padding(.bottom, 24)
                             }
+                            .scrollDismissesKeyboard(.interactively)
                         }
                     } else {
                         SearchField(
@@ -196,6 +199,7 @@ struct NovenasSearchView: View {
                                 }
                                 .padding(.bottom, 24)
                             }
+                            .scrollDismissesKeyboard(.interactively)
                         }
                     }
                 }
@@ -204,6 +208,7 @@ struct NovenasSearchView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             }
             .toolbar(.hidden, for: .navigationBar)
+            .leftEdgeSwipeBack(dismiss.callAsFunction)
             .task {
                 if mode == .intentions {
                     await rebuildIntentionItems()
@@ -341,9 +346,11 @@ private struct SearchHeader: View {
 }
 
 private struct SearchField: View {
+    @EnvironmentObject private var localization: LocalizationManager
     let prompt: String
     @Binding var text: String
     var onSubmit: (() -> Void)? = nil
+    @FocusState private var isFocused: Bool
 
     var body: some View {
         HStack(spacing: 10) {
@@ -358,12 +365,24 @@ private struct SearchField: View {
                 .foregroundColor(AppTheme.cardText)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
+                .focused($isFocused)
                 .submitLabel(.search)
-                .onSubmit { onSubmit?() }
+                .onSubmit {
+                    isFocused = false
+                    onSubmit?()
+                }
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 14)
         .appGlassCard(cornerRadius: 28)
+        .toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button(localization.t("common.done")) {
+                    isFocused = false
+                }
+            }
+        }
     }
 }
 
