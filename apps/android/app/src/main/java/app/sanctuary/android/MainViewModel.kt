@@ -202,20 +202,35 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun confirmRegistration(code: String) {
+    fun confirmRegistration(code: String, password: String? = null) {
         val email = _session.value.pendingConfirmationEmail ?: return
         viewModelScope.launch {
             setBusy()
+            var confirmationMessage: String? = null
             runCatching {
-                withTimeoutOrNull(15_000) {
+                val confirmation = withTimeoutOrNull(15_000) {
                     repository.confirm(email = email, code = code)
                 } ?: throw IllegalStateException(l10n().t("status.confirmTimeout"))
-            }.onSuccess { response ->
-                _session.value = _session.value.copy(
-                    status = SessionStatus.SignedOut,
-                    message = response.message,
-                    isErrorMessage = false
-                )
+                confirmationMessage = confirmation.message
+
+                if (!password.isNullOrEmpty()) {
+                    withTimeoutOrNull(15_000) {
+                        repository.login(email, password)
+                    } ?: throw IllegalStateException(l10n().t("status.loginTimeout"))
+                } else {
+                    null
+                }
+            }.onSuccess { loginResult ->
+                if (loginResult?.authenticated == true) {
+                    applyAuthenticatedSession(loginResult)
+                } else {
+                    _session.value = _session.value.copy(
+                        status = SessionStatus.SignedOut,
+                        pendingConfirmationEmail = email,
+                        message = confirmationMessage,
+                        isErrorMessage = false
+                    )
+                }
             }.onFailure { failure ->
                 _session.value = _session.value.copy(
                     status = SessionStatus.Failed,
@@ -312,19 +327,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
                 .onSuccess { result ->
                     if (result.authenticated) {
-                        _session.value = SessionUiState(
-                            status = SessionStatus.Authenticated,
-                            isBootstrapping = false,
-                            isSavingReminderPreferences = false,
-                            session = result.session,
-                            profile = result.profile
-                        )
-                        syncReminderScheduler(
-                            profile = result.profile,
-                            activeCommitmentCount = 0
-                        )
-                        loadInitialContent()
-                        refreshNovenaProgress()
+                        applyAuthenticatedSession(result)
                     } else {
                         reminderScheduler.cancelAll()
                         _session.value = SessionUiState(
@@ -384,6 +387,22 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
         }
+    }
+
+    private fun applyAuthenticatedSession(result: SessionBootstrapResult) {
+        _session.value = SessionUiState(
+            status = SessionStatus.Authenticated,
+            isBootstrapping = false,
+            isSavingReminderPreferences = false,
+            session = result.session,
+            profile = result.profile
+        )
+        syncReminderScheduler(
+            profile = result.profile,
+            activeCommitmentCount = 0
+        )
+        loadInitialContent()
+        refreshNovenaProgress()
     }
 
     fun updateLanguage(language: AppLanguage) {

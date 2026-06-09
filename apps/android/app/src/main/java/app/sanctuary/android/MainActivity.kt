@@ -10,8 +10,10 @@ import android.os.Bundle
 import android.view.MotionEvent
 import android.view.View
 import android.webkit.WebChromeClient
+import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.ComponentActivity
@@ -477,6 +479,17 @@ private fun AccountAccessScreen(
             step = AuthStep.Confirm
             registerEmail = session.pendingConfirmationEmail.orEmpty()
         }
+        if (
+            session.status == SessionStatus.SignedOut &&
+            step == AuthStep.Confirm &&
+            !session.isErrorMessage &&
+            !session.message.isNullOrBlank()
+        ) {
+            step = AuthStep.Login
+            loginEmail = session.pendingConfirmationEmail ?: registerEmail.trim()
+            loginPassword = ""
+            confirmationCode = ""
+        }
         if (!session.pendingPasswordResetEmail.isNullOrBlank()) {
             step = AuthStep.ResetPassword
             resetEmail = session.pendingPasswordResetEmail.orEmpty()
@@ -727,7 +740,7 @@ private fun AccountAccessContent(
                 )
                 TextFieldBlock(l10n.t("auth.verificationCode"), confirmationCode, keyboardType = KeyboardType.Number, onValueChange = onConfirmationCodeChange)
                 PrimaryButton(l10n.t("auth.confirmAccountCta"), isBusy, enabled = confirmationCode.trim().isNotEmpty()) {
-                    onAction.confirmRegistration(confirmationCode.trim())
+                    onAction.confirmRegistration(confirmationCode.trim(), registerPassword)
                 }
                 SecondaryButton(l10n.t("auth.sendNewCode"), isBusy, enabled = true, onClick = onAction::resendConfirmation)
             }
@@ -835,13 +848,14 @@ private fun AuthenticatedShell(
     var novenasCalendarMode by rememberSaveable { mutableStateOf(CalendarMode.Day) }
     fun openSupportEmail() {
         val intent = Intent(Intent.ACTION_SENDTO).apply {
-            data = Uri.parse("mailto:info@mydailysanctuary.com")
+            data = Uri.parse("mailto:")
+            putExtra(Intent.EXTRA_EMAIL, arrayOf("info@mydailysanctuary.com"))
             putExtra(Intent.EXTRA_SUBJECT, "Sanctuary support")
         }
         try {
             context.startActivity(Intent.createChooser(intent, l10n.t("about.emailSupport")))
         } catch (_: ActivityNotFoundException) {
-            dailyReadingError = "No email app is available on this device."
+            Toast.makeText(context, l10n.t("about.emailUnavailable"), Toast.LENGTH_LONG).show()
         }
     }
     var liturgicalCalendarMode by rememberSaveable { mutableStateOf(CalendarMode.Month) }
@@ -4333,7 +4347,22 @@ private fun DailyReadingsWebView(url: String) {
                 .height(560.dp),
             factory = { context ->
                 WebView(context).apply {
-                    webViewClient = WebViewClient()
+                    webViewClient = object : WebViewClient() {
+                        override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
+                            val uri = request.url
+                            val scheme = uri.scheme
+                            if (scheme == "http" || scheme == "https") {
+                                return false
+                            }
+                            val intent = Intent(Intent.ACTION_VIEW, uri)
+                            return try {
+                                context.startActivity(intent)
+                                true
+                            } catch (_: ActivityNotFoundException) {
+                                true
+                            }
+                        }
+                    }
                     webChromeClient = WebChromeClient()
                     settings.javaScriptEnabled = true
                     settings.domStorageEnabled = true
