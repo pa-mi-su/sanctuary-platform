@@ -244,11 +244,7 @@ struct NovenasSearchView: View {
     }
 
     private var filteredIntentionItems: [IntentionSearchItem] {
-        let q = normalized(intentionsQuery)
-        guard !q.isEmpty else { return intentionItems }
-        let rankedIDs = SearchMatcher.rankedIDs(for: q, in: intentionItems) { $0.document }
-        let itemByID = Dictionary(uniqueKeysWithValues: intentionItems.map { ($0.id, $0) })
-        return rankedIDs.compactMap { itemByID[$0] }
+        intentionItems
     }
 
     private func rebuildIntentionItems() async {
@@ -323,9 +319,6 @@ struct NovenasSearchView: View {
         return Array(cleaned.prefix(3)).joined(separator: " • ")
     }
 
-    private func normalized(_ value: String) -> String {
-        SearchMatcher.normalize(value)
-    }
 }
 
 private struct IntentionSearchItem: Identifiable {
