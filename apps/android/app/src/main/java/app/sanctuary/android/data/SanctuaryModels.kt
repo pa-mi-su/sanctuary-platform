@@ -122,7 +122,8 @@ data class SaintSummaryResponse(
     val feastDay: Int,
     val feastLabel: String,
     val summary: String?,
-    val imageUrl: String?
+    val imageUrl: String?,
+    val intentions: List<String>?
 )
 
 data class SaintDetailResponse(
@@ -135,6 +136,7 @@ data class SaintDetailResponse(
     val summary: String?,
     val biography: String?,
     val imageUrl: String?,
+    val intentions: List<String>?,
     val sources: List<SaintSourceResponse>?
 )
 
@@ -209,6 +211,11 @@ data class NovenaCalendarDateResponse(
     val date: String,
     val novenas: List<NovenaSummaryResponse>,
     val startingNovena: NovenaSummaryResponse?
+)
+
+data class IntentionSearchResultResponse(
+    val novenas: List<NovenaSummaryResponse>,
+    val saints: List<SaintSummaryResponse>
 )
 
 data class LiturgicalDayResponse(
@@ -294,7 +301,8 @@ data class SaintSummary(
     val name: String,
     val feastLabel: String,
     val summary: String?,
-    val imageUrl: String?
+    val imageUrl: String?,
+    val intentions: List<String> = emptyList()
 )
 
 data class SaintDetail(
@@ -305,6 +313,7 @@ data class SaintDetail(
     val summary: String?,
     val biography: String?,
     val imageUrl: String?,
+    val intentions: List<String>,
     val sources: List<SaintSource>
 )
 
@@ -349,6 +358,11 @@ data class NovenaSummary(
     val durationDays: Int,
     val intentions: List<String>,
     val imageUrl: String?
+)
+
+data class IntentionSearchResult(
+    val novenas: List<NovenaSummary>,
+    val saints: List<SaintSummary>
 )
 
 data class NovenaDetail(

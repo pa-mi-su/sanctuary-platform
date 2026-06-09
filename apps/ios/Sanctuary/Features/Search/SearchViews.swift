@@ -145,15 +145,20 @@ struct NovenasSearchView: View {
                                 LazyVStack(spacing: 10) {
                                     ForEach(filteredIntentionItems) { item in
                                         NavigationLink {
-                                            NovenaDetailView(contentRepository: environment.contentRepository, novena: item.novena)
+                                            switch item.kind {
+                                            case .saint(let saint):
+                                                SaintDetailView(contentRepository: environment.contentRepository, saint: saint)
+                                            case .novena(let novena):
+                                                NovenaDetailView(contentRepository: environment.contentRepository, novena: novena)
+                                            }
                                         } label: {
                                             SearchResultCard(
                                                 title: item.title,
                                                 subtitle: item.subtitle,
                                                 meta: item.meta,
                                                 accent: AppTheme.glowRose,
-                                                icon: "heart.text.square.fill",
-                                                imageURL: item.novena.imageURL
+                                                icon: item.icon,
+                                                imageURL: item.imageURL
                                             )
                                         }
                                         .buttonStyle(.plain)
@@ -251,32 +256,66 @@ struct NovenasSearchView: View {
         defer { isIntentionsLoading = false }
 
         let locale = localization.language.contentLocale
-        let results = (try? await environment.contentRepository.searchNovenasByIntentions(locale: locale, query: intentionsQuery)) ?? []
+        let results = (try? await environment.contentRepository.searchIntentions(locale: locale, query: intentionsQuery))
+            ?? IntentionSearchResult(novenas: [], saints: [])
 
-        intentionItems = results.map { novena in
+        let saintItems = results.saints.map { saint in
+            let title = saint.displayName(locale: locale)
+            let summary = saint.summaryByLocale[locale] ?? saint.summaryByLocale[.en] ?? ""
+            let intentionSummary = formattedIntentions(saint.intentions)
+            let feastLabel = saint.feastLabelByLocale[locale]
+                ?? saint.feastLabelByLocale[.en]
+                ?? localization.formatMonthDay(month: saint.feastMonth, day: saint.feastDay)
+            let meta = intentionSummary.isEmpty ? feastLabel : intentionSummary
+            let document = SearchMatcher.Document(
+                itemID: "saint-\(saint.id)",
+                primaryText: intentionSummary,
+                secondaryText: "",
+                auxiliaryText: ""
+            )
+            return IntentionSearchItem(
+                id: "saint-\(saint.id)",
+                kind: .saint(saint),
+                title: title,
+                subtitle: summary,
+                meta: meta,
+                icon: "person.crop.circle.fill",
+                imageURL: saint.imageURL,
+                document: document
+            )
+        }
+
+        let novenaItems = results.novenas.map { novena in
             let title = novena.titleByLocale[locale] ?? novena.titleByLocale[.en] ?? novena.slug
             let summary = novena.descriptionByLocale[locale] ?? novena.descriptionByLocale[.en] ?? ""
             let intentionsSummary = formattedIntentions(for: novena)
             let document = SearchMatcher.Document(
                 itemID: novena.id,
-                primaryText: title,
-                secondaryText: "\(novena.slug) \((novena.tags).joined(separator: " ")) \((novena.intentions).joined(separator: " "))",
-                auxiliaryText: "\(summary) \(intentionsSummary)"
+                primaryText: intentionsSummary,
+                secondaryText: "",
+                auxiliaryText: ""
             )
             return IntentionSearchItem(
-                id: novena.id,
-                novena: novena,
+                id: "novena-\(novena.id)",
+                kind: .novena(novena),
                 title: title,
                 subtitle: summary,
                 meta: intentionsSummary,
+                icon: "book.closed.fill",
+                imageURL: novena.imageURL,
                 document: document
             )
         }
+        intentionItems = saintItems + novenaItems
         hasLoadedIntentions = true
     }
 
     private func formattedIntentions(for novena: Novena) -> String {
-        let cleaned = novena.intentions
+        formattedIntentions(novena.intentions)
+    }
+
+    private func formattedIntentions(_ intentions: [String]) -> String {
+        let cleaned = intentions
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
 
@@ -291,11 +330,18 @@ struct NovenasSearchView: View {
 
 private struct IntentionSearchItem: Identifiable {
     let id: String
-    let novena: Novena
+    let kind: IntentionSearchItemKind
     let title: String
     let subtitle: String
     let meta: String
+    let icon: String
+    let imageURL: URL?
     let document: SearchMatcher.Document
+}
+
+private enum IntentionSearchItemKind {
+    case saint(Saint)
+    case novena(Novena)
 }
 
 struct GlobalSearchView: View {

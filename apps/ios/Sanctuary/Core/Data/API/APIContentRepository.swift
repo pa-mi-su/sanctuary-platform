@@ -74,6 +74,18 @@ actor APIContentRepository: ContentRepository, SaintRangeRepository {
         return summaries.map { mapNovenaSummary($0, locale: locale) }
     }
 
+    func searchIntentions(
+        locale: ContentLocale,
+        query: String
+    ) async throws -> IntentionSearchResult {
+        let normalizedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        let result = try await apiClient.searchIntentions(locale: locale, query: normalizedQuery)
+        return IntentionSearchResult(
+            novenas: result.novenas.map { mapNovenaSummary($0, locale: locale) },
+            saints: result.saints.map { mapSaintSummary($0, locale: locale) }
+        )
+    }
+
     func listNovenaCalendarDays(
         locale: ContentLocale,
         startDate: Date,
@@ -173,6 +185,7 @@ actor APIContentRepository: ContentRepository, SaintRangeRepository {
             imageURL: url(from: response.imageUrl),
             tags: [],
             patronages: [],
+            intentions: response.intentions ?? [],
             feastLabelByLocale: localizedValueMap(value: response.feastLabel, locale: locale),
             summaryByLocale: localizedValueMap(value: response.summary ?? "", locale: locale),
             biographyByLocale: [:],
@@ -192,6 +205,7 @@ actor APIContentRepository: ContentRepository, SaintRangeRepository {
             imageURL: url(from: response.imageUrl),
             tags: [],
             patronages: [],
+            intentions: response.intentions ?? [],
             feastLabelByLocale: localizedValueMap(value: response.feastLabel, locale: locale),
             summaryByLocale: localizedValueMap(value: response.summary ?? "", locale: locale),
             biographyByLocale: localizedValueMap(value: response.biography ?? "", locale: locale),

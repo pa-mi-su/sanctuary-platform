@@ -87,6 +87,24 @@ struct PreviewContentRepository: ContentRepository, SaintRangeRepository {
         }
     }
 
+    func searchIntentions(
+        locale: ContentLocale,
+        query: String
+    ) async throws -> IntentionSearchResult {
+        let matchingNovenas = try await searchNovenasByIntentions(locale: locale, query: query)
+        let term = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        let matchingSaints = term.isEmpty ? saints : saints.filter { saint in
+            let haystack = [
+                saint.displayName(locale: locale),
+                saint.summaryByLocale[locale] ?? saint.summaryByLocale[.en] ?? "",
+                saint.patronages.joined(separator: " "),
+                saint.tags.joined(separator: " ")
+            ].joined(separator: " ")
+            return haystack.localizedCaseInsensitiveContains(term)
+        }
+        return IntentionSearchResult(novenas: matchingNovenas, saints: matchingSaints)
+    }
+
     func listNovenaCalendarDays(
         locale: ContentLocale,
         startDate: Date,

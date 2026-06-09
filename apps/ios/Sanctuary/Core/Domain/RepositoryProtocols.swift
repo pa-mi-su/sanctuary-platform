@@ -33,6 +33,11 @@ protocol ContentRepository: Sendable {
         query: String
     ) async throws -> [Novena]
 
+    func searchIntentions(
+        locale: ContentLocale,
+        query: String
+    ) async throws -> IntentionSearchResult
+
     func listNovenaCalendarDays(
         locale: ContentLocale,
         startDate: Date,
