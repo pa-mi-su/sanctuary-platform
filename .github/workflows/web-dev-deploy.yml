@@ -145,9 +145,9 @@ jobs:
 
       - name: Mark share preview routes as HTML
         run: |
-          find apps/web/dist/web/browser/saints apps/web/dist/web/browser/novenas apps/web/dist/web/browser/prayers -type f ! -name '*.*' -print0 | while IFS= read -r -d '' file; do
-            key="${file#apps/web/dist/web/browser/}"
-            aws s3 cp "$file" "s3://${WEB_S3_BUCKET}/${key}" \
+          for route_dir in saints novenas prayers; do
+            aws s3 sync "apps/web/dist/web/browser/${route_dir}" "s3://${WEB_S3_BUCKET}/${route_dir}" \
+              --exclude "*.*" \
               --content-type "text/html; charset=utf-8" \
               --metadata-directive REPLACE
           done
