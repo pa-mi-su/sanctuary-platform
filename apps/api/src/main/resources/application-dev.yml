@@ -3,6 +3,23 @@ spring:
     url: ${SANCTUARY_DB_URL}
     username: ${SANCTUARY_DB_USERNAME}
     password: ${SANCTUARY_DB_PASSWORD}
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${SANCTUARY_COGNITO_ISSUER_URI:}
 
 server:
   port: ${SANCTUARY_API_PORT:8080}
+
+sanctuary:
+  auth:
+    enabled: ${SANCTUARY_AUTH_ENABLED:false}
+    audience: ${SANCTUARY_COGNITO_CLIENT_ID:}
+    user-pool-id: ${SANCTUARY_COGNITO_USER_POOL_ID:}
+    client-id: ${SANCTUARY_COGNITO_CLIENT_ID:}
+    cookie:
+      domain: ${SANCTUARY_AUTH_COOKIE_DOMAIN:}
+      secure: ${SANCTUARY_AUTH_COOKIE_SECURE:true}
+      same-site: ${SANCTUARY_AUTH_COOKIE_SAME_SITE:None}
+      refresh-max-age-days: ${SANCTUARY_AUTH_COOKIE_REFRESH_MAX_AGE_DAYS:30}
