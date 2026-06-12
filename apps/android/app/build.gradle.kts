@@ -5,11 +5,29 @@ plugins {
 }
 
 import java.io.ByteArrayOutputStream
+import java.util.Properties
 
 val uploadKeystorePath = System.getenv("ANDROID_UPLOAD_KEYSTORE_PATH")
 val uploadKeystorePassword = System.getenv("ANDROID_UPLOAD_KEYSTORE_PASSWORD")
 val uploadKeyAlias = System.getenv("ANDROID_UPLOAD_KEY_ALIAS")
 val uploadKeyPassword = System.getenv("ANDROID_UPLOAD_KEY_PASSWORD")
+val localProperties = Properties().apply {
+    val file = rootProject.file("local.properties")
+    if (file.exists()) {
+        file.inputStream().use(::load)
+    }
+}
+
+fun localPropertyOrEnv(name: String): String? =
+    localProperties.getProperty(name)?.takeIf { it.isNotBlank() }
+        ?: System.getenv(name)?.takeIf { it.isNotBlank() }
+
+fun quotedBuildConfigValue(value: String): String =
+    "\"${value.replace("\\", "\\\\").replace("\"", "\\\"")}\""
+
+val devApiBaseUrl =
+    localPropertyOrEnv("SANCTUARY_ANDROID_DEV_API_BASE_URL")
+        ?: "https://dev-api.mydailysanctuary.com"
 fun gitCommitCount(): Int? {
     val output = ByteArrayOutputStream()
     return try {
@@ -60,8 +78,9 @@ android {
             versionNameSuffix = "-dev"
             resValue("string", "app_name", "Sanctuary Dev")
             buildConfigField("String", "ENVIRONMENT", "\"dev\"")
-            buildConfigField("String", "API_BASE_URL", "\"https://dev-api.mydailysanctuary.com\"")
+            buildConfigField("String", "API_BASE_URL", quotedBuildConfigValue(devApiBaseUrl))
             buildConfigField("boolean", "AUTH_ENABLED", "true")
+            manifestPlaceholders["usesCleartextTraffic"] = devApiBaseUrl.startsWith("http://").toString()
         }
 
         create("uat") {
@@ -71,6 +90,7 @@ android {
             buildConfigField("String", "ENVIRONMENT", "\"uat\"")
             buildConfigField("String", "API_BASE_URL", "\"https://sa-d7fe5f77e3bd409caf712e69b701f1e8.ecs.us-east-1.on.aws\"")
             buildConfigField("boolean", "AUTH_ENABLED", "true")
+            manifestPlaceholders["usesCleartextTraffic"] = "false"
         }
 
         create("prod") {
@@ -79,6 +99,7 @@ android {
             buildConfigField("String", "ENVIRONMENT", "\"prod\"")
             buildConfigField("String", "API_BASE_URL", "\"https://sa-d7fe5f77e3bd409caf712e69b701f1e8.ecs.us-east-1.on.aws\"")
             buildConfigField("boolean", "AUTH_ENABLED", "true")
+            manifestPlaceholders["usesCleartextTraffic"] = "false"
         }
     }
 
