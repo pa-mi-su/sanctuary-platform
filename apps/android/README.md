@@ -112,6 +112,20 @@ cd apps/android
 
 If Android Studio rewrites `local.properties`, keep it local-only.
 
+To point the dev Android build at a local API, add this to `apps/android/local.properties`:
+
+```properties
+SANCTUARY_ANDROID_DEV_API_BASE_URL=http://10.0.2.2:8080
+```
+
+Use `10.0.2.2` for the Android emulator. For a physical Android phone on the same Wi-Fi as your Mac, use your Mac LAN IP instead, for example:
+
+```properties
+SANCTUARY_ANDROID_DEV_API_BASE_URL=http://192.168.x.x:8080
+```
+
+This override is local-only. UAT and prod builds keep their checked-in HTTPS API URLs.
+
 ## Signing And Versioning
 
 Release signing uses environment variables when available:

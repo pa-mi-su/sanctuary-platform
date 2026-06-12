@@ -253,6 +253,81 @@ struct APIPrayerDetailResponse: Decodable, Sendable {
     let tags: [String]
 }
 
+struct APIAskSanctuaryRequest: Encodable, Sendable {
+    let message: String
+}
+
+struct APIAskSanctuaryStatusResponse: Decodable, Sendable {
+    let disclaimerVersion: String
+    let disclaimerAccepted: Bool
+    let available: Bool
+    let unavailableMessage: String?
+
+    private enum CodingKeys: String, CodingKey {
+        case disclaimerVersion
+        case disclaimerAccepted
+        case available
+        case unavailableMessage
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        disclaimerVersion = try container.decode(String.self, forKey: .disclaimerVersion)
+        disclaimerAccepted = try container.decode(Bool.self, forKey: .disclaimerAccepted)
+        available = try container.decodeIfPresent(Bool.self, forKey: .available) ?? true
+        unavailableMessage = try container.decodeIfPresent(String.self, forKey: .unavailableMessage)
+    }
+}
+
+struct APIAskSanctuaryScriptureReference: Decodable, Sendable {
+    let book: String
+    let chapter: String
+    let verse: String
+
+    private enum CodingKeys: String, CodingKey {
+        case book
+        case chapter
+        case verse
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        book = try container.decode(String.self, forKey: .book)
+        if let stringChapter = try? container.decode(String.self, forKey: .chapter) {
+            chapter = stringChapter
+        } else {
+            chapter = String(try container.decode(Int.self, forKey: .chapter))
+        }
+        verse = try container.decode(String.self, forKey: .verse)
+    }
+
+    var displayText: String {
+        "\(book) \(chapter):\(verse)"
+    }
+}
+
+struct APIAskSanctuaryGuardrail: Decodable, Sendable {
+    let type: String
+    let triggered: Bool
+}
+
+struct APIAskSanctuaryResponse: Decodable, Sendable {
+    let status: String
+    let requiresAccount: Bool
+    let requiresUpgrade: Bool
+    let message: String?
+    let redirectAction: String?
+    let theme: String?
+    let oldTestament: APIAskSanctuaryScriptureReference?
+    let newTestament: APIAskSanctuaryScriptureReference?
+    let saint: String?
+    let prayer: String?
+    let reflection: String?
+    let action: String?
+    let intent: String?
+    let guardrail: APIAskSanctuaryGuardrail?
+}
+
 private struct APIErrorEnvelope: Decodable {
     let message: String
 }
@@ -616,6 +691,33 @@ actor SanctuaryAPIClient {
         } catch {
             throw SanctuaryAPIError.decoding(message: "Sanctuary returned prayer details we could not read.")
         }
+    }
+
+    func askSanctuary(message: String, token: String) async throws -> APIAskSanctuaryResponse {
+        try await performRequest(
+            path: "/api/ask-sanctuary",
+            method: "POST",
+            body: APIAskSanctuaryRequest(message: message),
+            token: token
+        )
+    }
+
+    func fetchAskSanctuaryStatus(token: String) async throws -> APIAskSanctuaryStatusResponse {
+        try await performRequest(
+            path: "/api/ask-sanctuary/status",
+            method: "GET",
+            body: Optional<String>.none,
+            token: token
+        )
+    }
+
+    func acceptAskSanctuaryDisclaimer(token: String) async throws -> APIAskSanctuaryStatusResponse {
+        try await performRequest(
+            path: "/api/ask-sanctuary/disclaimer",
+            method: "POST",
+            body: Optional<String>.none,
+            token: token
+        )
     }
 
     private func performRequest<Response: Decodable, Body: Encodable>(

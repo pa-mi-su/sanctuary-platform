@@ -227,6 +227,45 @@ data class LiturgicalDayResponse(
     val rankType: String
 )
 
+data class AskSanctuaryRequest(
+    val message: String
+)
+
+data class AskSanctuaryStatusResponse(
+    val disclaimerVersion: String,
+    val disclaimerAccepted: Boolean,
+    val available: Boolean?,
+    val unavailableMessage: String?
+)
+
+data class AskSanctuaryScriptureReference(
+    val book: String,
+    val chapter: Int,
+    val verse: String
+)
+
+data class AskSanctuaryGuardrail(
+    val type: String,
+    val triggered: Boolean
+)
+
+data class AskSanctuaryResponse(
+    val status: String,
+    val requiresAccount: Boolean,
+    val requiresUpgrade: Boolean,
+    val message: String?,
+    val redirectAction: String?,
+    val theme: String?,
+    val oldTestament: AskSanctuaryScriptureReference?,
+    val newTestament: AskSanctuaryScriptureReference?,
+    val saint: String?,
+    val prayer: String?,
+    val reflection: String?,
+    val action: String?,
+    val intent: String?,
+    val guardrail: AskSanctuaryGuardrail?
+)
+
 data class ApiErrorEnvelope(
     val message: String?
 )

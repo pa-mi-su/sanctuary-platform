@@ -40,6 +40,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -155,6 +156,7 @@ import app.sanctuary.android.ui.AppLanguage
 import app.sanctuary.android.ui.LocalSanctuaryStrings
 import app.sanctuary.android.ui.SanctuaryStrings
 import app.sanctuary.android.ui.sanctuaryStrings
+import app.sanctuary.android.features.asksanctuary.AskSanctuarySheet
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -326,6 +328,7 @@ private fun SanctuaryApp(viewModel: MainViewModel) {
     val novenaDetail by viewModel.novenaDetail.collectAsState()
     val prayerDetail by viewModel.prayerDetail.collectAsState()
     val novenaProgress by viewModel.novenaProgress.collectAsState()
+    val askSanctuary by viewModel.askSanctuary.collectAsState()
     var selectedTab by rememberSaveable { mutableStateOf(AppTab.Home) }
     var showLanguagePicker by rememberSaveable { mutableStateOf(false) }
 
@@ -372,9 +375,16 @@ private fun SanctuaryApp(viewModel: MainViewModel) {
                     novenaDetail = novenaDetail,
                     prayerDetail = prayerDetail,
                     novenaProgress = novenaProgress,
+                    askSanctuary = askSanctuary,
                     onOpenSaint = viewModel::openSaint,
                     onOpenNovena = viewModel::openNovena,
                     onOpenPrayer = viewModel::openPrayer,
+                    onOpenAskSanctuary = viewModel::openAskSanctuary,
+                    onCloseAskSanctuary = viewModel::closeAskSanctuary,
+                    onAskSanctuaryMessageChanged = viewModel::updateAskSanctuaryMessage,
+                    onAcceptAskSanctuaryDisclaimer = viewModel::acceptAskSanctuaryDisclaimer,
+                    onSubmitAskSanctuary = viewModel::submitAskSanctuary,
+                    onClearAskSanctuary = viewModel::clearAskSanctuaryMessage,
                     onCloseSaintDetail = viewModel::closeSaintDetail,
                     onCloseNovenaDetail = viewModel::closeNovenaDetail,
                     onClosePrayerDetail = viewModel::closePrayerDetail,
@@ -817,9 +827,16 @@ private fun AuthenticatedShell(
     novenaDetail: ContentDetailUiState<app.sanctuary.android.data.NovenaDetail>,
     prayerDetail: ContentDetailUiState<PrayerDetail>,
     novenaProgress: NovenaProgressUiState,
+    askSanctuary: AskSanctuaryUiState,
     onOpenSaint: (String) -> Unit,
     onOpenNovena: (String) -> Unit,
     onOpenPrayer: (String) -> Unit,
+    onOpenAskSanctuary: () -> Unit,
+    onCloseAskSanctuary: () -> Unit,
+    onAskSanctuaryMessageChanged: (String) -> Unit,
+    onAcceptAskSanctuaryDisclaimer: () -> Unit,
+    onSubmitAskSanctuary: () -> Unit,
+    onClearAskSanctuary: () -> Unit,
     onCloseSaintDetail: () -> Unit,
     onCloseNovenaDetail: () -> Unit,
     onClosePrayerDetail: () -> Unit,
@@ -927,7 +944,7 @@ private fun AuthenticatedShell(
                         )
                     }
                     item {
-                        HomeHeroCard(session)
+                        HomeHeroCard(session, onAskSanctuary = onOpenAskSanctuary)
                     }
                     item {
                         HomeFeatureCard(
@@ -1009,14 +1026,6 @@ private fun AuthenticatedShell(
                             }
                         )
                     }
-                    if (session.status != SessionStatus.Authenticated) {
-                        item {
-                            SectionHint(
-                                title = l10n.t("auth.login"),
-                                body = l10n.t("auth.accountBody")
-                            )
-                        }
-                    }
                 }
 
                 AppTab.Novenas -> {
@@ -1095,6 +1104,26 @@ private fun AuthenticatedShell(
                     onOpenPrivacy = { aboutDocument = AboutDocument.Privacy },
                     onEmailSupport = { openSupportEmail() }
                 )
+            }
+        }
+
+        if (askSanctuary.isOpen) {
+            SanctuaryModalSheet(onDismissRequest = onCloseAskSanctuary) {
+                AskSanctuarySheet(
+                    session = session,
+                    state = askSanctuary,
+                    onMessageChanged = onAskSanctuaryMessageChanged,
+                    onAcceptDisclaimer = onAcceptAskSanctuaryDisclaimer,
+                    onSubmit = onSubmitAskSanctuary,
+                    onClear = onClearAskSanctuary,
+                    onCancel = onCloseAskSanctuary
+                ) {
+                    AccountAccessScreen(
+                        session = session,
+                        onAction = onAction,
+                        embedded = true
+                    )
+                }
             }
         }
 
@@ -1420,6 +1449,7 @@ private fun PrimaryButton(
     title: String,
     isBusy: Boolean,
     enabled: Boolean = true,
+    modifier: Modifier = Modifier.fillMaxWidth(),
     onClick: () -> Unit
 ) {
     Button(
@@ -1427,7 +1457,7 @@ private fun PrimaryButton(
         enabled = enabled && !isBusy,
         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF5CAED4)),
         shape = RoundedCornerShape(18.dp),
-        modifier = Modifier.fillMaxWidth()
+        modifier = modifier
     ) {
         Row(
             horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -1961,7 +1991,10 @@ private fun initialsFor(name: String): String {
 }
 
 @Composable
-private fun HomeHeroCard(session: SessionUiState) {
+private fun HomeHeroCard(
+    session: SessionUiState,
+    onAskSanctuary: () -> Unit
+) {
     val l10n = sanctuaryStrings()
     Card(
         colors = CardDefaults.cardColors(containerColor = Color(0xCC22394C)),
@@ -1981,10 +2014,33 @@ private fun HomeHeroCard(session: SessionUiState) {
             )
             Box(
                 modifier = Modifier
-                    .size(156.dp),
+                    .size(width = 176.dp, height = 176.dp)
+                    .clickable(onClick = onAskSanctuary),
                 contentAlignment = Alignment.Center
             ) {
                 BrandLogoMark(size = 132.dp, corner = 30.dp, glowExtra = 44.dp)
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .offset(y = (-6).dp)
+                        .shadow(8.dp, RoundedCornerShape(999.dp), clip = false)
+                        .background(
+                            brush = Brush.horizontalGradient(
+                                listOf(Color(0xFF62C1E4), Color(0xFF2385A5))
+                            ),
+                            shape = RoundedCornerShape(999.dp)
+                        )
+                        .border(1.dp, Color.White.copy(alpha = 0.20f), RoundedCornerShape(999.dp))
+                        .padding(horizontal = 18.dp, vertical = 8.dp)
+                ) {
+                    Text(
+                        l10n.t("ask.heroChip"),
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp,
+                        textAlign = TextAlign.Center
+                    )
+                }
             }
             Text(
                 text = l10n.t("home.welcome"),

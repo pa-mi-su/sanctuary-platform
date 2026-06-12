@@ -69,19 +69,10 @@ set -a
 source "${ROOT_DIR}/.env"
 set +a
 
-required_vars=(
-  SANCTUARY_DB_URL
-  SANCTUARY_DB_USERNAME
-  SANCTUARY_DB_PASSWORD
-)
-
-for var_name in "${required_vars[@]}"; do
-  if [[ -z "${!var_name:-}" ]]; then
-    echo "Missing required environment variable: ${var_name}"
-    echo "Update ${ROOT_DIR}/.env before running the API."
-    exit 1
-  fi
-done
+export SANCTUARY_DB_URL="${SANCTUARY_DB_URL:-jdbc:postgresql://localhost:5432/sanctuary}"
+export SANCTUARY_DB_USERNAME="${SANCTUARY_DB_USERNAME:-sanctuary}"
+export SANCTUARY_DB_PASSWORD="${SANCTUARY_DB_PASSWORD:-change-me-now}"
 
 cd "${API_DIR}"
+rm -rf target/classes/db/migration
 exec mvn spring-boot:run -Dspring-boot.run.profiles=local

@@ -13,9 +13,9 @@ if [[ -f "${ENV_FILE}" ]]; then
   source "${ENV_FILE}"
 fi
 
-: "${POSTGRES_DB:?POSTGRES_DB must be set in .env}"
-: "${POSTGRES_USER:?POSTGRES_USER must be set in .env}"
-: "${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}"
+POSTGRES_DB="${POSTGRES_DB:-sanctuary}"
+POSTGRES_USER="${POSTGRES_USER:-${SANCTUARY_DB_USERNAME:-sanctuary}}"
+POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-${SANCTUARY_DB_PASSWORD:-change-me-now}}"
 
 mkdir -p "${BACKUP_DIR}"
 

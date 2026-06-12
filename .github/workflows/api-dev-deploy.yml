@@ -57,6 +57,8 @@ jobs:
       SANCTUARY_DB_USERNAME: ${{ vars.API_DEV_DB_USERNAME || 'sanctuary' }}
       API_DEV_DB_SECRET_ARN: ${{ vars.API_DEV_DB_SECRET_ARN || 'arn:aws:secretsmanager:us-east-1:160885294528:secret:rds!db-b1c8d5a7-86da-4f49-a850-f928a84fad13-wwsw4C' }}
       SANCTUARY_AUTH_ENABLED: ${{ vars.API_DEV_AUTH_ENABLED || 'true' }}
+      ASK_SANCTUARY_ENABLED: ${{ vars.API_DEV_ASK_SANCTUARY_ENABLED || 'false' }}
+      ASK_SANCTUARY_OPENAI_SECRET_ARN: ${{ secrets.API_DEV_ASK_SANCTUARY_OPENAI_SECRET_ARN || '' }}
       SANCTUARY_COGNITO_ISSUER_URI: ${{ vars.API_DEV_COGNITO_ISSUER_URI || 'https://cognito-idp.us-east-1.amazonaws.com/us-east-1_oCrXzjKbV' }}
       SANCTUARY_COGNITO_CLIENT_ID: ${{ vars.API_DEV_COGNITO_CLIENT_ID || '2ukk5f1esf1gmgi9aadvvbjjgs' }}
       IMAGE_TAG: ${{ github.sha }}
@@ -92,6 +94,8 @@ jobs:
           echo "SANCTUARY_DB_USERNAME=$(echo -n "${SANCTUARY_DB_USERNAME}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
           echo "API_DEV_DB_SECRET_ARN=$(echo -n "${API_DEV_DB_SECRET_ARN}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
           echo "SANCTUARY_AUTH_ENABLED=$(echo -n "${SANCTUARY_AUTH_ENABLED}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
+          echo "ASK_SANCTUARY_ENABLED=$(echo -n "${ASK_SANCTUARY_ENABLED}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
+          echo "ASK_SANCTUARY_OPENAI_SECRET_ARN=$(echo -n "${ASK_SANCTUARY_OPENAI_SECRET_ARN}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
           echo "SANCTUARY_COGNITO_ISSUER_URI=$(echo -n "${SANCTUARY_COGNITO_ISSUER_URI}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
           echo "SANCTUARY_COGNITO_CLIENT_ID=$(echo -n "${SANCTUARY_COGNITO_CLIENT_ID}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
 
@@ -100,6 +104,12 @@ jobs:
           if [[ "${API_DEV_DB_SECRET_ARN}" != arn:aws:secretsmanager:*:secret:rds\!* ]]; then
             echo "API_DEV_DB_SECRET_ARN must be the RDS-managed Secrets Manager secret ARN."
             echo "Do not use raw GitHub secrets or SSM parameters for dev DB credentials."
+            exit 1
+          fi
+
+          if [[ -n "${ASK_SANCTUARY_OPENAI_SECRET_ARN}" && "${ASK_SANCTUARY_OPENAI_SECRET_ARN}" != arn:aws:secretsmanager:*:secret:* ]]; then
+            echo "API_DEV_ASK_SANCTUARY_OPENAI_SECRET_ARN must be a Secrets Manager secret ARN when set."
+            echo "Do not store the OpenAI API key as plaintext in the ECS task definition."
             exit 1
           fi
 
@@ -154,9 +164,11 @@ jobs:
             --arg db_url "${SANCTUARY_DB_URL}" \
             --arg db_username "${SANCTUARY_DB_USERNAME}" \
             --arg auth_enabled "${SANCTUARY_AUTH_ENABLED}" \
+            --arg ask_sanctuary_enabled "${ASK_SANCTUARY_ENABLED}" \
             --arg cognito_issuer "${SANCTUARY_COGNITO_ISSUER_URI}" \
             --arg cognito_client_id "${SANCTUARY_COGNITO_CLIENT_ID}" \
             --arg db_secret "${API_DEV_DB_SECRET_ARN}:password::" \
+            --arg openai_secret "${ASK_SANCTUARY_OPENAI_SECRET_ARN}" \
             'del(
               .taskDefinitionArn,
               .revision,
@@ -175,12 +187,19 @@ jobs:
                   {"name": "SANCTUARY_DB_URL", "value": $db_url},
                   {"name": "SANCTUARY_DB_USERNAME", "value": $db_username},
                   {"name": "SANCTUARY_AUTH_ENABLED", "value": $auth_enabled},
+                  {"name": "ASK_SANCTUARY_ENABLED", "value": $ask_sanctuary_enabled},
                   {"name": "SANCTUARY_COGNITO_ISSUER_URI", "value": $cognito_issuer},
                   {"name": "SANCTUARY_COGNITO_CLIENT_ID", "value": $cognito_client_id}
                 ]
                 | .secrets = [
                   {"name": "SANCTUARY_DB_PASSWORD", "valueFrom": $db_secret}
-                ]
+                ] + (
+                  if $openai_secret == "" then
+                    []
+                  else
+                    [{"name": "SANCTUARY_ASK_SANCTUARY_OPENAI_API_KEY", "valueFrom": $openai_secret}]
+                  end
+                )
               else
                 .
               end
