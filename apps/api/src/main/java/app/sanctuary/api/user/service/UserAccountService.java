@@ -26,6 +26,7 @@ public class UserAccountService {
         this.cognitoAuthService = cognitoAuthService;
     }
 
+    @Transactional
     public UserAccountDto ensureAccount(CurrentUser currentUser) {
         if (currentUser == null || currentUser.cognitoSub() == null || currentUser.cognitoSub().isBlank()) {
             throw new IllegalArgumentException("Authenticated Cognito user is required.");

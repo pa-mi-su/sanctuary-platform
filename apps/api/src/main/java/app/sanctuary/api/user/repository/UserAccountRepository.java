@@ -4,6 +4,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
 
 import app.sanctuary.api.user.dto.UserAccountDto;
@@ -18,6 +19,21 @@ public class UserAccountRepository {
     }
 
     public UserAccountDto upsert(String cognitoSub, String email, String firstName, String lastName, String displayName, String avatarUrl) {
+        String normalizedEmail = normalizeEmail(email);
+        if (normalizedEmail != null) {
+            Optional<UserAccountDto> existingEmailAccount = updateByEmail(
+                cognitoSub,
+                normalizedEmail,
+                firstName,
+                lastName,
+                displayName,
+                avatarUrl
+            );
+            if (existingEmailAccount.isPresent()) {
+                return existingEmailAccount.get();
+            }
+        }
+
         return jdbcTemplate.queryForObject(
             """
                 INSERT INTO users (
@@ -52,25 +68,58 @@ public class UserAccountRepository {
                     created_at,
                     updated_at
                 """,
-            (rs, rowNum) -> new UserAccountDto(
-                rs.getObject("id", UUID.class),
-                rs.getString("cognito_sub"),
-                rs.getString("email"),
-                rs.getString("first_name"),
-                rs.getString("last_name"),
-                rs.getString("display_name"),
-                rs.getString("preferred_language"),
-                rs.getString("avatar_url"),
-                rs.getObject("created_at", java.time.OffsetDateTime.class),
-                rs.getObject("updated_at", java.time.OffsetDateTime.class)
-            ),
+            accountRowMapper(),
             cognitoSub,
-            emptyToNull(email),
+            normalizedEmail,
             emptyToNull(firstName),
             emptyToNull(lastName),
             emptyToNull(displayName),
             emptyToNull(avatarUrl)
         );
+    }
+
+    private Optional<UserAccountDto> updateByEmail(
+        String cognitoSub,
+        String email,
+        String firstName,
+        String lastName,
+        String displayName,
+        String avatarUrl
+    ) {
+        return jdbcTemplate.query(
+            """
+                UPDATE users
+                SET
+                    cognito_sub = ?,
+                    email = ?,
+                    first_name = COALESCE(?, users.first_name),
+                    last_name = COALESCE(?, users.last_name),
+                    display_name = COALESCE(?, users.display_name),
+                    avatar_url = COALESCE(?, users.avatar_url),
+                    last_sign_in_at = NOW(),
+                    updated_at = NOW()
+                WHERE LOWER(email) = LOWER(?)
+                RETURNING
+                    id,
+                    cognito_sub,
+                    email,
+                    first_name,
+                    last_name,
+                    display_name,
+                    preferred_language,
+                    avatar_url,
+                    created_at,
+                    updated_at
+                """,
+            accountRowMapper(),
+            cognitoSub,
+            email,
+            emptyToNull(firstName),
+            emptyToNull(lastName),
+            emptyToNull(displayName),
+            emptyToNull(avatarUrl),
+            email
+        ).stream().findFirst();
     }
 
     public boolean isDeletedIdentity(String cognitoSub, String emailHash) {
@@ -106,18 +155,7 @@ public class UserAccountRepository {
                 FROM users
                 WHERE cognito_sub = ?
                 """,
-            (rs, rowNum) -> new UserAccountDto(
-                rs.getObject("id", UUID.class),
-                rs.getString("cognito_sub"),
-                rs.getString("email"),
-                rs.getString("first_name"),
-                rs.getString("last_name"),
-                rs.getString("display_name"),
-                rs.getString("preferred_language"),
-                rs.getString("avatar_url"),
-                rs.getObject("created_at", java.time.OffsetDateTime.class),
-                rs.getObject("updated_at", java.time.OffsetDateTime.class)
-            ),
+            accountRowMapper(),
             cognitoSub
         ).stream().findFirst();
     }
@@ -142,18 +180,7 @@ public class UserAccountRepository {
                     created_at,
                     updated_at
                 """,
-            (rs, rowNum) -> new UserAccountDto(
-                rs.getObject("id", UUID.class),
-                rs.getString("cognito_sub"),
-                rs.getString("email"),
-                rs.getString("first_name"),
-                rs.getString("last_name"),
-                rs.getString("display_name"),
-                rs.getString("preferred_language"),
-                rs.getString("avatar_url"),
-                rs.getObject("created_at", java.time.OffsetDateTime.class),
-                rs.getObject("updated_at", java.time.OffsetDateTime.class)
-            ),
+            accountRowMapper(),
             preferredLanguage,
             userId
         );
@@ -222,5 +249,27 @@ public class UserAccountRepository {
 
     private String emptyToNull(String value) {
         return value == null || value.isBlank() ? null : value;
+    }
+
+    private String normalizeEmail(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim().toLowerCase();
+    }
+
+    private RowMapper<UserAccountDto> accountRowMapper() {
+        return (rs, rowNum) -> new UserAccountDto(
+            rs.getObject("id", UUID.class),
+            rs.getString("cognito_sub"),
+            rs.getString("email"),
+            rs.getString("first_name"),
+            rs.getString("last_name"),
+            rs.getString("display_name"),
+            rs.getString("preferred_language"),
+            rs.getString("avatar_url"),
+            rs.getObject("created_at", java.time.OffsetDateTime.class),
+            rs.getObject("updated_at", java.time.OffsetDateTime.class)
+        );
     }
 }
