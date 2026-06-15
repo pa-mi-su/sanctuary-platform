@@ -308,12 +308,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     repository.resetPassword(email, code, newPassword)
                 } ?: throw IllegalStateException(l10n().t("status.resetTimeout"))
             }
-                .onSuccess { response ->
-                    _session.value = SessionUiState(
-                        status = SessionStatus.SignedOut,
-                        message = response.message,
-                        isErrorMessage = false
-                    )
+                .onSuccess { result ->
+                    if (result.authenticated) {
+                        applyAuthenticatedSession(result)
+                    } else {
+                        _session.value = SessionUiState(
+                            status = SessionStatus.Failed,
+                            pendingPasswordResetEmail = email,
+                            message = result.errorMessage ?: l10n().t("status.loginFailed"),
+                            isErrorMessage = true
+                        )
+                    }
                 }.onFailure { failure ->
                     _session.value = SessionUiState(
                         status = SessionStatus.Failed,

@@ -42,6 +42,11 @@ struct AccountAccessView: View {
     @State private var resetPasswordCode = ""
     @State private var resetPassword = ""
     @State private var resetPasswordConfirmation = ""
+    @State private var isLoginPasswordVisible = false
+    @State private var isRegisterPasswordVisible = false
+    @State private var isRegisterPasswordConfirmationVisible = false
+    @State private var isResetPasswordVisible = false
+    @State private var isResetPasswordConfirmationVisible = false
     @FocusState private var focusedField: AccountAccessField?
 
     private var isBusy: Bool {
@@ -160,6 +165,7 @@ struct AccountAccessView: View {
                 authSecureField(
                     title: copy("Password", "Contraseña", "Hasło"),
                     text: $loginPassword,
+                    isRevealed: $isLoginPasswordVisible,
                     textContentType: .password,
                     focus: .loginPassword,
                     submitLabel: .go
@@ -200,12 +206,13 @@ struct AccountAccessView: View {
                 authTextField(title: copy("Email", "Correo", "Email"), text: $registerEmail, keyboardType: .emailAddress, textContentType: .emailAddress, focus: .registerEmail) {
                     focusedField = .registerPassword
                 }
-                authSecureField(title: copy("Password", "Contraseña", "Hasło"), text: $registerPassword, textContentType: .newPassword, focus: .registerPassword) {
+                authSecureField(title: copy("Password", "Contraseña", "Hasło"), text: $registerPassword, isRevealed: $isRegisterPasswordVisible, textContentType: .newPassword, focus: .registerPassword) {
                     focusedField = .registerPasswordConfirmation
                 }
                 authSecureField(
                     title: copy("Confirm password", "Confirmar contraseña", "Potwierdź hasło"),
                     text: $registerPasswordConfirmation,
+                    isRevealed: $isRegisterPasswordConfirmationVisible,
                     textContentType: .newPassword,
                     focus: .registerPasswordConfirmation,
                     submitLabel: .go
@@ -316,12 +323,13 @@ struct AccountAccessView: View {
                     focusedField = .resetPassword
                 }
 
-                authSecureField(title: copy("New password", "Nueva contraseña", "Nowe hasło"), text: $resetPassword, textContentType: .newPassword, focus: .resetPassword) {
+                authSecureField(title: copy("New password", "Nueva contraseña", "Nowe hasło"), text: $resetPassword, isRevealed: $isResetPasswordVisible, textContentType: .newPassword, focus: .resetPassword) {
                     focusedField = .resetPasswordConfirmation
                 }
                 authSecureField(
                     title: copy("Confirm new password", "Confirmar nueva contraseña", "Potwierdź nowe hasło"),
                     text: $resetPasswordConfirmation,
+                    isRevealed: $isResetPasswordConfirmationVisible,
                     textContentType: .newPassword,
                     focus: .resetPasswordConfirmation,
                     submitLabel: .go
@@ -703,7 +711,9 @@ struct AccountAccessView: View {
             resetPasswordCode = ""
             resetPassword = ""
             resetPasswordConfirmation = ""
-            step = .login
+            isResetPasswordVisible = false
+            isResetPasswordConfirmationVisible = false
+            step = accountStore.isAuthenticated ? .landing : .login
         }
     }
 
@@ -746,6 +756,7 @@ struct AccountAccessView: View {
     private func authSecureField(
         title: String,
         text: Binding<String>,
+        isRevealed: Binding<Bool>,
         textContentType: UITextContentType,
         focus: AccountAccessField,
         submitLabel: SubmitLabel = .next,
@@ -755,23 +766,60 @@ struct AccountAccessView: View {
             Text(title)
                 .font(AppTheme.rounded(15, weight: .bold))
                 .foregroundStyle(.white)
-            SecureField("", text: text)
-                .textContentType(textContentType)
+            HStack(spacing: 8) {
+                Group {
+                    if isRevealed.wrappedValue {
+                        TextField("", text: text)
+                            .textContentType(textContentType)
+                    } else {
+                        SecureField("", text: text)
+                            .textContentType(textContentType)
+                    }
+                }
                 .focused($focusedField, equals: focus)
                 .submitLabel(submitLabel)
                 .onSubmit(onSubmit)
                 .font(AppTheme.rounded(16, weight: .medium))
                 .foregroundStyle(.white)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 12)
-                .background(
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .fill(AppTheme.cardBackgroundSoft)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                .stroke(Color.white.opacity(0.12), lineWidth: 1)
-                        )
+
+                if !text.wrappedValue.isEmpty {
+                    Button {
+                        text.wrappedValue = ""
+                        focusedField = focus
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundStyle(AppTheme.subtitleText)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(copy("Clear password", "Borrar contraseña", "Wyczyść hasło"))
+                }
+
+                Button {
+                    isRevealed.wrappedValue.toggle()
+                    focusedField = focus
+                } label: {
+                    Image(systemName: isRevealed.wrappedValue ? "eye.slash.fill" : "eye.fill")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(AppTheme.tabActive)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(
+                    isRevealed.wrappedValue
+                        ? copy("Hide password", "Ocultar contraseña", "Ukryj hasło")
+                        : copy("Show password", "Mostrar contraseña", "Pokaż hasło")
                 )
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .background(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(AppTheme.cardBackgroundSoft)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                    )
+            )
         }
     }
 

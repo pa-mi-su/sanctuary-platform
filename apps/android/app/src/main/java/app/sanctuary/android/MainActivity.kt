@@ -53,6 +53,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Language
@@ -63,6 +64,8 @@ import androidx.compose.material.icons.filled.SelfImprovement
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.SouthEast
 import androidx.compose.material.icons.filled.Today
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -71,6 +74,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -119,6 +123,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -1403,6 +1408,12 @@ private fun TextFieldBlock(
     keyboardType: KeyboardType = KeyboardType.Text,
     onValueChange: (String) -> Unit
 ) {
+    var passwordVisible by rememberSaveable { mutableStateOf(false) }
+    val visualTransformation = when {
+        secure && !passwordVisible -> PasswordVisualTransformation()
+        else -> VisualTransformation.None
+    }
+
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
@@ -1410,7 +1421,27 @@ private fun TextFieldBlock(
         label = { Text(label) },
         keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = keyboardType),
         singleLine = true,
-        visualTransformation = if (secure) PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
+        visualTransformation = visualTransformation,
+        trailingIcon = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (value.isNotEmpty()) {
+                    IconButton(onClick = { onValueChange("") }) {
+                        Icon(
+                            imageVector = Icons.Filled.Cancel,
+                            contentDescription = "Clear ${label.lowercase()}"
+                        )
+                    }
+                }
+                if (secure) {
+                    IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                        Icon(
+                            imageVector = if (passwordVisible) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                            contentDescription = if (passwordVisible) "Hide ${label.lowercase()}" else "Show ${label.lowercase()}"
+                        )
+                    }
+                }
+            }
+        },
         shape = RoundedCornerShape(16.dp)
     )
 }
