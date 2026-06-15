@@ -4,7 +4,9 @@ import app.sanctuary.api.asksanctuary.model.AskSanctuaryIntent;
 
 public record AskSanctuaryModelRequest(
     String message,
+    String locale,
     AskSanctuaryIntent intent,
-    boolean retry
+    boolean retry,
+    String variationGuidance
 ) {
 }

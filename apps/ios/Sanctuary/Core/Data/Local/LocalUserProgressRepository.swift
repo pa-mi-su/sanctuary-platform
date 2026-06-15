@@ -8,8 +8,17 @@ actor LocalUserProgressRepository: UserProgressRepository {
     private let resetMigrationKey = "sanctuary.userProgress.reset.v1"
 
     init() {
-        runOneTimeResetMigration()
-        loadPersistedState()
+        Self.runOneTimeResetMigration(
+            resetMigrationKey: resetMigrationKey,
+            favoritesKey: favoritesKey,
+            commitmentsKey: commitmentsKey
+        )
+        let persistedState = Self.loadPersistedState(
+            favoritesKey: favoritesKey,
+            commitmentsKey: commitmentsKey
+        )
+        favoritesByUser = persistedState.favoritesByUser
+        commitmentsByUser = persistedState.commitmentsByUser
     }
 
     func listFavorites(userID: String) async throws -> [UserFavorite] {
@@ -106,10 +115,18 @@ actor LocalUserProgressRepository: UserProgressRepository {
         persistState()
     }
 
-    private func loadPersistedState() {
+    private static func loadPersistedState(
+        favoritesKey: String,
+        commitmentsKey: String
+    ) -> (
+        favoritesByUser: [String: [String: UserFavorite]],
+        commitmentsByUser: [String: [String: UserNovenaCommitment]]
+    ) {
         let defaults = UserDefaults.standard
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
+        var favoritesByUser: [String: [String: UserFavorite]] = [:]
+        var commitmentsByUser: [String: [String: UserNovenaCommitment]] = [:]
 
         if let data = defaults.data(forKey: favoritesKey),
            let decoded = try? decoder.decode([String: [String: UserFavorite]].self, from: data) {
@@ -120,9 +137,15 @@ actor LocalUserProgressRepository: UserProgressRepository {
            let decoded = try? decoder.decode([String: [String: UserNovenaCommitment]].self, from: data) {
             commitmentsByUser = decoded
         }
+
+        return (favoritesByUser, commitmentsByUser)
     }
 
-    private func runOneTimeResetMigration() {
+    private static func runOneTimeResetMigration(
+        resetMigrationKey: String,
+        favoritesKey: String,
+        commitmentsKey: String
+    ) {
         let defaults = UserDefaults.standard
         guard defaults.bool(forKey: resetMigrationKey) == false else { return }
         defaults.removeObject(forKey: favoritesKey)

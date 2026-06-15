@@ -228,7 +228,8 @@ data class LiturgicalDayResponse(
 )
 
 data class AskSanctuaryRequest(
-    val message: String
+    val message: String,
+    val locale: String? = null
 )
 
 data class AskSanctuaryStatusResponse(

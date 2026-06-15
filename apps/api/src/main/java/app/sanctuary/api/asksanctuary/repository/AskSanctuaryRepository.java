@@ -1,6 +1,7 @@
 package app.sanctuary.api.asksanctuary.repository;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -64,6 +65,35 @@ public class AskSanctuaryRepository {
             inputHash,
             cutoff
         ).stream().findFirst();
+    }
+
+    public List<AskSanctuaryRecentContent> findRecentContent(UUID userId, OffsetDateTime cutoff, int limit) {
+        return jdbcTemplate.query(
+            """
+                SELECT
+                    response_payload ->> 'theme' AS theme,
+                    old_testament_reference,
+                    new_testament_reference,
+                    saint,
+                    prayer
+                FROM ask_sanctuary_sessions
+                WHERE user_id = ?
+                  AND response_status IN ('OK', 'FALLBACK')
+                  AND created_at >= ?
+                ORDER BY created_at DESC
+                LIMIT ?
+                """,
+            (rs, rowNum) -> new AskSanctuaryRecentContent(
+                rs.getString("theme"),
+                rs.getString("old_testament_reference"),
+                rs.getString("new_testament_reference"),
+                rs.getString("saint"),
+                rs.getString("prayer")
+            ),
+            userId,
+            cutoff,
+            limit
+        );
     }
 
     public void save(AskSanctuarySessionLog log) {

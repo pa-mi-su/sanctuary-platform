@@ -1,6 +1,6 @@
 import Foundation
 
-struct SearchMatcher {
+nonisolated struct SearchMatcher {
     struct Document: Sendable {
         let itemID: String
         let primaryText: String

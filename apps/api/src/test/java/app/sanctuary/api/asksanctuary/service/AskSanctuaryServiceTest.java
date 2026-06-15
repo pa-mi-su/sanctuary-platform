@@ -9,6 +9,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.UUID;
+import java.time.OffsetDateTime;
+import java.util.List;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
@@ -32,6 +34,7 @@ import app.sanctuary.api.asksanctuary.openai.AskSanctuaryModelRequest;
 import app.sanctuary.api.asksanctuary.openai.AskSanctuaryModelUsage;
 import app.sanctuary.api.asksanctuary.repository.AskSanctuaryCachedResponse;
 import app.sanctuary.api.asksanctuary.repository.AskSanctuaryRepository;
+import app.sanctuary.api.asksanctuary.repository.AskSanctuaryRecentContent;
 import app.sanctuary.api.asksanctuary.repository.AskSanctuarySessionLog;
 import app.sanctuary.api.asksanctuary.repository.UserFeatureConsentRepository;
 
@@ -78,7 +81,21 @@ class AskSanctuaryServiceTest {
         assertThat(status.disclaimerVersion()).isEqualTo("v1");
         assertThat(status.disclaimerAccepted()).isTrue();
         assertThat(status.available()).isFalse();
-        assertThat(status.unavailableMessage()).isEqualTo("Ask Sanctuary is temporarily unavailable. Please try again later.");
+        assertThat(status.unavailableMessage()).isEqualTo("Sanctuary Companion is temporarily unavailable. Please try again later.");
+    }
+
+    @Test
+    void statusReturnsUnavailableWhenModelClientsAreNotConfigured() {
+        AskSanctuaryService service = service(true, false, true);
+        UUID userId = UUID.randomUUID();
+        when(consentRepository.hasAccepted(userId, "ASK_SANCTUARY", "v1")).thenReturn(true);
+
+        var status = service.status(userId);
+
+        assertThat(status.disclaimerVersion()).isEqualTo("v1");
+        assertThat(status.disclaimerAccepted()).isTrue();
+        assertThat(status.available()).isFalse();
+        assertThat(status.unavailableMessage()).isEqualTo("Sanctuary Companion is temporarily unavailable. Please try again later.");
     }
 
     @Test
@@ -99,8 +116,6 @@ class AskSanctuaryServiceTest {
     void guardrailResponseDoesNotCallModelAndPersistsHistory() {
         AskSanctuaryService service = service();
         UUID userId = UUID.randomUUID();
-        when(usageService.isMisuseLocked(userId)).thenReturn(false);
-        when(usageService.isBurstLimited(userId)).thenReturn(false);
         when(usageService.recordMisuse(userId, AskSanctuaryGuardrailType.VIOLENCE_RISK))
             .thenReturn(new AskSanctuaryMisuseDecision(false, 1));
 
@@ -111,8 +126,28 @@ class AskSanctuaryServiceTest {
         assertThat(result.guardrailType()).isEqualTo(AskSanctuaryGuardrailType.VIOLENCE_RISK);
         assertThat(result.response().guardrail().triggered()).isTrue();
         verify(classificationClient, never()).classify(any());
+        verify(usageService, never()).isMisuseLocked(any());
+        verify(usageService, never()).isBurstLimited(any());
         verify(modelClient, never()).generate(any());
         verify(repository).save(any(AskSanctuarySessionLog.class));
+    }
+
+    @Test
+    void violenceSafetyResponseBypassesExistingMisuseLockButStillRecordsMisuse() {
+        AskSanctuaryService service = service();
+        UUID userId = UUID.randomUUID();
+        when(usageService.recordMisuse(userId, AskSanctuaryGuardrailType.VIOLENCE_RISK))
+            .thenReturn(new AskSanctuaryMisuseDecision(true, 3));
+
+        AskSanctuaryResult result = service.answer(userId, "I want to kill someone.");
+
+        assertThat(result.status()).isEqualTo(AskSanctuaryStatus.GUARDED);
+        assertThat(result.intent()).isEqualTo(AskSanctuaryIntent.VIOLENCE_RISK);
+        assertThat(result.response().message()).contains("Do not harm anyone");
+        verify(usageService, never()).isMisuseLocked(any());
+        verify(usageService).recordMisuse(userId, AskSanctuaryGuardrailType.VIOLENCE_RISK);
+        verify(classificationClient, never()).classify(any());
+        verify(modelClient, never()).generate(any());
     }
 
     @Test
@@ -128,7 +163,7 @@ class AskSanctuaryServiceTest {
 
         assertThat(result.status()).isEqualTo(AskSanctuaryStatus.REDIRECT);
         assertThat(result.guardrailType()).isEqualTo(AskSanctuaryGuardrailType.IRRELEVANT);
-        assertThat(result.response().message()).contains("Sanctuary is designed for prayer");
+        assertThat(result.response().message()).contains("one simple feeling word");
         verify(classificationClient, never()).classify(any());
         verify(modelClient, never()).generate(any());
     }
@@ -139,19 +174,33 @@ class AskSanctuaryServiceTest {
         UUID userId = UUID.randomUUID();
         when(usageService.isMisuseLocked(userId)).thenReturn(false);
         when(usageService.isBurstLimited(userId)).thenReturn(false);
-        when(classificationClient.classify("I have a job interview tomorrow."))
+        when(classificationClient.classify("focused"))
             .thenReturn(new AskSanctuaryClassification(AskSanctuaryIntent.WORK_OR_DISCERNMENT));
         when(usageService.reserveDailyIpRequest(userId, null)).thenReturn(AskSanctuaryQuotaDecision.allowed(100, 1));
         when(usageService.reserveDailyCompanionRequest(userId)).thenReturn(AskSanctuaryQuotaDecision.allowed(3, 1));
+        when(repository.findRecentContent(eq(userId), any(OffsetDateTime.class), eq(12)))
+            .thenReturn(List.of(new AskSanctuaryRecentContent(
+                "Rest in Christ",
+                "Psalms 23:1",
+                "Luke 10:42",
+                "St. Teresa of Avila",
+                "Prayer for Peace"
+            )));
         when(modelClient.generate(any())).thenReturn(modelOutput("WORK_OR_DISCERNMENT"));
 
-        AskSanctuaryResult result = service.answer(userId, "I have a job interview tomorrow.");
+        AskSanctuaryResult result = service.answer(userId, "focused", null, "pl");
 
         assertThat(result.status()).isEqualTo(AskSanctuaryStatus.OK);
         assertThat(result.intent()).isEqualTo(AskSanctuaryIntent.WORK_OR_DISCERNMENT);
         assertThat(result.response().theme()).isEqualTo("Courage for today");
-        verify(classificationClient).classify("I have a job interview tomorrow.");
-        verify(modelClient).generate(any(AskSanctuaryModelRequest.class));
+        verify(classificationClient).classify("focused");
+        ArgumentCaptor<AskSanctuaryModelRequest> modelRequestCaptor = ArgumentCaptor.forClass(AskSanctuaryModelRequest.class);
+        verify(modelClient).generate(modelRequestCaptor.capture());
+        assertThat(modelRequestCaptor.getValue().locale()).isEqualTo("pl");
+        assertThat(modelRequestCaptor.getValue().variationGuidance())
+            .contains("last 30 days")
+            .contains("Psalms 23:1")
+            .contains("St. Teresa of Avila");
 
         ArgumentCaptor<AskSanctuarySessionLog> logCaptor = ArgumentCaptor.forClass(AskSanctuarySessionLog.class);
         verify(repository).save(logCaptor.capture());
@@ -160,12 +209,27 @@ class AskSanctuaryServiceTest {
     }
 
     @Test
+    void sentenceStyleInputRedirectsWithoutCallingModelOrQuota() {
+        AskSanctuaryService service = service();
+        UUID userId = UUID.randomUUID();
+
+        AskSanctuaryResult result = service.answer(userId, "I feel anxious about today");
+
+        assertThat(result.status()).isEqualTo(AskSanctuaryStatus.REDIRECT);
+        assertThat(result.guardrailType()).isEqualTo(AskSanctuaryGuardrailType.IRRELEVANT);
+        assertThat(result.response().message()).contains("one simple feeling word");
+        verify(classificationClient, never()).classify(any());
+        verify(usageService, never()).reserveDailyCompanionRequest(any());
+        verify(modelClient, never()).generate(any());
+    }
+
+    @Test
     void invalidModelPayloadRetriesOnceThenFallsBack() {
         AskSanctuaryService service = service();
         UUID userId = UUID.randomUUID();
         when(usageService.isMisuseLocked(userId)).thenReturn(false);
         when(usageService.isBurstLimited(userId)).thenReturn(false);
-        when(classificationClient.classify("I am worried."))
+        when(classificationClient.classify("worried"))
             .thenReturn(new AskSanctuaryClassification(AskSanctuaryIntent.LIFE_CONCERN));
         when(usageService.reserveDailyIpRequest(userId, null)).thenReturn(AskSanctuaryQuotaDecision.allowed(100, 1));
         when(usageService.reserveDailyCompanionRequest(userId)).thenReturn(AskSanctuaryQuotaDecision.allowed(3, 1));
@@ -173,11 +237,68 @@ class AskSanctuaryServiceTest {
             .thenReturn(new AskSanctuaryModelOutput("{\"status\":\"OK\"}", AskSanctuaryModelUsage.none()))
             .thenReturn(new AskSanctuaryModelOutput("{\"status\":\"OK\"}", AskSanctuaryModelUsage.none()));
 
-        AskSanctuaryResult result = service.answer(userId, "I am worried.");
+        AskSanctuaryResult result = service.answer(userId, "worried");
 
         assertThat(result.status()).isEqualTo(AskSanctuaryStatus.FALLBACK);
         assertThat(result.guardrailType()).isEqualTo(AskSanctuaryGuardrailType.MODEL_FALLBACK);
         assertThat(result.response().oldTestament().book()).isEqualTo("Psalms");
+        verify(modelClient, times(2)).generate(any());
+    }
+
+    @Test
+    void repeatedRecentContentRetriesWithVariationGuidance() {
+        AskSanctuaryService service = service();
+        UUID userId = UUID.randomUUID();
+        when(usageService.isMisuseLocked(userId)).thenReturn(false);
+        when(usageService.isBurstLimited(userId)).thenReturn(false);
+        when(classificationClient.classify("tired"))
+            .thenReturn(new AskSanctuaryClassification(AskSanctuaryIntent.LIFE_CONCERN));
+        when(usageService.reserveDailyIpRequest(userId, null)).thenReturn(AskSanctuaryQuotaDecision.allowed(100, 1));
+        when(usageService.reserveDailyCompanionRequest(userId)).thenReturn(AskSanctuaryQuotaDecision.allowed(3, 1));
+        when(repository.findRecentContent(eq(userId), any(OffsetDateTime.class), eq(12)))
+            .thenReturn(List.of(new AskSanctuaryRecentContent(
+                "Courage for today",
+                "Isaiah 41:10",
+                "Matthew 11:28",
+                "St. Joseph",
+                "Our Father"
+            )));
+        when(modelClient.generate(any()))
+            .thenReturn(modelOutput("LIFE_CONCERN"))
+            .thenReturn(new AskSanctuaryModelOutput("""
+                {
+                  "status": "OK",
+                  "requiresAccount": false,
+                  "requiresUpgrade": false,
+                  "message": null,
+                  "redirectAction": null,
+                  "theme": "Rest for the weary",
+                  "oldTestament": {
+                    "book": "Psalms",
+                    "chapter": "62",
+                    "verse": "1"
+                  },
+                  "newTestament": {
+                    "book": "Mark",
+                    "chapter": "6",
+                    "verse": "31"
+                  },
+                  "saint": "St. Teresa of Avila",
+                  "prayer": "Prayer for Peace",
+                  "reflection": "Bring your weariness to God without pretending.",
+                  "action": "Pause for one quiet breath and pray for strength.",
+                  "intent": "LIFE_CONCERN",
+                  "guardrail": {
+                    "type": "NONE",
+                    "triggered": false
+                  }
+                }
+                """, AskSanctuaryModelUsage.none()));
+
+        AskSanctuaryResult result = service.answer(userId, "tired");
+
+        assertThat(result.status()).isEqualTo(AskSanctuaryStatus.OK);
+        assertThat(result.response().theme()).isEqualTo("Rest for the weary");
         verify(modelClient, times(2)).generate(any());
     }
 
@@ -187,18 +308,18 @@ class AskSanctuaryServiceTest {
         UUID userId = UUID.randomUUID();
         when(usageService.isMisuseLocked(userId)).thenReturn(false);
         when(usageService.isBurstLimited(userId)).thenReturn(false);
-        when(classificationClient.classify("I am worried."))
+        when(classificationClient.classify("worried"))
             .thenReturn(new AskSanctuaryClassification(AskSanctuaryIntent.LIFE_CONCERN));
         when(usageService.reserveDailyIpRequest(userId, null)).thenReturn(AskSanctuaryQuotaDecision.allowed(100, 1));
         when(usageService.reserveDailyCompanionRequest(userId)).thenReturn(AskSanctuaryQuotaDecision.denied(3));
 
-        AskSanctuaryResult result = service.answer(userId, "I am worried.");
+        AskSanctuaryResult result = service.answer(userId, "worried");
 
         assertThat(result.status()).isEqualTo(AskSanctuaryStatus.LIMIT_REACHED);
         assertThat(result.guardrailType()).isEqualTo(AskSanctuaryGuardrailType.DAILY_LIMIT);
-        assertThat(result.response().requiresUpgrade()).isTrue();
-        assertThat(result.response().redirectAction()).isEqualTo("UPGRADE");
-        verify(classificationClient).classify("I am worried.");
+        assertThat(result.response().requiresUpgrade()).isFalse();
+        assertThat(result.response().redirectAction()).isEqualTo("TRY_LATER");
+        verify(classificationClient).classify("worried");
         verify(modelClient, never()).generate(any());
         verify(repository).save(any(AskSanctuarySessionLog.class));
     }
@@ -212,7 +333,7 @@ class AskSanctuaryServiceTest {
         when(usageService.recordMisuse(userId, AskSanctuaryGuardrailType.RATE_LIMIT))
             .thenReturn(new AskSanctuaryMisuseDecision(false, 1));
 
-        AskSanctuaryResult result = service.answer(userId, "I am worried.");
+        AskSanctuaryResult result = service.answer(userId, "worried");
 
         assertThat(result.status()).isEqualTo(AskSanctuaryStatus.RATE_LIMITED);
         assertThat(result.guardrailType()).isEqualTo(AskSanctuaryGuardrailType.RATE_LIMIT);
@@ -228,7 +349,7 @@ class AskSanctuaryServiceTest {
         UUID userId = UUID.randomUUID();
         when(usageService.isMisuseLocked(userId)).thenReturn(true);
 
-        AskSanctuaryResult result = service.answer(userId, "I am worried.");
+        AskSanctuaryResult result = service.answer(userId, "worried");
 
         assertThat(result.status()).isEqualTo(AskSanctuaryStatus.LOCKED);
         assertThat(result.guardrailType()).isEqualTo(AskSanctuaryGuardrailType.MISUSE_LOCK);
@@ -278,17 +399,17 @@ class AskSanctuaryServiceTest {
         UUID userId = UUID.randomUUID();
         when(usageService.isMisuseLocked(userId)).thenReturn(false);
         when(usageService.isBurstLimited(userId)).thenReturn(false);
-        when(classificationClient.classify("I feel tired today."))
+        when(classificationClient.classify("tired"))
             .thenReturn(new AskSanctuaryClassification(AskSanctuaryIntent.LIFE_CONCERN));
         when(usageService.reserveDailyIpRequest(userId, null)).thenReturn(AskSanctuaryQuotaDecision.allowed(100, 1));
         when(usageService.reserveDailyCompanionRequest(userId)).thenReturn(AskSanctuaryQuotaDecision.allowed(3, 1));
         when(modelClient.generate(any())).thenReturn(modelOutput("LIFE_CONCERN"));
 
-        AskSanctuaryResult result = service.answer(userId, "I feel tired today.");
+        AskSanctuaryResult result = service.answer(userId, "tired");
 
         assertThat(result.status()).isEqualTo(AskSanctuaryStatus.OK);
         assertThat(result.intent()).isEqualTo(AskSanctuaryIntent.LIFE_CONCERN);
-        verify(classificationClient).classify("I feel tired today.");
+        verify(classificationClient).classify("tired");
         verify(modelClient).generate(any(AskSanctuaryModelRequest.class));
     }
 
@@ -298,26 +419,30 @@ class AskSanctuaryServiceTest {
         UUID userId = UUID.randomUUID();
         when(usageService.isMisuseLocked(userId)).thenReturn(false);
         when(usageService.isBurstLimited(userId)).thenReturn(false);
-        when(classificationClient.classify("Tell me the football score."))
+        when(classificationClient.classify("football"))
             .thenReturn(new AskSanctuaryClassification(AskSanctuaryIntent.NOT_SPIRITUAL_OR_IRRELEVANT));
         when(usageService.reserveDailyIpRequest(userId, null)).thenReturn(AskSanctuaryQuotaDecision.allowed(100, 1));
         when(usageService.recordMisuse(userId, AskSanctuaryGuardrailType.IRRELEVANT))
             .thenReturn(new AskSanctuaryMisuseDecision(false, 1));
 
-        AskSanctuaryResult result = service.answer(userId, "Tell me the football score.");
+        AskSanctuaryResult result = service.answer(userId, "football");
 
         assertThat(result.status()).isEqualTo(AskSanctuaryStatus.REDIRECT);
         assertThat(result.guardrailType()).isEqualTo(AskSanctuaryGuardrailType.IRRELEVANT);
-        verify(classificationClient).classify("Tell me the football score.");
+        verify(classificationClient).classify("football");
         verify(modelClient, never()).generate(any());
     }
 
     @Test
-    void cachedResponseAvoidsClassificationQuotaAndGeneration() {
+    void cachedResponseCountsAgainstQuotaButAvoidsGeneration() {
         AskSanctuaryService service = service();
         UUID userId = UUID.randomUUID();
         when(usageService.isMisuseLocked(userId)).thenReturn(false);
         when(usageService.isBurstLimited(userId)).thenReturn(false);
+        when(classificationClient.classify("tired"))
+            .thenReturn(new AskSanctuaryClassification(AskSanctuaryIntent.LIFE_CONCERN));
+        when(usageService.reserveDailyIpRequest(userId, null)).thenReturn(AskSanctuaryQuotaDecision.allowed(100, 1));
+        when(usageService.reserveDailyCompanionRequest(userId)).thenReturn(AskSanctuaryQuotaDecision.allowed(3, 1));
         when(repository.findRecentReusableResponse(eq(userId), any(), any()))
             .thenReturn(java.util.Optional.of(new AskSanctuaryCachedResponse(
                 AskSanctuaryIntent.LIFE_CONCERN,
@@ -327,13 +452,13 @@ class AskSanctuaryServiceTest {
                 response("LIFE_CONCERN")
             )));
 
-        AskSanctuaryResult result = service.answer(userId, "I feel tired today.");
+        AskSanctuaryResult result = service.answer(userId, "tired");
 
         assertThat(result.status()).isEqualTo(AskSanctuaryStatus.OK);
         assertThat(result.reusedResponse()).isTrue();
-        verify(classificationClient, never()).classify(any());
-        verify(usageService, never()).reserveDailyIpRequest(any(), any());
-        verify(usageService, never()).reserveDailyCompanionRequest(any());
+        verify(classificationClient).classify("tired");
+        verify(usageService).reserveDailyIpRequest(userId, null);
+        verify(usageService).reserveDailyCompanionRequest(userId);
         verify(modelClient, never()).generate(any());
     }
 
@@ -345,7 +470,7 @@ class AskSanctuaryServiceTest {
         when(usageService.isBurstLimited(userId)).thenReturn(false);
         when(usageService.reserveDailyIpRequest(userId, "ip-hash")).thenReturn(AskSanctuaryQuotaDecision.denied(100));
 
-        AskSanctuaryResult result = service.answer(userId, "I feel tired today.", "ip-hash");
+        AskSanctuaryResult result = service.answer(userId, "tired", "ip-hash");
 
         assertThat(result.status()).isEqualTo(AskSanctuaryStatus.RATE_LIMITED);
         verify(classificationClient, never()).classify(any());
@@ -357,7 +482,7 @@ class AskSanctuaryServiceTest {
         AskSanctuaryService service = service(false);
         UUID userId = UUID.randomUUID();
 
-        AskSanctuaryResult result = service.answer(userId, "I feel tired today.");
+        AskSanctuaryResult result = service.answer(userId, "tired");
 
         assertThat(result.status()).isEqualTo(AskSanctuaryStatus.SERVICE_DISABLED);
         verify(usageService, never()).isMisuseLocked(any());
@@ -370,10 +495,25 @@ class AskSanctuaryServiceTest {
     }
 
     private AskSanctuaryService service(boolean enabled) {
+        return service(enabled, true);
+    }
+
+    private AskSanctuaryService service(boolean enabled, boolean configured) {
+        return service(enabled, configured, configured);
+    }
+
+    private AskSanctuaryService service(boolean enabled, boolean modelConfigured, boolean classificationConfigured) {
+        if (enabled) {
+            when(modelClient.isConfigured()).thenReturn(modelConfigured);
+            if (modelConfigured) {
+                when(classificationClient.isConfigured()).thenReturn(classificationConfigured);
+            }
+        }
         return new AskSanctuaryService(
             new AskSanctuaryClassifier(),
             classificationClient,
             modelClient,
+            new AskSanctuaryInputValidator(),
             new AskSanctuaryPayloadValidator(),
             repository,
             usageService,

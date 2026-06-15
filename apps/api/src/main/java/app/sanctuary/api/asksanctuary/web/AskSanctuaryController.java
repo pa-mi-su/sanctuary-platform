@@ -61,11 +61,11 @@ public class AskSanctuaryController {
         @Valid @RequestBody AskSanctuaryRequest request
     ) {
         if (authentication == null || !authentication.isAuthenticated()) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(AskSanctuaryResponse.accountRequired());
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(AskSanctuaryResponse.accountRequired(request.locale()));
         }
 
         var account = userAccountService.ensureAccount(CurrentUser.from(authentication));
-        return ResponseEntity.ok(service.answer(account.id(), request.message(), clientIpHash(servletRequest)).response());
+        return ResponseEntity.ok(service.answer(account.id(), request.message(), clientIpHash(servletRequest), request.locale()).response());
     }
 
     private String clientIpHash(HttpServletRequest request) {

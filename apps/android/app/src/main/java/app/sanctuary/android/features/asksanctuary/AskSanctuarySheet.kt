@@ -40,6 +40,7 @@ import app.sanctuary.android.SessionStatus
 import app.sanctuary.android.SessionUiState
 import app.sanctuary.android.data.AskSanctuaryResponse
 import app.sanctuary.android.data.AskSanctuaryScriptureReference
+import app.sanctuary.android.ui.AppLanguage
 import app.sanctuary.android.ui.sanctuaryStrings
 
 @Composable
@@ -55,7 +56,7 @@ fun AskSanctuarySheet(
 ) {
     val l10n = sanctuaryStrings()
     val focusManager = LocalFocusManager.current
-    val canSubmit = state.message.trim().isNotEmpty() && !state.isSubmitting
+    val canSubmit = normalizedFeelingWords(state.message) != null && !state.isSubmitting
     val status = state.status
 
     Column(
@@ -99,7 +100,7 @@ fun AskSanctuarySheet(
             status?.available == false -> {
                 AskSanctuaryNoticeCard(
                     title = l10n.t("ask.unavailableTitle"),
-                    body = status.unavailableMessage ?: l10n.t("ask.unavailableBody")
+                    body = status.unavailableMessage?.takeIf { l10n.language == AppLanguage.English } ?: l10n.t("ask.unavailableBody")
                 )
             }
 
@@ -238,11 +239,10 @@ private fun AskSanctuaryPromptCard(
             onValueChange = onMessageChanged,
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(min = 150.dp),
+                .heightIn(min = 64.dp),
             placeholder = { Text(l10n.t("ask.placeholder"), color = Color.White.copy(alpha = 0.45f)) },
             enabled = !isSubmitting,
-            minLines = 5,
-            maxLines = 8,
+            singleLine = true,
             keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Send),
             keyboardActions = KeyboardActions(
                 onSend = {
@@ -251,6 +251,7 @@ private fun AskSanctuaryPromptCard(
                 }
             )
         )
+        Text(l10n.t("ask.promptHelp"), color = Color.White.copy(alpha = 0.62f), fontSize = 13.sp, lineHeight = 17.sp)
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
             AskSanctuaryPrimaryButton(
                 title = l10n.t("ask.submit"),
@@ -374,3 +375,35 @@ private fun AskSanctuaryPrimaryButton(
 
 private fun AskSanctuaryScriptureReference.displayText(): String =
     "$book $chapter:$verse"
+
+private fun normalizedFeelingWords(message: String): String? {
+    val trimmed = message.trim()
+    if (trimmed.isBlank()) return null
+    if (!Regex("^[\\p{L}\\s,'-]+$").matches(trimmed)) return null
+    val blockedWords = setOf(
+        "ass",
+        "bullshit",
+        "crap",
+        "fart",
+        "fuck",
+        "fucked",
+        "fucking",
+        "nigger",
+        "pee",
+        "poo",
+        "poop",
+        "pooped",
+        "pooping",
+        "shit",
+        "shitting"
+    )
+    val words = trimmed
+        .replace(',', ' ')
+        .split(Regex("\\s+"))
+        .filter { it.isNotBlank() }
+        .map { it.lowercase() }
+
+    return words.takeIf { values ->
+        values.size == 1 && values.all { word -> word.length in 2..24 && !blockedWords.contains(word) }
+    }?.first()
+}

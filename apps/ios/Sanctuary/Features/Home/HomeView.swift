@@ -155,7 +155,7 @@ struct HomeView: View {
 
                                         VStack {
                                             Spacer()
-                                            Text("Ask")
+                                            Text(localization.t("ask.heroChip"))
                                                 .font(AppTheme.rounded(13 * scale, weight: .bold))
                                                 .foregroundStyle(.white)
                                                 .padding(.horizontal, 14 * scale)
@@ -175,8 +175,8 @@ struct HomeView: View {
                                     }
                                 }
                                 .buttonStyle(.plain)
-                                .accessibilityLabel("Ask Sanctuary")
-                                .accessibilityHint("Opens Ask Sanctuary.")
+                                .accessibilityLabel(localization.t("ask.heroCta"))
+                                .accessibilityHint(localization.t("ask.heroHint"))
                                 .padding(.top, 6 * scale)
 
                                 VStack(spacing: 10 * scale) {
@@ -197,7 +197,7 @@ struct HomeView: View {
                                     .foregroundStyle(Color.white.opacity(0.65))
                                     .multilineTextAlignment(.center)
 
-                                Text("Tap the logo to ask Sanctuary.")
+                                Text(localization.t("ask.heroHint"))
                                     .font(AppTheme.rounded(14 * scale, weight: .bold))
                                     .foregroundStyle(AppTheme.tabActive)
                                     .multilineTextAlignment(.center)

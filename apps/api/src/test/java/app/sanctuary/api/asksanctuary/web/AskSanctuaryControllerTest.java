@@ -57,7 +57,7 @@ class AskSanctuaryControllerTest {
         assertThat(response.getBody().requiresAccount()).isTrue();
         assertThat(response.getBody().redirectAction()).isEqualTo("SIGN_IN");
         verify(userAccountService, never()).ensureAccount(any());
-        verify(service, never()).answer(any(), any(), any());
+        verify(service, never()).answer(any(), any(), any(), any());
     }
 
     @Test
@@ -105,7 +105,7 @@ class AskSanctuaryControllerTest {
         when(userAccountService.ensureAccount(any(CurrentUser.class)))
             .thenReturn(account(userId));
         when(servletRequest.getHeader("X-Forwarded-For")).thenReturn("203.0.113.10, 10.0.0.1");
-        when(service.answer(eq(userId), eq("I have a job interview tomorrow."), any()))
+        when(service.answer(eq(userId), eq("I have a job interview tomorrow."), any(), eq("es")))
             .thenReturn(new AskSanctuaryResult(
                 AskSanctuaryStatus.OK,
                 AskSanctuaryIntent.WORK_OR_DISCERNMENT,
@@ -114,12 +114,12 @@ class AskSanctuaryControllerTest {
                 payload
             ));
 
-        var response = controller.ask(authentication(), servletRequest, new AskSanctuaryRequest("I have a job interview tomorrow."));
+        var response = controller.ask(authentication(), servletRequest, new AskSanctuaryRequest("I have a job interview tomorrow.", "es"));
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).isEqualTo(payload);
         verify(userAccountService).ensureAccount(any(CurrentUser.class));
-        verify(service).answer(eq(userId), eq("I have a job interview tomorrow."), any());
+        verify(service).answer(eq(userId), eq("I have a job interview tomorrow."), any(), eq("es"));
     }
 
     private JwtAuthenticationToken authentication() {

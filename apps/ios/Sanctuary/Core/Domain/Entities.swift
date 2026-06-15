@@ -6,12 +6,12 @@ enum ContentLocale: String, Codable, CaseIterable, Sendable {
     case pl
 }
 
-struct LocalizedText: Codable, Hashable, Sendable {
+nonisolated struct LocalizedText: Codable, Hashable, Sendable {
     let locale: ContentLocale
     let value: String
 }
 
-struct Saint: Codable, Identifiable, Hashable, Sendable {
+nonisolated struct Saint: Codable, Identifiable, Hashable, Sendable {
     let id: String
     let slug: String
     let name: String
@@ -34,7 +34,7 @@ struct Saint: Codable, Identifiable, Hashable, Sendable {
     }
 }
 
-struct NovenaDay: Codable, Hashable, Sendable {
+nonisolated struct NovenaDay: Codable, Hashable, Sendable {
     let dayNumber: Int
     let titleByLocale: [ContentLocale: String]
     let scriptureByLocale: [ContentLocale: String]
@@ -43,7 +43,7 @@ struct NovenaDay: Codable, Hashable, Sendable {
     let bodyByLocale: [ContentLocale: String]
 }
 
-struct Novena: Codable, Identifiable, Hashable, Sendable {
+nonisolated struct Novena: Codable, Identifiable, Hashable, Sendable {
     let id: String
     let slug: String
     let titleByLocale: [ContentLocale: String]
@@ -55,25 +55,25 @@ struct Novena: Codable, Identifiable, Hashable, Sendable {
     let days: [NovenaDay]
 }
 
-struct NovenaCalendarDay: Hashable, Sendable {
+nonisolated struct NovenaCalendarDay: Hashable, Sendable {
     let date: Date
     let novenas: [Novena]
     let startingNovena: Novena?
 }
 
-struct IntentionSearchResult: Hashable, Sendable {
+nonisolated struct IntentionSearchResult: Hashable, Sendable {
     let novenas: [Novena]
     let saints: [Saint]
 }
 
-struct NovenaServingWindowInfo: Hashable, Sendable {
+nonisolated struct NovenaServingWindowInfo: Hashable, Sendable {
     let novenaID: String
     let startDate: Date
     let endDate: Date
     let feastDate: Date
 }
 
-struct Prayer: Codable, Identifiable, Hashable, Sendable {
+nonisolated struct Prayer: Codable, Identifiable, Hashable, Sendable {
     let id: String
     let slug: String
     let category: String
@@ -121,7 +121,7 @@ enum LiturgicalSeason: String, Codable, CaseIterable, Sendable {
     case ordinary
 }
 
-struct LiturgicalDay: Codable, Hashable, Sendable {
+nonisolated struct LiturgicalDay: Codable, Hashable, Sendable {
     let date: Date
     let season: LiturgicalSeason
     let rank: String
@@ -135,7 +135,7 @@ enum FavoriteItemType: String, Codable, CaseIterable, Sendable {
     case prayer
 }
 
-struct UserFavorite: Codable, Hashable, Sendable {
+nonisolated struct UserFavorite: Codable, Hashable, Sendable {
     let userID: String
     let itemType: FavoriteItemType
     let itemID: String
@@ -148,14 +148,14 @@ enum CommitmentStatus: String, Codable, CaseIterable, Sendable {
     case completed
 }
 
-struct ReminderConfig: Codable, Hashable, Sendable {
+nonisolated struct ReminderConfig: Codable, Hashable, Sendable {
     let enabled: Bool
     let morningHour: Int?
     let eveningHour: Int?
     let timeZoneID: String
 }
 
-struct UserNovenaCommitment: Codable, Hashable, Sendable {
+nonisolated struct UserNovenaCommitment: Codable, Hashable, Sendable {
     let userID: String
     let novenaID: String
     let startedAt: Date

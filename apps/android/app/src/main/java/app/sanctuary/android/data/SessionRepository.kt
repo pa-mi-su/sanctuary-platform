@@ -434,9 +434,9 @@ class SessionRepository(
         authenticatedCall { it.acceptAskSanctuaryDisclaimer() }
     }
 
-    suspend fun askSanctuary(message: String): AskSanctuaryResponse = withContext(Dispatchers.IO) {
+    suspend fun askSanctuary(message: String, locale: String): AskSanctuaryResponse = withContext(Dispatchers.IO) {
         authenticatedCall {
-            it.askSanctuary(AskSanctuaryRequest(message = message.trim()))
+            it.askSanctuary(AskSanctuaryRequest(message = message.trim(), locale = locale))
         }
     }
 

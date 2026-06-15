@@ -34,6 +34,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.util.Locale
 
 enum class SessionStatus {
     SignedOut,
@@ -785,8 +786,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun submitAskSanctuary() {
-        val prompt = _askSanctuary.value.message.trim()
-        if (_session.value.status != SessionStatus.Authenticated || prompt.isBlank() || _askSanctuary.value.isSubmitting) {
+        val prompt = normalizedAskSanctuaryFeelingWords(_askSanctuary.value.message)
+        if (_session.value.status != SessionStatus.Authenticated || _askSanctuary.value.isSubmitting) {
+            return
+        }
+        if (prompt == null) {
+            _askSanctuary.update { it.copy(error = l10n().t("ask.promptHelp")) }
             return
         }
 
@@ -794,7 +799,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             _askSanctuary.update { it.copy(isSubmitting = true, response = null, error = null) }
             runCatching {
                 withTimeoutOrNull(25_000) {
-                    repository.askSanctuary(prompt)
+                    repository.askSanctuary(prompt, _appLanguage.value.code)
                 } ?: throw IllegalStateException(l10n().t("ask.submitTimeout"))
             }.onSuccess { response ->
                 _askSanctuary.update {
@@ -807,6 +812,45 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
         }
+    }
+
+    private fun normalizedAskSanctuaryFeelingWords(message: String): String? {
+        val trimmed = message.trim()
+        if (trimmed.isBlank()) return null
+        val allowed = Regex("^[\\p{L}\\s,'-]+$")
+        if (!allowed.matches(trimmed)) return null
+
+        val blockedWords = setOf(
+            "ass",
+            "bullshit",
+            "crap",
+            "fart",
+            "fuck",
+            "fucked",
+            "fucking",
+            "nigger",
+            "pee",
+            "poo",
+            "poop",
+            "pooped",
+            "pooping",
+            "shit",
+            "shitting"
+        )
+        val words = trimmed
+            .replace(',', ' ')
+            .split(Regex("\\s+"))
+            .filter { it.isNotBlank() }
+            .map { it.lowercase(Locale.ROOT) }
+
+        if (words.size != 1) return null
+        return words
+            .takeIf { values ->
+                values.all { word ->
+                    word.length in 2..24 && !blockedWords.contains(word)
+                }
+            }
+            ?.first()
     }
 
     fun startNovena(novenaId: String) {

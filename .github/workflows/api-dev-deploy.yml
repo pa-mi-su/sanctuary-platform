@@ -113,6 +113,12 @@ jobs:
             exit 1
           fi
 
+          if [[ "${ASK_SANCTUARY_ENABLED}" == "true" && -z "${ASK_SANCTUARY_OPENAI_SECRET_ARN}" ]]; then
+            echo "API_DEV_ASK_SANCTUARY_OPENAI_SECRET_ARN is required when API_DEV_ASK_SANCTUARY_ENABLED is true."
+            echo "Keep Sanctuary Companion disabled until the OpenAI API key is available through Secrets Manager."
+            exit 1
+          fi
+
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2

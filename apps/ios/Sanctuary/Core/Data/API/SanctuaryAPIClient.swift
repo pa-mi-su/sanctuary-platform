@@ -23,52 +23,52 @@ enum SanctuaryAPIError: LocalizedError, Sendable {
     }
 }
 
-struct APIAuthRegisterRequest: Encodable, Sendable {
+nonisolated struct APIAuthRegisterRequest: Encodable, Sendable {
     let firstName: String
     let lastName: String
     let email: String
     let password: String
 }
 
-struct APIAuthLoginRequest: Encodable, Sendable {
+nonisolated struct APIAuthLoginRequest: Encodable, Sendable {
     let email: String
     let password: String
 }
 
-struct APIAuthRefreshRequest: Encodable, Sendable {
+nonisolated struct APIAuthRefreshRequest: Encodable, Sendable {
     let refreshToken: String
 }
 
-struct APIAuthConfirmRequest: Encodable, Sendable {
+nonisolated struct APIAuthConfirmRequest: Encodable, Sendable {
     let email: String
     let code: String
 }
 
-struct APIAuthResendRequest: Encodable, Sendable {
+nonisolated struct APIAuthResendRequest: Encodable, Sendable {
     let email: String
 }
 
-struct APIAuthForgotPasswordRequest: Encodable, Sendable {
+nonisolated struct APIAuthForgotPasswordRequest: Encodable, Sendable {
     let email: String
 }
 
-struct APIAuthResetPasswordRequest: Encodable, Sendable {
+nonisolated struct APIAuthResetPasswordRequest: Encodable, Sendable {
     let email: String
     let code: String
     let newPassword: String
 }
 
-struct APIAuthRegistrationResponse: Decodable, Sendable {
+nonisolated struct APIAuthRegistrationResponse: Decodable, Sendable {
     let email: String
     let displayName: String
     let confirmationRequired: Bool
 }
 
-struct APIAuthStatusResponse: Decodable, Sendable {
+nonisolated struct APIAuthStatusResponse: Decodable, Sendable {
     let message: String
 }
 
-struct APIAuthSessionResponse: Decodable, Sendable {
+nonisolated struct APIAuthSessionResponse: Decodable, Sendable {
     let accessToken: String
     let idToken: String
     let refreshToken: String?
@@ -78,7 +78,7 @@ struct APIAuthSessionResponse: Decodable, Sendable {
     let displayName: String
 }
 
-struct APIUserProfileResponse: Decodable, Sendable {
+nonisolated struct APIUserProfileResponse: Decodable, Sendable {
     let userId: String
     let email: String?
     let firstName: String?
@@ -98,13 +98,13 @@ struct APIUserProfileResponse: Decodable, Sendable {
     let completedNovenaCount: Int
 }
 
-struct APIUserFavoriteResponse: Decodable, Sendable {
+nonisolated struct APIUserFavoriteResponse: Decodable, Sendable {
     let itemType: String
     let itemId: String
     let createdAt: Date
 }
 
-struct APIUserNovenaCommitmentResponse: Decodable, Sendable {
+nonisolated struct APIUserNovenaCommitmentResponse: Decodable, Sendable {
     let novenaId: String
     let startedAt: Date
     let currentDay: Int
@@ -117,7 +117,7 @@ struct APIUserNovenaCommitmentResponse: Decodable, Sendable {
     let updatedAt: Date
 }
 
-struct APIUserNovenaCommitmentRequest: Encodable, Sendable {
+nonisolated struct APIUserNovenaCommitmentRequest: Encodable, Sendable {
     let startedAt: Date
     let currentDay: Int
     let completedDays: [Int]
@@ -128,7 +128,7 @@ struct APIUserNovenaCommitmentRequest: Encodable, Sendable {
     let status: String
 }
 
-struct APIUserPreferencesUpdateRequest: Encodable, Sendable {
+nonisolated struct APIUserPreferencesUpdateRequest: Encodable, Sendable {
     let preferredLanguage: String
     let timeZoneId: String
     let novenaRemindersEnabled: Bool
@@ -137,7 +137,7 @@ struct APIUserPreferencesUpdateRequest: Encodable, Sendable {
     let onboardingCompleted: Bool
 }
 
-struct APIContentSaintSummaryResponse: Decodable, Sendable {
+nonisolated struct APIContentSaintSummaryResponse: Decodable, Sendable {
     let id: String
     let slug: String
     let name: String
@@ -149,12 +149,12 @@ struct APIContentSaintSummaryResponse: Decodable, Sendable {
     let intentions: [String]?
 }
 
-struct APIContentSaintRangeDateResponse: Decodable, Sendable {
+nonisolated struct APIContentSaintRangeDateResponse: Decodable, Sendable {
     let date: String
     let saints: [APIContentSaintSummaryResponse]
 }
 
-struct APIContentSaintDetailResponse: Decodable, Sendable {
+nonisolated struct APIContentSaintDetailResponse: Decodable, Sendable {
     let id: String
     let slug: String
     let name: String
@@ -168,12 +168,12 @@ struct APIContentSaintDetailResponse: Decodable, Sendable {
     let sources: [APIContentSaintSourceResponse]
 }
 
-struct APIContentSaintSourceResponse: Decodable, Sendable {
+nonisolated struct APIContentSaintSourceResponse: Decodable, Sendable {
     let text: String
     let url: String?
 }
 
-struct APIContentNovenaSummaryResponse: Decodable, Sendable {
+nonisolated struct APIContentNovenaSummaryResponse: Decodable, Sendable {
     let id: String
     let slug: String
     let title: String
@@ -183,7 +183,7 @@ struct APIContentNovenaSummaryResponse: Decodable, Sendable {
     let imageUrl: String?
 }
 
-struct APIContentNovenaDayDetailResponse: Decodable, Sendable {
+nonisolated struct APIContentNovenaDayDetailResponse: Decodable, Sendable {
     let dayNumber: Int
     let title: String?
     let scripture: String?
@@ -192,7 +192,7 @@ struct APIContentNovenaDayDetailResponse: Decodable, Sendable {
     let body: String?
 }
 
-struct APIContentNovenaDetailResponse: Decodable, Sendable {
+nonisolated struct APIContentNovenaDetailResponse: Decodable, Sendable {
     let id: String
     let slug: String
     let title: String
@@ -204,25 +204,25 @@ struct APIContentNovenaDetailResponse: Decodable, Sendable {
     let days: [APIContentNovenaDayDetailResponse]
 }
 
-struct APIContentNovenaCalendarDateResponse: Decodable, Sendable {
+nonisolated struct APIContentNovenaCalendarDateResponse: Decodable, Sendable {
     let date: String
     let novenas: [APIContentNovenaSummaryResponse]
     let startingNovena: APIContentNovenaSummaryResponse?
 }
 
-struct APIContentIntentionSearchResultResponse: Decodable, Sendable {
+nonisolated struct APIContentIntentionSearchResultResponse: Decodable, Sendable {
     let novenas: [APIContentNovenaSummaryResponse]
     let saints: [APIContentSaintSummaryResponse]
 }
 
-struct APINovenaServingWindowResponse: Decodable, Sendable {
+nonisolated struct APINovenaServingWindowResponse: Decodable, Sendable {
     let novenaId: String
     let startDate: String
     let endDate: String
     let feastDate: String
 }
 
-struct APILiturgicalDayResponse: Decodable, Sendable {
+nonisolated struct APILiturgicalDayResponse: Decodable, Sendable {
     let date: String
     let season: String
     let primaryRank: String
@@ -230,7 +230,7 @@ struct APILiturgicalDayResponse: Decodable, Sendable {
     let readingsUrl: String?
 }
 
-struct APIPrayerSummaryResponse: Decodable, Sendable {
+nonisolated struct APIPrayerSummaryResponse: Decodable, Sendable {
     let id: String
     let slug: String
     let title: String
@@ -239,7 +239,7 @@ struct APIPrayerSummaryResponse: Decodable, Sendable {
     let imageUrl: String?
 }
 
-struct APIPrayerDetailResponse: Decodable, Sendable {
+nonisolated struct APIPrayerDetailResponse: Decodable, Sendable {
     let id: String
     let slug: String
     let title: String
@@ -253,11 +253,12 @@ struct APIPrayerDetailResponse: Decodable, Sendable {
     let tags: [String]
 }
 
-struct APIAskSanctuaryRequest: Encodable, Sendable {
+nonisolated struct APIAskSanctuaryRequest: Encodable, Sendable {
     let message: String
+    let locale: String?
 }
 
-struct APIAskSanctuaryStatusResponse: Decodable, Sendable {
+nonisolated struct APIAskSanctuaryStatusResponse: Decodable, Sendable {
     let disclaimerVersion: String
     let disclaimerAccepted: Bool
     let available: Bool
@@ -279,7 +280,7 @@ struct APIAskSanctuaryStatusResponse: Decodable, Sendable {
     }
 }
 
-struct APIAskSanctuaryScriptureReference: Decodable, Sendable {
+nonisolated struct APIAskSanctuaryScriptureReference: Decodable, Sendable {
     let book: String
     let chapter: String
     let verse: String
@@ -306,12 +307,12 @@ struct APIAskSanctuaryScriptureReference: Decodable, Sendable {
     }
 }
 
-struct APIAskSanctuaryGuardrail: Decodable, Sendable {
+nonisolated struct APIAskSanctuaryGuardrail: Decodable, Sendable {
     let type: String
     let triggered: Bool
 }
 
-struct APIAskSanctuaryResponse: Decodable, Sendable {
+nonisolated struct APIAskSanctuaryResponse: Decodable, Sendable {
     let status: String
     let requiresAccount: Bool
     let requiresUpgrade: Bool
@@ -328,7 +329,7 @@ struct APIAskSanctuaryResponse: Decodable, Sendable {
     let guardrail: APIAskSanctuaryGuardrail?
 }
 
-private struct APIErrorEnvelope: Decodable {
+private nonisolated struct APIErrorEnvelope: Decodable {
     let message: String
 }
 
@@ -693,11 +694,11 @@ actor SanctuaryAPIClient {
         }
     }
 
-    func askSanctuary(message: String, token: String) async throws -> APIAskSanctuaryResponse {
+    func askSanctuary(message: String, locale: AppLanguage, token: String) async throws -> APIAskSanctuaryResponse {
         try await performRequest(
             path: "/api/ask-sanctuary",
             method: "POST",
-            body: APIAskSanctuaryRequest(message: message),
+            body: APIAskSanctuaryRequest(message: message, locale: locale.rawValue),
             token: token
         )
     }

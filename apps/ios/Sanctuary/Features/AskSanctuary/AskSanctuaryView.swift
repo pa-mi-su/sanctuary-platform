@@ -20,7 +20,7 @@ final class AskSanctuaryViewModel: ObservableObject {
     }
 
     var canSubmit: Bool {
-        !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isLoading
+        normalizedFeelingWords(message) != nil && !isLoading
     }
 
     func fetchStatus() async throws -> APIAskSanctuaryStatusResponse {
@@ -45,14 +45,14 @@ final class AskSanctuaryViewModel: ObservableObject {
         return status
     }
 
-    func ask() async {
-        let trimmedMessage = message.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedMessage.isEmpty else {
+    func ask(language: AppLanguage, invalidInputMessage: String, signInMessage: String) async {
+        guard let normalizedMessage = normalizedFeelingWords(message) else {
+            errorMessage = invalidInputMessage
             return
         }
 
         guard let token = await accountStore.authorizationToken() else {
-            errorMessage = "Sign in to ask Sanctuary."
+            errorMessage = signInMessage
             return
         }
 
@@ -60,7 +60,7 @@ final class AskSanctuaryViewModel: ObservableObject {
         errorMessage = nil
 
         do {
-            response = try await authenticatedAsk(message: trimmedMessage, token: token)
+            response = try await authenticatedAsk(message: normalizedMessage, language: language, token: token)
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -74,9 +74,9 @@ final class AskSanctuaryViewModel: ObservableObject {
         message = ""
     }
 
-    private func authenticatedAsk(message: String, token: String) async throws -> APIAskSanctuaryResponse {
+    private func authenticatedAsk(message: String, language: AppLanguage, token: String) async throws -> APIAskSanctuaryResponse {
         do {
-            return try await apiClient.askSanctuary(message: message, token: token)
+            return try await apiClient.askSanctuary(message: message, locale: language, token: token)
         } catch {
             guard isSessionRejected(error),
                   let refreshedToken = await accountStore.refreshAuthorizationTokenAfterRejection()
@@ -84,7 +84,7 @@ final class AskSanctuaryViewModel: ObservableObject {
                 throw error
             }
 
-            return try await apiClient.askSanctuary(message: message, token: refreshedToken)
+            return try await apiClient.askSanctuary(message: message, locale: language, token: refreshedToken)
         }
     }
 
@@ -122,25 +122,51 @@ final class AskSanctuaryViewModel: ObservableObject {
         }
         return statusCode == 401 || statusCode == 403
     }
+
+    private func normalizedFeelingWords(_ text: String) -> String? {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+
+        let allowed = CharacterSet.letters
+            .union(.whitespacesAndNewlines)
+            .union(CharacterSet(charactersIn: ",-'"))
+        guard trimmed.unicodeScalars.allSatisfy({ allowed.contains($0) }) else {
+            return nil
+        }
+
+        let blockedWords: Set<String> = [
+            "ass", "bullshit", "crap", "fart", "fuck", "fucked", "fucking",
+            "nigger", "pee", "poo", "poop", "pooped", "pooping", "shit", "shitting"
+        ]
+        let words = trimmed
+            .replacingOccurrences(of: ",", with: " ")
+            .split(whereSeparator: { $0.isWhitespace })
+            .map { String($0).lowercased() }
+
+        guard words.count == 1 else { return nil }
+        for word in words {
+            guard word.count >= 2, word.count <= 24, !blockedWords.contains(word) else {
+                return nil
+            }
+        }
+        return words[0]
+    }
 }
 
 private enum SanctuaryViewModelError: LocalizedError {
     case requiresSignIn
 
     var errorDescription: String? {
-        "Sign in to ask Sanctuary."
+        nil
     }
 }
 
 struct AskSanctuaryView: View {
-    private static let disclaimerAcceptedVersionKey = "askSanctuaryDisclaimerAcceptedVersion"
-
     let environment: AppEnvironment
 
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var accountStore: AccountSessionStore
     @EnvironmentObject private var localization: LocalizationManager
-    @AppStorage(Self.disclaimerAcceptedVersionKey) private var acceptedDisclaimerVersion = ""
     @StateObject private var viewModel: AskSanctuaryViewModel
     @State private var showDisclaimer = false
     @State private var isCheckingDisclaimer = false
@@ -194,7 +220,7 @@ struct AskSanctuaryView: View {
                 }
                 .scrollDismissesKeyboard(.interactively)
             }
-            .navigationTitle("Ask Sanctuary")
+            .navigationTitle(localization.t("ask.title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
@@ -211,7 +237,7 @@ struct AskSanctuaryView: View {
                             )
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel("Close Ask Sanctuary")
+                    .accessibilityLabel(localization.t("ask.closeAccessibility"))
                 }
 
             }
@@ -225,6 +251,7 @@ struct AskSanctuaryView: View {
                         await acceptDisclaimer()
                     }
                 )
+                .environmentObject(localization)
                 .interactiveDismissDisabled(true)
             }
             .task(id: accountStore.isAuthenticated) {
@@ -251,7 +278,6 @@ struct AskSanctuaryView: View {
             if !status.available {
                 showDisclaimer = false
             } else if status.disclaimerAccepted {
-                acceptedDisclaimerVersion = status.disclaimerVersion
                 showDisclaimer = false
             } else {
                 showDisclaimer = true
@@ -265,8 +291,7 @@ struct AskSanctuaryView: View {
 
     private func acceptDisclaimer() async {
         do {
-            let status = try await viewModel.acceptDisclaimer()
-            acceptedDisclaimerVersion = status.disclaimerVersion
+            _ = try await viewModel.acceptDisclaimer()
             disclaimerErrorMessage = nil
             showDisclaimer = false
         } catch {
@@ -275,18 +300,26 @@ struct AskSanctuaryView: View {
         }
     }
 
+    private func ask() async {
+        await viewModel.ask(
+            language: localization.language,
+            invalidInputMessage: localization.t("ask.promptHelp"),
+            signInMessage: localization.t("ask.signInRequired")
+        )
+    }
+
     private var header: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Label("Ask Sanctuary", systemImage: "sparkles")
+            Label(localization.t("ask.eyebrow"), systemImage: "sparkles")
                 .font(AppTheme.rounded(15, weight: .bold))
                 .foregroundStyle(AppTheme.tabActive)
 
-            Text("Bring what you are carrying.")
+            Text(localization.t("ask.headline"))
                 .font(AppTheme.rounded(32, weight: .bold))
                 .foregroundStyle(.white)
                 .fixedSize(horizontal: false, vertical: true)
 
-            Text("Ask for a Catholic companion response with Scripture references, a saint, a prayer, a short reflection, and one next step.")
+            Text(localization.t("ask.body"))
                 .font(AppTheme.rounded(16, weight: .medium))
                 .foregroundStyle(AppTheme.subtitleText)
                 .fixedSize(horizontal: false, vertical: true)
@@ -298,16 +331,22 @@ struct AskSanctuaryView: View {
 
     private var askPanel: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("What would you like to bring to prayer?")
+            Text(localization.t("ask.promptTitle"))
                 .font(AppTheme.rounded(18, weight: .bold))
                 .foregroundStyle(.white)
 
-            TextEditor(text: $viewModel.message)
+            TextField(localization.t("ask.placeholder"), text: $viewModel.message)
                 .focused($messageFocused)
                 .font(AppTheme.rounded(16, weight: .medium))
                 .foregroundStyle(.white)
-                .scrollContentBackground(.hidden)
-                .frame(minHeight: 132)
+                .textInputAutocapitalization(.never)
+                .disableAutocorrection(true)
+                .submitLabel(.send)
+                .onSubmit {
+                    messageFocused = false
+                    Task { await ask() }
+                }
+                .frame(minHeight: 56)
                 .padding(12)
                 .background(
                     RoundedRectangle(cornerRadius: 18, style: .continuous)
@@ -317,42 +356,17 @@ struct AskSanctuaryView: View {
                                 .stroke(Color.white.opacity(messageFocused ? 0.34 : 0.14), lineWidth: 1)
                         )
                 )
-                .overlay(alignment: .topLeading) {
-                    if viewModel.message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        Text("Example: I feel overwhelmed and need a short prayer before work.")
-                            .font(AppTheme.rounded(15, weight: .medium))
-                            .foregroundStyle(Color.white.opacity(0.46))
-                            .padding(.horizontal, 18)
-                            .padding(.vertical, 20)
-                            .allowsHitTesting(false)
-                    }
-                }
-                .overlay(alignment: .bottomTrailing) {
-                    if messageFocused {
-                        Button {
-                            messageFocused = false
-                        } label: {
-                            Image(systemName: "keyboard.chevron.compact.down")
-                                .font(.system(size: 17, weight: .bold))
-                                .foregroundStyle(.white)
-                                .frame(width: 42, height: 38)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 15, style: .continuous)
-                                        .fill(Color.white.opacity(0.12))
-                                )
-                        }
-                        .buttonStyle(.plain)
-                        .padding(10)
-                        .accessibilityLabel("Dismiss keyboard")
-                    }
-                }
+
+            Text(localization.t("ask.promptHelp"))
+                .font(AppTheme.rounded(13, weight: .medium))
+                .foregroundStyle(Color.white.opacity(0.62))
 
             HStack(spacing: 12) {
                 Button {
                     messageFocused = false
-                    Task { await viewModel.ask() }
+                    Task { await ask() }
                 } label: {
-                    Label(viewModel.isLoading ? "Asking..." : "Ask", systemImage: "paperplane.fill")
+                    Label(viewModel.isLoading ? localization.t("ask.loadingShort") : localization.t("ask.submit"), systemImage: "paperplane.fill")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(PrimaryPillButtonStyle())
@@ -383,7 +397,7 @@ struct AskSanctuaryView: View {
 
     private var signedOutPanel: some View {
         VStack(alignment: .leading, spacing: 16) {
-            messageCard("Ask Sanctuary requires a free account so responses can be protected, abuse-limited, and eventually tied to your own history.", isError: false)
+            messageCard(localization.t("ask.accountRequiredBody"), isError: false)
 
             AccountAccessView()
         }
@@ -391,11 +405,11 @@ struct AskSanctuaryView: View {
 
     private var unavailablePanel: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Label("Ask Sanctuary is unavailable", systemImage: "pause.circle")
+            Label(localization.t("ask.unavailableTitle"), systemImage: "pause.circle")
                 .font(AppTheme.rounded(18, weight: .bold))
                 .foregroundStyle(.white)
 
-            Text(viewModel.unavailableMessage ?? "Ask Sanctuary is temporarily unavailable. Please try again later.")
+            Text(localization.language == .en ? (viewModel.unavailableMessage ?? localization.t("ask.unavailableBody")) : localization.t("ask.unavailableBody"))
                 .font(AppTheme.rounded(16, weight: .medium))
                 .foregroundStyle(AppTheme.subtitleText)
                 .fixedSize(horizontal: false, vertical: true)
@@ -410,7 +424,7 @@ struct AskSanctuaryView: View {
             ProgressView()
                 .tint(AppTheme.tabActive)
 
-            Text("Preparing a response...")
+            Text(localization.t("ask.loading"))
                 .font(AppTheme.rounded(16, weight: .semibold))
                 .foregroundStyle(AppTheme.subtitleText)
         }
@@ -422,16 +436,16 @@ struct AskSanctuaryView: View {
     private func responseCard(_ response: APIAskSanctuaryResponse) -> some View {
         VStack(alignment: .leading, spacing: 18) {
             if response.requiresAccount {
-                messageCard(response.message ?? "Please sign in to use Ask Sanctuary.", isError: false)
+                messageCard(response.message ?? localization.t("ask.signInRequired"), isError: false)
             } else if response.requiresUpgrade {
-                messageCard(response.message ?? "You have reached today’s Ask Sanctuary limit.", isError: false)
+                messageCard(response.message ?? localization.t("ask.limitReached"), isError: false)
             } else if let message = response.message, response.status != "OK" {
                 messageCard(message, isError: response.status == "GUARDED")
             }
 
             if let theme = response.theme {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Theme")
+                    Text(localization.t("ask.theme"))
                         .font(AppTheme.rounded(13, weight: .bold))
                         .foregroundStyle(AppTheme.tabActive)
                     Text(theme)
@@ -443,34 +457,34 @@ struct AskSanctuaryView: View {
 
             if response.oldTestament != nil || response.newTestament != nil {
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("Scripture")
+                    Text(localization.t("ask.scripture"))
                         .font(AppTheme.rounded(13, weight: .bold))
                         .foregroundStyle(AppTheme.tabActive)
 
                     if let oldTestament = response.oldTestament {
-                        responseRow(icon: "book.closed", title: "Old Testament", body: oldTestament.displayText)
+                        responseRow(icon: "book.closed", title: localization.t("ask.oldTestament"), body: oldTestament.displayText)
                     }
 
                     if let newTestament = response.newTestament {
-                        responseRow(icon: "book", title: "New Testament", body: newTestament.displayText)
+                        responseRow(icon: "book", title: localization.t("ask.newTestament"), body: newTestament.displayText)
                     }
                 }
             }
 
             if let saint = response.saint {
-                responseSection(title: "Saint", body: saint)
+                responseSection(title: localization.t("ask.saint"), body: saint)
             }
 
             if let prayer = response.prayer {
-                responseSection(title: "Prayer", body: prayer)
+                responseSection(title: localization.t("ask.prayer"), body: prayer)
             }
 
             if let reflection = response.reflection {
-                responseSection(title: "Reflection", body: reflection)
+                responseSection(title: localization.t("ask.reflection"), body: reflection)
             }
 
             if let action = response.action {
-                responseSection(title: "Action", body: action)
+                responseSection(title: localization.t("ask.action"), body: action)
             }
         }
         .padding(18)
@@ -530,6 +544,7 @@ private struct AskSanctuaryDisclaimerView: View {
     let errorMessage: String?
     let onCancel: () -> Void
     let onAccept: () async -> Void
+    @EnvironmentObject private var localization: LocalizationManager
 
     var body: some View {
         ZStack {
@@ -538,16 +553,16 @@ private struct AskSanctuaryDisclaimerView: View {
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 18) {
                     VStack(alignment: .leading, spacing: 10) {
-                        Label("Before You Ask", systemImage: "lock.shield")
+                        Label(localization.t("ask.disclaimerTitle"), systemImage: "lock.shield")
                             .font(AppTheme.rounded(15, weight: .bold))
                             .foregroundStyle(AppTheme.tabActive)
 
-                        Text("A private place for prayerful support.")
+                        Text(localization.t("ask.disclaimerHeadline"))
                             .font(AppTheme.rounded(30, weight: .bold))
                             .foregroundStyle(.white)
                             .fixedSize(horizontal: false, vertical: true)
 
-                        Text("Ask Sanctuary can help you reflect, pray, and find a next faithful step. Please read this once before continuing.")
+                        Text(localization.t("ask.disclaimerBody"))
                             .font(AppTheme.rounded(16, weight: .medium))
                             .foregroundStyle(AppTheme.subtitleText)
                             .fixedSize(horizontal: false, vertical: true)
@@ -558,26 +573,26 @@ private struct AskSanctuaryDisclaimerView: View {
                     VStack(alignment: .leading, spacing: 14) {
                         disclaimerRow(
                             icon: "eye.slash",
-                            title: "Your question text is not stored",
-                            body: "Sanctuary does not save the text you type. We store limited metadata, such as usage counts, safety category, response status, and a one-way hash used for abuse prevention and response reuse."
+                            title: localization.t("ask.disclaimerPrivacyTitle"),
+                            body: localization.t("ask.disclaimerPrivacyBody")
                         )
 
                         disclaimerRow(
                             icon: "sparkles",
-                            title: "Processed with faith in mind",
-                            body: "Your question is processed to prepare a Catholic companion response. Sanctuary operators should not see your question text in the app database."
+                            title: localization.t("ask.disclaimerFaithTitle"),
+                            body: localization.t("ask.disclaimerFaithBody")
                         )
 
                         disclaimerRow(
                             icon: "cross.case",
-                            title: "Not emergency or professional care",
-                            body: "Ask Sanctuary is not a priest, doctor, therapist, lawyer, or emergency service. If there is immediate danger, call emergency services. For confession, sacramental questions, medical care, legal advice, or serious mental health needs, speak with the appropriate professional or a priest."
+                            title: localization.t("ask.disclaimerCareTitle"),
+                            body: localization.t("ask.disclaimerCareBody")
                         )
 
                         disclaimerRow(
                             icon: "heart",
-                            title: "Catholic spiritual support",
-                            body: "Responses are meant for prayer, Scripture reflection, encouragement, and simple next steps. They may be imperfect and should be received with discernment."
+                            title: localization.t("ask.disclaimerSupportTitle"),
+                            body: localization.t("ask.disclaimerSupportBody")
                         )
                     }
                     .padding(18)
@@ -599,7 +614,7 @@ private struct AskSanctuaryDisclaimerView: View {
                     Button {
                         Task { await onAccept() }
                     } label: {
-                        Label("I Understand", systemImage: "checkmark.circle.fill")
+                        Label(localization.t("ask.disclaimerAccept"), systemImage: "checkmark.circle.fill")
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(PrimaryPillButtonStyle())
@@ -607,7 +622,7 @@ private struct AskSanctuaryDisclaimerView: View {
                     Button {
                         onCancel()
                     } label: {
-                        Text("Not Now")
+                        Text(localization.t("ask.disclaimerCancel"))
                             .font(AppTheme.rounded(16, weight: .bold))
                             .foregroundStyle(AppTheme.subtitleText)
                             .frame(maxWidth: .infinity)
@@ -637,7 +652,7 @@ private struct AskSanctuaryDisclaimerView: View {
                             )
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel("Close Ask Sanctuary")
+                    .accessibilityLabel(localization.t("ask.closeAccessibility"))
 
                     Spacer()
                 }

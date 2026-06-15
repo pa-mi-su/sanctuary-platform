@@ -20,7 +20,7 @@ sanctuary:
       enabled: ${ASK_SANCTUARY_CACHE_ENABLED:true}
       window: ${ASK_SANCTUARY_CACHE_WINDOW:24h}
     openai:
-      api-key: ${SANCTUARY_ASK_SANCTUARY_OPENAI_API_KEY:${OPENAI_API_KEY:}}
+      api-key: ${SANCTUARY_ASK_SANCTUARY_OPENAI_API_KEY:}
       model: ${ASK_SANCTUARY_OPENAI_MODEL:gpt-4o-mini}
       classification-model: ${ASK_SANCTUARY_OPENAI_CLASSIFICATION_MODEL:gpt-4.1-nano}
       generation-max-output-tokens: ${ASK_SANCTUARY_GENERATION_MAX_OUTPUT_TOKENS:700}

@@ -36,6 +36,11 @@ public class OpenAiAskSanctuaryModelClient implements AskSanctuaryModelClient, A
     }
 
     @Override
+    public boolean isConfigured() {
+        return true;
+    }
+
+    @Override
     public AskSanctuaryClassification classify(String message) {
         try {
             Map<?, ?> response = restClient.post()
@@ -83,7 +88,7 @@ public class OpenAiAskSanctuaryModelClient implements AskSanctuaryModelClient, A
     private Map<String, Object> requestBody(AskSanctuaryModelRequest request) {
         return Map.of(
             "model", properties.resolvedModel(),
-            "instructions", instructions(request.intent(), request.retry()),
+            "instructions", instructions(request.intent(), request.retry(), request.locale(), request.variationGuidance()),
             "input", request.message(),
             "max_output_tokens", properties.resolvedGenerationMaxOutputTokens(),
             "text", Map.of("format", schema())
@@ -102,7 +107,7 @@ public class OpenAiAskSanctuaryModelClient implements AskSanctuaryModelClient, A
 
     private String classificationInstructions() {
         return """
-            Classify one user message for Ask Sanctuary, a Catholic spiritual companion feature.
+            Classify one Sanctuary Companion input containing exactly one simple feeling word.
             Do not answer the user. Return only JSON matching the schema.
 
             Choose the best intent:
@@ -115,7 +120,7 @@ public class OpenAiAskSanctuaryModelClient implements AskSanctuaryModelClient, A
             - GRATITUDE: gratitude, thanksgiving, blessing, praise.
             - CATHOLIC_QUESTION: Catholic faith, sacraments, confession, Mass, saints, sin, or priest questions.
             - SCRIPTURE_HELP: asks about Bible, Scripture, verse, psalm, Gospel, or passage.
-            - NOT_SPIRITUAL_OR_IRRELEVANT: jokes, spam, trivia, weather, markets, sports, or requests unrelated to prayer, Catholic faith, or serious life concerns.
+            - NOT_SPIRITUAL_OR_IRRELEVANT: jokes, spam, profanity, crude body-function words, trivia, weather, markets, sports, or words unrelated to prayer, Catholic faith, feelings, or serious life concerns.
             - VIOLENCE_RISK: intent or desire to harm another person.
             - SELF_HARM_RISK: intent or desire to self-harm or die.
             - EMERGENCY_OR_MEDICAL: urgent medical danger or emergency services need.
@@ -125,22 +130,37 @@ public class OpenAiAskSanctuaryModelClient implements AskSanctuaryModelClient, A
             """;
     }
 
-    private String instructions(AskSanctuaryIntent intent, boolean retry) {
+    private String instructions(AskSanctuaryIntent intent, boolean retry, String locale, String recentContentGuidance) {
         String retryLine = retry
             ? "Previous output failed validation. Return only valid JSON matching the schema, with every required field populated."
             : "Return only valid JSON matching the schema.";
+        String language = switch (locale == null ? "en" : locale) {
+            case "es" -> "Spanish";
+            case "pl" -> "Polish";
+            default -> "English";
+        };
 
         return """
-            You are Ask Sanctuary, a fenced Catholic companion feature.
-            The backend already classified and guarded the user's message. Generate a Catholic companion payload for intent %s.
+            You are Sanctuary Companion, a fenced Catholic companion feature.
+            The backend already classified and guarded the user's input. The input is exactly one feeling word, not a long question. Generate a Catholic companion payload for intent %s.
+            Respond in %s for all user-facing JSON fields. Keep Bible book names understandable in that language.
             Be Catholic, direct, practical, and human. Do not sound like therapy-speak or a greeting card.
             Do not replace a priest, doctor, therapist, lawyer, or emergency service.
             Do not tell people what major life decision to make. Do not say God caused suffering.
             Do not tell someone to forgive immediately in betrayal or abuse scenarios.
             Use cautious wording for sacramental or serious moral questions and suggest speaking with a priest when appropriate.
-            Choose one Old Testament reference and one New Testament reference, plus one saint, one prayer, a reflection, and one concrete action.
+            Choose one Old Testament reference and one New Testament reference, plus one saint, one prayer, a reflection, and one concrete action based on that feeling word.
+            Prefer meaningful guided variety: if recent content is listed below, do not repeat the same theme, Scripture references, saint, or prayer unless there is no faithful alternative.
             %s
-            """.formatted(intent.name(), retryLine);
+            %s
+            """.formatted(intent.name(), language, variationGuidance(recentContentGuidance), retryLine);
+    }
+
+    private String variationGuidance(String guidance) {
+        if (guidance == null || guidance.isBlank()) {
+            return "No recent content was supplied.";
+        }
+        return guidance;
     }
 
     private Map<String, Object> schema() {
