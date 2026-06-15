@@ -109,9 +109,9 @@ class SessionRepository(
         }
     }
 
-    suspend fun resetPassword(email: String, code: String, newPassword: String): AuthStatusResponse =
+    suspend fun resetPassword(email: String, code: String, newPassword: String): SessionBootstrapResult =
         withContext(Dispatchers.IO) {
-            runApiCall {
+            val response = runApiCall {
                 api.resetPassword(
                     AuthResetPasswordRequest(
                         email = email,
@@ -120,6 +120,9 @@ class SessionRepository(
                     )
                 )
             }
+            val session = response.toStoredSession()
+            persistSession(session)
+            loadProfile(session)
         }
 
     suspend fun listSaints(query: String): List<SaintSummary> = withContext(Dispatchers.IO) {

@@ -71,7 +71,19 @@ type AuthStep = 'landing' | 'login' | 'register' | 'confirm' | 'forgot' | 'reset
 
               <label class="field">
                 <span>{{ t('Password', 'Contraseña', 'Hasło') }}</span>
-                <input type="password" [(ngModel)]="loginPassword" name="loginPassword" autocomplete="current-password" />
+                <div class="password-control">
+                  <input [type]="showLoginPassword ? 'text' : 'password'" [(ngModel)]="loginPassword" name="loginPassword" autocomplete="current-password" />
+                  <div class="password-actions">
+                    @if (loginPassword) {
+                      <button class="password-icon-button" type="button" [attr.aria-label]="t('Clear password', 'Borrar contraseña', 'Wyczyść hasło')" (click)="loginPassword = ''">
+                        <span aria-hidden="true">×</span>
+                      </button>
+                    }
+                    <button class="password-icon-button" type="button" [attr.aria-label]="showLoginPassword ? t('Hide password', 'Ocultar contraseña', 'Ukryj hasło') : t('Show password', 'Mostrar contraseña', 'Pokaż hasło')" (click)="showLoginPassword = !showLoginPassword">
+                      <span class="password-eye" [class.password-eye--hidden]="showLoginPassword" aria-hidden="true"></span>
+                    </button>
+                  </div>
+                </div>
               </label>
 
               <button class="text-button" type="button" [disabled]="pending()" (click)="openForgotPassword()">
@@ -114,12 +126,36 @@ type AuthStep = 'landing' | 'login' | 'register' | 'confirm' | 'forgot' | 'reset
               <div class="field-grid">
                 <label class="field">
                   <span>{{ t('Password', 'Contraseña', 'Hasło') }}</span>
-                  <input type="password" [(ngModel)]="registerPassword" name="registerPassword" autocomplete="new-password" />
+                  <div class="password-control">
+                    <input [type]="showRegisterPassword ? 'text' : 'password'" [(ngModel)]="registerPassword" name="registerPassword" autocomplete="new-password" />
+                    <div class="password-actions">
+                      @if (registerPassword) {
+                        <button class="password-icon-button" type="button" [attr.aria-label]="t('Clear password', 'Borrar contraseña', 'Wyczyść hasło')" (click)="registerPassword = ''">
+                          <span aria-hidden="true">×</span>
+                        </button>
+                      }
+                      <button class="password-icon-button" type="button" [attr.aria-label]="showRegisterPassword ? t('Hide password', 'Ocultar contraseña', 'Ukryj hasło') : t('Show password', 'Mostrar contraseña', 'Pokaż hasło')" (click)="showRegisterPassword = !showRegisterPassword">
+                        <span class="password-eye" [class.password-eye--hidden]="showRegisterPassword" aria-hidden="true"></span>
+                      </button>
+                    </div>
+                  </div>
                 </label>
 
                 <label class="field">
                   <span>{{ t('Confirm password', 'Confirmar contraseña', 'Potwierdź hasło') }}</span>
-                  <input type="password" [(ngModel)]="registerPasswordConfirmation" name="registerPasswordConfirmation" autocomplete="new-password" />
+                  <div class="password-control">
+                    <input [type]="showRegisterPasswordConfirmation ? 'text' : 'password'" [(ngModel)]="registerPasswordConfirmation" name="registerPasswordConfirmation" autocomplete="new-password" />
+                    <div class="password-actions">
+                      @if (registerPasswordConfirmation) {
+                        <button class="password-icon-button" type="button" [attr.aria-label]="t('Clear password', 'Borrar contraseña', 'Wyczyść hasło')" (click)="registerPasswordConfirmation = ''">
+                          <span aria-hidden="true">×</span>
+                        </button>
+                      }
+                      <button class="password-icon-button" type="button" [attr.aria-label]="showRegisterPasswordConfirmation ? t('Hide password', 'Ocultar contraseña', 'Ukryj hasło') : t('Show password', 'Mostrar contraseña', 'Pokaż hasło')" (click)="showRegisterPasswordConfirmation = !showRegisterPasswordConfirmation">
+                        <span class="password-eye" [class.password-eye--hidden]="showRegisterPasswordConfirmation" aria-hidden="true"></span>
+                      </button>
+                    </div>
+                  </div>
                 </label>
               </div>
 
@@ -238,12 +274,36 @@ type AuthStep = 'landing' | 'login' | 'register' | 'confirm' | 'forgot' | 'reset
               <div class="field-grid">
                 <label class="field">
                   <span>{{ t('New password', 'Nueva contraseña', 'Nowe hasło') }}</span>
-                  <input type="password" [(ngModel)]="resetPassword" name="resetPassword" autocomplete="new-password" />
+                  <div class="password-control">
+                    <input [type]="showResetPassword ? 'text' : 'password'" [(ngModel)]="resetPassword" name="resetPassword" autocomplete="new-password" />
+                    <div class="password-actions">
+                      @if (resetPassword) {
+                        <button class="password-icon-button" type="button" [attr.aria-label]="t('Clear password', 'Borrar contraseña', 'Wyczyść hasło')" (click)="resetPassword = ''">
+                          <span aria-hidden="true">×</span>
+                        </button>
+                      }
+                      <button class="password-icon-button" type="button" [attr.aria-label]="showResetPassword ? t('Hide password', 'Ocultar contraseña', 'Ukryj hasło') : t('Show password', 'Mostrar contraseña', 'Pokaż hasło')" (click)="showResetPassword = !showResetPassword">
+                        <span class="password-eye" [class.password-eye--hidden]="showResetPassword" aria-hidden="true"></span>
+                      </button>
+                    </div>
+                  </div>
                 </label>
 
                 <label class="field">
                   <span>{{ t('Confirm new password', 'Confirmar nueva contraseña', 'Potwierdź nowe hasło') }}</span>
-                  <input type="password" [(ngModel)]="resetPasswordConfirmation" name="resetPasswordConfirmation" autocomplete="new-password" />
+                  <div class="password-control">
+                    <input [type]="showResetPasswordConfirmation ? 'text' : 'password'" [(ngModel)]="resetPasswordConfirmation" name="resetPasswordConfirmation" autocomplete="new-password" />
+                    <div class="password-actions">
+                      @if (resetPasswordConfirmation) {
+                        <button class="password-icon-button" type="button" [attr.aria-label]="t('Clear password', 'Borrar contraseña', 'Wyczyść hasło')" (click)="resetPasswordConfirmation = ''">
+                          <span aria-hidden="true">×</span>
+                        </button>
+                      }
+                      <button class="password-icon-button" type="button" [attr.aria-label]="showResetPasswordConfirmation ? t('Hide password', 'Ocultar contraseña', 'Ukryj hasło') : t('Show password', 'Mostrar contraseña', 'Pokaż hasło')" (click)="showResetPasswordConfirmation = !showResetPasswordConfirmation">
+                        <span class="password-eye" [class.password-eye--hidden]="showResetPasswordConfirmation" aria-hidden="true"></span>
+                      </button>
+                    </div>
+                  </div>
                 </label>
               </div>
 
@@ -317,6 +377,11 @@ export class AuthPageComponent {
   protected resetCode = '';
   protected resetPassword = '';
   protected resetPasswordConfirmation = '';
+  protected showLoginPassword = false;
+  protected showRegisterPassword = false;
+  protected showRegisterPasswordConfirmation = false;
+  protected showResetPassword = false;
+  protected showResetPasswordConfirmation = false;
 
   protected passwordRules(): Array<{ label: string; met: boolean }> {
     return this.passwordRulesFor(this.registerPassword);
@@ -696,20 +761,17 @@ export class AuthPageComponent {
 
     try {
       const email = this.resetEmail.trim();
-      const message = await this.auth.resetPassword({
+      await this.auth.resetPassword({
         email,
         code: this.resetCode.trim(),
         newPassword: this.resetPassword,
       });
       this.pending.set(false);
-      this.message.set(message);
-      this.loginEmail = email;
-      this.loginPassword = '';
       this.resetCode = '';
       this.resetPassword = '';
       this.resetPasswordConfirmation = '';
       this.forgotEmail = email;
-      this.step.set('login');
+      this.authenticated.emit();
     } catch {
       this.pending.set(false);
       this.error.set(this.auth.state().message);
