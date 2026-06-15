@@ -157,17 +157,18 @@ public class CognitoAuthService {
         return new AuthStatusResponse("If that email belongs to a Sanctuary account, a password reset code is on the way.");
     }
 
-    public AuthStatusResponse resetPassword(AuthResetPasswordRequest request) {
+    public AuthSessionResponse resetPassword(AuthResetPasswordRequest request) {
         validateConfigured();
+        String email = normalizedEmail(request.email());
 
         try {
             cognitoClient.confirmForgotPassword(ConfirmForgotPasswordRequest.builder()
                 .clientId(authProperties.clientId())
-                .username(normalizedEmail(request.email()))
+                .username(email)
                 .confirmationCode(cleaned(request.code()))
                 .password(request.newPassword())
                 .build());
-            return new AuthStatusResponse("Your password is updated. Please sign in to continue.");
+            return login(new AuthLoginRequest(email, request.newPassword()));
         } catch (CodeMismatchException exception) {
             throw new AuthFlowException(HttpStatus.BAD_REQUEST, "That reset code does not match. Please try again.");
         } catch (ExpiredCodeException exception) {

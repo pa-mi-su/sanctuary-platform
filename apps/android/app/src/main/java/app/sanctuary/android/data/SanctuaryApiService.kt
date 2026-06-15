@@ -37,7 +37,7 @@ interface SanctuaryApiService {
     suspend fun forgotPassword(@Body request: AuthForgotPasswordRequest): AuthStatusResponse
 
     @POST("auth/reset-password")
-    suspend fun resetPassword(@Body request: AuthResetPasswordRequest): AuthStatusResponse
+    suspend fun resetPassword(@Body request: AuthResetPasswordRequest): AuthSessionResponse
 
     @GET("me")
     suspend fun me(): UserProfileResponse

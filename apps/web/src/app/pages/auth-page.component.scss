@@ -197,6 +197,74 @@
   font: inherit;
 }
 
+.password-control {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.password-control input {
+  width: 100%;
+  padding-right: 90px;
+}
+
+.password-actions {
+  position: absolute;
+  inset-inline-end: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.password-icon-button {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.82);
+  cursor: pointer;
+  font: inherit;
+  font-size: 1.35rem;
+  line-height: 1;
+}
+
+.password-icon-button:hover,
+.password-icon-button:focus-visible {
+  background: rgba(142, 224, 242, 0.18);
+  color: #ffffff;
+}
+
+.password-eye {
+  position: relative;
+  width: 18px;
+  height: 12px;
+  border: 2px solid currentColor;
+  border-radius: 999px / 720px;
+}
+
+.password-eye::before {
+  content: '';
+  position: absolute;
+  inset: 3px 6px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.password-eye--hidden::after {
+  content: '';
+  position: absolute;
+  left: 7px;
+  top: -5px;
+  width: 2px;
+  height: 20px;
+  border-radius: 999px;
+  background: currentColor;
+  transform: rotate(45deg);
+}
+
 .primary-action,
 .secondary-action {
   min-height: 54px;

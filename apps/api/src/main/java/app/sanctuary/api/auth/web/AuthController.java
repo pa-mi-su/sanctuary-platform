@@ -102,8 +102,18 @@ public class AuthController {
     }
 
     @PostMapping("/reset-password")
-    public AuthStatusResponse resetPassword(@Valid @RequestBody AuthResetPasswordRequest request) {
+    public AuthSessionResponse resetPassword(@Valid @RequestBody AuthResetPasswordRequest request) {
         return cognitoAuthService.resetPassword(request);
+    }
+
+    @PostMapping("/web/reset-password")
+    public AuthWebSessionResponse webResetPassword(
+        @Valid @RequestBody AuthResetPasswordRequest request,
+        HttpServletResponse response
+    ) {
+        AuthSessionResponse session = cognitoAuthService.resetPassword(request);
+        webAuthCookieService.setSessionCookies(response, session);
+        return AuthWebSessionResponse.from(session);
     }
 
     @ExceptionHandler(AuthFlowException.class)
