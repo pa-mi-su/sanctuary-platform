@@ -300,7 +300,7 @@ actor SanctuaryAPIClient {
         try await performRequest(path: "/auth/forgot-password", method: "POST", body: APIAuthForgotPasswordRequest(email: email), token: nil)
     }
 
-    func resetPassword(email: String, code: String, newPassword: String) async throws -> APIAuthStatusResponse {
+    func resetPassword(email: String, code: String, newPassword: String) async throws -> APIAuthSessionResponse {
         try await performRequest(
             path: "/auth/reset-password",
             method: "POST",

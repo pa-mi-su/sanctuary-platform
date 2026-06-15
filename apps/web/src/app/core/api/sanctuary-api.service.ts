@@ -344,8 +344,8 @@ export class SanctuaryApiService {
     return this.http.post<AuthStatusResponse>(`${this.apiBaseUrl}/auth/forgot-password`, request);
   }
 
-  resetPassword(request: AuthResetPasswordRequest): Observable<AuthStatusResponse> {
-    return this.http.post<AuthStatusResponse>(`${this.apiBaseUrl}/auth/reset-password`, request);
+  resetPassword(request: AuthResetPasswordRequest): Observable<AuthSessionResponse> {
+    return this.http.post<AuthSessionResponse>(`${this.apiBaseUrl}/auth/reset-password`, request);
   }
 
   login(request: AuthLoginRequest): Observable<AuthSessionResponse> {
@@ -358,6 +358,10 @@ export class SanctuaryApiService {
 
   loginWeb(request: AuthLoginRequest): Observable<AuthWebSessionResponse> {
     return this.http.post<AuthWebSessionResponse>(`${this.apiBaseUrl}/auth/web/login`, request);
+  }
+
+  resetPasswordWeb(request: AuthResetPasswordRequest): Observable<AuthWebSessionResponse> {
+    return this.http.post<AuthWebSessionResponse>(`${this.apiBaseUrl}/auth/web/reset-password`, request);
   }
 
   refreshWebSession(): Observable<AuthWebSessionResponse> {

@@ -232,11 +232,14 @@ final class AccountSessionStore: ObservableObject {
 
         do {
             let response = try await apiClient.resetPassword(email: email, code: code, newPassword: newPassword)
+            let session = buildSession(from: response, fallbackRefreshToken: nil)
+            self.session = session
             pendingPasswordResetEmail = nil
-            status = .signedOut
-            setMessage(response.message, isError: false)
+            try persist(session)
+            await refreshProfile(fallbackSession: session)
             return true
         } catch {
+            clearStoredSession()
             status = .failed
             setMessage(error.localizedDescription, isError: true)
             return false
