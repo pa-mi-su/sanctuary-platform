@@ -3,12 +3,10 @@ import SwiftUI
 struct HomeView: View {
     let environment: AppEnvironment
     @EnvironmentObject private var localization: LocalizationManager
-    @EnvironmentObject private var accountStore: AccountSessionStore
 
     @State private var revealContent = false
     @State private var showLanguageDialog = false
     @State private var showAbout = false
-    @State private var showAskSanctuary = false
     @State private var showPrayersSearch = false
     @State private var showRosarySearch = false
     @State private var showSaintsList = false
@@ -112,71 +110,23 @@ struct HomeView: View {
                                     .foregroundStyle(AppTheme.heroEyebrow)
                                     .multilineTextAlignment(.center)
 
-                                Button {
-                                    showAskSanctuary = true
-                                } label: {
-                                    ZStack {
-                                        Circle()
-                                            .fill(AppTheme.glowGold.opacity(0.24))
-                                            .frame(width: logoSize + (56 * scale), height: logoSize + (56 * scale))
-                                            .blur(radius: 18)
+                                ZStack {
+                                    Circle()
+                                        .fill(AppTheme.glowGold.opacity(0.22))
+                                        .frame(width: logoSize + (44 * scale), height: logoSize + (44 * scale))
+                                        .blur(radius: 16)
 
-                                        Circle()
-                                            .fill(AppTheme.glowBlue.opacity(0.16))
-                                            .frame(width: logoSize + (22 * scale), height: logoSize + (22 * scale))
-                                            .blur(radius: 10)
-                                            .offset(x: 8 * scale, y: -8 * scale)
-
-                                        Image("BrandLogo")
-                                            .resizable()
-                                            .scaledToFit()
-                                            .frame(width: logoSize, height: logoSize)
-                                            .clipShape(RoundedRectangle(cornerRadius: 30 * scale, style: .continuous))
-                                            .overlay(
-                                                RoundedRectangle(cornerRadius: 30 * scale, style: .continuous)
-                                                    .fill(
-                                                        LinearGradient(
-                                                            colors: [
-                                                                Color.white.opacity(0.24),
-                                                                Color.clear,
-                                                                Color.black.opacity(0.24)
-                                                            ],
-                                                            startPoint: .topLeading,
-                                                            endPoint: .bottomTrailing
-                                                        )
-                                                    )
-                                            )
-                                            .overlay(
-                                                RoundedRectangle(cornerRadius: 30 * scale, style: .continuous)
-                                                    .stroke(Color.white.opacity(0.22), lineWidth: 1)
-                                            )
-                                            .shadow(color: Color.black.opacity(0.38), radius: 24, x: 0, y: 16)
-                                            .shadow(color: AppTheme.glowGold.opacity(0.22), radius: 18, x: 0, y: 0)
-
-                                        VStack {
-                                            Spacer()
-                                            Text("Ask")
-                                                .font(AppTheme.rounded(13 * scale, weight: .bold))
-                                                .foregroundStyle(.white)
-                                                .padding(.horizontal, 14 * scale)
-                                                .padding(.vertical, 7 * scale)
-                                                .background(
-                                                    Capsule()
-                                                        .fill(AppTheme.primaryButtonGradient)
-                                                        .overlay(
-                                                            Capsule()
-                                                                .stroke(Color.white.opacity(0.2), lineWidth: 1)
-                                                        )
-                                                )
-                                                .shadow(color: Color.black.opacity(0.24), radius: 8, x: 0, y: 5)
-                                                .offset(y: 14 * scale)
-                                        }
+                                    Image("BrandLogo")
+                                        .resizable()
+                                        .scaledToFit()
                                         .frame(width: logoSize, height: logoSize)
-                                    }
+                                        .clipShape(RoundedRectangle(cornerRadius: 30 * scale, style: .continuous))
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 30 * scale, style: .continuous)
+                                                .stroke(Color.white.opacity(0.14), lineWidth: 1)
+                                        )
+                                        .shadow(color: Color.black.opacity(0.26), radius: 22, x: 0, y: 12)
                                 }
-                                .buttonStyle(.plain)
-                                .accessibilityLabel("Ask Sanctuary")
-                                .accessibilityHint("Opens Ask Sanctuary.")
                                 .padding(.top, 6 * scale)
 
                                 VStack(spacing: 10 * scale) {
@@ -195,11 +145,6 @@ struct HomeView: View {
                                 Text(localization.t("home.supporting"))
                                     .font(AppTheme.rounded(14 * scale, weight: .medium))
                                     .foregroundStyle(Color.white.opacity(0.65))
-                                    .multilineTextAlignment(.center)
-
-                                Text("Tap the logo to ask Sanctuary.")
-                                    .font(AppTheme.rounded(14 * scale, weight: .bold))
-                                    .foregroundStyle(AppTheme.tabActive)
                                     .multilineTextAlignment(.center)
                             }
                             .padding(.horizontal, 20 * scale)
@@ -248,9 +193,6 @@ struct HomeView: View {
             }
             .fullScreenCover(isPresented: $showAbout) {
                 AboutView()
-            }
-            .fullScreenCover(isPresented: $showAskSanctuary) {
-                AskSanctuaryView(environment: environment, accountStore: accountStore)
             }
             .fullScreenCover(isPresented: $showPrayersSearch) {
                 PrayersSearchView(environment: environment)

@@ -153,15 +153,6 @@ interface SanctuaryApiService {
         @Query("start") start: String,
         @Query("end") end: String
     ): List<LiturgicalDayResponse>
-
-    @GET("api/ask-sanctuary/status")
-    suspend fun getAskSanctuaryStatus(): AskSanctuaryStatusResponse
-
-    @POST("api/ask-sanctuary/disclaimer")
-    suspend fun acceptAskSanctuaryDisclaimer(): AskSanctuaryStatusResponse
-
-    @POST("api/ask-sanctuary")
-    suspend fun askSanctuary(@Body request: AskSanctuaryRequest): AskSanctuaryResponse
 }
 
 class AuthHeaderInterceptor(

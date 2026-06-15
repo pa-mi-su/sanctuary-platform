@@ -1,8 +1,8 @@
 spring:
   datasource:
-    url: ${SANCTUARY_DB_URL:jdbc:postgresql://localhost:5432/sanctuary}
-    username: ${SANCTUARY_DB_USERNAME:sanctuary}
-    password: ${SANCTUARY_DB_PASSWORD:change-me-now}
+    url: ${SANCTUARY_DB_URL}
+    username: ${SANCTUARY_DB_USERNAME}
+    password: ${SANCTUARY_DB_PASSWORD}
   security:
     oauth2:
       resourceserver:

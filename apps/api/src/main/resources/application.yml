@@ -14,26 +14,6 @@ management:
         include: health,info
 
 sanctuary:
-  ask-sanctuary:
-    enabled: ${ASK_SANCTUARY_ENABLED:false}
-    cache:
-      enabled: ${ASK_SANCTUARY_CACHE_ENABLED:true}
-      window: ${ASK_SANCTUARY_CACHE_WINDOW:24h}
-    openai:
-      api-key: ${SANCTUARY_ASK_SANCTUARY_OPENAI_API_KEY:${OPENAI_API_KEY:}}
-      model: ${ASK_SANCTUARY_OPENAI_MODEL:gpt-4o-mini}
-      classification-model: ${ASK_SANCTUARY_OPENAI_CLASSIFICATION_MODEL:gpt-4.1-nano}
-      generation-max-output-tokens: ${ASK_SANCTUARY_GENERATION_MAX_OUTPUT_TOKENS:700}
-      classification-max-output-tokens: ${ASK_SANCTUARY_CLASSIFICATION_MAX_OUTPUT_TOKENS:80}
-    limits:
-      free-daily-limit: ${ASK_SANCTUARY_FREE_DAILY_LIMIT:3}
-      plus-daily-limit: ${ASK_SANCTUARY_PLUS_DAILY_LIMIT:50}
-      ip-daily-limit: ${ASK_SANCTUARY_IP_DAILY_LIMIT:100}
-      burst-limit: ${ASK_SANCTUARY_BURST_LIMIT:10}
-      burst-window: ${ASK_SANCTUARY_BURST_WINDOW:1m}
-      misuse-threshold: ${ASK_SANCTUARY_MISUSE_THRESHOLD:3}
-      misuse-window: ${ASK_SANCTUARY_MISUSE_WINDOW:24h}
-      misuse-lock-duration: ${ASK_SANCTUARY_MISUSE_LOCK_DURATION:24h}
   auth:
     enabled: false
     audience: ""

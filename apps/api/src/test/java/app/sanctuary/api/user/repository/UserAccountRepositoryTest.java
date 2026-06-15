@@ -27,30 +27,6 @@ class UserAccountRepositoryTest {
 
         InOrder inOrder = inOrder(jdbcTemplate);
         inOrder.verify(jdbcTemplate).update(eq("""
-                DELETE FROM ask_sanctuary_sessions
-                WHERE user_id = ?
-                """), eq(userId));
-        inOrder.verify(jdbcTemplate).update(eq("""
-                DELETE FROM ask_sanctuary_request_events
-                WHERE user_id = ?
-                """), eq(userId));
-        inOrder.verify(jdbcTemplate).update(eq("""
-                DELETE FROM ask_sanctuary_misuse_events
-                WHERE user_id = ?
-                """), eq(userId));
-        inOrder.verify(jdbcTemplate).update(eq("""
-                DELETE FROM ask_sanctuary_account_locks
-                WHERE user_id = ?
-                """), eq(userId));
-        inOrder.verify(jdbcTemplate).update(eq("""
-                DELETE FROM ask_sanctuary_daily_usage
-                WHERE user_id = ?
-                """), eq(userId));
-        inOrder.verify(jdbcTemplate).update(eq("""
-                DELETE FROM ask_sanctuary_user_entitlements
-                WHERE user_id = ?
-                """), eq(userId));
-        inOrder.verify(jdbcTemplate).update(eq("""
                 DELETE FROM user_activity_events
                 WHERE user_id = ?
                 """), eq(userId));

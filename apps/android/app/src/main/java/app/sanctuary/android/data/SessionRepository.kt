@@ -426,20 +426,6 @@ class SessionRepository(
             }
     }
 
-    suspend fun fetchAskSanctuaryStatus(): AskSanctuaryStatusResponse = withContext(Dispatchers.IO) {
-        authenticatedCall { it.getAskSanctuaryStatus() }
-    }
-
-    suspend fun acceptAskSanctuaryDisclaimer(): AskSanctuaryStatusResponse = withContext(Dispatchers.IO) {
-        authenticatedCall { it.acceptAskSanctuaryDisclaimer() }
-    }
-
-    suspend fun askSanctuary(message: String): AskSanctuaryResponse = withContext(Dispatchers.IO) {
-        authenticatedCall {
-            it.askSanctuary(AskSanctuaryRequest(message = message.trim()))
-        }
-    }
-
     fun currentSession(): StoredSession? = loadSession()
 
     fun logout() {
