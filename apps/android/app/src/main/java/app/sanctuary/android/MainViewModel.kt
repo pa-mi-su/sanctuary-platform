@@ -4,8 +4,6 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import app.sanctuary.android.data.AuthRegistrationResponse
-import app.sanctuary.android.data.AskSanctuaryResponse
-import app.sanctuary.android.data.AskSanctuaryStatusResponse
 import app.sanctuary.android.data.IntentionSearchResult
 import app.sanctuary.android.data.LiturgicalDay
 import app.sanctuary.android.data.NovenaCalendarDate
@@ -89,16 +87,6 @@ data class NovenaProgressUiState(
     val error: String? = null
 )
 
-data class AskSanctuaryUiState(
-    val isOpen: Boolean = false,
-    val isLoadingStatus: Boolean = false,
-    val isSubmitting: Boolean = false,
-    val status: AskSanctuaryStatusResponse? = null,
-    val message: String = "",
-    val response: AskSanctuaryResponse? = null,
-    val error: String? = null
-)
-
 class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val reminderScheduler = AndroidReminderScheduler(application.applicationContext)
     private val repository = SessionRepository(
@@ -147,9 +135,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _novenaProgress = MutableStateFlow(NovenaProgressUiState())
     val novenaProgress: StateFlow<NovenaProgressUiState> = _novenaProgress.asStateFlow()
-
-    private val _askSanctuary = MutableStateFlow(AskSanctuaryUiState())
-    val askSanctuary: StateFlow<AskSanctuaryUiState> = _askSanctuary.asStateFlow()
 
     init {
         bootstrap()
@@ -374,7 +359,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         reminderScheduler.cancelAll()
         _session.value = SessionUiState(status = SessionStatus.SignedOut, isSavingReminderPreferences = false)
         _novenaProgress.value = NovenaProgressUiState()
-        _askSanctuary.value = AskSanctuaryUiState()
         loadInitialContent()
     }
 
@@ -399,7 +383,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 reminderScheduler.cancelAll()
                 _session.value = SessionUiState(status = SessionStatus.SignedOut)
                 _novenaProgress.value = NovenaProgressUiState()
-                _askSanctuary.value = AskSanctuaryUiState()
                 loadInitialContent()
             }.onFailure { failure ->
                 _session.update {
@@ -712,100 +695,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         error = failure.message
                     )
                 }
-        }
-    }
-
-    fun openAskSanctuary() {
-        _askSanctuary.update {
-            it.copy(
-                isOpen = true,
-                error = null
-            )
-        }
-        refreshAskSanctuaryStatus()
-    }
-
-    fun closeAskSanctuary() {
-        _askSanctuary.value = AskSanctuaryUiState()
-    }
-
-    fun updateAskSanctuaryMessage(message: String) {
-        _askSanctuary.update { it.copy(message = message, error = null) }
-    }
-
-    fun clearAskSanctuaryMessage() {
-        _askSanctuary.update { it.copy(message = "", response = null, error = null) }
-    }
-
-    fun refreshAskSanctuaryStatus() {
-        if (_session.value.status != SessionStatus.Authenticated) {
-            _askSanctuary.update {
-                it.copy(isLoadingStatus = false, status = null, error = null)
-            }
-            return
-        }
-
-        viewModelScope.launch {
-            _askSanctuary.update { it.copy(isLoadingStatus = true, error = null) }
-            runCatching {
-                withTimeoutOrNull(15_000) {
-                    repository.fetchAskSanctuaryStatus()
-                } ?: throw IllegalStateException(l10n().t("ask.statusTimeout"))
-            }.onSuccess { status ->
-                _askSanctuary.update {
-                    it.copy(isLoadingStatus = false, status = status, error = null)
-                }
-            }.onFailure { failure ->
-                _askSanctuary.update {
-                    it.copy(isLoadingStatus = false, error = failure.message ?: l10n().t("ask.error"))
-                }
-            }
-        }
-    }
-
-    fun acceptAskSanctuaryDisclaimer() {
-        if (_session.value.status != SessionStatus.Authenticated || _askSanctuary.value.isLoadingStatus) return
-
-        viewModelScope.launch {
-            _askSanctuary.update { it.copy(isLoadingStatus = true, error = null) }
-            runCatching {
-                withTimeoutOrNull(15_000) {
-                    repository.acceptAskSanctuaryDisclaimer()
-                } ?: throw IllegalStateException(l10n().t("ask.statusTimeout"))
-            }.onSuccess { status ->
-                _askSanctuary.update {
-                    it.copy(isLoadingStatus = false, status = status, error = null)
-                }
-            }.onFailure { failure ->
-                _askSanctuary.update {
-                    it.copy(isLoadingStatus = false, error = failure.message ?: l10n().t("ask.error"))
-                }
-            }
-        }
-    }
-
-    fun submitAskSanctuary() {
-        val prompt = _askSanctuary.value.message.trim()
-        if (_session.value.status != SessionStatus.Authenticated || prompt.isBlank() || _askSanctuary.value.isSubmitting) {
-            return
-        }
-
-        viewModelScope.launch {
-            _askSanctuary.update { it.copy(isSubmitting = true, response = null, error = null) }
-            runCatching {
-                withTimeoutOrNull(25_000) {
-                    repository.askSanctuary(prompt)
-                } ?: throw IllegalStateException(l10n().t("ask.submitTimeout"))
-            }.onSuccess { response ->
-                _askSanctuary.update {
-                    it.copy(isSubmitting = false, response = response, error = null)
-                }
-                refreshAskSanctuaryStatus()
-            }.onFailure { failure ->
-                _askSanctuary.update {
-                    it.copy(isSubmitting = false, error = failure.message ?: l10n().t("ask.error"))
-                }
-            }
         }
     }
 

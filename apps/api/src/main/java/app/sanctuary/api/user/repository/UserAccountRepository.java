@@ -173,48 +173,6 @@ public class UserAccountRepository {
     private void deleteOwnedUserData(UUID userId) {
         jdbcTemplate.update(
             """
-                DELETE FROM ask_sanctuary_sessions
-                WHERE user_id = ?
-                """,
-            userId
-        );
-        jdbcTemplate.update(
-            """
-                DELETE FROM ask_sanctuary_request_events
-                WHERE user_id = ?
-                """,
-            userId
-        );
-        jdbcTemplate.update(
-            """
-                DELETE FROM ask_sanctuary_misuse_events
-                WHERE user_id = ?
-                """,
-            userId
-        );
-        jdbcTemplate.update(
-            """
-                DELETE FROM ask_sanctuary_account_locks
-                WHERE user_id = ?
-                """,
-            userId
-        );
-        jdbcTemplate.update(
-            """
-                DELETE FROM ask_sanctuary_daily_usage
-                WHERE user_id = ?
-                """,
-            userId
-        );
-        jdbcTemplate.update(
-            """
-                DELETE FROM ask_sanctuary_user_entitlements
-                WHERE user_id = ?
-                """,
-            userId
-        );
-        jdbcTemplate.update(
-            """
                 DELETE FROM user_activity_events
                 WHERE user_id = ?
                 """,
