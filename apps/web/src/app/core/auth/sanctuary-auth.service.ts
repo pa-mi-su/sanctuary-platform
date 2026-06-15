@@ -144,13 +144,12 @@ export class SanctuaryAuthService {
     }
   }
 
-  async resetPassword(request: AuthResetPasswordRequest): Promise<string> {
+  async resetPassword(request: AuthResetPasswordRequest): Promise<void> {
     this.state.update((current) => ({ ...current, status: 'loading', message: null }));
 
     try {
-      const response = await firstValueFrom(this.api.resetPassword(request));
-      this.state.update((current) => ({ ...current, status: 'signed-out', message: response.message }));
-      return response.message;
+      const session = await firstValueFrom(this.api.resetPasswordWeb(request));
+      this.applyWebSession(session);
     } catch (error) {
       this.state.update((current) => ({ ...current, status: 'error' }));
       const message = this.extractMessage(error, 'We could not reset your password.');
