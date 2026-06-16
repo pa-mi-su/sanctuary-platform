@@ -45,7 +45,7 @@ apps/web/
 The API base URL is resolved in [`src/app/core/api/sanctuary-api.config.ts`](src/app/core/api/sanctuary-api.config.ts):
 
 - localhost uses `http://localhost:8080`
-- non-localhost uses the production ECS API URL
+- non-localhost uses the production API URL
 
 All API calls go through [`src/app/core/api/sanctuary-api.service.ts`](src/app/core/api/sanctuary-api.service.ts).
 

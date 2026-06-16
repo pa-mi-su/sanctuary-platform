@@ -15,6 +15,7 @@ on:
       - main
     paths:
       - "apps/api/**"
+      - ".github/workflows/api-prod-deploy.yml"
   workflow_dispatch:
 
 permissions:
@@ -51,7 +52,6 @@ jobs:
     environment: prod
     env:
       AWS_REGION: ${{ vars.AWS_REGION }}
-      AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
       API_ECR_REPOSITORY: ${{ vars.API_PROD_ECR_REPOSITORY }}
       API_ECS_SERVICE_NAME: ${{ vars.API_PROD_ECS_SERVICE_NAME }}
       API_ECS_CLUSTER: ${{ vars.API_PROD_ECS_CLUSTER }}
@@ -61,6 +61,9 @@ jobs:
       SANCTUARY_AUTH_ENABLED: ${{ vars.API_PROD_AUTH_ENABLED || 'true' }}
       SANCTUARY_COGNITO_ISSUER_URI: ${{ vars.API_PROD_COGNITO_ISSUER_URI || 'https://cognito-idp.us-east-1.amazonaws.com/us-east-1_syYJKg0NY' }}
       SANCTUARY_COGNITO_CLIENT_ID: ${{ vars.API_PROD_COGNITO_CLIENT_ID || '7e3anthnuctm8p9nqck6kesjm9' }}
+      SANCTUARY_AUTH_COOKIE_DOMAIN: ${{ vars.API_PROD_AUTH_COOKIE_DOMAIN || '.mydailysanctuary.com' }}
+      SANCTUARY_AUTH_COOKIE_SAME_SITE: ${{ vars.API_PROD_AUTH_COOKIE_SAME_SITE || 'Lax' }}
+      API_PUBLIC_HEALTH_URL: ${{ vars.API_PROD_PUBLIC_HEALTH_URL || 'https://api.mydailysanctuary.com/health' }}
       IMAGE_TAG: ${{ github.sha }}
 
     steps:
@@ -86,7 +89,6 @@ jobs:
 
       - name: Normalize deploy variables
         run: |
-          echo "AWS_ACCOUNT_ID=$(echo -n "${AWS_ACCOUNT_ID}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
           echo "API_ECR_REPOSITORY=$(echo -n "${API_ECR_REPOSITORY}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
           echo "API_ECS_SERVICE_NAME=$(echo -n "${API_ECS_SERVICE_NAME}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
           echo "API_ECS_CLUSTER=$(echo -n "${API_ECS_CLUSTER}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
@@ -96,6 +98,9 @@ jobs:
           echo "SANCTUARY_AUTH_ENABLED=$(echo -n "${SANCTUARY_AUTH_ENABLED}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
           echo "SANCTUARY_COGNITO_ISSUER_URI=$(echo -n "${SANCTUARY_COGNITO_ISSUER_URI}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
           echo "SANCTUARY_COGNITO_CLIENT_ID=$(echo -n "${SANCTUARY_COGNITO_CLIENT_ID}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
+          echo "SANCTUARY_AUTH_COOKIE_DOMAIN=$(echo -n "${SANCTUARY_AUTH_COOKIE_DOMAIN}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
+          echo "SANCTUARY_AUTH_COOKIE_SAME_SITE=$(echo -n "${SANCTUARY_AUTH_COOKIE_SAME_SITE}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
+          echo "API_PUBLIC_HEALTH_URL=$(echo -n "${API_PUBLIC_HEALTH_URL}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
 
       - name: Validate production DB secret source
         run: |
@@ -109,17 +114,6 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Capture current ECS production task definition
-        run: |
-          current_task_definition="$(aws ecs describe-services \
-            --cluster "${API_ECS_CLUSTER}" \
-            --services "${API_ECS_SERVICE_NAME}" \
-            --region "${AWS_REGION}" \
-            | jq -r '.services[0].deployments[] | select(.status == "PRIMARY") | .taskDefinition')"
-
-          echo "PRE_DEPLOY_TASK_DEFINITION=${current_task_definition}" >> "$GITHUB_ENV"
-          echo "Current production task definition: ${current_task_definition}"
-
       - name: Build and push API image
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
@@ -130,56 +124,125 @@ jobs:
           docker push "${ECR_REGISTRY}/${API_ECR_REPOSITORY}:${IMAGE_TAG}"
           docker push "${ECR_REGISTRY}/${API_ECR_REPOSITORY}:latest"
 
-      - name: Deploy to ECS Express Mode
-        uses: aws-actions/amazon-ecs-deploy-express-service@v1
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        with:
-          service-name: ${{ env.API_ECS_SERVICE_NAME }}
-          image: ${{ env.ECR_REGISTRY }}/${{ env.API_ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
-          execution-role-arn: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/ecsTaskExecutionRole
-          infrastructure-role-arn: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/ecsInfrastructureRoleForExpressServices
-          task-role-arn: arn:aws:iam::${{ env.AWS_ACCOUNT_ID }}:role/ecsTaskExecutionRole
-          container-port: 8080
-          cluster: ${{ env.API_ECS_CLUSTER }}
-          environment-variables: |
-            [
-              {"name": "SPRING_PROFILES_ACTIVE", "value": "prod"},
-              {"name": "SANCTUARY_API_PORT", "value": "8080"},
-              {"name": "SANCTUARY_DB_URL", "value": "${{ env.SANCTUARY_DB_URL }}"},
-              {"name": "SANCTUARY_DB_USERNAME", "value": "${{ env.SANCTUARY_DB_USERNAME }}"},
-              {"name": "SANCTUARY_AUTH_ENABLED", "value": "${{ env.SANCTUARY_AUTH_ENABLED }}"},
-              {"name": "SANCTUARY_COGNITO_ISSUER_URI", "value": "${{ env.SANCTUARY_COGNITO_ISSUER_URI }}"},
-              {"name": "SANCTUARY_COGNITO_CLIENT_ID", "value": "${{ env.SANCTUARY_COGNITO_CLIENT_ID }}"}
-            ]
-          secrets: |
-            [
-              {"name": "SANCTUARY_DB_PASSWORD", "valueFrom": "${{ env.API_PROD_DB_SECRET_ARN }}:password::"}
-            ]
-          health-check-path: /health
-          cpu: "512"
-          memory: "1024"
-          min-task-count: 1
-          max-task-count: 1
-          subnets: subnet-0141079721351edf8,subnet-0dffd2400e13f49e4,subnet-02b055fa01680e51e,subnet-0fff729ae97ed1f58,subnet-0ffe1c33e4e0b665d,subnet-0cebbe66387ecc218
-          security-groups: sg-000f4021f05813471
-
-      - name: Wait for ECS production service to stabilize
-        run: |
-          aws ecs wait services-stable \
-            --cluster "${API_ECS_CLUSTER}" \
-            --services "${API_ECS_SERVICE_NAME}" \
-            --region "${AWS_REGION}"
-
-      - name: Verify ECS production rollout completed
+      - name: Check for existing ECS production service
         run: |
           service_json="$(aws ecs describe-services \
             --cluster "${API_ECS_CLUSTER}" \
             --services "${API_ECS_SERVICE_NAME}" \
             --region "${AWS_REGION}")"
 
-          primary_rollout_state="$(echo "${service_json}" | jq -r '.services[0].deployments[] | select(.status == "PRIMARY") | .rolloutState // "UNKNOWN"')"
-          primary_task_definition="$(echo "${service_json}" | jq -r '.services[0].deployments[] | select(.status == "PRIMARY") | .taskDefinition')"
+          service_status="$(echo "${service_json}" | jq -r '.services[0].status // "MISSING"')"
+          echo "ECS production service status: ${service_status}"
+
+          if [[ "${service_status}" != "ACTIVE" ]]; then
+            echo "ECS production service ${API_ECS_SERVICE_NAME} was not found or is not active."
+            exit 1
+          fi
+
+          current_task_definition="$(echo "${service_json}" | jq -r '.services[0].deployments[] | select(.status == "PRIMARY") | .taskDefinition')"
+          target_group_arn="$(echo "${service_json}" | jq -r '.services[0].loadBalancers[0].targetGroupArn // ""')"
+          echo "PRE_DEPLOY_TASK_DEFINITION=${current_task_definition}" >> "$GITHUB_ENV"
+          echo "ECS_TARGET_GROUP_ARN=${target_group_arn}" >> "$GITHUB_ENV"
+          echo "Current production task definition: ${current_task_definition}"
+          echo "Current production target group: ${target_group_arn}"
+
+      - name: Register ECS production task definition revision
+        run: |
+          aws ecs describe-task-definition \
+            --task-definition "${PRE_DEPLOY_TASK_DEFINITION}" \
+            --region "${AWS_REGION}" \
+            --query taskDefinition > task-definition.json
+
+          jq \
+            --arg image "${EXPECTED_API_IMAGE}" \
+            --arg db_url "${SANCTUARY_DB_URL}" \
+            --arg db_username "${SANCTUARY_DB_USERNAME}" \
+            --arg auth_enabled "${SANCTUARY_AUTH_ENABLED}" \
+            --arg cognito_issuer "${SANCTUARY_COGNITO_ISSUER_URI}" \
+            --arg cognito_client_id "${SANCTUARY_COGNITO_CLIENT_ID}" \
+            --arg cookie_domain "${SANCTUARY_AUTH_COOKIE_DOMAIN}" \
+            --arg cookie_same_site "${SANCTUARY_AUTH_COOKIE_SAME_SITE}" \
+            --arg db_secret "${API_PROD_DB_SECRET_ARN}:password::" \
+            'del(
+              .taskDefinitionArn,
+              .revision,
+              .status,
+              .requiresAttributes,
+              .compatibilities,
+              .registeredAt,
+              .registeredBy
+            )
+            | .containerDefinitions |= map(
+              if .name == "Main" then
+                .image = $image
+                | .environment = [
+                  {"name": "SPRING_PROFILES_ACTIVE", "value": "prod"},
+                  {"name": "SANCTUARY_API_PORT", "value": "8080"},
+                  {"name": "SANCTUARY_DB_URL", "value": $db_url},
+                  {"name": "SANCTUARY_DB_USERNAME", "value": $db_username},
+                  {"name": "SANCTUARY_AUTH_ENABLED", "value": $auth_enabled},
+                  {"name": "SANCTUARY_COGNITO_ISSUER_URI", "value": $cognito_issuer},
+                  {"name": "SANCTUARY_COGNITO_CLIENT_ID", "value": $cognito_client_id},
+                  {"name": "SANCTUARY_AUTH_COOKIE_DOMAIN", "value": $cookie_domain},
+                  {"name": "SANCTUARY_AUTH_COOKIE_SAME_SITE", "value": $cookie_same_site}
+                ]
+                | .secrets = [
+                  {"name": "SANCTUARY_DB_PASSWORD", "valueFrom": $db_secret}
+                ]
+              else
+                .
+              end
+            )' task-definition.json > new-task-definition.json
+
+          new_task_definition="$(aws ecs register-task-definition \
+            --cli-input-json file://new-task-definition.json \
+            --region "${AWS_REGION}" \
+            --query 'taskDefinition.taskDefinitionArn' \
+            --output text)"
+
+          echo "NEW_TASK_DEFINITION=${new_task_definition}" >> "$GITHUB_ENV"
+          echo "Registered production task definition: ${new_task_definition}"
+
+      - name: Deploy ECS production service
+        run: |
+          update_args=(
+            --cluster "${API_ECS_CLUSTER}"
+            --service "${API_ECS_SERVICE_NAME}"
+            --task-definition "${NEW_TASK_DEFINITION}"
+            --force-new-deployment
+            --region "${AWS_REGION}"
+          )
+
+          if [[ -n "${ECS_TARGET_GROUP_ARN}" && "${ECS_TARGET_GROUP_ARN}" != "null" ]]; then
+            update_args+=(--health-check-grace-period-seconds 300)
+          fi
+
+          aws ecs update-service "${update_args[@]}"
+
+      - name: Verify ECS production rollout completed
+        run: |
+          service_json=""
+          primary_rollout_state="UNKNOWN"
+          primary_task_definition=""
+
+          for attempt in {1..72}; do
+            service_json="$(aws ecs describe-services \
+              --cluster "${API_ECS_CLUSTER}" \
+              --services "${API_ECS_SERVICE_NAME}" \
+              --region "${AWS_REGION}")"
+
+            primary_rollout_state="$(echo "${service_json}" | jq -r '.services[0].deployments[] | select(.status == "PRIMARY") | .rolloutState // "UNKNOWN"')"
+            primary_task_definition="$(echo "${service_json}" | jq -r '.services[0].deployments[] | select(.status == "PRIMARY") | .taskDefinition')"
+
+            echo "ECS rollout check ${attempt}/72: ${primary_rollout_state}"
+            echo "Primary task definition: ${primary_task_definition}"
+
+            if [[ "${primary_rollout_state}" == "COMPLETED" || "${primary_rollout_state}" == "FAILED" ]]; then
+              break
+            fi
+
+            sleep 10
+          done
 
           echo "Primary task definition: ${primary_task_definition}"
           echo "Primary rollout state: ${primary_rollout_state}"
@@ -187,6 +250,14 @@ jobs:
 
           if [[ "${primary_rollout_state}" != "COMPLETED" ]]; then
             echo "ECS production deployment did not complete successfully."
+            echo "${service_json}" | jq '.services[0].deployments'
+            exit 1
+          fi
+
+          if [[ "${primary_task_definition}" != "${NEW_TASK_DEFINITION}" ]]; then
+            echo "ECS stabilized on an unexpected task definition."
+            echo "Expected task definition: ${NEW_TASK_DEFINITION}"
+            echo "Primary task definition: ${primary_task_definition}"
             echo "${service_json}" | jq '.services[0].deployments'
             exit 1
           fi
@@ -200,7 +271,7 @@ jobs:
           deployed_image="$(aws ecs describe-task-definition \
             --task-definition "${primary_task_definition}" \
             --region "${AWS_REGION}" \
-            | jq -r '.taskDefinition.containerDefinitions[0].image')"
+            | jq -r '.taskDefinition.containerDefinitions[] | select(.name == "Main") | .image')"
 
           echo "Expected API image: ${EXPECTED_API_IMAGE}"
           echo "Deployed API image: ${deployed_image}"
@@ -209,3 +280,49 @@ jobs:
             echo "ECS stabilized, but the running task definition does not use the image built by this workflow."
             exit 1
           fi
+
+          if [[ -z "${ECS_TARGET_GROUP_ARN}" || "${ECS_TARGET_GROUP_ARN}" == "null" ]]; then
+            echo "No ECS target group was found for ${API_ECS_SERVICE_NAME}; skipping load balancer target health verification."
+            exit 0
+          fi
+
+          target_health_json=""
+          healthy_target_count="0"
+
+          for attempt in {1..72}; do
+            target_health_json="$(aws elbv2 describe-target-health \
+              --target-group-arn "${ECS_TARGET_GROUP_ARN}" \
+              --region "${AWS_REGION}")"
+            healthy_target_count="$(echo "${target_health_json}" | jq '[.TargetHealthDescriptions[] | select(.TargetHealth.State == "healthy")] | length')"
+
+            echo "Target health check ${attempt}/72: ${healthy_target_count} healthy target(s)"
+
+            if [[ "${healthy_target_count}" -gt 0 ]]; then
+              break
+            fi
+
+            echo "${target_health_json}" | jq '.TargetHealthDescriptions'
+            sleep 10
+          done
+
+          if [[ "${healthy_target_count}" -lt 1 ]]; then
+            echo "ECS production deployment completed, but no load balancer targets became healthy."
+            echo "${target_health_json}" | jq '.TargetHealthDescriptions'
+            exit 1
+          fi
+
+      - name: Verify public production API health
+        run: |
+          for attempt in {1..30}; do
+            status_code="$(curl --silent --output /dev/null --write-out '%{http_code}' "${API_PUBLIC_HEALTH_URL}" || true)"
+            echo "Public API health check ${attempt}/30: HTTP ${status_code}"
+
+            if [[ "${status_code}" == "200" ]]; then
+              exit 0
+            fi
+
+            sleep 10
+          done
+
+          echo "Production API public health check failed: ${API_PUBLIC_HEALTH_URL}"
+          exit 1
