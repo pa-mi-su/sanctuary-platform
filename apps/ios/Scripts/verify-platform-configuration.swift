@@ -21,7 +21,7 @@ enum VerifyPlatformConfiguration {
             bundleIdentifier: "com.pamisu.Sanctuary",
             configuredAPIBaseURL: nil,
             expectedEnvironment: .prod,
-            expectedAPIBaseURL: "https://sa-d7fe5f77e3bd409caf712e69b701f1e8.ecs.us-east-1.on.aws"
+            expectedAPIBaseURL: "https://api.mydailysanctuary.com"
         )
 
         print("Platform configuration verification passed.")

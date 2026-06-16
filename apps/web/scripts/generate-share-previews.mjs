@@ -4,7 +4,7 @@ import path from 'node:path';
 const SITE_ORIGIN = process.env.SANCTUARY_SHARE_PREVIEW_SITE_ORIGIN ?? 'https://mydailysanctuary.com';
 const API_BASE_URL =
   process.env.SANCTUARY_SHARE_PREVIEW_API_BASE_URL ??
-  'https://sa-d7fe5f77e3bd409caf712e69b701f1e8.ecs.us-east-1.on.aws';
+  'https://api.mydailysanctuary.com';
 const OUTPUT_DIR = process.env.SANCTUARY_SHARE_PREVIEW_OUTPUT_DIR ?? path.resolve('dist/web/browser');
 const FALLBACK_IMAGE_URL = `${SITE_ORIGIN}/brand-logo.png`;
 const IOS_APP_STORE_ID = '6759986068';
