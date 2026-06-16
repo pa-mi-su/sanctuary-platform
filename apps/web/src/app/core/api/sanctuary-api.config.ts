@@ -1,7 +1,7 @@
 import { InjectionToken } from '@angular/core';
 
 export const SANCTUARY_API_BASE_URL = new InjectionToken<string>('SANCTUARY_API_BASE_URL');
-const PRODUCTION_API_BASE_URL = 'https://sa-d7fe5f77e3bd409caf712e69b701f1e8.ecs.us-east-1.on.aws';
+const PRODUCTION_API_BASE_URL = 'https://api.mydailysanctuary.com';
 const DEV_API_BASE_URL = 'https://dev-api.mydailysanctuary.com';
 const LOCAL_API_BASE_URL = 'http://localhost:8080';
 const DEV_WEB_HOSTS = new Set(['dev.mydailysanctuary.com']);

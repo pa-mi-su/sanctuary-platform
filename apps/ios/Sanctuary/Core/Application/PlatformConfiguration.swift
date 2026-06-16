@@ -23,7 +23,7 @@ enum PlatformEnvironment: String, Sendable {
 struct PlatformConfiguration: Sendable {
     private static let apiBaseURLInfoKey = "SanctuaryAPIBaseURL"
     private static let devAPIBaseURL = "https://dev-api.mydailysanctuary.com"
-    private static let productionAPIBaseURL = "https://sa-d7fe5f77e3bd409caf712e69b701f1e8.ecs.us-east-1.on.aws"
+    private static let productionAPIBaseURL = "https://api.mydailysanctuary.com"
 
     let environment: PlatformEnvironment
     let apiBaseURL: URL
