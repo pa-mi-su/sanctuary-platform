@@ -69,7 +69,7 @@ android {
             versionNameSuffix = "-uat"
             resValue("string", "app_name", "Sanctuary UAT")
             buildConfigField("String", "ENVIRONMENT", "\"uat\"")
-            buildConfigField("String", "API_BASE_URL", "\"https://sa-d7fe5f77e3bd409caf712e69b701f1e8.ecs.us-east-1.on.aws\"")
+            buildConfigField("String", "API_BASE_URL", "\"https://api.mydailysanctuary.com\"")
             buildConfigField("boolean", "AUTH_ENABLED", "true")
         }
 
@@ -77,7 +77,7 @@ android {
             dimension = "environment"
             resValue("string", "app_name", "Sanctuary")
             buildConfigField("String", "ENVIRONMENT", "\"prod\"")
-            buildConfigField("String", "API_BASE_URL", "\"https://sa-d7fe5f77e3bd409caf712e69b701f1e8.ecs.us-east-1.on.aws\"")
+            buildConfigField("String", "API_BASE_URL", "\"https://api.mydailysanctuary.com\"")
             buildConfigField("boolean", "AUTH_ENABLED", "true")
         }
     }

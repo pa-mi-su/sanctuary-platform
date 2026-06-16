@@ -42,7 +42,7 @@ Environment detection is based on bundle identifier suffix in [`Sanctuary/Core/A
 - `.uat` -> `uat`
 - otherwise -> `prod`
 
-The API base URL defaults to the production ECS API URL. You can override it with:
+The API base URL defaults to the production API URL. You can override it with:
 
 ```text
 SANCTUARY_API_BASE_URL

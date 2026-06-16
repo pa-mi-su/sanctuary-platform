@@ -67,7 +67,7 @@ Each flavor sets:
 - `BuildConfig.API_BASE_URL`
 - `BuildConfig.AUTH_ENABLED`
 
-All current flavors point to the shared Sanctuary API URL. Android never talks directly to PostgreSQL or RDS.
+Each flavor points to its configured Sanctuary API URL. Android never talks directly to PostgreSQL or RDS.
 
 ## API And Auth
 
