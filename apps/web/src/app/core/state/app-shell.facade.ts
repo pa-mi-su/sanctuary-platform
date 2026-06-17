@@ -242,13 +242,13 @@ export class AppShellFacade {
   );
 
   readonly novenaDetail = toSignal(
-    combineLatest([toObservable(this.selectedNovenaSlug), toObservable(this.language)]).pipe(
-      switchMap(([slug, language]) => {
+    combineLatest([toObservable(this.selectedNovenaSlug), toObservable(this.language), toObservable(this.selectedDate)]).pipe(
+      switchMap(([slug, language, selectedDate]) => {
         if (!slug) {
           return of<NovenaDetail | null>(null);
         }
 
-        return this.api.getNovenaDetail(slug, this.apiLanguage(language)).pipe(
+        return this.api.getNovenaDetail(slug, this.apiLanguage(language), this.yearFromDate(selectedDate)).pipe(
           startWith(null),
           catchError(() => of<NovenaDetail | null>(null)),
         );
@@ -1550,6 +1550,11 @@ export class AppShellFacade {
 
   private apiLanguage(language: AppLanguage): 'en' | 'es' | 'pl' {
     return language;
+  }
+
+  private yearFromDate(date: string): number {
+    const parsed = new Date(`${date}T00:00:00`);
+    return Number.isNaN(parsed.getTime()) ? new Date().getFullYear() : parsed.getFullYear();
   }
 
   private translate(english: string, spanish: string, polish: string): string {

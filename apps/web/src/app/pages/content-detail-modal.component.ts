@@ -121,6 +121,12 @@ type AppLanguage = 'en' | 'es' | 'pl';
             <div class="detail-image" [style.background-image]="imageStyle(novenaDetail()!.imageUrl)"></div>
             <div class="detail-meta">
               <span class="content-tag">{{ novenaDayCountLabel(novenaDetail()!) }}</span>
+              @if (novenaStartDateLabel(novenaDetail()!); as startDateLabel) {
+                <span class="content-tag">{{ startDateLabel }}</span>
+              }
+              @if (novenaEndDateLabel(novenaDetail()!); as endDateLabel) {
+                <span class="content-tag">{{ endDateLabel }}</span>
+              }
               <p>{{ novenaDetail()!.description }}</p>
             </div>
           </div>
@@ -262,6 +268,22 @@ export class ContentDetailModalComponent {
     return `${novena.days.length}-day novena`;
   }
 
+  protected novenaStartDateLabel(novena: NovenaDetail): string | null {
+    if (!novena.servingWindow) {
+      return null;
+    }
+
+    return `${this.t('Novena start date', 'Fecha de inicio de la novena', 'Data rozpoczęcia nowenny')}: ${this.formatIsoMonthDay(novena.servingWindow.startDate)}`;
+  }
+
+  protected novenaEndDateLabel(novena: NovenaDetail): string | null {
+    if (!novena.servingWindow) {
+      return null;
+    }
+
+    return `${this.t('Novena end date', 'Fecha de finalización de la novena', 'Data zakończenia nowenny')}: ${this.formatIsoMonthDay(novena.servingWindow.feastDate)}`;
+  }
+
   protected saintFeastDateLabel(saint: SaintDetail): string {
     const year = new Date().getFullYear();
     const date = new Date(year, saint.feastMonth - 1, saint.feastDay);
@@ -310,5 +332,17 @@ export class ContentDetailModalComponent {
       default:
         return 'en-US';
     }
+  }
+
+  private formatIsoMonthDay(value: string): string {
+    const date = new Date(`${value}T00:00:00`);
+    if (Number.isNaN(date.getTime())) {
+      return value;
+    }
+
+    return new Intl.DateTimeFormat(this.dateLocale(), {
+      month: 'short',
+      day: 'numeric',
+    }).format(date);
   }
 }

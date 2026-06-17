@@ -40,7 +40,12 @@ public class NovenaContentService {
     }
 
     public NovenaDetailDto getBySlug(String slug, String language) {
-        return repository.findBySlug(slug, SupportedLanguage.from(language))
+        return getBySlug(slug, language, LocalDate.now().getYear());
+    }
+
+    public NovenaDetailDto getBySlug(String slug, String language, int servingWindowYear) {
+        validator.validateYear(servingWindowYear);
+        return repository.findBySlug(slug, SupportedLanguage.from(language), servingWindowYear)
             .orElseThrow(() -> new ContentNotFoundException("No novena found for slug: " + slug));
     }
 }
