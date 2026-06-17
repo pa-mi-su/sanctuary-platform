@@ -82,10 +82,17 @@ export interface NovenaDayDetail {
   body: string;
 }
 
+export interface NovenaServingWindow {
+  startDate: string;
+  endDate: string;
+  feastDate: string;
+}
+
 export interface NovenaDetail extends NovenaSummary {
   tags: string[];
   intentions: string[];
   days: NovenaDayDetail[];
+  servingWindow: NovenaServingWindow | null;
 }
 
 export interface NovenaCalendarDateResponse {
@@ -308,9 +315,14 @@ export class SanctuaryApiService {
     });
   }
 
-  getNovenaDetail(slug: string, language: 'en' | 'es' | 'pl'): Observable<NovenaDetail> {
+  getNovenaDetail(slug: string, language: 'en' | 'es' | 'pl', year?: number): Observable<NovenaDetail> {
+    let params = new HttpParams().set('lang', language);
+    if (year) {
+      params = params.set('year', year);
+    }
+
     return this.http.get<NovenaDetail>(`${this.apiBaseUrl}/content/novenas/${slug}`, {
-      params: new HttpParams().set('lang', language),
+      params,
     });
   }
 
