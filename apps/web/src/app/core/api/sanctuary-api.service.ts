@@ -226,6 +226,52 @@ export interface UserNovenaCommitmentRequest {
   status: 'active' | 'paused' | 'completed';
 }
 
+export interface AdminUserMetrics {
+  userCount: number;
+  deviceCount: number;
+  iosDeviceCount: number;
+  androidDeviceCount: number;
+  notificationsEnabledDeviceCount: number;
+  invalidTokenCount: number;
+}
+
+export interface AdminUserListItem {
+  userId: string;
+  email: string | null;
+  displayName: string | null;
+  preferredLanguage: 'en' | 'es' | 'pl' | null;
+  createdAt: string;
+  lastSignInAt: string | null;
+  deviceCount: number;
+  latestPlatform: 'ios' | 'android' | null;
+  latestAppVersion: string | null;
+  notificationsEnabled: boolean;
+}
+
+export interface AdminUsersResponse {
+  metrics: AdminUserMetrics;
+  users: AdminUserListItem[];
+}
+
+export interface AdminNotification {
+  id: string;
+  title: string;
+  message: string;
+  audienceType: string;
+  status: string;
+  targetCount: number;
+  deliveredCount: number;
+  failedCount: number;
+  sentAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminNotificationRequest {
+  title: string;
+  message: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class SanctuaryApiService {
   private readonly http = inject(HttpClient);
@@ -410,6 +456,22 @@ export class SanctuaryApiService {
 
   deleteNovenaCommitment(novenaId: string): Observable<void> {
     return this.http.delete<void>(`${this.apiBaseUrl}/me/novena-commitments/${novenaId}`);
+  }
+
+  listAdminUsers(limit = 50): Observable<AdminUsersResponse> {
+    return this.http.get<AdminUsersResponse>(`${this.apiBaseUrl}/admin/users`, {
+      params: new HttpParams().set('limit', String(limit)),
+    });
+  }
+
+  listAdminNotifications(limit = 50): Observable<AdminNotification[]> {
+    return this.http.get<AdminNotification[]>(`${this.apiBaseUrl}/admin/notifications`, {
+      params: new HttpParams().set('limit', String(limit)),
+    });
+  }
+
+  createAdminNotificationDraft(request: AdminNotificationRequest): Observable<AdminNotification> {
+    return this.http.post<AdminNotification>(`${this.apiBaseUrl}/admin/notifications/drafts`, request);
   }
 
   private rangeParams(start: string, end: string): HttpParams {

@@ -33,6 +33,9 @@
   </section>
 }
 
+@if (isAdminRoute()) {
+  <router-outlet />
+} @else {
 <div class="app-shell">
   <main class="phone-frame">
     <app-header
@@ -238,3 +241,4 @@
     }
   </main>
 </div>
+}
