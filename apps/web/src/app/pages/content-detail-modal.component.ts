@@ -173,15 +173,6 @@ type AppLanguage = 'en' | 'es' | 'pl';
               <section class="detail-section">
                 <h3>{{ selectedNovenaDay()!.title }}</h3>
                 <p class="detail-copy">{{ selectedNovenaDay()!.body }}</p>
-                @if (selectedNovenaDay()!.scripture) {
-                  <p><strong>Scripture:</strong> {{ selectedNovenaDay()!.scripture }}</p>
-                }
-                @if (selectedNovenaDay()!.reflection) {
-                  <p><strong>Reflection:</strong> {{ selectedNovenaDay()!.reflection }}</p>
-                }
-                @if (selectedNovenaDay()!.prayer) {
-                  <p class="detail-copy"><strong>Prayer:</strong> {{ selectedNovenaDay()!.prayer }}</p>
-                }
                 @if (novenaProgress() && !isDayCompleted(selectedNovenaDay()!.dayNumber)) {
                   <button class="primary-action" type="button" (click)="completeNovenaDay.emit()">
                     Mark Day {{ selectedNovenaDay()!.dayNumber }} Complete
