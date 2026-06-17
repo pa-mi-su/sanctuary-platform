@@ -173,6 +173,13 @@ public class UserAccountRepository {
     private void deleteOwnedUserData(UUID userId) {
         jdbcTemplate.update(
             """
+                DELETE FROM user_devices
+                WHERE user_id = ?
+                """,
+            userId
+        );
+        jdbcTemplate.update(
+            """
                 DELETE FROM user_activity_events
                 WHERE user_id = ?
                 """,
