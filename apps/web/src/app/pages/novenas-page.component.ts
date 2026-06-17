@@ -157,59 +157,59 @@ type AppLanguage = 'en' | 'es' | 'pl';
           </article>
         }
 
-        <section class="preview-grid">
-          <article class="preview-panel glass-subtle">
-            <div class="preview-header">
-                <div>
-                  <h3>{{ previewTodayTitle() }}</h3>
-                  <p>{{ todayPreviewLabel() }}</p>
-                </div>
-            </div>
-
-            @if (todayPrimaryNovena()) {
-              <button class="preview-item" type="button" (click)="openNovena.emit(todayPrimaryNovena()!)">
-                <div class="preview-item__media" [style.background-image]="cardImageStyle(todayPrimaryNovena()!.imageUrl)">
-                  @if (!todayPrimaryNovena()!.imageUrl) {
-                    <span class="content-card__fallback">📘</span>
-                  }
-                </div>
-                <div class="preview-item__body">
-                  <strong>{{ todayPrimaryNovena()!.title }}</strong>
-                  <span>{{ novenaDayCountLabel(todayPrimaryNovena()!) }}</span>
-                </div>
-              </button>
-            } @else {
-              <p class="preview-empty">{{ noNovenasCopy() }}</p>
-            }
-          </article>
-
-          <article class="preview-panel glass-subtle">
-            <div class="preview-header">
-              <div>
-                <h3>{{ previewSelectedTitle() }}</h3>
-                <p>{{ selectedPreviewLabel() }}</p>
+        @if (!isSelectedDateToday()) {
+          <section class="preview-grid">
+            <article class="preview-panel glass-subtle">
+              <div class="preview-header">
+                  <div>
+                    <h3>{{ previewTodayTitle() }}</h3>
+                    <p>{{ todayPreviewLabel() }}</p>
+                  </div>
               </div>
-            </div>
 
-            @if (isSelectedDateToday()) {
-              <p class="preview-empty">{{ selectedSameAsTodayCopy() }}</p>
-            } @else if (selectedPrimaryNovena()) {
-              <button class="preview-item" type="button" (click)="openNovena.emit(selectedPrimaryNovena()!)">
-                <div class="preview-item__media" [style.background-image]="cardImageStyle(selectedPrimaryNovena()!.imageUrl)">
-                  @if (!selectedPrimaryNovena()!.imageUrl) {
-                    <span class="content-card__fallback">📘</span>
-                  }
+              @if (todayPrimaryNovena()) {
+                <button class="preview-item" type="button" (click)="openNovena.emit(todayPrimaryNovena()!)">
+                  <div class="preview-item__media" [style.background-image]="cardImageStyle(todayPrimaryNovena()!.imageUrl)">
+                    @if (!todayPrimaryNovena()!.imageUrl) {
+                      <span class="content-card__fallback">📘</span>
+                    }
+                  </div>
+                  <div class="preview-item__body">
+                    <strong>{{ todayPrimaryNovena()!.title }}</strong>
+                    <span>{{ novenaDayCountLabel(todayPrimaryNovena()!) }}</span>
+                  </div>
+                </button>
+              } @else {
+                <p class="preview-empty">{{ noNovenasCopy() }}</p>
+              }
+            </article>
+
+            <article class="preview-panel glass-subtle">
+              <div class="preview-header">
+                <div>
+                  <h3>{{ previewSelectedTitle() }}</h3>
+                  <p>{{ selectedPreviewLabel() }}</p>
                 </div>
-                <div class="preview-item__body">
-                  <strong>{{ selectedPrimaryNovena()!.title }}</strong>
-                  <span>{{ novenaDayCountLabel(selectedPrimaryNovena()!) }}</span>
-                </div>
-              </button>
-            } @else {
-              <p class="preview-empty">{{ noNovenasCopy() }}</p>
-            }
-          </article>
-        </section>
+              </div>
+
+              @if (selectedPrimaryNovena()) {
+                <button class="preview-item" type="button" (click)="openNovena.emit(selectedPrimaryNovena()!)">
+                  <div class="preview-item__media" [style.background-image]="cardImageStyle(selectedPrimaryNovena()!.imageUrl)">
+                    @if (!selectedPrimaryNovena()!.imageUrl) {
+                      <span class="content-card__fallback">📘</span>
+                    }
+                  </div>
+                  <div class="preview-item__body">
+                    <strong>{{ selectedPrimaryNovena()!.title }}</strong>
+                    <span>{{ novenaDayCountLabel(selectedPrimaryNovena()!) }}</span>
+                  </div>
+                </button>
+              } @else {
+                <p class="preview-empty">{{ noNovenasCopy() }}</p>
+              }
+            </article>
+          </section>
+        }
       }
     </section>
   `,
