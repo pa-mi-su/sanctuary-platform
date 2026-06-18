@@ -84,6 +84,26 @@ data class UserPreferencesUpdateRequest(
     val onboardingCompleted: Boolean
 )
 
+data class UserDeviceRegistrationRequest(
+    val fcmToken: String,
+    val platform: String,
+    val appVersion: String?,
+    val language: String,
+    val notificationsEnabled: Boolean
+)
+
+data class UserDeviceResponse(
+    val id: String,
+    val platform: String,
+    val appVersion: String?,
+    val language: String,
+    val notificationsEnabled: Boolean,
+    val tokenStatus: String,
+    val lastSeenAt: String,
+    val createdAt: String,
+    val updatedAt: String
+)
+
 data class UserFavoriteResponse(
     val itemType: String,
     val itemId: String,

@@ -3,6 +3,7 @@ package app.sanctuary.android.data
 import android.content.Context
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
+import app.sanctuary.android.BuildConfig
 import java.time.Instant
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -70,6 +71,28 @@ class SessionRepository(
         }
         updatedProfile.toUserProfile(session).also {
             persistLanguage(it.preferredLanguage ?: language)
+        }
+    }
+
+    suspend fun registerDevice(
+        fcmToken: String,
+        notificationsEnabled: Boolean
+    ) = withContext(Dispatchers.IO) {
+        val token = fcmToken.trim()
+        if (token.isBlank()) {
+            return@withContext
+        }
+
+        authenticatedCall {
+            it.registerDevice(
+                UserDeviceRegistrationRequest(
+                    fcmToken = token,
+                    platform = "android",
+                    appVersion = BuildConfig.VERSION_NAME,
+                    language = currentLanguage(),
+                    notificationsEnabled = notificationsEnabled
+                )
+            )
         }
     }
 

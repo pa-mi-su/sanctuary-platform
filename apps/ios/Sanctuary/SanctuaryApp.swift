@@ -13,6 +13,9 @@ import UIKit
 @main
 struct SanctuaryApp: App {
     private let environment = AppEnvironment.current()
+    #if os(iOS)
+    @UIApplicationDelegateAdaptor(SanctuaryAppDelegate.self) private var appDelegate
+    #endif
 
     init() {
 #if os(iOS)

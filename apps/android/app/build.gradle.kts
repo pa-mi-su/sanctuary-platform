@@ -2,6 +2,7 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
+    id("com.google.gms.google-services")
 }
 
 import java.io.ByteArrayOutputStream
@@ -57,6 +58,7 @@ android {
     productFlavors {
         create("dev") {
             dimension = "environment"
+            applicationIdSuffix = ".dev"
             versionNameSuffix = "-dev"
             resValue("string", "app_name", "Sanctuary Dev")
             buildConfigField("String", "ENVIRONMENT", "\"dev\"")
@@ -66,6 +68,7 @@ android {
 
         create("uat") {
             dimension = "environment"
+            applicationIdSuffix = ".uat"
             versionNameSuffix = "-uat"
             resValue("string", "app_name", "Sanctuary UAT")
             buildConfigField("String", "ENVIRONMENT", "\"uat\"")
@@ -131,10 +134,13 @@ android {
 
 dependencies {
     val composeBom = platform("androidx.compose:compose-bom:2024.10.01")
+    val firebaseBom = platform("com.google.firebase:firebase-bom:33.7.0")
 
     implementation(composeBom)
     androidTestImplementation(composeBom)
+    implementation(firebaseBom)
 
+    implementation("com.google.firebase:firebase-messaging-ktx")
     implementation("androidx.core:core-ktx:1.15.0")
     implementation("androidx.core:core-splashscreen:1.0.1")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")

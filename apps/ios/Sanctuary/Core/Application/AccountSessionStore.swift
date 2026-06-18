@@ -53,6 +53,7 @@ final class AccountSessionStore: ObservableObject {
     private let apiClient: SanctuaryAPIClient
     private let secureStore: KeychainStore
     private let platformConfiguration: PlatformConfiguration
+    private let pushNotificationRegistrar: PushNotificationRegistrar
     private let sessionAccountKey = "primary-session"
 
     init(
@@ -63,6 +64,10 @@ final class AccountSessionStore: ObservableObject {
         self.apiClient = apiClient
         self.platformConfiguration = platformConfiguration
         self.secureStore = secureStore
+        self.pushNotificationRegistrar = PushNotificationRegistrar(
+            apiClient: apiClient,
+            platformConfiguration: platformConfiguration
+        )
     }
 
     var isConfigured: Bool {
@@ -282,6 +287,7 @@ final class AccountSessionStore: ObservableObject {
             profile = mapProfile(response, fallbackSession: activeSession)
             status = .authenticated
             clearMessage()
+            await registerPushDeviceIfPossible(token: token)
         } catch {
             if isSessionRejected(error) {
                 guard let refreshedToken = await refreshAuthorizationTokenAfterRejection() else {
@@ -294,6 +300,7 @@ final class AccountSessionStore: ObservableObject {
                     profile = mapProfile(response, fallbackSession: session)
                     status = .authenticated
                     clearMessage()
+                    await registerPushDeviceIfPossible(token: refreshedToken)
                 } catch {
                     clearStoredSession()
                     setMessage("Your session has ended. Please sign in again.", isError: true)
@@ -305,6 +312,7 @@ final class AccountSessionStore: ObservableObject {
                 profile = placeholderProfile(from: fallbackSession)
                 status = .authenticated
                 setMessage("Signed in, but Sanctuary could not refresh your full profile yet.", isError: true)
+                await registerPushDeviceIfPossible(token: activeSession.idToken)
             } else {
                 clearStoredSession()
                 status = .failed
@@ -375,6 +383,7 @@ final class AccountSessionStore: ObservableObject {
                 token: activeSession.idToken
             )
             self.profile = mapProfile(response, fallbackSession: session)
+            await registerPushDeviceIfPossible(token: activeSession.idToken)
             setMessage(
                 (novenaEnabled || dailyEnabled)
                     ? "Your reminder preferences are updated."
@@ -570,6 +579,13 @@ final class AccountSessionStore: ObservableObject {
         }
 
         return statusCode == 401 || statusCode == 403 || statusCode == 404 || statusCode == 410
+    }
+
+    private func registerPushDeviceIfPossible(token: String) async {
+        await pushNotificationRegistrar.registerCurrentDevice(
+            token: token,
+            preferredLanguage: profile?.preferredLanguage
+        )
     }
 }
 

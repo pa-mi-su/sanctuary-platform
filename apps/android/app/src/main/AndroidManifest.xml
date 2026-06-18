@@ -23,6 +23,13 @@
         <receiver
             android:name=".ReminderNotificationReceiver"
             android:exported="false" />
+        <service
+            android:name=".SanctuaryFirebaseMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
         <receiver
             android:name=".ReminderBootReceiver"
             android:enabled="true"

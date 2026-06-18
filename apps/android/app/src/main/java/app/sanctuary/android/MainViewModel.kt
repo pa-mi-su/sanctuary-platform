@@ -95,6 +95,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             _session.value.session?.idToken ?: _session.value.session?.accessToken
         }
     )
+    private val pushDeviceRegistrar = AndroidPushDeviceRegistrar(
+        context = application.applicationContext,
+        repository = repository
+    )
 
     private val _session = MutableStateFlow(
         SessionUiState(
@@ -171,6 +175,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 )
                 loadInitialContent()
                 refreshNovenaProgress()
+                syncPushDevice()
             } else {
                 reminderScheduler.cancelAll()
                 _appLanguage.value = AppLanguage.fromCode(repository.currentLanguage())
@@ -416,6 +421,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         )
         loadInitialContent()
         refreshNovenaProgress()
+        syncPushDevice()
     }
 
     fun updateLanguage(language: AppLanguage) {
@@ -437,6 +443,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                                 isErrorMessage = false
                             )
                         }
+                        syncPushDevice()
                     }
                 }
             loadInitialContent()
@@ -789,6 +796,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             novenaEnabled = profile.novenaRemindersEnabled,
             generalDailyEnabled = profile.feastRemindersEnabled
         )
+    }
+
+    private fun syncPushDevice() {
+        if (_session.value.status != SessionStatus.Authenticated) {
+            return
+        }
+
+        viewModelScope.launch {
+            runCatching { pushDeviceRegistrar.registerCurrentDevice() }
+        }
     }
 
     private fun setBusy() {

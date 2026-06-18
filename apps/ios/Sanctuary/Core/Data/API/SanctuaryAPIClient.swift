@@ -137,6 +137,26 @@ struct APIUserPreferencesUpdateRequest: Encodable, Sendable {
     let onboardingCompleted: Bool
 }
 
+struct APIUserDeviceRegistrationRequest: Encodable, Sendable {
+    let fcmToken: String
+    let platform: String
+    let appVersion: String?
+    let language: String
+    let notificationsEnabled: Bool
+}
+
+struct APIUserDeviceResponse: Decodable, Sendable {
+    let id: String
+    let platform: String
+    let appVersion: String?
+    let language: String
+    let notificationsEnabled: Bool
+    let tokenStatus: String
+    let lastSeenAt: Date
+    let createdAt: Date
+    let updatedAt: Date
+}
+
 struct APIContentSaintSummaryResponse: Decodable, Sendable {
     let id: String
     let slug: String
@@ -335,6 +355,13 @@ actor SanctuaryAPIClient {
         token: String
     ) async throws -> APIUserProfileResponse {
         try await performRequest(path: "/me/preferences", method: "PUT", body: request, token: token)
+    }
+
+    func registerDevice(
+        request: APIUserDeviceRegistrationRequest,
+        token: String
+    ) async throws -> APIUserDeviceResponse {
+        try await performRequest(path: "/me/devices", method: "PUT", body: request, token: token)
     }
 
     func favorites(token: String) async throws -> [APIUserFavoriteResponse] {
