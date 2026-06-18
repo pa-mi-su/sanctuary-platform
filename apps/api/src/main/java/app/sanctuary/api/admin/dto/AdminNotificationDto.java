@@ -10,7 +10,7 @@ public record AdminNotificationDto(
     String audienceType,
     String status,
     int targetCount,
-    int deliveredCount,
+    int sentCount,
     int failedCount,
     OffsetDateTime sentAt,
     OffsetDateTime createdAt,

@@ -42,7 +42,7 @@ CREATE TABLE admin_notifications (
     audience_type TEXT NOT NULL DEFAULT 'all' CHECK (audience_type IN ('all')),
     status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'queued', 'sending', 'sent', 'failed', 'canceled')),
     target_count INTEGER NOT NULL DEFAULT 0 CHECK (target_count >= 0),
-    delivered_count INTEGER NOT NULL DEFAULT 0 CHECK (delivered_count >= 0),
+    sent_count INTEGER NOT NULL DEFAULT 0 CHECK (sent_count >= 0),
     failed_count INTEGER NOT NULL DEFAULT 0 CHECK (failed_count >= 0),
     created_by_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
     sent_by_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
@@ -63,10 +63,9 @@ CREATE TABLE admin_notification_deliveries (
     user_device_id UUID REFERENCES user_devices(id) ON DELETE SET NULL,
     user_id UUID REFERENCES users(id) ON DELETE SET NULL,
     platform TEXT NOT NULL CHECK (platform IN ('ios', 'android')),
-    status TEXT NOT NULL CHECK (status IN ('targeted', 'sending', 'delivered', 'failed')),
+    status TEXT NOT NULL CHECK (status IN ('targeted', 'sent', 'failed')),
     failure_reason TEXT,
     sent_at TIMESTAMPTZ,
-    delivered_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

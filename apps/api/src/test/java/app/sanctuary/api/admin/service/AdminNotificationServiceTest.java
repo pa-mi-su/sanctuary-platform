@@ -1,7 +1,9 @@
 package app.sanctuary.api.admin.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import java.time.OffsetDateTime;
@@ -13,9 +15,16 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 import app.sanctuary.api.admin.dto.AdminNotificationDto;
 import app.sanctuary.api.admin.dto.AdminNotificationRequest;
+import app.sanctuary.api.admin.dto.AdminNotificationSendResultDto;
+import app.sanctuary.api.admin.notification.PushNotificationGateway;
+import app.sanctuary.api.admin.notification.PushNotificationPayload;
+import app.sanctuary.api.admin.notification.PushNotificationSendResult;
+import app.sanctuary.api.admin.notification.PushNotificationTarget;
 import app.sanctuary.api.admin.repository.AdminAuditRepository;
 import app.sanctuary.api.admin.repository.AdminNotificationRepository;
 
@@ -27,6 +36,9 @@ class AdminNotificationServiceTest {
 
     @Mock
     private AdminAuditRepository auditRepository;
+
+    @Mock
+    private PushNotificationGateway pushNotificationGateway;
 
     @InjectMocks
     private AdminNotificationService service;
@@ -69,20 +81,128 @@ class AdminNotificationServiceTest {
         assertEquals(history, result);
     }
 
+    @Test
+    void sendRejectsWhenFirebaseGatewayIsDisabled() {
+        when(pushNotificationGateway.enabled()).thenReturn(false);
+
+        ResponseStatusException exception = assertThrows(
+            ResponseStatusException.class,
+            () -> service.send(UUID.randomUUID(), UUID.randomUUID())
+        );
+
+        assertEquals(HttpStatus.SERVICE_UNAVAILABLE, exception.getStatusCode());
+        verifyNoInteractions(notificationRepository);
+    }
+
+    @Test
+    void sendRejectsNonDraftNotification() {
+        UUID notificationId = UUID.randomUUID();
+        when(pushNotificationGateway.enabled()).thenReturn(true);
+        when(notificationRepository.findById(notificationId)).thenReturn(notification("sent"));
+
+        ResponseStatusException exception = assertThrows(
+            ResponseStatusException.class,
+            () -> service.send(UUID.randomUUID(), notificationId)
+        );
+
+        assertEquals(HttpStatus.CONFLICT, exception.getStatusCode());
+    }
+
+    @Test
+    void sendCompletesDraftWithNoValidDevices() {
+        UUID adminUserId = UUID.randomUUID();
+        AdminNotificationDto notification = notification();
+        when(pushNotificationGateway.enabled()).thenReturn(true);
+        when(notificationRepository.findById(notification.id())).thenReturn(notification);
+        when(notificationRepository.findValidTargetsForAllAudience()).thenReturn(List.of());
+        when(notificationRepository.markSending(notification.id(), adminUserId, 0)).thenReturn(true);
+
+        AdminNotificationSendResultDto result = service.send(adminUserId, notification.id());
+
+        assertEquals("sent", result.status());
+        assertEquals(0, result.targetCount());
+        assertEquals(0, result.sentCount());
+        assertEquals(0, result.failedCount());
+        verify(notificationRepository).finishSend(notification.id(), "sent", 0, 0);
+        verify(auditRepository).record(adminUserId, "admin.notification.send", "admin_notification", notification.id().toString());
+    }
+
+    @Test
+    void sendRecordsSuccessfulDeliveries() {
+        UUID adminUserId = UUID.randomUUID();
+        AdminNotificationDto notification = notification();
+        PushNotificationTarget target = target();
+        UUID deliveryId = UUID.randomUUID();
+        when(pushNotificationGateway.enabled()).thenReturn(true);
+        when(notificationRepository.findById(notification.id())).thenReturn(notification);
+        when(notificationRepository.findValidTargetsForAllAudience()).thenReturn(List.of(target));
+        when(notificationRepository.markSending(notification.id(), adminUserId, 1)).thenReturn(true);
+        when(notificationRepository.createDelivery(notification.id(), target)).thenReturn(deliveryId);
+        when(pushNotificationGateway.send(target, new PushNotificationPayload(notification.id(), notification.title(), notification.message())))
+            .thenReturn(PushNotificationSendResult.sent("firebase-message-id"));
+
+        AdminNotificationSendResultDto result = service.send(adminUserId, notification.id());
+
+        assertEquals("sent", result.status());
+        assertEquals(1, result.targetCount());
+        assertEquals(1, result.sentCount());
+        assertEquals(0, result.failedCount());
+        verify(notificationRepository).markDeliverySent(deliveryId);
+        verify(notificationRepository).finishSend(notification.id(), "sent", 1, 0);
+    }
+
+    @Test
+    void sendRecordsFailuresAndInvalidatesBadTokens() {
+        UUID adminUserId = UUID.randomUUID();
+        AdminNotificationDto notification = notification();
+        PushNotificationTarget target = target();
+        UUID deliveryId = UUID.randomUUID();
+        when(pushNotificationGateway.enabled()).thenReturn(true);
+        when(notificationRepository.findById(notification.id())).thenReturn(notification);
+        when(notificationRepository.findValidTargetsForAllAudience()).thenReturn(List.of(target));
+        when(notificationRepository.markSending(notification.id(), adminUserId, 1)).thenReturn(true);
+        when(notificationRepository.createDelivery(notification.id(), target)).thenReturn(deliveryId);
+        when(pushNotificationGateway.send(target, new PushNotificationPayload(notification.id(), notification.title(), notification.message())))
+            .thenReturn(PushNotificationSendResult.failed("registration token is not valid", true));
+
+        AdminNotificationSendResultDto result = service.send(adminUserId, notification.id());
+
+        assertEquals("failed", result.status());
+        assertEquals(1, result.targetCount());
+        assertEquals(0, result.sentCount());
+        assertEquals(1, result.failedCount());
+        verify(notificationRepository).markDeliveryFailed(deliveryId, "registration token is not valid");
+        verify(notificationRepository).markDeviceInvalid(target.deviceId());
+        verify(notificationRepository).finishSend(notification.id(), "failed", 0, 1);
+    }
+
     private AdminNotificationDto notification() {
+        return notification("draft");
+    }
+
+    private AdminNotificationDto notification(String status) {
         OffsetDateTime now = OffsetDateTime.now();
         return new AdminNotificationDto(
             UUID.randomUUID(),
             "Update",
             "Please update Sanctuary.",
             "all",
-            "draft",
+            status,
             0,
             0,
             0,
             null,
             now,
             now
+        );
+    }
+
+    private PushNotificationTarget target() {
+        return new PushNotificationTarget(
+            UUID.randomUUID(),
+            UUID.randomUUID(),
+            "ios",
+            "fcm-token"
         );
     }
 }

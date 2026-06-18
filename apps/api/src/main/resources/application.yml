@@ -40,3 +40,8 @@ sanctuary:
         - example.net
         - test.com
         - invalid.com
+  notifications:
+    firebase:
+      enabled: ${SANCTUARY_FIREBASE_NOTIFICATIONS_ENABLED:false}
+      app-name: ${SANCTUARY_FIREBASE_APP_NAME:sanctuary-api}
+      service-account-json: ${SANCTUARY_FIREBASE_SERVICE_ACCOUNT_JSON:}

@@ -271,7 +271,7 @@ export interface AdminNotification {
   audienceType: string;
   status: string;
   targetCount: number;
-  deliveredCount: number;
+  sentCount: number;
   failedCount: number;
   sentAt: string | null;
   createdAt: string;
