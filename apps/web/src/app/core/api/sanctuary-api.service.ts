@@ -227,12 +227,21 @@ export interface UserNovenaCommitmentRequest {
 }
 
 export interface AdminUserMetrics {
-  userCount: number;
+  totalUsers: number;
+  activeUsersToday: number;
+  activeUsers7Days: number;
+  activeUsers30Days: number;
   deviceCount: number;
+  activeDevices7Days: number;
+  activeDevices30Days: number;
   iosDeviceCount: number;
   androidDeviceCount: number;
+  englishDeviceCount: number;
+  spanishDeviceCount: number;
+  polishDeviceCount: number;
   notificationsEnabledDeviceCount: number;
   invalidTokenCount: number;
+  unknownAppVersionDeviceCount: number;
 }
 
 export interface AdminUserListItem {
@@ -240,11 +249,13 @@ export interface AdminUserListItem {
   email: string | null;
   displayName: string | null;
   preferredLanguage: 'en' | 'es' | 'pl' | null;
-  createdAt: string;
+  registrationDate: string;
   lastSignInAt: string | null;
   deviceCount: number;
   latestPlatform: 'ios' | 'android' | null;
   latestAppVersion: string | null;
+  latestDeviceLanguage: 'en' | 'es' | 'pl' | null;
+  latestDeviceLastSeenAt: string | null;
   notificationsEnabled: boolean;
 }
 

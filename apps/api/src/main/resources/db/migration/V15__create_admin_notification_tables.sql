@@ -32,12 +32,15 @@ CREATE INDEX idx_user_devices_platform
 CREATE INDEX idx_user_devices_language
     ON user_devices (language, token_status, updated_at DESC);
 
+CREATE INDEX idx_user_devices_last_seen
+    ON user_devices (last_seen_at DESC);
+
 CREATE TABLE admin_notifications (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     title TEXT NOT NULL,
     message TEXT NOT NULL,
     audience_type TEXT NOT NULL DEFAULT 'all' CHECK (audience_type IN ('all')),
-    status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'queued', 'sent', 'failed')),
+    status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'queued', 'sending', 'sent', 'failed', 'canceled')),
     target_count INTEGER NOT NULL DEFAULT 0 CHECK (target_count >= 0),
     delivered_count INTEGER NOT NULL DEFAULT 0 CHECK (delivered_count >= 0),
     failed_count INTEGER NOT NULL DEFAULT 0 CHECK (failed_count >= 0),
@@ -60,7 +63,7 @@ CREATE TABLE admin_notification_deliveries (
     user_device_id UUID REFERENCES user_devices(id) ON DELETE SET NULL,
     user_id UUID REFERENCES users(id) ON DELETE SET NULL,
     platform TEXT NOT NULL CHECK (platform IN ('ios', 'android')),
-    status TEXT NOT NULL CHECK (status IN ('targeted', 'delivered', 'failed')),
+    status TEXT NOT NULL CHECK (status IN ('targeted', 'sending', 'delivered', 'failed')),
     failure_reason TEXT,
     sent_at TIMESTAMPTZ,
     delivered_at TIMESTAMPTZ,

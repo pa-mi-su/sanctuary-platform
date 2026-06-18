@@ -115,6 +115,7 @@ type AdminLoadState = 'idle' | 'loading' | 'ready' | 'forbidden' | 'error';
               <span>Language</span>
               <span>Devices</span>
               <span>Latest App</span>
+              <span>Last Device Seen</span>
               <span>Last Sign In</span>
             </div>
             @for (user of users(); track user.userId) {
@@ -123,9 +124,10 @@ type AdminLoadState = 'idle' | 'loading' | 'ready' | 'forbidden' | 'error';
                   <strong>{{ displayName(user) }}</strong>
                   <small>{{ user.email || user.userId }}</small>
                 </span>
-                <span>{{ user.preferredLanguage || 'unknown' }}</span>
+                <span>{{ user.latestDeviceLanguage || user.preferredLanguage || 'unknown' }}</span>
                 <span>{{ user.deviceCount }} {{ user.latestPlatform || '' }}</span>
                 <span>{{ user.latestAppVersion || 'unknown' }}</span>
+                <span>{{ formatDate(user.latestDeviceLastSeenAt) }}</span>
                 <span>{{ formatDate(user.lastSignInAt) }}</span>
               </div>
             } @empty {
@@ -154,12 +156,21 @@ export class AdminDashboardComponent {
   protected readonly metricCards = computed(() => {
     const metrics = this.metrics();
     return [
-      { label: 'Users', value: metrics?.userCount ?? 0 },
+      { label: 'Users', value: metrics?.totalUsers ?? 0 },
+      { label: 'Active Today', value: metrics?.activeUsersToday ?? 0 },
+      { label: 'Active 7 Days', value: metrics?.activeUsers7Days ?? 0 },
+      { label: 'Active 30 Days', value: metrics?.activeUsers30Days ?? 0 },
       { label: 'Devices', value: metrics?.deviceCount ?? 0 },
+      { label: 'Devices 7 Days', value: metrics?.activeDevices7Days ?? 0 },
+      { label: 'Devices 30 Days', value: metrics?.activeDevices30Days ?? 0 },
       { label: 'iOS', value: metrics?.iosDeviceCount ?? 0 },
       { label: 'Android', value: metrics?.androidDeviceCount ?? 0 },
+      { label: 'English', value: metrics?.englishDeviceCount ?? 0 },
+      { label: 'Spanish', value: metrics?.spanishDeviceCount ?? 0 },
+      { label: 'Polish', value: metrics?.polishDeviceCount ?? 0 },
       { label: 'Notifications On', value: metrics?.notificationsEnabledDeviceCount ?? 0 },
       { label: 'Invalid Tokens', value: metrics?.invalidTokenCount ?? 0 },
+      { label: 'Unknown Version', value: metrics?.unknownAppVersionDeviceCount ?? 0 },
     ];
   });
 

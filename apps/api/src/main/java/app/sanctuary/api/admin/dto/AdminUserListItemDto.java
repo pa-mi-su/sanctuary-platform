@@ -13,5 +13,7 @@ public record AdminUserListItemDto(
     int deviceCount,
     String latestPlatform,
     String latestAppVersion,
+    String latestDeviceLanguage,
+    OffsetDateTime latestDeviceLastSeenAt,
     boolean notificationsEnabled
 ) {}
