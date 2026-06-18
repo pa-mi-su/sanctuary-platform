@@ -90,6 +90,7 @@ button:disabled {
 
 .metric-card span,
 .history-row span,
+.history-row small,
 .table-row small {
   color: rgba(255, 255, 255, 0.68);
 }
@@ -190,6 +191,24 @@ textarea {
   margin: 4px 0 0;
 }
 
+.history-row small {
+  display: block;
+  margin-top: 8px;
+}
+
+.history-actions {
+  display: grid;
+  justify-items: end;
+  gap: 10px;
+}
+
+.button-secondary {
+  min-height: 36px;
+  padding: 0 14px;
+  background: rgba(151, 231, 244, 0.12);
+  color: #97e7f4;
+}
+
 .users-panel {
   margin-top: 18px;
 }
@@ -236,8 +255,10 @@ textarea {
 
   .admin-header,
   .panel-heading,
-  .history-row {
+  .history-row,
+  .history-actions {
     display: grid;
+    justify-items: start;
   }
 
   .metrics-grid,

@@ -56,7 +56,7 @@ type AdminLoadState = 'idle' | 'loading' | 'ready' | 'forbidden' | 'error';
                 <p class="eyebrow">Notifications</p>
                 <h2>Create Draft</h2>
               </div>
-              <span class="status-pill">Send disabled in MVP</span>
+              <span class="status-pill">All users</span>
             </div>
 
             <form class="notification-form" (ngSubmit)="createDraft()">
@@ -90,13 +90,31 @@ type AdminLoadState = 'idle' | 'loading' | 'ready' | 'forbidden' | 'error';
                   <div>
                     <strong>{{ notification.title }}</strong>
                     <p>{{ notification.message }}</p>
+                    <small>
+                      {{ notification.targetCount }} targeted · {{ notification.sentCount }} sent · {{ notification.failedCount }} failed
+                    </small>
                   </div>
-                  <span>{{ notification.status }}</span>
+                  <div class="history-actions">
+                    <span>{{ notification.status }}</span>
+                    @if (notification.status === 'draft') {
+                      <button
+                        type="button"
+                        class="button-secondary"
+                        [disabled]="sendingNotificationId() === notification.id"
+                        (click)="sendNotification(notification)"
+                      >
+                        {{ sendingNotificationId() === notification.id ? 'Sending...' : 'Send' }}
+                      </button>
+                    }
+                  </div>
                 </article>
               } @empty {
                 <p class="empty-copy">No notification drafts yet.</p>
               }
             </div>
+            @if (sendStatus()) {
+              <p class="form-status">{{ sendStatus() }}</p>
+            }
           </article>
         </section>
 
@@ -149,6 +167,8 @@ export class AdminDashboardComponent {
   protected readonly notifications = signal<AdminNotification[]>([]);
   protected readonly draftPending = signal(false);
   protected readonly draftStatus = signal<string | null>(null);
+  protected readonly sendingNotificationId = signal<string | null>(null);
+  protected readonly sendStatus = signal<string | null>(null);
 
   protected draftTitle = '';
   protected draftMessage = '';
@@ -219,6 +239,26 @@ export class AdminDashboardComponent {
     }
   }
 
+  protected async sendNotification(notification: AdminNotification): Promise<void> {
+    if (notification.status !== 'draft' || this.sendingNotificationId()) {
+      return;
+    }
+
+    this.sendingNotificationId.set(notification.id);
+    this.sendStatus.set(null);
+    try {
+      const result = await firstValueFrom(this.api.sendAdminNotification(notification.id));
+      this.sendStatus.set(
+        `Send complete: ${result.sentCount} sent, ${result.failedCount} failed, ${result.targetCount} targeted.`
+      );
+      await this.reload();
+    } catch (error) {
+      this.sendStatus.set(this.errorCopy(error));
+    } finally {
+      this.sendingNotificationId.set(null);
+    }
+  }
+
   protected displayName(user: AdminUserListItem): string {
     return user.displayName || user.email || 'Sanctuary user';
   }
@@ -249,6 +289,12 @@ export class AdminDashboardComponent {
     }
     if (status === 403) {
       return 'Your account is not enabled for admin access.';
+    }
+    if (status === 409) {
+      return 'This notification is no longer available to send.';
+    }
+    if (status === 503) {
+      return 'Firebase notifications are not configured yet.';
     }
     return 'Sanctuary could not complete that admin request.';
   }

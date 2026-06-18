@@ -283,6 +283,14 @@ export interface AdminNotificationRequest {
   message: string;
 }
 
+export interface AdminNotificationSendResult {
+  notificationId: string;
+  status: string;
+  targetCount: number;
+  sentCount: number;
+  failedCount: number;
+}
+
 @Injectable({ providedIn: 'root' })
 export class SanctuaryApiService {
   private readonly http = inject(HttpClient);
@@ -483,6 +491,13 @@ export class SanctuaryApiService {
 
   createAdminNotificationDraft(request: AdminNotificationRequest): Observable<AdminNotification> {
     return this.http.post<AdminNotification>(`${this.apiBaseUrl}/admin/notifications/drafts`, request);
+  }
+
+  sendAdminNotification(notificationId: string): Observable<AdminNotificationSendResult> {
+    return this.http.post<AdminNotificationSendResult>(
+      `${this.apiBaseUrl}/admin/notifications/${notificationId}/send`,
+      null
+    );
   }
 
   private rangeParams(start: string, end: string): HttpParams {
