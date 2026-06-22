@@ -12,6 +12,10 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import app.sanctuary.api.admin.notification.DisabledPushNotificationGateway;
+import app.sanctuary.api.admin.notification.FirebasePushNotificationGateway;
+import app.sanctuary.api.admin.notification.PushNotificationGateway;
+
 @Configuration
 @EnableConfigurationProperties(FirebaseNotificationProperties.class)
 public class FirebaseNotificationConfig {
@@ -45,5 +49,17 @@ public class FirebaseNotificationConfig {
     @ConditionalOnProperty(prefix = "sanctuary.notifications.firebase", name = "enabled", havingValue = "true")
     FirebaseMessaging firebaseMessaging(FirebaseApp sanctuaryFirebaseApp) {
         return FirebaseMessaging.getInstance(sanctuaryFirebaseApp);
+    }
+
+    @Bean
+    @ConditionalOnProperty(prefix = "sanctuary.notifications.firebase", name = "enabled", havingValue = "true")
+    PushNotificationGateway firebasePushNotificationGateway(FirebaseMessaging firebaseMessaging) {
+        return new FirebasePushNotificationGateway(firebaseMessaging);
+    }
+
+    @Bean
+    @ConditionalOnProperty(prefix = "sanctuary.notifications.firebase", name = "enabled", havingValue = "false", matchIfMissing = true)
+    PushNotificationGateway disabledPushNotificationGateway() {
+        return new DisabledPushNotificationGateway();
     }
 }

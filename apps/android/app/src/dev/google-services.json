@@ -7,9 +7,47 @@
   "client": [
     {
       "client_info": {
+        "mobilesdk_app_id": "1:471864285375:android:af02de4ceaf5abf71b0e0a",
+        "android_client_info": {
+          "package_name": "com.pamisu.sanctuary"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBYbm7Q6j6reWPTTnZKeQJalTEmBICR7MM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
         "mobilesdk_app_id": "1:471864285375:android:ea0f35df5b537aa51b0e0a",
         "android_client_info": {
           "package_name": "com.pamisu.sanctuary.dev"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBYbm7Q6j6reWPTTnZKeQJalTEmBICR7MM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:471864285375:android:5e5b6d26377005ea1b0e0a",
+        "android_client_info": {
+          "package_name": "com.pamisu.sanctuary.uat"
         }
       },
       "oauth_client": [],
