@@ -392,12 +392,7 @@ jobs:
             -configuration "${IOS_CONFIGURATION}" \
             -archivePath "${ARCHIVE_PATH}" \
             -destination "generic/platform=iOS" \
-            CODE_SIGN_STYLE=Automatic \
             DEVELOPMENT_TEAM="${IOS_TEAM_ID}" \
-            -allowProvisioningUpdates \
-            -authenticationKeyPath "${API_KEY_PATH}" \
-            -authenticationKeyID "${APP_STORE_CONNECT_API_KEY_ID}" \
-            -authenticationKeyIssuerID "${APP_STORE_CONNECT_API_ISSUER_ID}" \
             CURRENT_PROJECT_VERSION="${BUILD_NUMBER}" \
             archive
 
@@ -405,11 +400,7 @@ jobs:
             -exportArchive \
             -archivePath "${ARCHIVE_PATH}" \
             -exportPath "${EXPORT_PATH}" \
-            -exportOptionsPlist "${EXPORT_OPTIONS_PATH}" \
-            -allowProvisioningUpdates \
-            -authenticationKeyPath "${API_KEY_PATH}" \
-            -authenticationKeyID "${APP_STORE_CONNECT_API_KEY_ID}" \
-            -authenticationKeyIssuerID "${APP_STORE_CONNECT_API_ISSUER_ID}"
+            -exportOptionsPlist "${EXPORT_OPTIONS_PATH}"
 
           IPA_PATH="$(find "${EXPORT_PATH}" -maxdepth 1 -name '*.ipa' | head -n 1)"
 
@@ -646,12 +637,7 @@ jobs:
             -configuration "${IOS_CONFIGURATION}" \
             -archivePath "${ARCHIVE_PATH}" \
             -destination "generic/platform=iOS" \
-            CODE_SIGN_STYLE=Automatic \
             DEVELOPMENT_TEAM="${IOS_TEAM_ID}" \
-            -allowProvisioningUpdates \
-            -authenticationKeyPath "${API_KEY_PATH}" \
-            -authenticationKeyID "${APP_STORE_CONNECT_API_KEY_ID}" \
-            -authenticationKeyIssuerID "${APP_STORE_CONNECT_API_ISSUER_ID}" \
             CURRENT_PROJECT_VERSION="${BUILD_NUMBER}" \
             archive
 
@@ -659,11 +645,7 @@ jobs:
             -exportArchive \
             -archivePath "${ARCHIVE_PATH}" \
             -exportPath "${EXPORT_PATH}" \
-            -exportOptionsPlist "${EXPORT_OPTIONS_PATH}" \
-            -allowProvisioningUpdates \
-            -authenticationKeyPath "${API_KEY_PATH}" \
-            -authenticationKeyID "${APP_STORE_CONNECT_API_KEY_ID}" \
-            -authenticationKeyIssuerID "${APP_STORE_CONNECT_API_ISSUER_ID}"
+            -exportOptionsPlist "${EXPORT_OPTIONS_PATH}"
 
           IPA_PATH="$(find "${EXPORT_PATH}" -maxdepth 1 -name '*.ipa' | head -n 1)"
 
@@ -900,12 +882,7 @@ jobs:
             -configuration "${IOS_CONFIGURATION}" \
             -archivePath "${ARCHIVE_PATH}" \
             -destination "generic/platform=iOS" \
-            CODE_SIGN_STYLE=Automatic \
             DEVELOPMENT_TEAM="${IOS_TEAM_ID}" \
-            -allowProvisioningUpdates \
-            -authenticationKeyPath "${API_KEY_PATH}" \
-            -authenticationKeyID "${APP_STORE_CONNECT_API_KEY_ID}" \
-            -authenticationKeyIssuerID "${APP_STORE_CONNECT_API_ISSUER_ID}" \
             CURRENT_PROJECT_VERSION="${BUILD_NUMBER}" \
             archive
 
@@ -913,11 +890,7 @@ jobs:
             -exportArchive \
             -archivePath "${ARCHIVE_PATH}" \
             -exportPath "${EXPORT_PATH}" \
-            -exportOptionsPlist "${EXPORT_OPTIONS_PATH}" \
-            -allowProvisioningUpdates \
-            -authenticationKeyPath "${API_KEY_PATH}" \
-            -authenticationKeyID "${APP_STORE_CONNECT_API_KEY_ID}" \
-            -authenticationKeyIssuerID "${APP_STORE_CONNECT_API_ISSUER_ID}"
+            -exportOptionsPlist "${EXPORT_OPTIONS_PATH}"
 
           IPA_PATH="$(find "${EXPORT_PATH}" -maxdepth 1 -name '*.ipa' | head -n 1)"
 
