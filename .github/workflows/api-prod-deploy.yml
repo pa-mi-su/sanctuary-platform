@@ -63,6 +63,8 @@ jobs:
       SANCTUARY_COGNITO_CLIENT_ID: ${{ vars.API_PROD_COGNITO_CLIENT_ID || '7e3anthnuctm8p9nqck6kesjm9' }}
       SANCTUARY_AUTH_COOKIE_DOMAIN: ${{ vars.API_PROD_AUTH_COOKIE_DOMAIN || '.mydailysanctuary.com' }}
       SANCTUARY_AUTH_COOKIE_SAME_SITE: ${{ vars.API_PROD_AUTH_COOKIE_SAME_SITE || 'Lax' }}
+      SANCTUARY_FIREBASE_NOTIFICATIONS_ENABLED: ${{ vars.API_PROD_FIREBASE_NOTIFICATIONS_ENABLED || 'true' }}
+      API_PROD_FIREBASE_SERVICE_ACCOUNT_SECRET_ARN: ${{ vars.API_PROD_FIREBASE_SERVICE_ACCOUNT_SECRET_ARN || '' }}
       API_PUBLIC_HEALTH_URL: ${{ vars.API_PROD_PUBLIC_HEALTH_URL || 'https://api.mydailysanctuary.com/health' }}
       IMAGE_TAG: ${{ github.sha }}
 
@@ -100,6 +102,8 @@ jobs:
           echo "SANCTUARY_COGNITO_CLIENT_ID=$(echo -n "${SANCTUARY_COGNITO_CLIENT_ID}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
           echo "SANCTUARY_AUTH_COOKIE_DOMAIN=$(echo -n "${SANCTUARY_AUTH_COOKIE_DOMAIN}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
           echo "SANCTUARY_AUTH_COOKIE_SAME_SITE=$(echo -n "${SANCTUARY_AUTH_COOKIE_SAME_SITE}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
+          echo "SANCTUARY_FIREBASE_NOTIFICATIONS_ENABLED=$(echo -n "${SANCTUARY_FIREBASE_NOTIFICATIONS_ENABLED}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
+          echo "API_PROD_FIREBASE_SERVICE_ACCOUNT_SECRET_ARN=$(echo -n "${API_PROD_FIREBASE_SERVICE_ACCOUNT_SECRET_ARN}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
           echo "API_PUBLIC_HEALTH_URL=$(echo -n "${API_PUBLIC_HEALTH_URL}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
 
       - name: Validate production DB secret source
@@ -107,6 +111,10 @@ jobs:
           if [[ "${API_PROD_DB_SECRET_ARN}" != arn:aws:secretsmanager:*:secret:rds\!* ]]; then
             echo "API_PROD_DB_SECRET_ARN must be the RDS-managed Secrets Manager secret ARN."
             echo "Do not use SSM parameters such as /sanctuary/prod/db/password for production DB credentials."
+            exit 1
+          fi
+          if [[ "${SANCTUARY_FIREBASE_NOTIFICATIONS_ENABLED}" == "true" && "${API_PROD_FIREBASE_SERVICE_ACCOUNT_SECRET_ARN}" != arn:aws:secretsmanager:*:secret:* ]]; then
+            echo "API_PROD_FIREBASE_SERVICE_ACCOUNT_SECRET_ARN must point to an AWS Secrets Manager secret containing the Firebase service account JSON."
             exit 1
           fi
 
@@ -162,6 +170,8 @@ jobs:
             --arg cognito_client_id "${SANCTUARY_COGNITO_CLIENT_ID}" \
             --arg cookie_domain "${SANCTUARY_AUTH_COOKIE_DOMAIN}" \
             --arg cookie_same_site "${SANCTUARY_AUTH_COOKIE_SAME_SITE}" \
+            --arg firebase_enabled "${SANCTUARY_FIREBASE_NOTIFICATIONS_ENABLED}" \
+            --arg firebase_secret "${API_PROD_FIREBASE_SERVICE_ACCOUNT_SECRET_ARN}" \
             --arg db_secret "${API_PROD_DB_SECRET_ARN}:password::" \
             'del(
               .taskDefinitionArn,
@@ -184,11 +194,13 @@ jobs:
                   {"name": "SANCTUARY_COGNITO_ISSUER_URI", "value": $cognito_issuer},
                   {"name": "SANCTUARY_COGNITO_CLIENT_ID", "value": $cognito_client_id},
                   {"name": "SANCTUARY_AUTH_COOKIE_DOMAIN", "value": $cookie_domain},
-                  {"name": "SANCTUARY_AUTH_COOKIE_SAME_SITE", "value": $cookie_same_site}
+                  {"name": "SANCTUARY_AUTH_COOKIE_SAME_SITE", "value": $cookie_same_site},
+                  {"name": "SANCTUARY_FIREBASE_NOTIFICATIONS_ENABLED", "value": $firebase_enabled}
                 ]
-                | .secrets = [
-                  {"name": "SANCTUARY_DB_PASSWORD", "valueFrom": $db_secret}
-                ]
+                | .secrets = (
+                  [{"name": "SANCTUARY_DB_PASSWORD", "valueFrom": $db_secret}]
+                  + if $firebase_secret == "" then [] else [{"name": "SANCTUARY_FIREBASE_SERVICE_ACCOUNT_JSON", "valueFrom": $firebase_secret}] end
+                )
               else
                 .
               end

@@ -4,11 +4,7 @@ import com.google.firebase.messaging.FirebaseMessaging;
 import com.google.firebase.messaging.FirebaseMessagingException;
 import com.google.firebase.messaging.Message;
 import com.google.firebase.messaging.Notification;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
-import org.springframework.stereotype.Component;
 
-@Component
-@ConditionalOnBean(FirebaseMessaging.class)
 public class FirebasePushNotificationGateway implements PushNotificationGateway {
 
     private final FirebaseMessaging firebaseMessaging;

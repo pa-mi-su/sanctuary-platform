@@ -1,10 +1,5 @@
 package app.sanctuary.api.admin.notification;
 
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
-import org.springframework.stereotype.Component;
-
-@Component
-@ConditionalOnMissingBean(PushNotificationGateway.class)
 public class DisabledPushNotificationGateway implements PushNotificationGateway {
 
     @Override
