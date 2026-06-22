@@ -8,6 +8,8 @@ import UserNotifications
 
 @MainActor
 final class PushNotificationRegistrar {
+    private static var apnsTokenAvailable = false
+
     private let apiClient: SanctuaryAPIClient
     private let platformConfiguration: PlatformConfiguration
 
@@ -21,7 +23,7 @@ final class PushNotificationRegistrar {
         guard FirebaseApp.app() != nil else { return }
 
         let notificationsEnabled = await requestNotificationAuthorization()
-        guard let fcmToken = await firebaseToken(), !fcmToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+        guard let fcmToken = await firebaseTokenWithRetry(), !fcmToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             return
         }
 
@@ -42,6 +44,34 @@ final class PushNotificationRegistrar {
         #endif
     }
 
+    func notificationPermissionEventName() async -> String {
+        #if canImport(UserNotifications)
+        let settings = await notificationSettings(center: UNUserNotificationCenter.current())
+        switch settings.authorizationStatus {
+        case .authorized, .provisional, .ephemeral:
+            return "notification_permission_allowed"
+        case .notDetermined, .denied:
+            return "notification_permission_denied"
+        @unknown default:
+            return "notification_permission_denied"
+        }
+        #else
+        return "notification_permission_denied"
+        #endif
+    }
+
+    func anonymousPushTokenIfAvailable() async -> (token: String?, notificationsEnabled: Bool) {
+        #if canImport(FirebaseCore) && canImport(FirebaseMessaging) && canImport(UserNotifications) && canImport(UIKit)
+        guard FirebaseApp.app() != nil else { return (nil, false) }
+
+        let notificationsEnabled = await requestNotificationAuthorization()
+        let token = await firebaseTokenWithRetry()?.trimmingCharacters(in: .whitespacesAndNewlines)
+        return (token?.isEmpty == false ? token : nil, notificationsEnabled)
+        #else
+        return (nil, false)
+        #endif
+    }
+
     static func configureFirebaseIfAvailable(platformConfiguration: PlatformConfiguration) {
         #if canImport(FirebaseCore)
         guard FirebaseApp.app() == nil,
@@ -52,6 +82,10 @@ final class PushNotificationRegistrar {
 
         FirebaseApp.configure(options: options)
         #endif
+    }
+
+    static func markAPNSTokenAvailable() {
+        apnsTokenAvailable = true
     }
 
     private static func firebasePlistPath(for environment: PlatformEnvironment) -> String {
@@ -65,7 +99,10 @@ final class PushNotificationRegistrar {
             resourceName = "GoogleService-Info-Prod"
         }
 
-        return Bundle.main.path(forResource: resourceName, ofType: "plist") ?? ""
+        return Bundle.main.path(forResource: resourceName, ofType: "plist")
+            ?? Bundle.main.path(forResource: resourceName, ofType: "plist", inDirectory: "Resources/Firebase")
+            ?? Bundle.main.path(forResource: resourceName, ofType: "plist", inDirectory: "Firebase")
+            ?? ""
     }
 
     #if canImport(FirebaseCore) && canImport(FirebaseMessaging) && canImport(UserNotifications) && canImport(UIKit)
@@ -88,6 +125,24 @@ final class PushNotificationRegistrar {
         @unknown default:
             return false
         }
+    }
+
+    private func firebaseTokenWithRetry() async -> String? {
+        for attempt in 0..<8 {
+            if attempt > 0 {
+                try? await Task.sleep(nanoseconds: 500_000_000)
+            }
+
+            guard Self.apnsTokenAvailable else {
+                continue
+            }
+
+            if let token = await firebaseToken(), !token.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                return token
+            }
+        }
+
+        return nil
     }
 
     private func firebaseToken() async -> String? {

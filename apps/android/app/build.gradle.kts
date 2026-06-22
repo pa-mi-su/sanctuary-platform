@@ -35,6 +35,14 @@ val hasUploadSigning =
         !uploadKeystorePassword.isNullOrBlank() &&
         !uploadKeyAlias.isNullOrBlank() &&
         !uploadKeyPassword.isNullOrBlank()
+val isLocalDevDebugTask =
+    gradle.startParameter.taskNames.any { taskName ->
+        taskName.contains("DevDebug", ignoreCase = true)
+    }
+val devApiBaseUrl =
+    (findProperty("SANCTUARY_ANDROID_API_BASE_URL") as String?)
+        ?: System.getenv("SANCTUARY_ANDROID_API_BASE_URL")
+        ?: if (isLocalDevDebugTask) "http://10.0.2.2:8080" else "https://dev-api.mydailysanctuary.com"
 
 android {
     namespace = "app.sanctuary.android"
@@ -45,7 +53,7 @@ android {
         minSdk = 26
         targetSdk = 35
         versionCode = ciVersionCode
-        versionName = "1.0.12"
+        versionName = "1.0.13"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -62,7 +70,7 @@ android {
             versionNameSuffix = "-dev"
             resValue("string", "app_name", "Sanctuary Dev")
             buildConfigField("String", "ENVIRONMENT", "\"dev\"")
-            buildConfigField("String", "API_BASE_URL", "\"https://dev-api.mydailysanctuary.com\"")
+            buildConfigField("String", "API_BASE_URL", "\"$devApiBaseUrl\"")
             buildConfigField("boolean", "AUTH_ENABLED", "true")
         }
 

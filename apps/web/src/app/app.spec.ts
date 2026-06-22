@@ -42,4 +42,23 @@ describe('App', () => {
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.textContent).toContain('Welcome to your sanctuary');
   });
+
+  it('should unmount auth when leaving the auth tab', async () => {
+    const fixture = TestBed.createComponent(App);
+    const app = fixture.componentInstance as unknown as { facade: { setTab(tab: string): void } };
+
+    app.facade.setTab('auth');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('app-auth-page')).toBeTruthy();
+
+    app.facade.setTab('me');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('app-auth-page')).toBeFalsy();
+  });
 });

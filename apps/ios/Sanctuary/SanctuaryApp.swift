@@ -19,6 +19,8 @@ struct SanctuaryApp: App {
 
     init() {
 #if os(iOS)
+        PushNotificationRegistrar.configureFirebaseIfAvailable(platformConfiguration: PlatformConfiguration.current())
+
         let appearance = UITabBarAppearance()
         appearance.configureWithTransparentBackground()
         appearance.backgroundColor = UIColor(AppTheme.tabBackground)

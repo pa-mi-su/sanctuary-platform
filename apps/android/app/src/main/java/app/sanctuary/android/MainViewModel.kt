@@ -141,6 +141,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val novenaProgress: StateFlow<NovenaProgressUiState> = _novenaProgress.asStateFlow()
 
     init {
+        syncAnonymousAppActivity()
         bootstrap()
     }
 
@@ -176,6 +177,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 loadInitialContent()
                 refreshNovenaProgress()
                 syncPushDevice()
+                syncAppActivity()
             } else {
                 reminderScheduler.cancelAll()
                 _appLanguage.value = AppLanguage.fromCode(repository.currentLanguage())
@@ -422,6 +424,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         loadInitialContent()
         refreshNovenaProgress()
         syncPushDevice()
+        syncAppActivity()
     }
 
     fun updateLanguage(language: AppLanguage) {
@@ -443,9 +446,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                                 isErrorMessage = false
                             )
                         }
-                        syncPushDevice()
                     }
                 }
+            refreshPushRegistration()
+            syncAppActivity()
             loadInitialContent()
             refreshNovenaProgress()
         }
@@ -778,6 +782,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _prayerDetail.value = ContentDetailUiState()
     }
 
+    fun refreshPushRegistration() {
+        syncAnonymousAppActivity()
+        syncPushDevice()
+    }
+
     private fun loadInitialContent() {
         loadSaints()
         loadNovenas()
@@ -805,6 +814,32 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
         viewModelScope.launch {
             runCatching { pushDeviceRegistrar.registerCurrentDevice() }
+        }
+    }
+
+    private fun syncAnonymousAppActivity() {
+        viewModelScope.launch {
+            val anonymousPushToken = pushDeviceRegistrar.anonymousPushTokenIfAvailable()
+            val notificationsEnabled = pushDeviceRegistrar.notificationsEnabled()
+            val permissionEvent = if (notificationsEnabled) {
+                "notification_permission_allowed"
+            } else {
+                "notification_permission_denied"
+            }
+            runCatching { repository.recordAnonymousAppActivity("app_open", fcmToken = anonymousPushToken, notificationsEnabled = notificationsEnabled) }
+            runCatching { repository.recordAnonymousAppActivity("session_start", fcmToken = anonymousPushToken, notificationsEnabled = notificationsEnabled) }
+            runCatching { repository.recordAnonymousAppActivity(permissionEvent, fcmToken = anonymousPushToken, notificationsEnabled = notificationsEnabled) }
+        }
+    }
+
+    private fun syncAppActivity() {
+        if (_session.value.status != SessionStatus.Authenticated) {
+            return
+        }
+
+        viewModelScope.launch {
+            runCatching { repository.recordAppActivity("app_open") }
+            runCatching { repository.recordAppActivity("session_start") }
         }
     }
 

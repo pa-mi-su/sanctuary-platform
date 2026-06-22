@@ -1,6 +1,7 @@
 package app.sanctuary.api.config;
 
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
@@ -8,7 +9,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 @Configuration
 @EnableConfigurationProperties(WebProperties.class)
 public class WebConfig implements WebMvcConfigurer {
-    private static final String[] DEFAULT_ALLOWED_ORIGINS = {
+    static final String[] DEFAULT_ALLOWED_ORIGINS = {
         "http://localhost:4200",
         "http://127.0.0.1:4200",
         "https://mydailysanctuary.com",
@@ -36,5 +37,10 @@ public class WebConfig implements WebMvcConfigurer {
         }
 
         return webProperties.allowedOrigins().toArray(String[]::new);
+    }
+
+    @Bean
+    OriginEnforcementFilter originEnforcementFilter() {
+        return new OriginEnforcementFilter(webProperties);
     }
 }

@@ -104,6 +104,44 @@
   line-height: 1.42;
 }
 
+.admin-entry {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+  border-radius: 24px;
+  padding: 18px 16px;
+}
+
+.admin-entry h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  line-height: 1.24;
+}
+
+.admin-entry p:not(.eyebrow) {
+  margin: 6px 0 0;
+  color: rgba(255, 255, 255, 0.74);
+  font-size: 0.92rem;
+  line-height: 1.42;
+}
+
+.admin-action {
+  flex-shrink: 0;
+  min-height: 46px;
+  border-radius: 16px;
+  padding: 0 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #031018;
+  background: linear-gradient(180deg, rgba(101, 198, 236, 0.98), rgba(67, 159, 205, 0.96));
+  box-shadow: 0 14px 24px rgba(38, 111, 145, 0.24);
+  font-weight: 800;
+  text-decoration: none;
+}
+
 .list-stack {
   display: grid;
   gap: 14px;

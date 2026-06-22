@@ -234,6 +234,7 @@ struct HomeView: View {
 
 private struct LanguagePickerSheet: View {
     @EnvironmentObject private var localization: LocalizationManager
+    @EnvironmentObject private var accountStore: AccountSessionStore
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -247,6 +248,9 @@ private struct LanguagePickerSheet: View {
                 ForEach(AppLanguage.allCases) { language in
                     Button(language.displayName) {
                         localization.language = language
+                        Task {
+                            await accountStore.updatePreferredLanguage(language.contentLocale)
+                        }
                         dismiss()
                     }
                     .buttonStyle(PrimaryPillButtonStyle())

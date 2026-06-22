@@ -1,7 +1,8 @@
 import Foundation
-#if canImport(FirebaseMessaging) && canImport(UIKit)
+#if canImport(FirebaseMessaging) && canImport(UIKit) && canImport(UserNotifications)
 import FirebaseMessaging
 import UIKit
+import UserNotifications
 #endif
 
 #if canImport(UIKit)
@@ -12,6 +13,10 @@ final class SanctuaryAppDelegate: NSObject, UIApplicationDelegate {
     ) -> Bool {
         let configuration = PlatformConfiguration.current()
         PushNotificationRegistrar.configureFirebaseIfAvailable(platformConfiguration: configuration)
+
+        #if canImport(UserNotifications)
+        UNUserNotificationCenter.current().delegate = self
+        #endif
 
         #if canImport(FirebaseMessaging)
         Messaging.messaging().delegate = self
@@ -27,6 +32,8 @@ final class SanctuaryAppDelegate: NSObject, UIApplicationDelegate {
         #if canImport(FirebaseMessaging)
         Messaging.messaging().apnsToken = deviceToken
         #endif
+
+        PushNotificationRegistrar.markAPNSTokenAvailable()
     }
 }
 
@@ -34,6 +41,17 @@ final class SanctuaryAppDelegate: NSObject, UIApplicationDelegate {
 extension SanctuaryAppDelegate: MessagingDelegate {
     func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
         // The authenticated session store registers the current token after sign-in/bootstrap.
+    }
+}
+#endif
+
+#if canImport(UserNotifications)
+extension SanctuaryAppDelegate: UNUserNotificationCenterDelegate {
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification
+    ) async -> UNNotificationPresentationOptions {
+        [.banner, .list, .sound, .badge]
     }
 }
 #endif

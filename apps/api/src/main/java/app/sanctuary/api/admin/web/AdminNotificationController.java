@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import app.sanctuary.api.admin.dto.AdminNotificationDto;
+import app.sanctuary.api.admin.dto.AdminNotificationDeliveryDto;
 import app.sanctuary.api.admin.dto.AdminNotificationRequest;
 import app.sanctuary.api.admin.dto.AdminNotificationSendResultDto;
 import app.sanctuary.api.admin.service.AdminAuthorizationService;
@@ -42,6 +43,15 @@ public class AdminNotificationController {
     ) {
         adminAuthorizationService.requireAdmin(CurrentUser.from(authentication));
         return adminNotificationService.history(limit);
+    }
+
+    @GetMapping("/deliveries")
+    public List<AdminNotificationDeliveryDto> recentDeliveries(
+        Authentication authentication,
+        @RequestParam(defaultValue = "50") int limit
+    ) {
+        adminAuthorizationService.requireAdmin(CurrentUser.from(authentication));
+        return adminNotificationService.recentDeliveries(limit);
     }
 
     @PostMapping("/drafts")

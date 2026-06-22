@@ -37,11 +37,15 @@ import { AppShellFacade } from './core/state/app-shell.facade';
 export class App {
   protected readonly facade = inject(AppShellFacade);
   private readonly router = inject(Router);
-  protected readonly isAdminRoute = signal(this.router.url.startsWith('/admin'));
+  protected readonly isAdminRoute = signal(this.isOperationsRoute(this.router.url));
 
   constructor() {
     this.router.events
       .pipe(filter((event): event is NavigationEnd => event instanceof NavigationEnd))
-      .subscribe((event) => this.isAdminRoute.set(event.urlAfterRedirects.startsWith('/admin')));
+      .subscribe((event) => this.isAdminRoute.set(this.isOperationsRoute(event.urlAfterRedirects)));
+  }
+
+  private isOperationsRoute(url: string): boolean {
+    return url.startsWith('/sanctuary-ops');
   }
 }

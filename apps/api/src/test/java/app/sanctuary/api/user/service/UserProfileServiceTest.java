@@ -13,6 +13,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import app.sanctuary.api.admin.repository.AdminAuthorizationRepository;
 import app.sanctuary.api.user.dto.UserAccountDto;
 import app.sanctuary.api.user.dto.UserPreferenceDto;
 import app.sanctuary.api.user.dto.UserPreferencesUpdateRequest;
@@ -33,6 +34,9 @@ class UserProfileServiceTest {
     @Mock
     private UserProgressRepository userProgressRepository;
 
+    @Mock
+    private AdminAuthorizationRepository adminAuthorizationRepository;
+
     @InjectMocks
     private UserProfileService service;
 
@@ -47,6 +51,7 @@ class UserProfileServiceTest {
         when(userAccountService.ensureAccount(currentUser)).thenReturn(account);
         when(userPreferencesRepository.ensureForUser(userId)).thenReturn(preferences);
         when(userProgressRepository.profileCounts(userId)).thenReturn(counts);
+        when(adminAuthorizationRepository.isAdmin(userId)).thenReturn(true);
 
         var result = service.getProfile(currentUser);
 
@@ -54,6 +59,7 @@ class UserProfileServiceTest {
         assertEquals("America/New_York", result.timeZoneId());
         assertEquals(3, result.favoriteNovenaCount());
         assertEquals(4, result.activeNovenaCount());
+        assertEquals(true, result.admin());
     }
 
     @Test
@@ -70,12 +76,14 @@ class UserProfileServiceTest {
         when(userAccountService.updatePreferredLanguage(userId, "pl")).thenReturn(updatedAccount);
         when(userPreferencesRepository.update(userId, request)).thenReturn(preferences);
         when(userProgressRepository.profileCounts(userId)).thenReturn(counts);
+        when(adminAuthorizationRepository.isAdmin(userId)).thenReturn(false);
 
         var result = service.updatePreferences(currentUser, request);
 
         assertEquals("Europe/Warsaw", result.timeZoneId());
         assertEquals("pl", result.preferredLanguage());
         assertEquals(2, result.activeNovenaCount());
+        assertEquals(false, result.admin());
         verify(userPreferencesRepository).update(userId, request);
     }
 }

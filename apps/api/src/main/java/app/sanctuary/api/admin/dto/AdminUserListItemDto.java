@@ -15,5 +15,6 @@ public record AdminUserListItemDto(
     String latestAppVersion,
     String latestDeviceLanguage,
     OffsetDateTime latestDeviceLastSeenAt,
-    boolean notificationsEnabled
+    boolean notificationsEnabled,
+    boolean admin
 ) {}

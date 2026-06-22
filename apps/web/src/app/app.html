@@ -80,11 +80,14 @@
     }
 
     @if (facade.currentTab() === 'auth') {
-      <app-auth-page
-        [currentLanguage]="facade.language()"
-        [isConfigured]="facade.authConfigured()"
-        (authenticated)="facade.setTab('me')"
-      />
+      @defer {
+        <app-auth-page
+          [currentLanguage]="facade.language()"
+          [isConfigured]="facade.authConfigured()"
+          (authenticated)="facade.setTab('me')"
+        />
+      } @placeholder {
+      }
     }
 
     @if (facade.currentTab() === 'about' && !facade.activeLegalDocument()) {

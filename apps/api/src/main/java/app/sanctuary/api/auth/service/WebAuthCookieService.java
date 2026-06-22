@@ -24,7 +24,8 @@ public class WebAuthCookieService {
     }
 
     public void setSessionCookies(HttpServletResponse response, AuthSessionResponse session) {
-        addCookie(response, ID_COOKIE, session.idToken(), "/me", Duration.ofSeconds(session.expiresIn()));
+        addCookie(response, ID_COOKIE, "", "/me", Duration.ZERO);
+        addCookie(response, ID_COOKIE, session.idToken(), "/", Duration.ofSeconds(session.expiresIn()));
         if (session.refreshToken() != null && !session.refreshToken().isBlank()) {
             addCookie(
                 response,
@@ -37,6 +38,7 @@ public class WebAuthCookieService {
     }
 
     public void clearSessionCookies(HttpServletResponse response) {
+        addCookie(response, ID_COOKIE, "", "/", Duration.ZERO);
         addCookie(response, ID_COOKIE, "", "/me", Duration.ZERO);
         addCookie(response, REFRESH_COOKIE, "", "/auth/web/refresh", Duration.ZERO);
     }

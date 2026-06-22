@@ -109,22 +109,19 @@ class AdminNotificationServiceTest {
     }
 
     @Test
-    void sendCompletesDraftWithNoValidDevices() {
+    void sendRejectsDraftWithNoValidDevices() {
         UUID adminUserId = UUID.randomUUID();
         AdminNotificationDto notification = notification();
         when(pushNotificationGateway.enabled()).thenReturn(true);
         when(notificationRepository.findById(notification.id())).thenReturn(notification);
         when(notificationRepository.findValidTargetsForAllAudience()).thenReturn(List.of());
-        when(notificationRepository.markSending(notification.id(), adminUserId, 0)).thenReturn(true);
 
-        AdminNotificationSendResultDto result = service.send(adminUserId, notification.id());
+        ResponseStatusException exception = assertThrows(
+            ResponseStatusException.class,
+            () -> service.send(adminUserId, notification.id())
+        );
 
-        assertEquals("sent", result.status());
-        assertEquals(0, result.targetCount());
-        assertEquals(0, result.sentCount());
-        assertEquals(0, result.failedCount());
-        verify(notificationRepository).finishSend(notification.id(), "sent", 0, 0);
-        verify(auditRepository).record(adminUserId, "admin.notification.send", "admin_notification", notification.id().toString());
+        assertEquals(HttpStatus.CONFLICT, exception.getStatusCode());
     }
 
     @Test
@@ -200,6 +197,7 @@ class AdminNotificationServiceTest {
     private PushNotificationTarget target() {
         return new PushNotificationTarget(
             UUID.randomUUID(),
+            null,
             UUID.randomUUID(),
             "ios",
             "fcm-token"

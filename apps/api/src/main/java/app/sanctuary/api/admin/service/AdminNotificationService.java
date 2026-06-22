@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import app.sanctuary.api.admin.dto.AdminNotificationDto;
+import app.sanctuary.api.admin.dto.AdminNotificationDeliveryDto;
 import app.sanctuary.api.admin.dto.AdminNotificationRequest;
 import app.sanctuary.api.admin.dto.AdminNotificationSendResultDto;
 import app.sanctuary.api.admin.notification.PushNotificationGateway;
@@ -47,6 +48,11 @@ public class AdminNotificationService {
         return notificationRepository.history(limit);
     }
 
+    public List<AdminNotificationDeliveryDto> recentDeliveries(int requestedLimit) {
+        int limit = requestedLimit <= 0 ? 50 : Math.min(requestedLimit, MAX_LIMIT);
+        return notificationRepository.recentDeliveries(limit);
+    }
+
     @Transactional
     public AdminNotificationSendResultDto send(UUID adminUserId, UUID notificationId) {
         if (!pushNotificationGateway.enabled()) {
@@ -62,6 +68,10 @@ public class AdminNotificationService {
         }
 
         var targets = notificationRepository.findValidTargetsForAllAudience();
+        if (targets.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "No push-ready devices are available.");
+        }
+
         if (!notificationRepository.markSending(notificationId, adminUserId, targets.size())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Notification is no longer available to send.");
         }
@@ -85,6 +95,7 @@ public class AdminNotificationService {
                 notificationRepository.markDeliveryFailed(deliveryId, result.failureReason());
                 if (result.invalidToken()) {
                     notificationRepository.markDeviceInvalid(target.deviceId());
+                    notificationRepository.markAnonymousDeviceInvalid(target.anonymousDeviceId());
                 }
             }
         }

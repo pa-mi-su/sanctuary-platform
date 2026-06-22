@@ -171,6 +171,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        AndroidNotificationChannels.ensureAdminUpdatesChannel(this)
         setContent {
             SanctuaryTheme {
                 SanctuaryApp(viewModel)
@@ -333,6 +334,24 @@ private fun SanctuaryApp(viewModel: MainViewModel) {
     val novenaProgress by viewModel.novenaProgress.collectAsState()
     var selectedTab by rememberSaveable { mutableStateOf(AppTab.Home) }
     var showLanguagePicker by rememberSaveable { mutableStateOf(false) }
+    val context = LocalContext.current
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) {
+        viewModel.refreshPushRegistration()
+    }
+
+    LaunchedEffect(Unit) {
+        if (
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
+                android.content.pm.PackageManager.PERMISSION_GRANTED
+        ) {
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            viewModel.refreshPushRegistration()
+        }
+    }
 
     CompositionLocalProvider(LocalSanctuaryStrings provides SanctuaryStrings(appLanguage)) {
         Box(
