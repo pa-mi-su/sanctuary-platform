@@ -27,9 +27,6 @@ concurrency:
   group: android-pipeline-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  ANDROID_PLAY_PACKAGE_NAME: ${{ vars.ANDROID_PLAY_PACKAGE_NAME || 'com.pamisu.sanctuary' }}
-
 jobs:
   validate:
     name: Validate Android Build
@@ -77,6 +74,8 @@ jobs:
     runs-on: ubuntu-latest
     environment: dev
     env:
+      ANDROID_PLAY_PACKAGE_NAME: ${{ vars.ANDROID_DEV_PLAY_PACKAGE_NAME || 'com.pamisu.sanctuary.dev' }}
+      ANDROID_PLAY_UPLOAD_ENABLED: ${{ vars.ANDROID_DEV_PLAY_UPLOAD_ENABLED || 'false' }}
       ANDROID_UPLOAD_KEYSTORE_BASE64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_BASE64 }}
       ANDROID_UPLOAD_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_PASSWORD }}
       ANDROID_UPLOAD_KEY_ALIAS: ${{ secrets.ANDROID_UPLOAD_KEY_ALIAS }}
@@ -121,7 +120,7 @@ jobs:
 
       - name: Generate Google Play access token
         id: play-token
-        if: env.ANDROID_PLAY_SERVICE_ACCOUNT_JSON != ''
+        if: env.ANDROID_PLAY_UPLOAD_ENABLED == 'true' && env.ANDROID_PLAY_SERVICE_ACCOUNT_JSON != ''
         shell: bash
         run: |
           set -euo pipefail
@@ -260,7 +259,7 @@ jobs:
           if-no-files-found: error
 
       - name: Upload Android dev bundle to Play internal testing
-        if: env.ANDROID_PLAY_SERVICE_ACCOUNT_JSON != '' && env.ANDROID_UPLOAD_KEYSTORE_BASE64 != ''
+        if: env.ANDROID_PLAY_UPLOAD_ENABLED == 'true' && env.ANDROID_PLAY_SERVICE_ACCOUNT_JSON != '' && env.ANDROID_UPLOAD_KEYSTORE_BASE64 != ''
         uses: r0adkll/upload-google-play@v1
         with:
           serviceAccountJsonPlainText: ${{ env.ANDROID_PLAY_SERVICE_ACCOUNT_JSON }}
@@ -276,6 +275,8 @@ jobs:
     runs-on: ubuntu-latest
     environment: uat
     env:
+      ANDROID_PLAY_PACKAGE_NAME: ${{ vars.ANDROID_UAT_PLAY_PACKAGE_NAME || 'com.pamisu.sanctuary.uat' }}
+      ANDROID_PLAY_UPLOAD_ENABLED: ${{ vars.ANDROID_UAT_PLAY_UPLOAD_ENABLED || 'false' }}
       ANDROID_UPLOAD_KEYSTORE_BASE64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_BASE64 }}
       ANDROID_UPLOAD_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_PASSWORD }}
       ANDROID_UPLOAD_KEY_ALIAS: ${{ secrets.ANDROID_UPLOAD_KEY_ALIAS }}
@@ -320,7 +321,7 @@ jobs:
 
       - name: Generate Google Play access token
         id: play-token
-        if: env.ANDROID_PLAY_SERVICE_ACCOUNT_JSON != ''
+        if: env.ANDROID_PLAY_UPLOAD_ENABLED == 'true' && env.ANDROID_PLAY_SERVICE_ACCOUNT_JSON != ''
         shell: bash
         run: |
           set -euo pipefail
@@ -459,7 +460,7 @@ jobs:
           if-no-files-found: error
 
       - name: Upload Android UAT bundle to Play closed testing
-        if: env.ANDROID_PLAY_SERVICE_ACCOUNT_JSON != '' && env.ANDROID_UPLOAD_KEYSTORE_BASE64 != ''
+        if: env.ANDROID_PLAY_UPLOAD_ENABLED == 'true' && env.ANDROID_PLAY_SERVICE_ACCOUNT_JSON != '' && env.ANDROID_UPLOAD_KEYSTORE_BASE64 != ''
         uses: r0adkll/upload-google-play@v1
         with:
           serviceAccountJsonPlainText: ${{ env.ANDROID_PLAY_SERVICE_ACCOUNT_JSON }}
@@ -475,6 +476,8 @@ jobs:
     runs-on: ubuntu-latest
     environment: prod
     env:
+      ANDROID_PLAY_PACKAGE_NAME: ${{ vars.ANDROID_PROD_PLAY_PACKAGE_NAME || 'com.pamisu.sanctuary' }}
+      ANDROID_PLAY_UPLOAD_ENABLED: ${{ vars.ANDROID_PROD_PLAY_UPLOAD_ENABLED || 'true' }}
       ANDROID_UPLOAD_KEYSTORE_BASE64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_BASE64 }}
       ANDROID_UPLOAD_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_PASSWORD }}
       ANDROID_UPLOAD_KEY_ALIAS: ${{ secrets.ANDROID_UPLOAD_KEY_ALIAS }}
@@ -519,7 +522,7 @@ jobs:
 
       - name: Generate Google Play access token
         id: play-token
-        if: env.ANDROID_PLAY_SERVICE_ACCOUNT_JSON != ''
+        if: env.ANDROID_PLAY_UPLOAD_ENABLED == 'true' && env.ANDROID_PLAY_SERVICE_ACCOUNT_JSON != ''
         shell: bash
         run: |
           set -euo pipefail
@@ -658,7 +661,7 @@ jobs:
           if-no-files-found: error
 
       - name: Upload Android production bundle to Play production draft
-        if: env.ANDROID_PLAY_SERVICE_ACCOUNT_JSON != '' && env.ANDROID_UPLOAD_KEYSTORE_BASE64 != ''
+        if: env.ANDROID_PLAY_UPLOAD_ENABLED == 'true' && env.ANDROID_PLAY_SERVICE_ACCOUNT_JSON != '' && env.ANDROID_UPLOAD_KEYSTORE_BASE64 != ''
         uses: r0adkll/upload-google-play@v1
         with:
           serviceAccountJsonPlainText: ${{ env.ANDROID_PLAY_SERVICE_ACCOUNT_JSON }}
