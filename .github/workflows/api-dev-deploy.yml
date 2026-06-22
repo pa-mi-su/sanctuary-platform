@@ -59,6 +59,8 @@ jobs:
       SANCTUARY_AUTH_ENABLED: ${{ vars.API_DEV_AUTH_ENABLED || 'true' }}
       SANCTUARY_COGNITO_ISSUER_URI: ${{ vars.API_DEV_COGNITO_ISSUER_URI || 'https://cognito-idp.us-east-1.amazonaws.com/us-east-1_oCrXzjKbV' }}
       SANCTUARY_COGNITO_CLIENT_ID: ${{ vars.API_DEV_COGNITO_CLIENT_ID || '2ukk5f1esf1gmgi9aadvvbjjgs' }}
+      SANCTUARY_FIREBASE_NOTIFICATIONS_ENABLED: ${{ vars.API_DEV_FIREBASE_NOTIFICATIONS_ENABLED || 'true' }}
+      API_DEV_FIREBASE_SERVICE_ACCOUNT_SECRET_ARN: ${{ vars.API_DEV_FIREBASE_SERVICE_ACCOUNT_SECRET_ARN || '' }}
       IMAGE_TAG: ${{ github.sha }}
 
     steps:
@@ -94,12 +96,18 @@ jobs:
           echo "SANCTUARY_AUTH_ENABLED=$(echo -n "${SANCTUARY_AUTH_ENABLED}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
           echo "SANCTUARY_COGNITO_ISSUER_URI=$(echo -n "${SANCTUARY_COGNITO_ISSUER_URI}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
           echo "SANCTUARY_COGNITO_CLIENT_ID=$(echo -n "${SANCTUARY_COGNITO_CLIENT_ID}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
+          echo "SANCTUARY_FIREBASE_NOTIFICATIONS_ENABLED=$(echo -n "${SANCTUARY_FIREBASE_NOTIFICATIONS_ENABLED}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
+          echo "API_DEV_FIREBASE_SERVICE_ACCOUNT_SECRET_ARN=$(echo -n "${API_DEV_FIREBASE_SERVICE_ACCOUNT_SECRET_ARN}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
 
       - name: Validate dev DB secret source
         run: |
           if [[ "${API_DEV_DB_SECRET_ARN}" != arn:aws:secretsmanager:*:secret:rds\!* ]]; then
             echo "API_DEV_DB_SECRET_ARN must be the RDS-managed Secrets Manager secret ARN."
             echo "Do not use raw GitHub secrets or SSM parameters for dev DB credentials."
+            exit 1
+          fi
+          if [[ "${SANCTUARY_FIREBASE_NOTIFICATIONS_ENABLED}" == "true" && "${API_DEV_FIREBASE_SERVICE_ACCOUNT_SECRET_ARN}" != arn:aws:secretsmanager:*:secret:* ]]; then
+            echo "API_DEV_FIREBASE_SERVICE_ACCOUNT_SECRET_ARN must point to an AWS Secrets Manager secret containing the Firebase service account JSON."
             exit 1
           fi
 
@@ -156,6 +164,8 @@ jobs:
             --arg auth_enabled "${SANCTUARY_AUTH_ENABLED}" \
             --arg cognito_issuer "${SANCTUARY_COGNITO_ISSUER_URI}" \
             --arg cognito_client_id "${SANCTUARY_COGNITO_CLIENT_ID}" \
+            --arg firebase_enabled "${SANCTUARY_FIREBASE_NOTIFICATIONS_ENABLED}" \
+            --arg firebase_secret "${API_DEV_FIREBASE_SERVICE_ACCOUNT_SECRET_ARN}" \
             --arg db_secret "${API_DEV_DB_SECRET_ARN}:password::" \
             'del(
               .taskDefinitionArn,
@@ -176,11 +186,13 @@ jobs:
                   {"name": "SANCTUARY_DB_USERNAME", "value": $db_username},
                   {"name": "SANCTUARY_AUTH_ENABLED", "value": $auth_enabled},
                   {"name": "SANCTUARY_COGNITO_ISSUER_URI", "value": $cognito_issuer},
-                  {"name": "SANCTUARY_COGNITO_CLIENT_ID", "value": $cognito_client_id}
+                  {"name": "SANCTUARY_COGNITO_CLIENT_ID", "value": $cognito_client_id},
+                  {"name": "SANCTUARY_FIREBASE_NOTIFICATIONS_ENABLED", "value": $firebase_enabled}
                 ]
-                | .secrets = [
-                  {"name": "SANCTUARY_DB_PASSWORD", "valueFrom": $db_secret}
-                ]
+                | .secrets = (
+                  [{"name": "SANCTUARY_DB_PASSWORD", "valueFrom": $db_secret}]
+                  + if $firebase_secret == "" then [] else [{"name": "SANCTUARY_FIREBASE_SERVICE_ACCOUNT_JSON", "valueFrom": $firebase_secret}] end
+                )
               else
                 .
               end
