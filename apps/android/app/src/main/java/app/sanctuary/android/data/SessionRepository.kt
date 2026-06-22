@@ -3,7 +3,10 @@ package app.sanctuary.android.data
 import android.content.Context
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
+import app.sanctuary.android.BuildConfig
 import java.time.Instant
+import java.util.TimeZone
+import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -23,6 +26,7 @@ class SessionRepository(
 
     private val sessionKey = "primary_session"
     private val languageKey = "preferred_language"
+    private val anonymousDeviceIdKey = "anonymous_device_id"
 
     suspend fun bootstrap(): SessionBootstrapResult = withContext(Dispatchers.IO) {
         val stored = loadSession()
@@ -52,6 +56,17 @@ class SessionRepository(
 
     fun currentLanguage(): String = preferences.getString(languageKey, null)?.ifBlank { null } ?: "en"
 
+    fun anonymousDeviceId(): String {
+        val existing = preferences.getString(anonymousDeviceIdKey, null)?.trim()
+        if (!existing.isNullOrBlank()) {
+            return existing
+        }
+
+        return "android-${UUID.randomUUID()}".also {
+            preferences.edit().putString(anonymousDeviceIdKey, it).apply()
+        }
+    }
+
     suspend fun updatePreferredLanguage(language: String): UserProfile? = withContext(Dispatchers.IO) {
         persistLanguage(language)
         val session = loadSession() ?: return@withContext null
@@ -70,6 +85,66 @@ class SessionRepository(
         }
         updatedProfile.toUserProfile(session).also {
             persistLanguage(it.preferredLanguage ?: language)
+        }
+    }
+
+    suspend fun registerDevice(
+        fcmToken: String,
+        notificationsEnabled: Boolean
+    ) = withContext(Dispatchers.IO) {
+        val token = fcmToken.trim()
+        if (token.isBlank()) {
+            return@withContext
+        }
+
+        authenticatedCall {
+            it.registerDevice(
+                UserDeviceRegistrationRequest(
+                    fcmToken = token,
+                    platform = "android",
+                    appVersion = BuildConfig.VERSION_NAME,
+                    language = currentLanguage(),
+                    notificationsEnabled = notificationsEnabled
+                )
+            )
+        }
+    }
+
+    suspend fun recordAppActivity(eventType: String = "session_start") = withContext(Dispatchers.IO) {
+        authenticatedCall {
+            it.recordAppActivity(
+                UserAppActivityRequest(
+                    eventType = eventType,
+                    anonymousDeviceId = anonymousDeviceId(),
+                    platform = "android",
+                    appVersion = BuildConfig.VERSION_NAME,
+                    language = currentLanguage(),
+                    timeZoneId = TimeZone.getDefault().id
+                )
+            )
+        }
+    }
+
+    suspend fun recordAnonymousAppActivity(
+        eventType: String,
+        screenName: String? = null,
+        fcmToken: String? = null,
+        notificationsEnabled: Boolean? = null
+    ) = withContext(Dispatchers.IO) {
+        runApiCall {
+            api.recordAnonymousAppActivity(
+                AnonymousAppActivityRequest(
+                    anonymousDeviceId = anonymousDeviceId(),
+                    eventType = eventType,
+                    platform = "android",
+                    appVersion = BuildConfig.VERSION_NAME,
+                    language = currentLanguage(),
+                    timeZoneId = TimeZone.getDefault().id,
+                    screenName = screenName,
+                    fcmToken = fcmToken,
+                    notificationsEnabled = notificationsEnabled
+                )
+            )
         }
     }
 

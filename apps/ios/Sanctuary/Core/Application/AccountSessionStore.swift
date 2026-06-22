@@ -53,7 +53,9 @@ final class AccountSessionStore: ObservableObject {
     private let apiClient: SanctuaryAPIClient
     private let secureStore: KeychainStore
     private let platformConfiguration: PlatformConfiguration
+    private let pushNotificationRegistrar: PushNotificationRegistrar
     private let sessionAccountKey = "primary-session"
+    private let anonymousDeviceIDKey = "sanctuary.anonymousDeviceID"
 
     init(
         apiClient: SanctuaryAPIClient,
@@ -63,6 +65,10 @@ final class AccountSessionStore: ObservableObject {
         self.apiClient = apiClient
         self.platformConfiguration = platformConfiguration
         self.secureStore = secureStore
+        self.pushNotificationRegistrar = PushNotificationRegistrar(
+            apiClient: apiClient,
+            platformConfiguration: platformConfiguration
+        )
     }
 
     var isConfigured: Bool {
@@ -103,6 +109,8 @@ final class AccountSessionStore: ObservableObject {
     }
 
     func bootstrap() async {
+        await recordAnonymousAppActivityIfPossible()
+
         guard isConfigured else {
             setMessage("Authentication is not configured for this environment yet.", isError: true)
             return
@@ -282,6 +290,8 @@ final class AccountSessionStore: ObservableObject {
             profile = mapProfile(response, fallbackSession: activeSession)
             status = .authenticated
             clearMessage()
+            await registerPushDeviceIfPossible(token: token)
+            await recordAppActivityIfPossible(token: token)
         } catch {
             if isSessionRejected(error) {
                 guard let refreshedToken = await refreshAuthorizationTokenAfterRejection() else {
@@ -294,6 +304,8 @@ final class AccountSessionStore: ObservableObject {
                     profile = mapProfile(response, fallbackSession: session)
                     status = .authenticated
                     clearMessage()
+                    await registerPushDeviceIfPossible(token: refreshedToken)
+                    await recordAppActivityIfPossible(token: refreshedToken)
                 } catch {
                     clearStoredSession()
                     setMessage("Your session has ended. Please sign in again.", isError: true)
@@ -305,6 +317,8 @@ final class AccountSessionStore: ObservableObject {
                 profile = placeholderProfile(from: fallbackSession)
                 status = .authenticated
                 setMessage("Signed in, but Sanctuary could not refresh your full profile yet.", isError: true)
+                await registerPushDeviceIfPossible(token: activeSession.idToken)
+                await recordAppActivityIfPossible(token: activeSession.idToken)
             } else {
                 clearStoredSession()
                 status = .failed
@@ -351,6 +365,38 @@ final class AccountSessionStore: ObservableObject {
         setMessage("Your account is confirmed. Please sign in to continue.", isError: false)
     }
 
+    func updatePreferredLanguage(_ language: ContentLocale) async {
+        guard let profile else {
+            await recordAnonymousAppActivityIfPossible()
+            return
+        }
+
+        guard let activeSession = await activeSession() else {
+            await recordAnonymousAppActivityIfPossible()
+            return
+        }
+
+        do {
+            let response = try await apiClient.updateMePreferences(
+                request: APIUserPreferencesUpdateRequest(
+                    preferredLanguage: language.rawValue,
+                    timeZoneId: profile.timeZoneID ?? TimeZone.current.identifier,
+                    novenaRemindersEnabled: profile.novenaRemindersEnabled,
+                    feastRemindersEnabled: profile.feastRemindersEnabled,
+                    emailUpdatesEnabled: profile.emailUpdatesEnabled,
+                    onboardingCompleted: profile.onboardingCompleted
+                ),
+                token: activeSession.idToken
+            )
+            self.profile = mapProfile(response, fallbackSession: session)
+            await registerPushDeviceIfPossible(token: activeSession.idToken)
+            await recordAppActivityIfPossible(token: activeSession.idToken)
+        } catch {
+            await registerPushDeviceIfPossible(token: activeSession.idToken)
+            await recordAppActivityIfPossible(token: activeSession.idToken)
+        }
+    }
+
     func updateReminderPreferences(novenaEnabled: Bool, dailyEnabled: Bool) async -> Bool {
         guard let profile else {
             setMessage("Please sign in to continue.", isError: true)
@@ -375,6 +421,7 @@ final class AccountSessionStore: ObservableObject {
                 token: activeSession.idToken
             )
             self.profile = mapProfile(response, fallbackSession: session)
+            await registerPushDeviceIfPossible(token: activeSession.idToken)
             setMessage(
                 (novenaEnabled || dailyEnabled)
                     ? "Your reminder preferences are updated."
@@ -570,6 +617,63 @@ final class AccountSessionStore: ObservableObject {
         }
 
         return statusCode == 401 || statusCode == 403 || statusCode == 404 || statusCode == 410
+    }
+
+    private func registerPushDeviceIfPossible(token: String) async {
+        await pushNotificationRegistrar.registerCurrentDevice(
+            token: token,
+            preferredLanguage: profile?.preferredLanguage
+        )
+    }
+
+    private func recordAppActivityIfPossible(token: String) async {
+        let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String
+        let language = profile?.preferredLanguage?.rawValue ?? "en"
+        for eventType in ["app_open", "session_start"] {
+            let request = APIUserAppActivityRequest(
+                anonymousDeviceId: anonymousDeviceID(),
+                eventType: eventType,
+                platform: "ios",
+                appVersion: appVersion,
+                language: language,
+                timeZoneId: TimeZone.current.identifier
+            )
+            try? await apiClient.recordAppActivity(request: request, token: token)
+        }
+    }
+
+    private func recordAnonymousAppActivityIfPossible() async {
+        let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String
+        let language = profile?.preferredLanguage?.rawValue ?? Locale.current.language.languageCode?.identifier ?? "en"
+        let supportedLanguage = ["en", "es", "pl"].contains(language) ? language : "en"
+        let anonymousPush = await pushNotificationRegistrar.anonymousPushTokenIfAvailable()
+        let permissionEvent = await pushNotificationRegistrar.notificationPermissionEventName()
+
+        for eventType in ["app_open", "session_start", permissionEvent] {
+            let request = APIAnonymousAppActivityRequest(
+                anonymousDeviceId: anonymousDeviceID(),
+                eventType: eventType,
+                platform: "ios",
+                appVersion: appVersion,
+                language: supportedLanguage,
+                timeZoneId: TimeZone.current.identifier,
+                screenName: nil,
+                fcmToken: anonymousPush.token,
+                notificationsEnabled: anonymousPush.notificationsEnabled
+            )
+            try? await apiClient.recordAnonymousAppActivity(request: request)
+        }
+    }
+
+    private func anonymousDeviceID() -> String {
+        let defaults = UserDefaults.standard
+        if let existing = defaults.string(forKey: anonymousDeviceIDKey), !existing.isEmpty {
+            return existing
+        }
+
+        let generated = "ios-\(UUID().uuidString)"
+        defaults.set(generated, forKey: anonymousDeviceIDKey)
+        return generated
     }
 }
 

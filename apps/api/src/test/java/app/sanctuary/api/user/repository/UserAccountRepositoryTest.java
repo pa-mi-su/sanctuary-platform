@@ -27,6 +27,10 @@ class UserAccountRepositoryTest {
 
         InOrder inOrder = inOrder(jdbcTemplate);
         inOrder.verify(jdbcTemplate).update(eq("""
+                DELETE FROM user_devices
+                WHERE user_id = ?
+                """), eq(userId));
+        inOrder.verify(jdbcTemplate).update(eq("""
                 DELETE FROM user_activity_events
                 WHERE user_id = ?
                 """), eq(userId));

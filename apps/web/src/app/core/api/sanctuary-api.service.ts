@@ -124,6 +124,7 @@ export interface UserProfile {
   favoritePrayerCount?: number;
   activeNovenaCount?: number;
   completedNovenaCount?: number;
+  admin?: boolean;
 }
 
 export interface UserPreferencesUpdateRequest {
@@ -224,6 +225,145 @@ export interface UserNovenaCommitmentRequest {
   reminderEveningHour: number | null;
   reminderTimeZoneId: string;
   status: 'active' | 'paused' | 'completed';
+}
+
+export interface AdminUserMetrics {
+  totalUsers: number;
+  registeredUsersToday: number;
+  activeUsersToday: number;
+  activeUsers7Days: number;
+  activeUsers30Days: number;
+  anonymousDeviceCount: number;
+  anonymousLinkedDeviceCount: number;
+  anonymousActiveDevicesToday: number;
+  anonymousActiveDevices7Days: number;
+  anonymousActiveDevices30Days: number;
+  anonymousAppOpenEventsToday: number;
+  anonymousAppOpenEvents7Days: number;
+  anonymousSessionStartEventsToday: number;
+  anonymousNotificationPermissionAllowedCount: number;
+  anonymousNotificationPermissionDeniedCount: number;
+  anonymousIosDeviceCount: number;
+  anonymousAndroidDeviceCount: number;
+  activeKnownDeviceCountRecent: number;
+  activeKnownDeviceCount30Days: number;
+  pushReadyIosDeviceCount: number;
+  pushReadyAndroidDeviceCount: number;
+  activeAppUsersToday: number;
+  activeAppUsers7Days: number;
+  activeAppUsers30Days: number;
+  appOpenEventsToday: number;
+  appOpenEvents7Days: number;
+  sessionStartEventsToday: number;
+  deviceCount: number;
+  activeDevicesRecent: number;
+  activeDevices7Days: number;
+  activeDevices30Days: number;
+  iosDeviceCount: number;
+  androidDeviceCount: number;
+  englishDeviceCount: number;
+  spanishDeviceCount: number;
+  polishDeviceCount: number;
+  notificationsEnabledDeviceCount: number;
+  validTokenCount: number;
+  invalidTokenCount: number;
+  unknownAppVersionDeviceCount: number;
+  notificationTargetedCount: number;
+  notificationSentCount: number;
+  notificationFailedCount: number;
+}
+
+export interface AdminUserListItem {
+  userId: string;
+  email: string | null;
+  displayName: string | null;
+  preferredLanguage: 'en' | 'es' | 'pl' | null;
+  registrationDate: string;
+  lastSignInAt: string | null;
+  deviceCount: number;
+  latestPlatform: 'ios' | 'android' | null;
+  latestAppVersion: string | null;
+  latestDeviceLanguage: 'en' | 'es' | 'pl' | null;
+  latestDeviceLastSeenAt: string | null;
+  notificationsEnabled: boolean;
+  admin: boolean;
+}
+
+export interface AdminDeviceInstall {
+  id: string;
+  userId: string | null;
+  userEmail: string | null;
+  userDisplayName: string | null;
+  signedIn: boolean;
+  platform: 'ios' | 'android' | string;
+  appVersion: string | null;
+  language: 'en' | 'es' | 'pl' | string | null;
+  notificationsEnabled: boolean;
+  tokenStatus: string;
+  pushReady: boolean;
+  firstSeenAt: string;
+  lastSeenAt: string;
+}
+
+export interface AdminUserAccess {
+  userId: string;
+  email: string | null;
+  displayName: string | null;
+  admin: boolean;
+  registrationDate: string;
+  lastSignInAt: string | null;
+}
+
+export interface AdminAccessUpdateRequest {
+  admin: boolean;
+}
+
+export interface AdminUsersResponse {
+  metrics: AdminUserMetrics;
+  users: AdminUserListItem[];
+  recentDeviceInstalls: AdminDeviceInstall[];
+}
+
+export interface AdminNotification {
+  id: string;
+  title: string;
+  message: string;
+  audienceType: string;
+  status: string;
+  targetCount: number;
+  sentCount: number;
+  failedCount: number;
+  sentAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminNotificationDelivery {
+  id: string;
+  notificationId: string;
+  notificationTitle: string;
+  userDeviceId: string | null;
+  anonymousDeviceId: string | null;
+  userId: string | null;
+  platform: 'ios' | 'android' | string | null;
+  status: string;
+  failureReason: string | null;
+  sentAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminNotificationRequest {
+  title: string;
+  message: string;
+}
+
+export interface AdminNotificationSendResult {
+  notificationId: string;
+  status: string;
+  targetCount: number;
+  sentCount: number;
+  failedCount: number;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -410,6 +550,45 @@ export class SanctuaryApiService {
 
   deleteNovenaCommitment(novenaId: string): Observable<void> {
     return this.http.delete<void>(`${this.apiBaseUrl}/me/novena-commitments/${novenaId}`);
+  }
+
+  listAdminUsers(limit = 50): Observable<AdminUsersResponse> {
+    return this.http.get<AdminUsersResponse>(`${this.apiBaseUrl}/admin/users`, {
+      params: new HttpParams().set('limit', String(limit)),
+    });
+  }
+
+  searchAdminAccess(email: string, limit = 10): Observable<AdminUserAccess[]> {
+    return this.http.get<AdminUserAccess[]>(`${this.apiBaseUrl}/admin/users/admin-access`, {
+      params: new HttpParams().set('email', email).set('limit', String(limit)),
+    });
+  }
+
+  updateAdminAccess(userId: string, request: AdminAccessUpdateRequest): Observable<AdminUserAccess> {
+    return this.http.put<AdminUserAccess>(`${this.apiBaseUrl}/admin/users/${userId}/admin-access`, request);
+  }
+
+  listAdminNotifications(limit = 50): Observable<AdminNotification[]> {
+    return this.http.get<AdminNotification[]>(`${this.apiBaseUrl}/admin/notifications`, {
+      params: new HttpParams().set('limit', String(limit)),
+    });
+  }
+
+  listAdminNotificationDeliveries(limit = 50): Observable<AdminNotificationDelivery[]> {
+    return this.http.get<AdminNotificationDelivery[]>(`${this.apiBaseUrl}/admin/notifications/deliveries`, {
+      params: new HttpParams().set('limit', String(limit)),
+    });
+  }
+
+  createAdminNotificationDraft(request: AdminNotificationRequest): Observable<AdminNotification> {
+    return this.http.post<AdminNotification>(`${this.apiBaseUrl}/admin/notifications/drafts`, request);
+  }
+
+  sendAdminNotification(notificationId: string): Observable<AdminNotificationSendResult> {
+    return this.http.post<AdminNotificationSendResult>(
+      `${this.apiBaseUrl}/admin/notifications/${notificationId}/send`,
+      null
+    );
   }
 
   private rangeParams(start: string, end: string): HttpParams {

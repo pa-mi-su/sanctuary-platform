@@ -36,14 +36,20 @@ public class SecurityConfig {
             .cors(Customizer.withDefaults());
 
         if (!authProperties.enabled()) {
-            http.authorizeHttpRequests(requests -> requests.anyRequest().permitAll());
+            http.authorizeHttpRequests(requests -> requests
+                .requestMatchers("/health", "/actuator/**", "/auth/**", "/calendar/**", "/content/**", "/app/activity").permitAll()
+                .requestMatchers("/me/**").denyAll()
+                .requestMatchers("/admin/**").denyAll()
+                .anyRequest().denyAll()
+            );
             return http.build();
         }
 
         http
             .authorizeHttpRequests(requests -> requests
-                .requestMatchers("/health", "/actuator/**", "/auth/**", "/calendar/**", "/content/**").permitAll()
+                .requestMatchers("/health", "/actuator/**", "/auth/**", "/calendar/**", "/content/**", "/app/activity").permitAll()
                 .requestMatchers("/me/**").authenticated()
+                .requestMatchers("/admin/**").authenticated()
                 .anyRequest().denyAll()
             )
             .oauth2ResourceServer(oauth2 -> oauth2

@@ -1,4 +1,6 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
+import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
+import { filter } from 'rxjs';
 import { HomePageComponent } from './pages/home-page.component';
 import { AppHeaderComponent } from './pages/app-header.component';
 import { SaintsPageComponent } from './pages/saints-page.component';
@@ -27,10 +29,23 @@ import { AppShellFacade } from './core/state/app-shell.facade';
     AboutPageComponent,
     LegalDocumentPageComponent,
     ContentDetailModalComponent,
+    RouterOutlet,
   ],
   templateUrl: './app.html',
   styleUrl: './app.scss',
 })
 export class App {
   protected readonly facade = inject(AppShellFacade);
+  private readonly router = inject(Router);
+  protected readonly isAdminRoute = signal(this.isOperationsRoute(this.router.url));
+
+  constructor() {
+    this.router.events
+      .pipe(filter((event): event is NavigationEnd => event instanceof NavigationEnd))
+      .subscribe((event) => this.isAdminRoute.set(this.isOperationsRoute(event.urlAfterRedirects)));
+  }
+
+  private isOperationsRoute(url: string): boolean {
+    return url.startsWith('/sanctuary-ops');
+  }
 }

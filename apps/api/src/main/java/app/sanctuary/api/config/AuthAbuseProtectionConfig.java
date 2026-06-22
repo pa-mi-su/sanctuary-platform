@@ -6,7 +6,10 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
-@EnableConfigurationProperties(AuthAbuseProtectionProperties.class)
+@EnableConfigurationProperties({
+    AuthAbuseProtectionProperties.class,
+    AdminAbuseProtectionProperties.class
+})
 public class AuthAbuseProtectionConfig {
 
     @Bean
@@ -15,5 +18,10 @@ public class AuthAbuseProtectionConfig {
         ObjectMapper objectMapper
     ) {
         return new AuthAbuseProtectionFilter(properties, objectMapper);
+    }
+
+    @Bean
+    AdminAbuseProtectionFilter adminAbuseProtectionFilter(AdminAbuseProtectionProperties properties) {
+        return new AdminAbuseProtectionFilter(properties);
     }
 }

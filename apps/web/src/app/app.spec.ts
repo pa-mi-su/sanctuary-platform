@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import { App } from './app';
 import { SANCTUARY_API_BASE_URL } from './core/api/sanctuary-api.config';
 import { SANCTUARY_AUTH_CONFIG } from './core/auth/sanctuary-auth.config';
@@ -8,6 +9,7 @@ describe('App', () => {
     await TestBed.configureTestingModule({
       imports: [App],
       providers: [
+        provideRouter([]),
         {
           provide: SANCTUARY_API_BASE_URL,
           useValue: 'http://localhost:8080',
@@ -39,5 +41,24 @@ describe('App', () => {
     fixture.detectChanges();
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.textContent).toContain('Welcome to your sanctuary');
+  });
+
+  it('should unmount auth when leaving the auth tab', async () => {
+    const fixture = TestBed.createComponent(App);
+    const app = fixture.componentInstance as unknown as { facade: { setTab(tab: string): void } };
+
+    app.facade.setTab('auth');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('app-auth-page')).toBeTruthy();
+
+    app.facade.setTab('me');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('app-auth-page')).toBeFalsy();
   });
 });
