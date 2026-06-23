@@ -345,11 +345,6 @@ final class AccountSessionStore: ObservableObject {
             clearStoredSession()
             return true
         } catch {
-            if isSessionRejected(error) {
-                clearStoredSession()
-                return true
-            }
-
             status = .authenticated
             setMessage(error.localizedDescription, isError: true)
             return false

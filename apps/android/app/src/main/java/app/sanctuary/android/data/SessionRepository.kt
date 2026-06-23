@@ -511,13 +511,7 @@ class SessionRepository(
     }
 
     suspend fun deleteAccount() = withContext(Dispatchers.IO) {
-        try {
-            authenticatedCall { it.deleteMe() }
-        } catch (exception: SanctuaryApiException) {
-            if (!exception.isSessionRejected()) {
-                throw exception
-            }
-        }
+        authenticatedCall { it.deleteMe() }
         clearSession()
     }
 
