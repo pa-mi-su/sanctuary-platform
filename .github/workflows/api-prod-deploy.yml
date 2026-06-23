@@ -61,6 +61,7 @@ jobs:
       SANCTUARY_AUTH_ENABLED: ${{ vars.API_PROD_AUTH_ENABLED || 'true' }}
       SANCTUARY_COGNITO_ISSUER_URI: ${{ vars.API_PROD_COGNITO_ISSUER_URI || 'https://cognito-idp.us-east-1.amazonaws.com/us-east-1_syYJKg0NY' }}
       SANCTUARY_COGNITO_CLIENT_ID: ${{ vars.API_PROD_COGNITO_CLIENT_ID || '7e3anthnuctm8p9nqck6kesjm9' }}
+      SANCTUARY_COGNITO_USER_POOL_ID: ${{ vars.API_PROD_COGNITO_USER_POOL_ID || 'us-east-1_syYJKg0NY' }}
       SANCTUARY_AUTH_COOKIE_DOMAIN: ${{ vars.API_PROD_AUTH_COOKIE_DOMAIN || '.mydailysanctuary.com' }}
       SANCTUARY_AUTH_COOKIE_SAME_SITE: ${{ vars.API_PROD_AUTH_COOKIE_SAME_SITE || 'Lax' }}
       SANCTUARY_FIREBASE_NOTIFICATIONS_ENABLED: ${{ vars.API_PROD_FIREBASE_NOTIFICATIONS_ENABLED || 'true' }}
@@ -100,6 +101,7 @@ jobs:
           echo "SANCTUARY_AUTH_ENABLED=$(echo -n "${SANCTUARY_AUTH_ENABLED}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
           echo "SANCTUARY_COGNITO_ISSUER_URI=$(echo -n "${SANCTUARY_COGNITO_ISSUER_URI}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
           echo "SANCTUARY_COGNITO_CLIENT_ID=$(echo -n "${SANCTUARY_COGNITO_CLIENT_ID}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
+          echo "SANCTUARY_COGNITO_USER_POOL_ID=$(echo -n "${SANCTUARY_COGNITO_USER_POOL_ID}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
           echo "SANCTUARY_AUTH_COOKIE_DOMAIN=$(echo -n "${SANCTUARY_AUTH_COOKIE_DOMAIN}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
           echo "SANCTUARY_AUTH_COOKIE_SAME_SITE=$(echo -n "${SANCTUARY_AUTH_COOKIE_SAME_SITE}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
           echo "SANCTUARY_FIREBASE_NOTIFICATIONS_ENABLED=$(echo -n "${SANCTUARY_FIREBASE_NOTIFICATIONS_ENABLED}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
@@ -111,6 +113,10 @@ jobs:
           if [[ "${API_PROD_DB_SECRET_ARN}" != arn:aws:secretsmanager:*:secret:rds\!* ]]; then
             echo "API_PROD_DB_SECRET_ARN must be the RDS-managed Secrets Manager secret ARN."
             echo "Do not use SSM parameters such as /sanctuary/prod/db/password for production DB credentials."
+            exit 1
+          fi
+          if [[ "${SANCTUARY_AUTH_ENABLED}" == "true" && -z "${SANCTUARY_COGNITO_USER_POOL_ID}" ]]; then
+            echo "SANCTUARY_COGNITO_USER_POOL_ID is required when auth is enabled because account deletion uses Cognito admin APIs."
             exit 1
           fi
           if [[ "${SANCTUARY_FIREBASE_NOTIFICATIONS_ENABLED}" == "true" && "${API_PROD_FIREBASE_SERVICE_ACCOUNT_SECRET_ARN}" != arn:aws:secretsmanager:*:secret:* ]]; then
@@ -156,6 +162,7 @@ jobs:
             -e SANCTUARY_AUTH_ENABLED="${SANCTUARY_AUTH_ENABLED}" \
             -e SANCTUARY_COGNITO_ISSUER_URI="${SANCTUARY_COGNITO_ISSUER_URI}" \
             -e SANCTUARY_COGNITO_CLIENT_ID="${SANCTUARY_COGNITO_CLIENT_ID}" \
+            -e SANCTUARY_COGNITO_USER_POOL_ID="${SANCTUARY_COGNITO_USER_POOL_ID}" \
             -e SANCTUARY_AUTH_COOKIE_DOMAIN="${SANCTUARY_AUTH_COOKIE_DOMAIN}" \
             -e SANCTUARY_AUTH_COOKIE_SAME_SITE="${SANCTUARY_AUTH_COOKIE_SAME_SITE}" \
             -e SANCTUARY_FIREBASE_NOTIFICATIONS_ENABLED=false \
@@ -220,6 +227,7 @@ jobs:
             --arg auth_enabled "${SANCTUARY_AUTH_ENABLED}" \
             --arg cognito_issuer "${SANCTUARY_COGNITO_ISSUER_URI}" \
             --arg cognito_client_id "${SANCTUARY_COGNITO_CLIENT_ID}" \
+            --arg cognito_user_pool_id "${SANCTUARY_COGNITO_USER_POOL_ID}" \
             --arg cookie_domain "${SANCTUARY_AUTH_COOKIE_DOMAIN}" \
             --arg cookie_same_site "${SANCTUARY_AUTH_COOKIE_SAME_SITE}" \
             --arg firebase_enabled "${SANCTUARY_FIREBASE_NOTIFICATIONS_ENABLED}" \
@@ -245,6 +253,7 @@ jobs:
                   {"name": "SANCTUARY_AUTH_ENABLED", "value": $auth_enabled},
                   {"name": "SANCTUARY_COGNITO_ISSUER_URI", "value": $cognito_issuer},
                   {"name": "SANCTUARY_COGNITO_CLIENT_ID", "value": $cognito_client_id},
+                  {"name": "SANCTUARY_COGNITO_USER_POOL_ID", "value": $cognito_user_pool_id},
                   {"name": "SANCTUARY_AUTH_COOKIE_DOMAIN", "value": $cookie_domain},
                   {"name": "SANCTUARY_AUTH_COOKIE_SAME_SITE", "value": $cookie_same_site},
                   {"name": "SANCTUARY_FIREBASE_NOTIFICATIONS_ENABLED", "value": $firebase_enabled}
