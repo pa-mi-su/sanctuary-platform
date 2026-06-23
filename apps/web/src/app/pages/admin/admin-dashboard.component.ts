@@ -53,7 +53,7 @@ interface MetricSection {
         <div>
           <p class="eyebrow">Sanctuary Admin</p>
           <h1>Operations Dashboard</h1>
-          <p>Monitor users and prepare notification drafts for future FCM delivery.</p>
+          <p>Send admin notifications and check the few signals needed to test delivery.</p>
           <p class="build-copy">Version {{ appVersion }} · Build {{ appBuild }}{{ environmentLabel }}</p>
         </div>
         <div class="header-actions">
@@ -295,8 +295,8 @@ interface MetricSection {
           <div class="panel-heading">
             <div>
               <p class="eyebrow">Devices</p>
-              <h2>Recent App Installs</h2>
-              <p>Signed-in and anonymous mobile installs that reported activity or push state.</p>
+              <h2>Recent Push Targets</h2>
+              <p>Recent mobile records that can help explain notification testing. This is not a perfect lifetime install count.</p>
             </div>
             <span>{{ recentDeviceInstalls().length }} loaded</span>
           </div>
@@ -308,14 +308,14 @@ interface MetricSection {
               <span>App</span>
               <span>Language</span>
               <span>Push</span>
-              <span>First Seen</span>
+              <span>First Reported</span>
               <span>Last Seen</span>
             </div>
             @for (install of recentDeviceInstalls(); track install.id) {
               <div class="install-row" role="row">
                 <span>
                   <strong>{{ formatPlatform(install.platform) }}</strong>
-                  <small>{{ install.signedIn ? 'Signed-in device' : 'Anonymous install' }}</small>
+                  <small>{{ install.signedIn ? 'Signed-in record' : 'Anonymous record' }}</small>
                 </span>
                 <span>
                   <strong>{{ installOwnerLabel(install) }}</strong>
@@ -330,7 +330,7 @@ interface MetricSection {
                 <span>{{ formatDate(install.lastSeenAt) }}</span>
               </div>
             } @empty {
-              <p class="empty-copy">No mobile installs reported yet.</p>
+              <p class="empty-copy">No mobile push records reported yet.</p>
             }
           </div>
         </section>
@@ -345,9 +345,7 @@ interface MetricSection {
           </div>
           <div class="metadata-strip" aria-label="Device metadata summary">
             <span>{{ pushReadyPlatformMixLabel() }} reachable</span>
-            <span>{{ pushReadyDeviceCountLabel() }} push-ready</span>
             <span>{{ formatNumber(metrics()?.activeKnownDeviceCountRecent) }} active records now</span>
-            <span>{{ formatNumber(metrics()?.unknownAppVersionDeviceCount) }} unknown versions</span>
             <span>{{ formatNumber(metrics()?.invalidTokenCount) }} invalid tokens</span>
           </div>
 
@@ -431,7 +429,7 @@ export class AdminDashboardComponent {
     const metrics = this.metrics();
     return [
       {
-        label: 'Accounts',
+        label: 'Registered accounts',
         value: this.formatNumber(metrics?.totalUsers),
         helper: `${this.formatNumber(metrics?.registeredUsersToday)} new in the last 24h`,
         tone: 'primary',
@@ -443,13 +441,13 @@ export class AdminDashboardComponent {
         tone: 'good',
       },
       {
-        label: 'Anonymous app use',
+        label: 'Anonymous active today',
         value: this.formatNumber(metrics?.anonymousActiveDevicesToday),
-        helper: `${this.formatNumber(metrics?.anonymousAppOpenEventsToday)} app opens from devices without login`,
+        helper: 'Anonymous mobile records seen in the last 24h',
         tone: 'neutral',
       },
       {
-        label: 'Can receive push',
+        label: 'Reachable push targets',
         value: this.formatNumber(metrics?.notificationsEnabledDeviceCount),
         helper: `${this.formatNumber(metrics?.pushReadyIosDeviceCount)} iOS, ${this.formatNumber(metrics?.pushReadyAndroidDeviceCount)} Android reachable targets`,
         tone: metrics?.notificationsEnabledDeviceCount ? 'good' : 'warning',
@@ -462,7 +460,7 @@ export class AdminDashboardComponent {
     return [
       {
         title: 'Audience',
-        summary: 'Who is using the app, including people who have not created an account yet.',
+        summary: 'The only account and anonymous usage signals worth watching while testing.',
         cards: [
           {
             label: 'Registered accounts',
@@ -486,21 +484,21 @@ export class AdminDashboardComponent {
             helper: 'Longer-term registered account activity.',
           },
           {
-            label: 'Anonymous devices today',
+            label: 'Anonymous active today',
             value: this.formatNumber(metrics?.anonymousActiveDevicesToday),
-            helper: `${this.formatNumber(metrics?.anonymousAppOpenEventsToday)} app opens before sign-in or without an account.`,
+            helper: 'Anonymous mobile records seen in the last 24 hours.',
             tone: 'neutral',
           },
           {
-            label: 'Anonymous devices 7 days',
+            label: 'Anonymous active 7 days',
             value: this.formatNumber(metrics?.anonymousActiveDevices7Days),
-            helper: 'A lightweight signal that people are using the app before login is set up.',
+            helper: 'Anonymous mobile records seen in the last 7 days.',
           },
         ],
       },
       {
-        title: 'Device Metadata',
-        summary: 'Platform, version, language, and push-token health reported by the mobile apps.',
+        title: 'Push Readiness',
+        summary: 'Whether the backend has current Firebase targets it can try to send to.',
         cards: [
           {
             label: 'Reachable push targets',
@@ -511,18 +509,12 @@ export class AdminDashboardComponent {
           {
             label: 'Active records now',
             value: this.formatNumber(metrics?.activeKnownDeviceCountRecent),
-            helper: 'Deduped device tokens seen in the last 2 hours; not a lifetime install count.',
+            helper: 'Deduped records seen in the last 2 hours. This is the best local testing count.',
           },
           {
             label: 'Reachable platform mix',
             value: this.pushReadyPlatformMixLabel(),
             helper: 'Push-ready targets with valid Firebase tokens and notification permission.',
-          },
-          {
-            label: 'Reachability rate',
-            value: this.reachableDeviceRate(),
-            helper: 'Reachable push targets divided by active records seen in the last 2 hours.',
-            tone: metrics?.notificationsEnabledDeviceCount ? 'good' : 'warning',
           },
           {
             label: 'Token health',
@@ -531,14 +523,9 @@ export class AdminDashboardComponent {
             tone: metrics?.invalidTokenCount ? 'warning' : 'good',
           },
           {
-            label: 'Notification permission',
-            value: `${this.formatNumber(metrics?.anonymousNotificationPermissionAllowedCount)} / ${this.formatNumber(metrics?.anonymousNotificationPermissionDeniedCount)}`,
-            helper: 'Anonymous permission allowed / denied signals.',
-          },
-          {
             label: 'Unknown app version',
             value: this.formatNumber(metrics?.unknownAppVersionDeviceCount),
-            helper: 'Signed-in devices missing version metadata. Lower is better.',
+            helper: 'Records missing version metadata. Lower is better.',
             tone: metrics?.unknownAppVersionDeviceCount ? 'warning' : 'good',
           },
         ],
@@ -807,27 +794,11 @@ export class AdminDashboardComponent {
     }
   }
 
-  protected reachableDeviceRate(): string {
-    return this.formatPercent(this.metrics()?.notificationsEnabledDeviceCount ?? 0, this.metrics()?.activeKnownDeviceCountRecent ?? 0);
-  }
-
   protected userReachableDeviceLabel(user: AdminUserListItem): string {
     if (user.deviceCount <= 0) {
       return '0';
     }
     return `${this.formatNumber(user.deviceCount)} ${user.latestPlatform || 'device'}`;
-  }
-
-  protected knownDeviceCount(): number {
-    const metrics = this.metrics();
-    return (metrics?.deviceCount ?? 0) + (metrics?.anonymousDeviceCount ?? 0);
-  }
-
-  protected platformMixLabel(): string {
-    const metrics = this.metrics();
-    const ios = (metrics?.iosDeviceCount ?? 0) + (metrics?.anonymousIosDeviceCount ?? 0);
-    const android = (metrics?.androidDeviceCount ?? 0) + (metrics?.anonymousAndroidDeviceCount ?? 0);
-    return `${this.formatNumber(ios)} iOS / ${this.formatNumber(android)} Android`;
   }
 
   protected pushReadyPlatformMixLabel(): string {

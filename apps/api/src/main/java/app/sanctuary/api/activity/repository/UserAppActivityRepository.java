@@ -90,6 +90,9 @@ public class UserAppActivityRepository {
         String fcmToken,
         Boolean notificationsEnabled
     ) {
+        String normalizedFcmToken = emptyToNull(fcmToken);
+        removeDuplicateAnonymousDevicesForToken(anonymousDeviceId, normalizedFcmToken);
+
         jdbcTemplate.update(
             """
                 INSERT INTO anonymous_app_devices (
@@ -126,9 +129,25 @@ public class UserAppActivityRepository {
             emptyToNull(appVersion),
             language,
             emptyToNull(timeZoneId),
-            emptyToNull(fcmToken),
+            normalizedFcmToken,
             notificationsEnabled,
             notificationsEnabled
+        );
+    }
+
+    private void removeDuplicateAnonymousDevicesForToken(String anonymousDeviceId, String fcmToken) {
+        if (fcmToken == null) {
+            return;
+        }
+
+        jdbcTemplate.update(
+            """
+                DELETE FROM anonymous_app_devices
+                WHERE anonymous_device_id <> ?
+                  AND fcm_token = ?
+                """,
+            anonymousDeviceId,
+            fcmToken
         );
     }
 
