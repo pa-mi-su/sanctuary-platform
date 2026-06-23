@@ -280,6 +280,16 @@ jobs:
           echo "${APP_STORE_CONNECT_API_PRIVATE_KEY_BASE64}" | base64 --decode > "${API_KEY_PATH}"
           echo "${IOS_DISTRIBUTION_CERTIFICATE_P12_BASE64}" | base64 --decode > "${CERT_PATH}"
           echo "${IOS_PROVISIONING_PROFILE_DEV_BASE64}" | base64 --decode > "${PROFILE_PATH}"
+          PROFILE_PLIST_PATH="${RUNNER_TEMP}/Sanctuary-Dev.mobileprovision.plist"
+          security cms -D -i "${PROFILE_PATH}" > "${PROFILE_PLIST_PATH}"
+          /usr/libexec/PlistBuddy -c "Print :Entitlements:aps-environment" "${PROFILE_PLIST_PATH}" >/dev/null || {
+            echo "::error::IOS_PROVISIONING_PROFILE_DEV_BASE64 is stale. Regenerate Sanctuary Dev App Store with Push Notifications enabled."
+            exit 1
+          }
+          /usr/libexec/PlistBuddy -c "Print :Entitlements:com.apple.developer.associated-domains" "${PROFILE_PLIST_PATH}" >/dev/null || {
+            echo "::error::IOS_PROVISIONING_PROFILE_DEV_BASE64 is stale. Regenerate Sanctuary Dev App Store with Associated Domains enabled."
+            exit 1
+          }
           cp "${API_KEY_PATH}" "${APP_STORE_CONNECT_PRIVATE_KEYS_DIR}/AuthKey_${APP_STORE_CONNECT_API_KEY_ID}.p8"
           export API_KEY_PATH
 
@@ -525,6 +535,16 @@ jobs:
           echo "${APP_STORE_CONNECT_API_PRIVATE_KEY_BASE64}" | base64 --decode > "${API_KEY_PATH}"
           echo "${IOS_DISTRIBUTION_CERTIFICATE_P12_BASE64}" | base64 --decode > "${CERT_PATH}"
           echo "${IOS_PROVISIONING_PROFILE_UAT_BASE64}" | base64 --decode > "${PROFILE_PATH}"
+          PROFILE_PLIST_PATH="${RUNNER_TEMP}/Sanctuary-UAT.mobileprovision.plist"
+          security cms -D -i "${PROFILE_PATH}" > "${PROFILE_PLIST_PATH}"
+          /usr/libexec/PlistBuddy -c "Print :Entitlements:aps-environment" "${PROFILE_PLIST_PATH}" >/dev/null || {
+            echo "::error::IOS_PROVISIONING_PROFILE_UAT_BASE64 is stale. Regenerate Sanctuary UAT App Store with Push Notifications enabled."
+            exit 1
+          }
+          /usr/libexec/PlistBuddy -c "Print :Entitlements:com.apple.developer.associated-domains" "${PROFILE_PLIST_PATH}" >/dev/null || {
+            echo "::error::IOS_PROVISIONING_PROFILE_UAT_BASE64 is stale. Regenerate Sanctuary UAT App Store with Associated Domains enabled."
+            exit 1
+          }
           cp "${API_KEY_PATH}" "${APP_STORE_CONNECT_PRIVATE_KEYS_DIR}/AuthKey_${APP_STORE_CONNECT_API_KEY_ID}.p8"
           export API_KEY_PATH
 
@@ -770,6 +790,16 @@ jobs:
           echo "${APP_STORE_CONNECT_API_PRIVATE_KEY_BASE64}" | base64 --decode > "${API_KEY_PATH}"
           echo "${IOS_DISTRIBUTION_CERTIFICATE_P12_BASE64}" | base64 --decode > "${CERT_PATH}"
           echo "${IOS_PROVISIONING_PROFILE_PROD_BASE64}" | base64 --decode > "${PROFILE_PATH}"
+          PROFILE_PLIST_PATH="${RUNNER_TEMP}/Sanctuary-Prod.mobileprovision.plist"
+          security cms -D -i "${PROFILE_PATH}" > "${PROFILE_PLIST_PATH}"
+          /usr/libexec/PlistBuddy -c "Print :Entitlements:aps-environment" "${PROFILE_PLIST_PATH}" >/dev/null || {
+            echo "::error::IOS_PROVISIONING_PROFILE_PROD_BASE64 is stale. Regenerate Sanctuary Prod App Store with Push Notifications enabled."
+            exit 1
+          }
+          /usr/libexec/PlistBuddy -c "Print :Entitlements:com.apple.developer.associated-domains" "${PROFILE_PLIST_PATH}" >/dev/null || {
+            echo "::error::IOS_PROVISIONING_PROFILE_PROD_BASE64 is stale. Regenerate Sanctuary Prod App Store with Associated Domains enabled."
+            exit 1
+          }
           cp "${API_KEY_PATH}" "${APP_STORE_CONNECT_PRIVATE_KEYS_DIR}/AuthKey_${APP_STORE_CONNECT_API_KEY_ID}.p8"
           export API_KEY_PATH
 

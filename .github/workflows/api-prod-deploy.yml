@@ -144,17 +144,6 @@ jobs:
 
           trap cleanup EXIT
 
-          firebase_args=(-e "SANCTUARY_FIREBASE_NOTIFICATIONS_ENABLED=${SANCTUARY_FIREBASE_NOTIFICATIONS_ENABLED}")
-          if [[ "${SANCTUARY_FIREBASE_NOTIFICATIONS_ENABLED}" == "true" ]]; then
-            firebase_service_account_json="$(aws secretsmanager get-secret-value \
-              --secret-id "${API_PROD_FIREBASE_SERVICE_ACCOUNT_SECRET_ARN}" \
-              --query SecretString \
-              --output text \
-              --region "${AWS_REGION}")"
-            echo "::add-mask::${firebase_service_account_json}"
-            firebase_args+=(-e "SANCTUARY_FIREBASE_SERVICE_ACCOUNT_JSON=${firebase_service_account_json}")
-          fi
-
           container_id="$(docker run -d \
             -p 18080:8080 \
             -e SPRING_PROFILES_ACTIVE=prod \
@@ -169,7 +158,7 @@ jobs:
             -e SANCTUARY_COGNITO_CLIENT_ID="${SANCTUARY_COGNITO_CLIENT_ID}" \
             -e SANCTUARY_AUTH_COOKIE_DOMAIN="${SANCTUARY_AUTH_COOKIE_DOMAIN}" \
             -e SANCTUARY_AUTH_COOKIE_SAME_SITE="${SANCTUARY_AUTH_COOKIE_SAME_SITE}" \
-            "${firebase_args[@]}" \
+            -e SANCTUARY_FIREBASE_NOTIFICATIONS_ENABLED=false \
             "${EXPECTED_API_IMAGE}")"
 
           for attempt in {1..30}; do
