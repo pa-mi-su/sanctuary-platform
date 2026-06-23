@@ -28,20 +28,17 @@ public class AdminUserRepository {
                     (SELECT COUNT(*) FROM users) AS total_users,
                     (SELECT COUNT(*) FROM users WHERE created_at >= NOW() - INTERVAL '1 day') AS registered_users_today,
                     (SELECT COUNT(*) FROM users WHERE last_sign_in_at >= NOW() - INTERVAL '1 day') AS active_users_today,
-                    (SELECT COUNT(*) FROM users WHERE last_sign_in_at >= NOW() - INTERVAL '7 days') AS active_users_7_days,
                     (SELECT COUNT(*) FROM users WHERE last_sign_in_at >= NOW() - INTERVAL '30 days') AS active_users_30_days,
-                    (SELECT COUNT(*) FROM anonymous_app_devices) AS anonymous_device_count,
-                    (SELECT COUNT(*) FROM anonymous_app_devices WHERE linked_user_id IS NOT NULL) AS anonymous_linked_device_count,
-                    (SELECT COUNT(*) FROM anonymous_app_devices WHERE last_seen_at >= NOW() - INTERVAL '1 day') AS anonymous_active_devices_today,
-                    (SELECT COUNT(*) FROM anonymous_app_devices WHERE last_seen_at >= NOW() - INTERVAL '7 days') AS anonymous_active_devices_7_days,
-                    (SELECT COUNT(*) FROM anonymous_app_devices WHERE last_seen_at >= NOW() - INTERVAL '30 days') AS anonymous_active_devices_30_days,
-                    (SELECT COUNT(*) FROM anonymous_app_activity_events WHERE event_type = 'app_open' AND occurred_at >= NOW() - INTERVAL '1 day') AS anonymous_app_open_events_today,
-                    (SELECT COUNT(*) FROM anonymous_app_activity_events WHERE event_type = 'app_open' AND occurred_at >= NOW() - INTERVAL '7 days') AS anonymous_app_open_events_7_days,
-                    (SELECT COUNT(*) FROM anonymous_app_activity_events WHERE event_type = 'session_start' AND occurred_at >= NOW() - INTERVAL '1 day') AS anonymous_session_start_events_today,
-                    (SELECT COUNT(*) FROM anonymous_app_activity_events WHERE event_type = 'notification_permission_allowed') AS anonymous_notification_permission_allowed_count,
-                    (SELECT COUNT(*) FROM anonymous_app_activity_events WHERE event_type = 'notification_permission_denied') AS anonymous_notification_permission_denied_count,
-                    (SELECT COUNT(*) FROM anonymous_app_devices WHERE platform = 'ios') AS anonymous_ios_device_count,
-                    (SELECT COUNT(*) FROM anonymous_app_devices WHERE platform = 'android') AS anonymous_android_device_count,
+                    (
+                        SELECT COUNT(DISTINCT COALESCE(NULLIF(TRIM(fcm_token), ''), anonymous_device_id))
+                        FROM anonymous_app_devices
+                        WHERE last_seen_at >= NOW() - INTERVAL '1 day'
+                    ) AS anonymous_active_devices_today,
+                    (
+                        SELECT COUNT(DISTINCT COALESCE(NULLIF(TRIM(fcm_token), ''), anonymous_device_id))
+                        FROM anonymous_app_devices
+                        WHERE last_seen_at >= NOW() - INTERVAL '7 days'
+                    ) AS anonymous_active_devices_7_days,
                     (
                         SELECT COUNT(DISTINCT device_key)
                         FROM (
@@ -52,16 +49,6 @@ public class AdminUserRepository {
                             WHERE last_seen_at >= NOW() - INTERVAL '2 hours'
                         ) active_known_devices
                     ) AS active_known_device_count_recent,
-                    (
-                        SELECT COUNT(DISTINCT device_key)
-                        FROM (
-                            SELECT COALESCE(NULLIF(TRIM(fcm_token), ''), id::text) AS device_key FROM user_devices
-                            WHERE last_seen_at >= NOW() - INTERVAL '30 days'
-                            UNION ALL
-                            SELECT COALESCE(NULLIF(TRIM(fcm_token), ''), anonymous_device_id) AS device_key FROM anonymous_app_devices
-                            WHERE last_seen_at >= NOW() - INTERVAL '30 days'
-                        ) active_known_devices
-                    ) AS active_known_device_count_30_days,
                     (
                         SELECT COUNT(DISTINCT fcm_token)
                         FROM (
@@ -82,21 +69,6 @@ public class AdminUserRepository {
                             WHERE platform = 'android' AND last_seen_at >= NOW() - INTERVAL '2 hours' AND notifications_enabled = TRUE AND token_status = 'valid' AND NULLIF(TRIM(fcm_token), '') IS NOT NULL
                         ) android_push_ready_tokens
                     ) AS push_ready_android_device_count,
-                    (SELECT COUNT(DISTINCT user_id) FROM user_app_activity_events WHERE occurred_at >= NOW() - INTERVAL '1 day') AS active_app_users_today,
-                    (SELECT COUNT(DISTINCT user_id) FROM user_app_activity_events WHERE occurred_at >= NOW() - INTERVAL '7 days') AS active_app_users_7_days,
-                    (SELECT COUNT(DISTINCT user_id) FROM user_app_activity_events WHERE occurred_at >= NOW() - INTERVAL '30 days') AS active_app_users_30_days,
-                    (SELECT COUNT(*) FROM user_app_activity_events WHERE event_type = 'app_open' AND occurred_at >= NOW() - INTERVAL '1 day') AS app_open_events_today,
-                    (SELECT COUNT(*) FROM user_app_activity_events WHERE event_type = 'app_open' AND occurred_at >= NOW() - INTERVAL '7 days') AS app_open_events_7_days,
-                    (SELECT COUNT(*) FROM user_app_activity_events WHERE event_type = 'session_start' AND occurred_at >= NOW() - INTERVAL '1 day') AS session_start_events_today,
-                    (SELECT COUNT(*) FROM user_devices) AS device_count,
-                    (SELECT COUNT(*) FROM user_devices WHERE last_seen_at >= NOW() - INTERVAL '2 hours') AS active_devices_recent,
-                    (SELECT COUNT(*) FROM user_devices WHERE last_seen_at >= NOW() - INTERVAL '7 days') AS active_devices_7_days,
-                    (SELECT COUNT(*) FROM user_devices WHERE last_seen_at >= NOW() - INTERVAL '30 days') AS active_devices_30_days,
-                    (SELECT COUNT(*) FROM user_devices WHERE platform = 'ios') AS ios_device_count,
-                    (SELECT COUNT(*) FROM user_devices WHERE platform = 'android') AS android_device_count,
-                    (SELECT COUNT(*) FROM user_devices WHERE language = 'en') AS english_device_count,
-                    (SELECT COUNT(*) FROM user_devices WHERE language = 'es') AS spanish_device_count,
-                    (SELECT COUNT(*) FROM user_devices WHERE language = 'pl') AS polish_device_count,
                     (
                         SELECT COUNT(DISTINCT fcm_token)
                         FROM (
@@ -136,39 +108,12 @@ public class AdminUserRepository {
                 rs.getInt("total_users"),
                 rs.getInt("registered_users_today"),
                 rs.getInt("active_users_today"),
-                rs.getInt("active_users_7_days"),
                 rs.getInt("active_users_30_days"),
-                rs.getInt("anonymous_device_count"),
-                rs.getInt("anonymous_linked_device_count"),
                 rs.getInt("anonymous_active_devices_today"),
                 rs.getInt("anonymous_active_devices_7_days"),
-                rs.getInt("anonymous_active_devices_30_days"),
-                rs.getInt("anonymous_app_open_events_today"),
-                rs.getInt("anonymous_app_open_events_7_days"),
-                rs.getInt("anonymous_session_start_events_today"),
-                rs.getInt("anonymous_notification_permission_allowed_count"),
-                rs.getInt("anonymous_notification_permission_denied_count"),
-                rs.getInt("anonymous_ios_device_count"),
-                rs.getInt("anonymous_android_device_count"),
                 rs.getInt("active_known_device_count_recent"),
-                rs.getInt("active_known_device_count_30_days"),
                 rs.getInt("push_ready_ios_device_count"),
                 rs.getInt("push_ready_android_device_count"),
-                rs.getInt("active_app_users_today"),
-                rs.getInt("active_app_users_7_days"),
-                rs.getInt("active_app_users_30_days"),
-                rs.getInt("app_open_events_today"),
-                rs.getInt("app_open_events_7_days"),
-                rs.getInt("session_start_events_today"),
-                rs.getInt("device_count"),
-                rs.getInt("active_devices_recent"),
-                rs.getInt("active_devices_7_days"),
-                rs.getInt("active_devices_30_days"),
-                rs.getInt("ios_device_count"),
-                rs.getInt("android_device_count"),
-                rs.getInt("english_device_count"),
-                rs.getInt("spanish_device_count"),
-                rs.getInt("polish_device_count"),
                 rs.getInt("notifications_enabled_device_count"),
                 rs.getInt("valid_token_count"),
                 rs.getInt("invalid_token_count"),
