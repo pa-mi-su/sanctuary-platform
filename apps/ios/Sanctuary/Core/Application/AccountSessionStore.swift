@@ -1,6 +1,10 @@
 import Foundation
 import SwiftUI
 import Combine
+import CryptoKit
+#if canImport(UIKit)
+import UIKit
+#endif
 
 enum AccountSessionStatus: Sendable {
     case signedOut
@@ -705,13 +709,59 @@ final class AccountSessionStore: ObservableObject {
 
     private func anonymousDeviceID() -> String {
         let defaults = UserDefaults.standard
+        if let keychainStored = loadAnonymousDeviceIDFromKeychain() {
+            defaults.set(keychainStored, forKey: anonymousDeviceIDKey)
+            return keychainStored
+        }
+
+        if let stable = stableAnonymousDeviceID() {
+            defaults.set(stable, forKey: anonymousDeviceIDKey)
+            saveAnonymousDeviceIDToKeychain(stable)
+            return stable
+        }
+
         if let existing = defaults.string(forKey: anonymousDeviceIDKey), !existing.isEmpty {
+            saveAnonymousDeviceIDToKeychain(existing)
             return existing
         }
 
         let generated = "ios-\(UUID().uuidString)"
         defaults.set(generated, forKey: anonymousDeviceIDKey)
+        saveAnonymousDeviceIDToKeychain(generated)
         return generated
+    }
+
+    private func loadAnonymousDeviceIDFromKeychain() -> String? {
+        guard let data = try? secureStore.load(account: anonymousDeviceIDKey),
+              let value = String(data: data, encoding: .utf8),
+              !value.isEmpty else {
+            return nil
+        }
+
+        return value
+    }
+
+    private func saveAnonymousDeviceIDToKeychain(_ value: String) {
+        try? secureStore.save(Data(value.utf8), for: anonymousDeviceIDKey)
+    }
+
+    private func stableAnonymousDeviceID() -> String? {
+        #if canImport(UIKit)
+        guard let vendorID = UIDevice.current.identifierForVendor?.uuidString,
+              !vendorID.isEmpty else {
+            return nil
+        }
+
+        let bundleID = Bundle.main.bundleIdentifier ?? "app.sanctuary.ios"
+        return "ios-\(sha256("\(bundleID):\(vendorID)").prefix(32))"
+        #else
+        return nil
+        #endif
+    }
+
+    private func sha256(_ value: String) -> String {
+        let digest = SHA256.hash(data: Data(value.utf8))
+        return digest.map { String(format: "%02x", $0) }.joined()
     }
 }
 

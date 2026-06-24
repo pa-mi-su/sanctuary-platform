@@ -1,10 +1,13 @@
 package app.sanctuary.android.data
 
 import android.content.Context
+import android.provider.Settings
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import app.sanctuary.android.BuildConfig
+import java.security.MessageDigest
 import java.time.Instant
+import java.util.Locale
 import java.util.TimeZone
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
@@ -14,10 +17,11 @@ class SessionRepository(
     context: Context,
     private val api: SanctuaryApiService
 ) {
+    private val appContext = context.applicationContext
     private val preferences = EncryptedSharedPreferences.create(
-        context,
+        appContext,
         "sanctuary_session",
-        MasterKey.Builder(context)
+        MasterKey.Builder(appContext)
             .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
             .build(),
         EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
@@ -64,6 +68,12 @@ class SessionRepository(
         return synchronized(anonymousDeviceIdLock) {
             cachedAnonymousDeviceId?.let { return@synchronized it }
 
+            stableAnonymousDeviceId()?.let { stable ->
+                preferences.edit().putString(anonymousDeviceIdKey, stable).apply()
+                cachedAnonymousDeviceId = stable
+                return@synchronized stable
+            }
+
             val existing = preferences.getString(anonymousDeviceIdKey, null)?.trim()
             if (!existing.isNullOrBlank()) {
                 cachedAnonymousDeviceId = existing
@@ -76,6 +86,22 @@ class SessionRepository(
             }
         }
     }
+
+    private fun stableAnonymousDeviceId(): String? {
+        val androidId = Settings.Secure.getString(appContext.contentResolver, Settings.Secure.ANDROID_ID)
+            ?.trim()
+            ?.takeIf { it.isNotEmpty() && it != "9774d56d682e549c" }
+            ?: return null
+
+        return "android-${sha256("${appContext.packageName}:$androidId").take(32)}"
+    }
+
+    private fun sha256(value: String): String =
+        MessageDigest.getInstance("SHA-256")
+            .digest(value.toByteArray(Charsets.UTF_8))
+            .joinToString("") { byte ->
+                String.format(Locale.US, "%02x", byte.toInt() and 0xff)
+            }
 
     suspend fun updatePreferredLanguage(language: String): UserProfile? = withContext(Dispatchers.IO) {
         persistLanguage(language)
