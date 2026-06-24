@@ -20,7 +20,6 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 
 import app.sanctuary.api.admin.dto.AdminDeviceInstallDto;
-import app.sanctuary.api.admin.dto.AdminUserListItemDto;
 import app.sanctuary.api.admin.dto.AdminUserMetricsDto;
 
 @ExtendWith(MockitoExtension.class)
@@ -80,49 +79,6 @@ class AdminUserRepositoryTest {
     }
 
     @Test
-    void listUsersMapsLatestDeviceActivity() throws Exception {
-        AdminUserRepository repository = new AdminUserRepository(jdbcTemplate);
-        ArgumentCaptor<RowMapper<AdminUserListItemDto>> mapperCaptor = ArgumentCaptor.captor();
-        when(jdbcTemplate.query(anyString(), mapperCaptor.capture(), eq(25))).thenReturn(List.of());
-
-        repository.listUsers(25);
-
-        UUID userId = UUID.randomUUID();
-        OffsetDateTime registrationDate = OffsetDateTime.now().minusDays(30);
-        OffsetDateTime lastSignInAt = OffsetDateTime.now().minusDays(1);
-        OffsetDateTime latestDeviceLastSeenAt = OffsetDateTime.now().minusHours(2);
-        when(resultSet.getObject("user_id", UUID.class)).thenReturn(userId);
-        when(resultSet.getString("email")).thenReturn("admin@example.com");
-        when(resultSet.getString("display_name")).thenReturn("Admin User");
-        when(resultSet.getString("preferred_language")).thenReturn("en");
-        when(resultSet.getObject("registration_date", OffsetDateTime.class)).thenReturn(registrationDate);
-        when(resultSet.getObject("last_sign_in_at", OffsetDateTime.class)).thenReturn(lastSignInAt);
-        when(resultSet.getInt("device_count")).thenReturn(1);
-        when(resultSet.getString("latest_platform")).thenReturn("ios");
-        when(resultSet.getString("latest_app_version")).thenReturn("1.0.12");
-        when(resultSet.getString("latest_device_language")).thenReturn("es");
-        when(resultSet.getObject("latest_device_last_seen_at", OffsetDateTime.class)).thenReturn(latestDeviceLastSeenAt);
-        when(resultSet.getBoolean("notifications_enabled")).thenReturn(true);
-        when(resultSet.getBoolean("admin")).thenReturn(true);
-
-        AdminUserListItemDto user = mapperCaptor.getValue().mapRow(resultSet, 0);
-
-        assertEquals(userId, user.userId());
-        assertEquals("admin@example.com", user.email());
-        assertEquals("Admin User", user.displayName());
-        assertEquals("en", user.preferredLanguage());
-        assertEquals(registrationDate, user.registrationDate());
-        assertEquals(lastSignInAt, user.lastSignInAt());
-        assertEquals(1, user.deviceCount());
-        assertEquals("ios", user.latestPlatform());
-        assertEquals("1.0.12", user.latestAppVersion());
-        assertEquals("es", user.latestDeviceLanguage());
-        assertEquals(latestDeviceLastSeenAt, user.latestDeviceLastSeenAt());
-        assertEquals(true, user.notificationsEnabled());
-        assertEquals(true, user.admin());
-    }
-
-    @Test
     void listRecentDeviceInstallsMapsAnonymousDeviceMetadata() throws Exception {
         AdminUserRepository repository = new AdminUserRepository(jdbcTemplate);
         ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.captor();
@@ -131,10 +87,9 @@ class AdminUserRepositoryTest {
 
         repository.listRecentDeviceInstalls(25);
 
-        assertTrue(sqlCaptor.getValue().contains("ORDER BY push_ready DESC, signed_in DESC, last_seen_at DESC"));
-        assertTrue(sqlCaptor.getValue().contains("event_type = 'foreground_heartbeat'"));
-        assertTrue(sqlCaptor.getValue().contains("occurred_at >= NOW() - INTERVAL '2 minutes'"));
-        assertTrue(sqlCaptor.getValue().contains("NULLIF(TRIM(e.client_instance_id), '') = NULLIF(TRIM(d.client_instance_id), '')"));
+        assertTrue(sqlCaptor.getValue().contains("COALESCE(NULLIF(TRIM(d.client_instance_id), ''), NULLIF(TRIM(d.fcm_token), '')"));
+        assertTrue(sqlCaptor.getValue().contains("PARTITION BY device_key"));
+        assertTrue(sqlCaptor.getValue().contains("ORDER BY signed_in DESC, push_ready DESC, last_seen_at DESC, updated_at DESC"));
         assertTrue(sqlCaptor.getValue().contains("automated_test = FALSE"));
         assertTrue(sqlCaptor.getValue().contains("check_in_source = 'app'"));
 

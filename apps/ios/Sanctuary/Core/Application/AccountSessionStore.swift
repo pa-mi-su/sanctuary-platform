@@ -732,15 +732,15 @@ final class AccountSessionStore: ObservableObject {
             return keychainStored
         }
 
+        if let existing = defaults.string(forKey: anonymousDeviceIDKey), !existing.isEmpty {
+            saveAnonymousDeviceIDToKeychain(existing)
+            return existing
+        }
+
         if let stable = stableAnonymousDeviceID() {
             defaults.set(stable, forKey: anonymousDeviceIDKey)
             saveAnonymousDeviceIDToKeychain(stable)
             return stable
-        }
-
-        if let existing = defaults.string(forKey: anonymousDeviceIDKey), !existing.isEmpty {
-            saveAnonymousDeviceIDToKeychain(existing)
-            return existing
         }
 
         let generated = "ios-\(UUID().uuidString)"

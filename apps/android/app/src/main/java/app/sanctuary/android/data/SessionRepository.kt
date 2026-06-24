@@ -71,16 +71,16 @@ class SessionRepository(
         return synchronized(anonymousDeviceIdLock) {
             cachedAnonymousDeviceId?.let { return@synchronized it }
 
-            stableAnonymousDeviceId()?.let { stable ->
-                preferences.edit().putString(anonymousDeviceIdKey, stable).apply()
-                cachedAnonymousDeviceId = stable
-                return@synchronized stable
-            }
-
             val existing = preferences.getString(anonymousDeviceIdKey, null)?.trim()
             if (!existing.isNullOrBlank()) {
                 cachedAnonymousDeviceId = existing
                 return@synchronized existing
+            }
+
+            stableAnonymousDeviceId()?.let { stable ->
+                preferences.edit().putString(anonymousDeviceIdKey, stable).apply()
+                cachedAnonymousDeviceId = stable
+                return@synchronized stable
             }
 
             "android-${UUID.randomUUID()}".also {

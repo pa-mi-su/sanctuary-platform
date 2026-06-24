@@ -12,7 +12,6 @@ import app.sanctuary.android.data.NovenaDetail
 import app.sanctuary.android.data.NovenaSummary
 import app.sanctuary.android.data.PrayerDetail
 import app.sanctuary.android.data.PrayerSummary
-import app.sanctuary.android.data.ReminderConfig
 import app.sanctuary.android.data.SaintDateGroup
 import app.sanctuary.android.data.SaintDetail
 import app.sanctuary.android.data.SaintSummary
@@ -27,9 +26,6 @@ import app.sanctuary.android.data.UserNovenaCommitment
 import app.sanctuary.android.data.UserProfile
 import app.sanctuary.android.ui.AppLanguage
 import app.sanctuary.android.ui.SanctuaryStrings
-import java.text.Normalizer
-import java.time.Instant
-import java.util.Locale
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeoutOrNull
@@ -61,26 +57,11 @@ data class SessionUiState(
 )
 
 data class ContentListUiState<T>(
-    val allItems: List<T> = emptyList(),
     val items: List<T> = emptyList(),
     val isLoading: Boolean = false,
     val query: String = "",
     val error: String? = null
 )
-
-private data class SearchDocument(
-    val itemId: String,
-    val primaryText: String,
-    val secondaryText: String = "",
-    val auxiliaryText: String = ""
-) {
-    val normalizedPrimary: String = normalizeSearchText(primaryText)
-    val normalizedSecondary: String = normalizeSearchText(secondaryText)
-    val normalizedAuxiliary: String = normalizeSearchText(auxiliaryText)
-    val primaryTokens: List<String> = normalizedPrimary.searchTokens()
-    val secondaryTokens: List<String> = normalizedSecondary.searchTokens()
-    val auxiliaryTokens: List<String> = normalizedAuxiliary.searchTokens()
-}
 
 data class IntentionSearchUiState(
     val result: IntentionSearchResult = IntentionSearchResult(novenas = emptyList(), saints = emptyList()),
@@ -120,9 +101,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         context = application.applicationContext,
         repository = repository
     )
-    private val pendingFavoriteToggles = mutableSetOf<String>()
-    private val pendingNovenaStarts = mutableSetOf<String>()
-    private val pendingNovenaStops = mutableSetOf<String>()
     private var foregroundHeartbeatJob: Job? = null
 
     private val _session = MutableStateFlow(
@@ -554,22 +532,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun updateSaintQuery(query: String) {
         _saints.update { it.copy(query = query) }
-        filterSaints()
     }
 
     fun updateNovenaQuery(query: String) {
         _novenas.update { it.copy(query = query) }
-        filterNovenas()
     }
 
     fun updatePrayerQuery(query: String) {
         _prayers.update { it.copy(query = query) }
-        filterPrayers()
     }
 
     fun updateRosaryQuery(query: String) {
         _rosaries.update { it.copy(query = query) }
-        filterRosaries()
     }
 
     fun updateIntentionsQuery(query: String) {
@@ -577,17 +551,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun loadSaints() {
-        if (_saints.value.allItems.isNotEmpty()) {
-            filterSaints()
-            return
-        }
         viewModelScope.launch {
             _saints.update { it.copy(isLoading = true, error = null) }
             runCatching {
-                repository.listSaints("")
+                repository.listSaints(_saints.value.query)
             }.onSuccess { items ->
-                _saints.value = _saints.value.copy(allItems = items, isLoading = false, error = null)
-                filterSaints()
+                _saints.value = _saints.value.copy(items = items, isLoading = false, error = null)
             }.onFailure { failure ->
                 _saints.value = _saints.value.copy(isLoading = false, error = failure.message)
             }
@@ -595,17 +564,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun loadNovenas() {
-        if (_novenas.value.allItems.isNotEmpty()) {
-            filterNovenas()
-            return
-        }
         viewModelScope.launch {
             _novenas.update { it.copy(isLoading = true, error = null) }
             runCatching {
-                repository.listNovenas("")
+                repository.listNovenas(_novenas.value.query)
             }.onSuccess { items ->
-                _novenas.value = _novenas.value.copy(allItems = items, isLoading = false, error = null)
-                filterNovenas()
+                _novenas.value = _novenas.value.copy(items = items, isLoading = false, error = null)
             }.onFailure { failure ->
                 _novenas.value = _novenas.value.copy(isLoading = false, error = failure.message)
             }
@@ -613,17 +577,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun loadPrayers() {
-        if (_prayers.value.allItems.isNotEmpty()) {
-            filterPrayers()
-            return
-        }
         viewModelScope.launch {
             _prayers.update { it.copy(isLoading = true, error = null) }
             runCatching {
-                repository.listPrayers("")
+                repository.listPrayers(_prayers.value.query)
             }.onSuccess { items ->
-                _prayers.value = _prayers.value.copy(allItems = items, isLoading = false, error = null)
-                filterPrayers()
+                _prayers.value = _prayers.value.copy(items = items, isLoading = false, error = null)
             }.onFailure { failure ->
                 _prayers.value = _prayers.value.copy(isLoading = false, error = failure.message)
             }
@@ -631,17 +590,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun loadRosaries() {
-        if (_rosaries.value.allItems.isNotEmpty()) {
-            filterRosaries()
-            return
-        }
         viewModelScope.launch {
             _rosaries.update { it.copy(isLoading = true, error = null) }
             runCatching {
-                repository.listRosaries("")
+                repository.listRosaries(_rosaries.value.query)
             }.onSuccess { items ->
-                _rosaries.value = _rosaries.value.copy(allItems = items, isLoading = false, error = null)
-                filterRosaries()
+                _rosaries.value = _rosaries.value.copy(items = items, isLoading = false, error = null)
             }.onFailure { failure ->
                 _rosaries.value = _rosaries.value.copy(isLoading = false, error = failure.message)
             }
@@ -658,82 +612,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }.onFailure { failure ->
                 _intentions.value = _intentions.value.copy(isLoading = false, error = failure.message)
             }
-        }
-    }
-
-    private fun filterSaints() {
-        _saints.update { state ->
-            state.copy(
-                items = rankSearchResults(
-                    query = state.query,
-                    items = state.allItems,
-                    document = { saint ->
-                        SearchDocument(
-                            itemId = saint.id,
-                            primaryText = saint.name,
-                            secondaryText = saint.slug,
-                            auxiliaryText = listOfNotNull(saint.summary).joinToString(" ")
-                        )
-                    }
-                )
-            )
-        }
-    }
-
-    private fun filterNovenas() {
-        _novenas.update { state ->
-            state.copy(
-                items = rankSearchResults(
-                    query = state.query,
-                    items = state.allItems,
-                    document = { novena ->
-                        SearchDocument(
-                            itemId = novena.id,
-                            primaryText = novena.title,
-                            secondaryText = novena.slug,
-                            auxiliaryText = novena.description
-                        )
-                    }
-                )
-            )
-        }
-    }
-
-    private fun filterPrayers() {
-        _prayers.update { state ->
-            state.copy(
-                items = rankSearchResults(
-                    query = state.query,
-                    items = state.allItems,
-                    document = { prayer ->
-                        SearchDocument(
-                            itemId = prayer.id,
-                            primaryText = prayer.title,
-                            secondaryText = "${prayer.category} ${prayer.slug}",
-                            auxiliaryText = prayer.bodyPreview
-                        )
-                    }
-                )
-            )
-        }
-    }
-
-    private fun filterRosaries() {
-        _rosaries.update { state ->
-            state.copy(
-                items = rankSearchResults(
-                    query = state.query,
-                    items = state.allItems,
-                    document = { prayer ->
-                        SearchDocument(
-                            itemId = prayer.id,
-                            primaryText = prayer.title,
-                            secondaryText = "${prayer.category} ${prayer.slug}",
-                            auxiliaryText = prayer.bodyPreview
-                        )
-                    }
-                )
-            )
         }
     }
 
@@ -858,101 +736,23 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun startNovena(novenaId: String) {
-        if (_session.value.status != SessionStatus.Authenticated) return
-        if (!pendingNovenaStarts.add(novenaId)) {
-            return
-        }
-        val previousProgress = _novenaProgress.value
-        val previousProfile = _session.value.profile
-        val wasAlreadyActive = previousProgress.commitments.any {
-            it.novenaId == novenaId && it.status == CommitmentStatus.Active
-        }
-        val now = Instant.now().toString()
-
-        _novenaProgress.update { progress ->
-            val activeCommitment = UserNovenaCommitment(
-                novenaId = novenaId,
-                startedAt = now,
-                currentDay = 1,
-                completedDays = emptyList(),
-                reminder = ReminderConfig(
-                    enabled = false,
-                    morningHour = null,
-                    eveningHour = null,
-                    timeZoneId = java.util.TimeZone.getDefault().id
-                ),
-                status = CommitmentStatus.Active,
-                updatedAt = now
-            )
-            progress.copy(
-                commitments = progress.commitments
-                    .filterNot { it.novenaId == novenaId }
-                    .plus(activeCommitment),
-                error = null
-            )
-        }
-        if (!wasAlreadyActive) {
-            updateActiveNovenaCount(1)
-        }
-
         viewModelScope.launch {
             runCatching { repository.startNovena(novenaId) }
-                .onSuccess { commitment ->
-                    pendingNovenaStarts.remove(novenaId)
-                    _novenaProgress.update { progress ->
-                        progress.copy(
-                            commitments = progress.commitments
-                                .filterNot { it.novenaId == novenaId }
-                                .plus(commitment),
-                            error = null
-                        )
-                    }
+                .onSuccess {
+                    refreshNovenaProgress()
                 }.onFailure { failure ->
-                    pendingNovenaStarts.remove(novenaId)
-                    _novenaProgress.value = previousProgress.copy(error = failure.message)
-                    _session.update { it.copy(profile = previousProfile) }
+                    _novenaProgress.update { it.copy(error = failure.message) }
                 }
         }
     }
 
-    private fun updateActiveNovenaCount(delta: Int) {
-        _session.update { sessionState ->
-            val profile = sessionState.profile ?: return@update sessionState
-            sessionState.copy(profile = profile.copy(activeNovenaCount = (profile.activeNovenaCount + delta).coerceAtLeast(0)))
-        }
-    }
-
     fun stopNovena(novenaId: String) {
-        if (_session.value.status != SessionStatus.Authenticated) return
-        if (!pendingNovenaStops.add(novenaId)) {
-            return
-        }
-        val previousProgress = _novenaProgress.value
-        val previousProfile = _session.value.profile
-        val hadActiveCommitment = previousProgress.commitments.any {
-            it.novenaId == novenaId && it.status == CommitmentStatus.Active
-        }
-
-        _novenaProgress.update { progress ->
-            progress.copy(
-                commitments = progress.commitments.filterNot {
-                    it.novenaId == novenaId && it.status == CommitmentStatus.Active
-                },
-                error = null
-            )
-        }
-        if (hadActiveCommitment) {
-            updateActiveNovenaCount(-1)
-        }
-
         viewModelScope.launch {
             runCatching { repository.stopNovena(novenaId) }
                 .onSuccess {
-                    pendingNovenaStops.remove(novenaId)
+                    refreshNovenaProgress()
                 }.onFailure { failure ->
-                    pendingNovenaStops.remove(novenaId)
-                    _novenaProgress.value = previousProgress.copy(error = failure.message)
-                    _session.update { it.copy(profile = previousProfile) }
+                    _novenaProgress.update { it.copy(error = failure.message) }
                 }
         }
     }
@@ -970,51 +770,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun toggleFavorite(itemType: FavoriteItemType, itemId: String) {
         if (_session.value.status != SessionStatus.Authenticated) return
-        val mutationKey = "${itemType.name}:$itemId"
-        if (!pendingFavoriteToggles.add(mutationKey)) {
-            return
-        }
-        val previousProgress = _novenaProgress.value
-        val previousProfile = _session.value.profile
-        val currentlyFavorite = previousProgress.favorites.any { it.itemType == itemType && it.itemId == itemId }
-        val nextFavorite = !currentlyFavorite
-
-        _novenaProgress.update { progress ->
-            val favorites = if (nextFavorite) {
-                progress.favorites + UserFavorite(itemType, itemId, Instant.now().toString())
-            } else {
-                progress.favorites.filterNot { it.itemType == itemType && it.itemId == itemId }
-            }
-            progress.copy(favorites = favorites, error = null)
-        }
-        updateFavoriteCount(itemType, if (nextFavorite) 1 else -1)
-
+        val currentlyFavorite = _novenaProgress.value.favorites.any { it.itemType == itemType && it.itemId == itemId }
         viewModelScope.launch {
             runCatching {
                 repository.toggleFavorite(
                     itemType = itemType,
                     itemId = itemId,
-                    enabled = nextFavorite
+                    enabled = !currentlyFavorite
                 )
             }.onSuccess {
-                pendingFavoriteToggles.remove(mutationKey)
+                refreshNovenaProgress()
             }.onFailure { failure ->
-                pendingFavoriteToggles.remove(mutationKey)
-                _novenaProgress.value = previousProgress.copy(error = failure.message)
-                _session.update { it.copy(profile = previousProfile) }
+                _novenaProgress.update { it.copy(error = failure.message) }
             }
-        }
-    }
-
-    private fun updateFavoriteCount(itemType: FavoriteItemType, delta: Int) {
-        _session.update { sessionState ->
-            val profile = sessionState.profile ?: return@update sessionState
-            val updatedProfile = when (itemType) {
-                FavoriteItemType.Saint -> profile.copy(favoriteSaintCount = (profile.favoriteSaintCount + delta).coerceAtLeast(0))
-                FavoriteItemType.Novena -> profile.copy(favoriteNovenaCount = (profile.favoriteNovenaCount + delta).coerceAtLeast(0))
-                FavoriteItemType.Prayer -> profile.copy(favoritePrayerCount = (profile.favoritePrayerCount + delta).coerceAtLeast(0))
-            }
-            sessionState.copy(profile = updatedProfile)
         }
     }
 
@@ -1038,24 +806,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun refreshPushRegistration() {
         syncAnonymousAppActivity()
         syncPushDevice()
-    }
-
-    private suspend fun syncForegroundPresence() {
-        if (_session.value.status == SessionStatus.Authenticated) {
-            runCatching { pushDeviceRegistrar.registerCurrentDevice() }
-            runCatching { repository.recordAppActivity("foreground_heartbeat") }
-            return
-        }
-
-        val anonymousPushToken = pushDeviceRegistrar.anonymousPushTokenIfAvailable()
-        val notificationsEnabled = pushDeviceRegistrar.notificationsEnabled()
-        runCatching {
-            repository.recordAnonymousAppActivity(
-                "foreground_heartbeat",
-                fcmToken = anonymousPushToken,
-                notificationsEnabled = notificationsEnabled
-            )
-        }
     }
 
     private fun loadInitialContent() {
@@ -1100,6 +850,24 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             runCatching { repository.recordAnonymousAppActivity("app_open", fcmToken = anonymousPushToken, notificationsEnabled = notificationsEnabled) }
             runCatching { repository.recordAnonymousAppActivity("session_start", fcmToken = anonymousPushToken, notificationsEnabled = notificationsEnabled) }
             runCatching { repository.recordAnonymousAppActivity(permissionEvent, fcmToken = anonymousPushToken, notificationsEnabled = notificationsEnabled) }
+        }
+    }
+
+    private suspend fun syncForegroundPresence() {
+        if (_session.value.status == SessionStatus.Authenticated) {
+            runCatching { pushDeviceRegistrar.registerCurrentDevice() }
+            runCatching { repository.recordAppActivity("foreground_heartbeat") }
+            return
+        }
+
+        val anonymousPushToken = pushDeviceRegistrar.anonymousPushTokenIfAvailable()
+        val notificationsEnabled = pushDeviceRegistrar.notificationsEnabled()
+        runCatching {
+            repository.recordAnonymousAppActivity(
+                "foreground_heartbeat",
+                fcmToken = anonymousPushToken,
+                notificationsEnabled = notificationsEnabled
+            )
         }
     }
 
@@ -1158,91 +926,4 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 token.lowercase().replaceFirstChar { char -> char.uppercase() }
             }
     }
-}
-
-private fun <T> rankSearchResults(
-    query: String,
-    items: List<T>,
-    document: (T) -> SearchDocument
-): List<T> {
-    val normalizedQuery = normalizeSearchText(query)
-    if (normalizedQuery.isBlank()) return items
-
-    val queryTokens = normalizedQuery.searchTokens()
-    if (queryTokens.isEmpty()) return items
-
-    return items
-        .mapNotNull { item ->
-            val doc = document(item)
-            val score = scoreSearchDocument(doc, normalizedQuery, queryTokens) ?: return@mapNotNull null
-            item to score
-        }
-        .sortedWith(
-            compareByDescending<Pair<T, Int>> { it.second }
-                .thenBy { document(it.first).itemId }
-        )
-        .map { it.first }
-}
-
-private fun scoreSearchDocument(
-    document: SearchDocument,
-    query: String,
-    queryTokens: List<String>
-): Int? {
-    if (!queryTokens.all { token -> tokenMatchesDocument(token, document) }) return null
-
-    var score = 0
-    score += when {
-        document.normalizedPrimary == query -> 500
-        document.normalizedPrimary.contains(query) -> 220
-        else -> 0
-    }
-    if (document.normalizedSecondary.contains(query)) score += 90
-    if (document.normalizedAuxiliary.contains(query)) score += 45
-
-    queryTokens.forEach { token ->
-        score += tokenScore(token, document.primaryTokens, exact = 80, prefix = 50)
-        score += tokenScore(token, document.secondaryTokens, exact = 24, prefix = 12)
-        score += tokenScore(token, document.auxiliaryTokens, exact = 10, prefix = 5)
-    }
-
-    if (queryTokens.size > 1 && phrasePrefixMatches(queryTokens, document.primaryTokens)) {
-        score += 140
-    }
-    return score
-}
-
-private fun tokenMatchesDocument(token: String, document: SearchDocument): Boolean {
-    return tokenScore(token, document.primaryTokens, exact = 1, prefix = 1) > 0 ||
-        tokenScore(token, document.secondaryTokens, exact = 1, prefix = 1) > 0 ||
-        tokenScore(token, document.auxiliaryTokens, exact = 1, prefix = 1) > 0
-}
-
-private fun tokenScore(token: String, tokens: List<String>, exact: Int, prefix: Int): Int {
-    if (tokens.contains(token)) return exact
-    if (tokens.any { it.startsWith(token) }) return prefix
-    return 0
-}
-
-private fun phrasePrefixMatches(queryTokens: List<String>, tokens: List<String>): Boolean {
-    if (queryTokens.size > tokens.size) return false
-    return (0..(tokens.size - queryTokens.size)).any { start ->
-        queryTokens.indices.all { offset ->
-            tokens[start + offset].startsWith(queryTokens[offset])
-        }
-    }
-}
-
-private fun normalizeSearchText(value: String): String {
-    val spaced = value.replace("_", " ").replace("-", " ")
-    val withoutMarks = Normalizer.normalize(spaced, Normalizer.Form.NFD)
-        .replace("\\p{Mn}+".toRegex(), "")
-    return withoutMarks
-        .lowercase(Locale.getDefault())
-        .replace("[^a-z0-9]+".toRegex(), " ")
-        .trim()
-}
-
-private fun String.searchTokens(): List<String> {
-    return split(" ").filter { it.isNotBlank() }
 }

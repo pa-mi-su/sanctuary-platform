@@ -6,7 +6,6 @@ import jakarta.validation.Valid;
 
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -14,7 +13,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import app.sanctuary.api.admin.dto.AdminNotificationDto;
-import app.sanctuary.api.admin.dto.AdminNotificationDeliveryDto;
 import app.sanctuary.api.admin.dto.AdminNotificationRequest;
 import app.sanctuary.api.admin.dto.AdminNotificationSendResultDto;
 import app.sanctuary.api.admin.service.AdminAuthorizationService;
@@ -45,30 +43,12 @@ public class AdminNotificationController {
         return adminNotificationService.history(limit);
     }
 
-    @GetMapping("/deliveries")
-    public List<AdminNotificationDeliveryDto> recentDeliveries(
-        Authentication authentication,
-        @RequestParam(defaultValue = "50") int limit
-    ) {
-        adminAuthorizationService.requireAdmin(CurrentUser.from(authentication));
-        return adminNotificationService.recentDeliveries(limit);
-    }
-
-    @PostMapping("/drafts")
-    public AdminNotificationDto createDraft(
+    @PostMapping("/send")
+    public AdminNotificationSendResultDto send(
         Authentication authentication,
         @Valid @RequestBody AdminNotificationRequest request
     ) {
         var admin = adminAuthorizationService.requireAdmin(CurrentUser.from(authentication));
-        return adminNotificationService.createDraft(admin.id(), request);
-    }
-
-    @PostMapping("/{notificationId}/send")
-    public AdminNotificationSendResultDto send(
-        Authentication authentication,
-        @PathVariable java.util.UUID notificationId
-    ) {
-        var admin = adminAuthorizationService.requireAdmin(CurrentUser.from(authentication));
-        return adminNotificationService.send(admin.id(), notificationId);
+        return adminNotificationService.send(admin.id(), request);
     }
 }

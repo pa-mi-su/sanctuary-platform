@@ -2,29 +2,29 @@ package app.sanctuary.api.admin.repository;
 
 import java.util.UUID;
 
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
+
+import jakarta.persistence.EntityManager;
 
 @Repository
 public class AdminAuthorizationRepository {
 
-    private final JdbcTemplate jdbcTemplate;
+    private final EntityManager entityManager;
 
-    public AdminAuthorizationRepository(JdbcTemplate jdbcTemplate) {
-        this.jdbcTemplate = jdbcTemplate;
+    public AdminAuthorizationRepository(EntityManager entityManager) {
+        this.entityManager = entityManager;
     }
 
     public boolean isAdmin(UUID userId) {
-        Integer count = jdbcTemplate.queryForObject(
+        Long count = entityManager.createQuery(
             """
-                SELECT COUNT(*)
-                FROM admin_users
-                WHERE user_id = ?
-                  AND enabled = TRUE
+                SELECT COUNT(adminUser)
+                FROM AdminUserEntity adminUser
+                WHERE adminUser.userId = :userId
+                  AND adminUser.enabled = TRUE
                 """,
-            Integer.class,
-            userId
-        );
-        return count != null && count > 0;
+            Long.class
+        ).setParameter("userId", userId).getSingleResult();
+        return count > 0;
     }
 }
