@@ -45,50 +45,50 @@ public class AdminUserRepository {
                         SELECT COUNT(DISTINCT device_key)
                         FROM (
                             SELECT COALESCE(NULLIF(TRIM(fcm_token), ''), id::text) AS device_key FROM user_devices
-                            WHERE last_seen_at >= NOW() - INTERVAL '2 hours'
+                            WHERE last_seen_at >= NOW() - INTERVAL '5 minutes'
                             UNION ALL
                             SELECT COALESCE(NULLIF(TRIM(fcm_token), ''), anonymous_device_id) AS device_key FROM anonymous_app_devices
-                            WHERE last_seen_at >= NOW() - INTERVAL '2 hours'
+                            WHERE last_seen_at >= NOW() - INTERVAL '5 minutes'
                         ) active_known_devices
                     ) AS active_known_device_count_recent,
                     (
                         SELECT COUNT(DISTINCT fcm_token)
                         FROM (
                             SELECT fcm_token FROM user_devices
-                            WHERE platform = 'ios' AND last_seen_at >= NOW() - INTERVAL '2 hours' AND notifications_enabled = TRUE AND token_status = 'valid' AND NULLIF(TRIM(fcm_token), '') IS NOT NULL
+                            WHERE platform = 'ios' AND last_seen_at >= NOW() - INTERVAL '5 minutes' AND notifications_enabled = TRUE AND token_status = 'valid' AND NULLIF(TRIM(fcm_token), '') IS NOT NULL
                             UNION ALL
                             SELECT fcm_token FROM anonymous_app_devices
-                            WHERE platform = 'ios' AND last_seen_at >= NOW() - INTERVAL '2 hours' AND notifications_enabled = TRUE AND token_status = 'valid' AND NULLIF(TRIM(fcm_token), '') IS NOT NULL
+                            WHERE platform = 'ios' AND last_seen_at >= NOW() - INTERVAL '5 minutes' AND notifications_enabled = TRUE AND token_status = 'valid' AND NULLIF(TRIM(fcm_token), '') IS NOT NULL
                         ) ios_push_ready_tokens
                     ) AS push_ready_ios_device_count,
                     (
                         SELECT COUNT(DISTINCT fcm_token)
                         FROM (
                             SELECT fcm_token FROM user_devices
-                            WHERE platform = 'android' AND last_seen_at >= NOW() - INTERVAL '2 hours' AND notifications_enabled = TRUE AND token_status = 'valid' AND NULLIF(TRIM(fcm_token), '') IS NOT NULL
+                            WHERE platform = 'android' AND last_seen_at >= NOW() - INTERVAL '5 minutes' AND notifications_enabled = TRUE AND token_status = 'valid' AND NULLIF(TRIM(fcm_token), '') IS NOT NULL
                             UNION ALL
                             SELECT fcm_token FROM anonymous_app_devices
-                            WHERE platform = 'android' AND last_seen_at >= NOW() - INTERVAL '2 hours' AND notifications_enabled = TRUE AND token_status = 'valid' AND NULLIF(TRIM(fcm_token), '') IS NOT NULL
+                            WHERE platform = 'android' AND last_seen_at >= NOW() - INTERVAL '5 minutes' AND notifications_enabled = TRUE AND token_status = 'valid' AND NULLIF(TRIM(fcm_token), '') IS NOT NULL
                         ) android_push_ready_tokens
                     ) AS push_ready_android_device_count,
                     (
                         SELECT COUNT(DISTINCT fcm_token)
                         FROM (
                             SELECT fcm_token FROM user_devices
-                            WHERE last_seen_at >= NOW() - INTERVAL '2 hours' AND notifications_enabled = TRUE AND token_status = 'valid' AND NULLIF(TRIM(fcm_token), '') IS NOT NULL
+                            WHERE last_seen_at >= NOW() - INTERVAL '5 minutes' AND notifications_enabled = TRUE AND token_status = 'valid' AND NULLIF(TRIM(fcm_token), '') IS NOT NULL
                             UNION ALL
                             SELECT fcm_token FROM anonymous_app_devices
-                            WHERE last_seen_at >= NOW() - INTERVAL '2 hours' AND notifications_enabled = TRUE AND token_status = 'valid' AND NULLIF(TRIM(fcm_token), '') IS NOT NULL
+                            WHERE last_seen_at >= NOW() - INTERVAL '5 minutes' AND notifications_enabled = TRUE AND token_status = 'valid' AND NULLIF(TRIM(fcm_token), '') IS NOT NULL
                         ) push_ready_tokens
                     ) AS notifications_enabled_device_count,
                     (
                         SELECT COUNT(DISTINCT fcm_token)
                         FROM (
                             SELECT fcm_token FROM user_devices
-                            WHERE last_seen_at >= NOW() - INTERVAL '2 hours' AND token_status = 'valid' AND NULLIF(TRIM(fcm_token), '') IS NOT NULL
+                            WHERE last_seen_at >= NOW() - INTERVAL '5 minutes' AND token_status = 'valid' AND NULLIF(TRIM(fcm_token), '') IS NOT NULL
                             UNION ALL
                             SELECT fcm_token FROM anonymous_app_devices
-                            WHERE last_seen_at >= NOW() - INTERVAL '2 hours' AND token_status = 'valid' AND NULLIF(TRIM(fcm_token), '') IS NOT NULL
+                            WHERE last_seen_at >= NOW() - INTERVAL '5 minutes' AND token_status = 'valid' AND NULLIF(TRIM(fcm_token), '') IS NOT NULL
                         ) valid_tokens
                     ) AS valid_token_count,
                     (
@@ -138,7 +138,7 @@ public class AdminUserRepository {
                     u.created_at AS registration_date,
                     u.last_sign_in_at,
                     COUNT(DISTINCT d.fcm_token) FILTER (
-                        WHERE d.last_seen_at >= NOW() - INTERVAL '2 hours'
+                        WHERE d.last_seen_at >= NOW() - INTERVAL '5 minutes'
                           AND d.notifications_enabled = TRUE
                           AND d.token_status = 'valid'
                           AND NULLIF(TRIM(d.fcm_token), '') IS NOT NULL
@@ -148,7 +148,7 @@ public class AdminUserRepository {
                     latest_device.language AS latest_device_language,
                     latest_device.last_seen_at AS latest_device_last_seen_at,
                     COALESCE(BOOL_OR(
-                        d.last_seen_at >= NOW() - INTERVAL '2 hours'
+                        d.last_seen_at >= NOW() - INTERVAL '5 minutes'
                         AND d.notifications_enabled = TRUE
                         AND d.token_status = 'valid'
                         AND NULLIF(TRIM(d.fcm_token), '') IS NOT NULL
@@ -236,7 +236,7 @@ public class AdminUserRepository {
                             d.notifications_enabled,
                             d.token_status,
                             (
-                                d.last_seen_at >= NOW() - INTERVAL '2 hours'
+                                d.last_seen_at >= NOW() - INTERVAL '5 minutes'
                                 AND d.notifications_enabled = TRUE
                                 AND d.token_status = 'valid'
                                 AND NULLIF(TRIM(d.fcm_token), '') IS NOT NULL
@@ -259,7 +259,7 @@ public class AdminUserRepository {
                             d.notifications_enabled,
                             d.token_status,
                             (
-                                d.last_seen_at >= NOW() - INTERVAL '2 hours'
+                                d.last_seen_at >= NOW() - INTERVAL '5 minutes'
                                 AND d.notifications_enabled = TRUE
                                 AND d.token_status = 'valid'
                                 AND NULLIF(TRIM(d.fcm_token), '') IS NOT NULL
@@ -271,7 +271,7 @@ public class AdminUserRepository {
                     ) candidates
                 ) installs
                 WHERE row_number = 1
-                  AND last_seen_at >= NOW() - INTERVAL '2 hours'
+                  AND last_seen_at >= NOW() - INTERVAL '5 minutes'
                 ORDER BY last_seen_at DESC
                 LIMIT ?
                 """,

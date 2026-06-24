@@ -193,7 +193,7 @@ public class AdminNotificationRepository {
                     FROM user_devices
                     WHERE notifications_enabled = TRUE
                       AND token_status = 'valid'
-                      AND last_seen_at >= NOW() - INTERVAL '2 hours'
+                      AND last_seen_at >= NOW() - INTERVAL '5 minutes'
                       AND NULLIF(TRIM(fcm_token), '') IS NOT NULL
 
                     UNION ALL
@@ -209,7 +209,7 @@ public class AdminNotificationRepository {
                     FROM anonymous_app_devices
                     WHERE notifications_enabled = TRUE
                       AND token_status = 'valid'
-                      AND last_seen_at >= NOW() - INTERVAL '2 hours'
+                      AND last_seen_at >= NOW() - INTERVAL '5 minutes'
                       AND NULLIF(TRIM(fcm_token), '') IS NOT NULL
                 ),
                 ranked AS (

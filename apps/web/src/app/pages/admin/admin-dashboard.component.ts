@@ -296,7 +296,7 @@ interface MetricSection {
             <div>
               <p class="eyebrow">Devices</p>
               <h2>Active App Installs</h2>
-              <p>Mobile installs seen in the last 2 hours. Deleted apps fall out after they stop checking in.</p>
+              <p>Mobile installs seen in the last 5 minutes. Reinstalls and stale tokens fall out quickly.</p>
             </div>
             <span>{{ recentDeviceInstalls().length }} active</span>
           </div>
@@ -330,7 +330,7 @@ interface MetricSection {
                 <span>{{ formatDate(install.lastSeenAt) }}</span>
               </div>
             } @empty {
-              <p class="empty-copy">No active mobile installs reported in the last 2 hours.</p>
+              <p class="empty-copy">No active mobile installs reported in the last 5 minutes.</p>
             }
           </div>
         </section>
@@ -443,7 +443,7 @@ export class AdminDashboardComponent {
       {
         label: 'Active app installs now',
         value: this.formatNumber(metrics?.activeKnownDeviceCountRecent),
-        helper: 'Mobile installs seen in the last 2 hours',
+        helper: 'Mobile installs seen in the last 5 minutes',
         tone: 'neutral',
       },
       {
@@ -509,7 +509,7 @@ export class AdminDashboardComponent {
           {
             label: 'Active app installs now',
             value: this.formatNumber(metrics?.activeKnownDeviceCountRecent),
-            helper: 'Seen in the last 2 hours. This is the install/use count to watch.',
+            helper: 'Seen in the last 5 minutes. This is the live testing count to watch.',
           },
           {
             label: 'Push-ready platform mix',
