@@ -218,7 +218,7 @@ public class AdminUserRepository {
                         candidates.*,
                         ROW_NUMBER() OVER (
                             PARTITION BY device_key
-                            ORDER BY signed_in DESC, push_ready DESC, last_seen_at DESC
+                            ORDER BY push_ready DESC, signed_in DESC, last_seen_at DESC
                         ) AS row_number
                     FROM (
                         SELECT
@@ -269,6 +269,7 @@ public class AdminUserRepository {
                     ) candidates
                 ) installs
                 WHERE row_number = 1
+                  AND last_seen_at >= NOW() - INTERVAL '2 hours'
                 ORDER BY last_seen_at DESC
                 LIMIT ?
                 """,

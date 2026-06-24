@@ -1,6 +1,7 @@
 package app.sanctuary.api.admin.repository;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
@@ -122,10 +123,14 @@ class AdminUserRepositoryTest {
     @Test
     void listRecentDeviceInstallsMapsAnonymousDeviceMetadata() throws Exception {
         AdminUserRepository repository = new AdminUserRepository(jdbcTemplate);
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.captor();
         ArgumentCaptor<RowMapper<AdminDeviceInstallDto>> mapperCaptor = ArgumentCaptor.captor();
-        when(jdbcTemplate.query(anyString(), mapperCaptor.capture(), eq(25))).thenReturn(List.of());
+        when(jdbcTemplate.query(sqlCaptor.capture(), mapperCaptor.capture(), eq(25))).thenReturn(List.of());
 
         repository.listRecentDeviceInstalls(25);
+
+        assertTrue(sqlCaptor.getValue().contains("ORDER BY push_ready DESC, signed_in DESC, last_seen_at DESC"));
+        assertTrue(sqlCaptor.getValue().contains("last_seen_at >= NOW() - INTERVAL '2 hours'"));
 
         OffsetDateTime firstSeenAt = OffsetDateTime.now().minusHours(1);
         OffsetDateTime lastSeenAt = OffsetDateTime.now();
