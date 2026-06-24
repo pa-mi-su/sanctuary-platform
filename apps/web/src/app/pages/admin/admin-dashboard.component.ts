@@ -53,7 +53,7 @@ interface MetricSection {
         <div>
           <p class="eyebrow">Sanctuary Admin</p>
           <h1>Operations Dashboard</h1>
-          <p>Send admin notifications and check the few signals needed to test delivery.</p>
+          <p>See who is using the app, which phones can receive notifications, and what happened after each send.</p>
           <p class="build-copy">Version {{ appVersion }} · Build {{ appBuild }}{{ environmentLabel }}</p>
         </div>
         <div class="header-actions">
@@ -193,7 +193,7 @@ interface MetricSection {
             <div class="panel-heading">
               <div>
                 <p class="eyebrow">History</p>
-                <h2>Notification Drafts</h2>
+              <h2>Notifications</h2>
               </div>
             </div>
             <div class="history-list">
@@ -210,7 +210,7 @@ interface MetricSection {
                     <strong>{{ notification.title }}</strong>
                     <p>{{ notification.message }}</p>
                     <small>
-                      {{ notification.targetCount }} targeted · {{ notification.sentCount }} FCM accepted · {{ notification.failedCount }} failed
+                      {{ notification.targetCount }} attempted · {{ notification.sentCount }} accepted · {{ notification.failedCount }} failed
                     </small>
                     <small>{{ notificationTimelineLabel(notification) }}</small>
                   </div>
@@ -252,8 +252,8 @@ interface MetricSection {
           <div class="panel-heading">
             <div>
               <p class="eyebrow">Delivery Log</p>
-              <h2>Recent Firebase Attempts</h2>
-              <p>Accepted means Firebase took the message for that token. It does not prove the OS displayed it.</p>
+              <h2>Notification Send Log</h2>
+              <p>Shows each phone the backend tried to notify and whether Firebase accepted the message.</p>
             </div>
             <span>{{ deliveryLog().length }} rows</span>
           </div>
@@ -262,7 +262,7 @@ interface MetricSection {
             <div class="delivery-row delivery-row--header" role="row">
               <span>Notification</span>
               <span>Platform</span>
-              <span>FCM Status</span>
+              <span>Result</span>
               <span>Target</span>
               <span>Reason / Note</span>
               <span>Time</span>
@@ -295,13 +295,13 @@ interface MetricSection {
           <div class="panel-heading">
             <div>
               <p class="eyebrow">Devices</p>
-              <h2>Active App Installs</h2>
-              <p>Mobile installs seen in the last 2 hours. Deleted apps fall out after they stop checking in.</p>
+              <h2>Phones Seen Recently</h2>
+              <p>Phones that checked in during the last 5 minutes. Deleted or closed apps disappear after they stop checking in.</p>
             </div>
             <span>{{ recentDeviceInstalls().length }} active</span>
           </div>
 
-          <div class="install-table" role="table" aria-label="Active app installs">
+          <div class="install-table" role="table" aria-label="Phones seen recently">
             <div class="install-row install-row--header" role="row">
               <span>Device</span>
               <span>Owner</span>
@@ -315,11 +315,11 @@ interface MetricSection {
               <div class="install-row" role="row">
                 <span>
                   <strong>{{ formatPlatform(install.platform) }}</strong>
-                  <small>{{ install.signedIn ? 'Signed-in record' : 'Anonymous record' }}</small>
+                  <small>{{ install.signedIn ? 'Signed in' : 'Not signed in' }}</small>
                 </span>
                 <span>
                   <strong>{{ installOwnerLabel(install) }}</strong>
-                  <small>{{ install.signedIn ? 'Account-linked' : 'Not signed in' }}</small>
+                  <small>{{ install.signedIn ? 'Account linked' : 'Anonymous' }}</small>
                 </span>
                 <span>{{ install.appVersion || 'unknown' }}</span>
                 <span>{{ formatLanguage(install.language) }}</span>
@@ -330,7 +330,7 @@ interface MetricSection {
                 <span>{{ formatDate(install.lastSeenAt) }}</span>
               </div>
             } @empty {
-              <p class="empty-copy">No active mobile installs reported in the last 2 hours.</p>
+              <p class="empty-copy">No phones have checked in during the last 5 minutes.</p>
             }
           </div>
         </section>
@@ -344,16 +344,16 @@ interface MetricSection {
             <span>{{ users().length }} loaded</span>
           </div>
           <div class="metadata-strip" aria-label="Device metadata summary">
-            <span>{{ pushReadyPlatformMixLabel() }} reachable</span>
-            <span>{{ formatNumber(metrics()?.activeKnownDeviceCountRecent) }} active installs now</span>
-            <span>{{ formatNumber(metrics()?.invalidTokenCount) }} invalid tokens</span>
+            <span>{{ pushReadyPlatformMixLabel() }} can receive notifications</span>
+            <span>{{ formatNumber(metrics()?.activeKnownDeviceCountRecent) }} phones seen now</span>
+            <span>{{ formatNumber(metrics()?.invalidTokenCount) }} bad push tokens</span>
           </div>
 
           <div class="user-table" role="table" aria-label="Recent users">
             <div class="table-row table-row--header" role="row">
               <span>User</span>
               <span>App Language</span>
-              <span>Reachable Today</span>
+              <span>Can Notify Now</span>
               <span>Latest App</span>
               <span>Push</span>
               <span>Last Device Seen</span>
@@ -429,7 +429,7 @@ export class AdminDashboardComponent {
     const metrics = this.metrics();
     return [
       {
-        label: 'Registered accounts',
+        label: 'Accounts',
         value: this.formatNumber(metrics?.totalUsers),
         helper: `${this.formatNumber(metrics?.registeredUsersToday)} new in the last 24h`,
         tone: 'primary',
@@ -441,15 +441,15 @@ export class AdminDashboardComponent {
         tone: 'good',
       },
       {
-        label: 'Active app installs now',
+        label: 'Phones seen now',
         value: this.formatNumber(metrics?.activeKnownDeviceCountRecent),
-        helper: 'Mobile installs seen in the last 2 hours',
+        helper: 'Checked in during the last 5 minutes',
         tone: 'neutral',
       },
       {
-        label: 'Push-ready installs',
+        label: 'Can receive notifications',
         value: this.formatNumber(metrics?.notificationsEnabledDeviceCount),
-        helper: `${this.formatNumber(metrics?.pushReadyIosDeviceCount)} iOS, ${this.formatNumber(metrics?.pushReadyAndroidDeviceCount)} Android can receive Firebase`,
+        helper: `${this.formatNumber(metrics?.pushReadyIosDeviceCount)} iOS, ${this.formatNumber(metrics?.pushReadyAndroidDeviceCount)} Android reachable now`,
         tone: metrics?.notificationsEnabledDeviceCount ? 'good' : 'warning',
       },
     ];
@@ -459,11 +459,11 @@ export class AdminDashboardComponent {
     const metrics = this.metrics();
     return [
       {
-        title: 'Audience',
-        summary: 'Account and app-usage signals worth watching while testing.',
+        title: 'People',
+        summary: 'How many people have accounts, and how many are using Sanctuary.',
         cards: [
           {
-            label: 'Registered accounts',
+            label: 'Accounts',
             value: this.formatNumber(metrics?.totalUsers),
             helper: 'Users who created an account.',
             tone: 'primary',
@@ -484,71 +484,77 @@ export class AdminDashboardComponent {
             helper: 'Longer-term registered account activity.',
           },
           {
-            label: 'Anonymous app activity today',
+            label: 'Used without signing in today',
             value: this.formatNumber(metrics?.anonymousActiveDevicesToday),
-            helper: 'Not signed in, seen in the last 24 hours.',
+            helper: 'Anonymous phones seen in the last 24 hours.',
             tone: 'neutral',
           },
           {
-            label: 'Anonymous app activity 7 days',
+            label: 'Used without signing in 7 days',
             value: this.formatNumber(metrics?.anonymousActiveDevices7Days),
-            helper: 'Not signed in, seen in the last 7 days.',
+            helper: 'Anonymous phones seen in the last 7 days.',
           },
         ],
       },
       {
-        title: 'Push Readiness',
-        summary: 'Current mobile installs the backend can see and try to notify.',
+        title: 'Notifications',
+        summary: 'Whether the app currently has phones it can try to notify.',
         cards: [
           {
-            label: 'Push-ready installs',
+            label: 'Can receive notifications',
             value: this.formatNumber(metrics?.notificationsEnabledDeviceCount),
-            helper: `${this.formatNumber(metrics?.pushReadyIosDeviceCount)} iOS, ${this.formatNumber(metrics?.pushReadyAndroidDeviceCount)} Android with valid token and permission.`,
+            helper: `${this.formatNumber(metrics?.pushReadyIosDeviceCount)} iOS, ${this.formatNumber(metrics?.pushReadyAndroidDeviceCount)} Android checked in recently with permission on.`,
             tone: 'primary',
           },
           {
-            label: 'Active app installs now',
+            label: 'Phones seen now',
             value: this.formatNumber(metrics?.activeKnownDeviceCountRecent),
-            helper: 'Seen in the last 2 hours. This is the install/use count to watch.',
+            helper: 'Checked in during the last 5 minutes. This is the live testing count.',
           },
           {
-            label: 'Push-ready platform mix',
+            label: 'iOS / Android split',
             value: this.pushReadyPlatformMixLabel(),
-            helper: 'Push-ready targets with valid Firebase tokens and notification permission.',
+            helper: 'Reachable phones by platform.',
           },
           {
-            label: 'Token health',
-            value: `${this.formatNumber(metrics?.validTokenCount)} / ${this.formatNumber(metrics?.invalidTokenCount)}`,
-            helper: 'Valid / invalid Firebase tokens.',
+            label: 'Bad notification tokens',
+            value: this.formatNumber(metrics?.invalidTokenCount),
+            helper: 'Should be 0. Failed sends can mark old tokens bad.',
             tone: metrics?.invalidTokenCount ? 'warning' : 'good',
           },
           {
-            label: 'Unknown app version',
+            label: 'Good notification tokens',
+            value: this.formatNumber(metrics?.validTokenCount),
+            helper: 'Recently seen phones with usable notification tokens.',
+            tone: metrics?.invalidTokenCount ? 'warning' : 'good',
+          },
+          {
+            label: 'Missing app version',
             value: this.formatNumber(metrics?.unknownAppVersionDeviceCount),
-            helper: 'Records missing version metadata. Lower is better.',
+            helper: 'Should be 0. Helps catch old app builds that are not reporting correctly.',
             tone: metrics?.unknownAppVersionDeviceCount ? 'warning' : 'good',
           },
         ],
       },
       {
-        title: 'Firebase Handoff',
-        summary: 'Whether Firebase accepted each targeted device message. This is not device-display confirmation.',
+        title: 'Send Results',
+        summary: 'What happened when an admin notification was sent.',
         cards: [
           {
-            label: 'FCM attempts',
+            label: 'Notification attempts',
             value: this.formatNumber(metrics?.notificationTargetedCount),
-            helper: 'Every device target created by admin sends.',
+            helper: 'Every phone the backend tried to notify.',
           },
           {
-            label: 'FCM accepted / failed',
+            label: 'Accepted / failed',
             value: `${this.formatNumber(metrics?.notificationSentCount)} / ${this.formatNumber(metrics?.notificationFailedCount)}`,
-            helper: 'Backend result from Firebase Admin SDK.',
+            helper: 'Firebase accepted the message or returned an error.',
             tone: metrics?.notificationFailedCount ? 'warning' : 'good',
           },
           {
-            label: 'FCM acceptance rate',
+            label: 'Acceptance rate',
             value: this.deliverySuccessRate(),
-            helper: 'Accepted by Firebase out of all attempted sends.',
+            helper: 'Accepted by Firebase out of all attempted sends. This does not prove the phone displayed it.',
             tone: metrics?.notificationFailedCount ? 'warning' : 'good',
           },
         ],
@@ -698,16 +704,16 @@ export class AdminDashboardComponent {
 
   protected notificationTimelineLabel(notification: AdminNotification): string {
     const date = notification.sentAt ?? notification.updatedAt ?? notification.createdAt;
-    const prefix = notification.sentAt ? 'FCM handoff' : notification.status === 'draft' ? 'Updated' : 'Created';
+    const prefix = notification.sentAt ? 'Sent to Firebase' : notification.status === 'draft' ? 'Updated' : 'Created';
     return `${prefix} ${this.formatDate(date)}`;
   }
 
   protected deliveryStatusLabel(delivery: AdminNotificationDelivery): string {
     if (delivery.status === 'sent') {
-      return 'FCM accepted';
+      return 'Firebase accepted';
     }
     if (delivery.status === 'failed') {
-      return 'FCM failed';
+      return 'Firebase failed';
     }
     return delivery.status;
   }

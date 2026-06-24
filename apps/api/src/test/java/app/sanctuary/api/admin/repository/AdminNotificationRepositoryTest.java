@@ -33,7 +33,7 @@ class AdminNotificationRepositoryTest {
 
         assertEquals(List.of(), targets);
         String sql = sqlCaptor.getValue();
-        assertTrue(sql.contains("last_seen_at >= NOW() - INTERVAL '2 hours'"));
+        assertTrue(sql.contains("last_seen_at >= NOW() - INTERVAL '5 minutes'"));
         assertTrue(sql.contains("notifications_enabled = TRUE"));
         assertTrue(sql.contains("token_status = 'valid'"));
     }

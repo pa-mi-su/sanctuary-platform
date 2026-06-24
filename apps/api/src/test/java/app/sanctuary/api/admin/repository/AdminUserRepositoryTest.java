@@ -130,7 +130,7 @@ class AdminUserRepositoryTest {
         repository.listRecentDeviceInstalls(25);
 
         assertTrue(sqlCaptor.getValue().contains("ORDER BY push_ready DESC, signed_in DESC, last_seen_at DESC"));
-        assertTrue(sqlCaptor.getValue().contains("last_seen_at >= NOW() - INTERVAL '2 hours'"));
+        assertTrue(sqlCaptor.getValue().contains("last_seen_at >= NOW() - INTERVAL '5 minutes'"));
 
         OffsetDateTime firstSeenAt = OffsetDateTime.now().minusHours(1);
         OffsetDateTime lastSeenAt = OffsetDateTime.now();
