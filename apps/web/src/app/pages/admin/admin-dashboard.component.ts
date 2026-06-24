@@ -798,7 +798,10 @@ export class AdminDashboardComponent {
     if (user.deviceCount <= 0) {
       return '0';
     }
-    return `${this.formatNumber(user.deviceCount)} ${user.latestPlatform || 'device'}`;
+    if (user.deviceCount === 1) {
+      return `1 ${this.formatPlatform(user.latestPlatform).toLowerCase()}`;
+    }
+    return `${this.formatNumber(user.deviceCount)} installs`;
   }
 
   protected pushReadyPlatformMixLabel(): string {
