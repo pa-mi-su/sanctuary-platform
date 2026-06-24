@@ -178,7 +178,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         foregroundHeartbeatJob = viewModelScope.launch {
             while (true) {
                 syncForegroundPresence()
-                delay(120_000)
+                delay(60_000)
             }
         }
     }

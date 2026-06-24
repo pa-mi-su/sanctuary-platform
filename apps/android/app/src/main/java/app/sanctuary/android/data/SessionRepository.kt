@@ -27,6 +27,8 @@ class SessionRepository(
     private val sessionKey = "primary_session"
     private val languageKey = "preferred_language"
     private val anonymousDeviceIdKey = "anonymous_device_id"
+    private val anonymousDeviceIdLock = Any()
+    @Volatile private var cachedAnonymousDeviceId: String? = null
 
     suspend fun bootstrap(): SessionBootstrapResult = withContext(Dispatchers.IO) {
         val stored = loadSession()
@@ -57,13 +59,21 @@ class SessionRepository(
     fun currentLanguage(): String = preferences.getString(languageKey, null)?.ifBlank { null } ?: "en"
 
     fun anonymousDeviceId(): String {
-        val existing = preferences.getString(anonymousDeviceIdKey, null)?.trim()
-        if (!existing.isNullOrBlank()) {
-            return existing
-        }
+        cachedAnonymousDeviceId?.let { return it }
 
-        return "android-${UUID.randomUUID()}".also {
-            preferences.edit().putString(anonymousDeviceIdKey, it).apply()
+        return synchronized(anonymousDeviceIdLock) {
+            cachedAnonymousDeviceId?.let { return@synchronized it }
+
+            val existing = preferences.getString(anonymousDeviceIdKey, null)?.trim()
+            if (!existing.isNullOrBlank()) {
+                cachedAnonymousDeviceId = existing
+                return@synchronized existing
+            }
+
+            "android-${UUID.randomUUID()}".also {
+                preferences.edit().putString(anonymousDeviceIdKey, it).apply()
+                cachedAnonymousDeviceId = it
+            }
         }
     }
 
