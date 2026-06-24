@@ -12,6 +12,7 @@ import app.sanctuary.android.data.NovenaDetail
 import app.sanctuary.android.data.NovenaSummary
 import app.sanctuary.android.data.PrayerDetail
 import app.sanctuary.android.data.PrayerSummary
+import app.sanctuary.android.data.ReminderConfig
 import app.sanctuary.android.data.SaintDateGroup
 import app.sanctuary.android.data.SaintDetail
 import app.sanctuary.android.data.SaintSummary
@@ -118,6 +119,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         repository = repository
     )
     private val pendingFavoriteToggles = mutableSetOf<String>()
+    private val pendingNovenaStarts = mutableSetOf<String>()
+    private val pendingNovenaStops = mutableSetOf<String>()
 
     private val _session = MutableStateFlow(
         SessionUiState(
@@ -834,23 +837,101 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun startNovena(novenaId: String) {
+        if (_session.value.status != SessionStatus.Authenticated) return
+        if (!pendingNovenaStarts.add(novenaId)) {
+            return
+        }
+        val previousProgress = _novenaProgress.value
+        val previousProfile = _session.value.profile
+        val wasAlreadyActive = previousProgress.commitments.any {
+            it.novenaId == novenaId && it.status == CommitmentStatus.Active
+        }
+        val now = Instant.now().toString()
+
+        _novenaProgress.update { progress ->
+            val activeCommitment = UserNovenaCommitment(
+                novenaId = novenaId,
+                startedAt = now,
+                currentDay = 1,
+                completedDays = emptyList(),
+                reminder = ReminderConfig(
+                    enabled = false,
+                    morningHour = null,
+                    eveningHour = null,
+                    timeZoneId = java.util.TimeZone.getDefault().id
+                ),
+                status = CommitmentStatus.Active,
+                updatedAt = now
+            )
+            progress.copy(
+                commitments = progress.commitments
+                    .filterNot { it.novenaId == novenaId }
+                    .plus(activeCommitment),
+                error = null
+            )
+        }
+        if (!wasAlreadyActive) {
+            updateActiveNovenaCount(1)
+        }
+
         viewModelScope.launch {
             runCatching { repository.startNovena(novenaId) }
-                .onSuccess {
-                    refreshNovenaProgress()
+                .onSuccess { commitment ->
+                    pendingNovenaStarts.remove(novenaId)
+                    _novenaProgress.update { progress ->
+                        progress.copy(
+                            commitments = progress.commitments
+                                .filterNot { it.novenaId == novenaId }
+                                .plus(commitment),
+                            error = null
+                        )
+                    }
                 }.onFailure { failure ->
-                    _novenaProgress.update { it.copy(error = failure.message) }
+                    pendingNovenaStarts.remove(novenaId)
+                    _novenaProgress.value = previousProgress.copy(error = failure.message)
+                    _session.update { it.copy(profile = previousProfile) }
                 }
         }
     }
 
+    private fun updateActiveNovenaCount(delta: Int) {
+        _session.update { sessionState ->
+            val profile = sessionState.profile ?: return@update sessionState
+            sessionState.copy(profile = profile.copy(activeNovenaCount = (profile.activeNovenaCount + delta).coerceAtLeast(0)))
+        }
+    }
+
     fun stopNovena(novenaId: String) {
+        if (_session.value.status != SessionStatus.Authenticated) return
+        if (!pendingNovenaStops.add(novenaId)) {
+            return
+        }
+        val previousProgress = _novenaProgress.value
+        val previousProfile = _session.value.profile
+        val hadActiveCommitment = previousProgress.commitments.any {
+            it.novenaId == novenaId && it.status == CommitmentStatus.Active
+        }
+
+        _novenaProgress.update { progress ->
+            progress.copy(
+                commitments = progress.commitments.filterNot {
+                    it.novenaId == novenaId && it.status == CommitmentStatus.Active
+                },
+                error = null
+            )
+        }
+        if (hadActiveCommitment) {
+            updateActiveNovenaCount(-1)
+        }
+
         viewModelScope.launch {
             runCatching { repository.stopNovena(novenaId) }
                 .onSuccess {
-                    refreshNovenaProgress()
+                    pendingNovenaStops.remove(novenaId)
                 }.onFailure { failure ->
-                    _novenaProgress.update { it.copy(error = failure.message) }
+                    pendingNovenaStops.remove(novenaId)
+                    _novenaProgress.value = previousProgress.copy(error = failure.message)
+                    _session.update { it.copy(profile = previousProfile) }
                 }
         }
     }
