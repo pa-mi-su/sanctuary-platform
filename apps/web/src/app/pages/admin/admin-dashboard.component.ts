@@ -295,13 +295,13 @@ interface MetricSection {
           <div class="panel-heading">
             <div>
               <p class="eyebrow">Devices</p>
-              <h2>Recent Push Targets</h2>
-              <p>Recent mobile records that can help explain notification testing. This is not a perfect lifetime install count.</p>
+              <h2>Active App Installs</h2>
+              <p>Mobile installs seen in the last 2 hours. Deleted apps fall out after they stop checking in.</p>
             </div>
-            <span>{{ recentDeviceInstalls().length }} loaded</span>
+            <span>{{ recentDeviceInstalls().length }} active</span>
           </div>
 
-          <div class="install-table" role="table" aria-label="Recent app installs">
+          <div class="install-table" role="table" aria-label="Active app installs">
             <div class="install-row install-row--header" role="row">
               <span>Device</span>
               <span>Owner</span>
@@ -330,7 +330,7 @@ interface MetricSection {
                 <span>{{ formatDate(install.lastSeenAt) }}</span>
               </div>
             } @empty {
-              <p class="empty-copy">No mobile push records reported yet.</p>
+              <p class="empty-copy">No active mobile installs reported in the last 2 hours.</p>
             }
           </div>
         </section>
@@ -345,7 +345,7 @@ interface MetricSection {
           </div>
           <div class="metadata-strip" aria-label="Device metadata summary">
             <span>{{ pushReadyPlatformMixLabel() }} reachable</span>
-            <span>{{ formatNumber(metrics()?.activeKnownDeviceCountRecent) }} active records now</span>
+            <span>{{ formatNumber(metrics()?.activeKnownDeviceCountRecent) }} active installs now</span>
             <span>{{ formatNumber(metrics()?.invalidTokenCount) }} invalid tokens</span>
           </div>
 
@@ -441,15 +441,15 @@ export class AdminDashboardComponent {
         tone: 'good',
       },
       {
-        label: 'Anonymous active today',
-        value: this.formatNumber(metrics?.anonymousActiveDevicesToday),
-        helper: 'Anonymous mobile records seen in the last 24h',
+        label: 'Active app installs now',
+        value: this.formatNumber(metrics?.activeKnownDeviceCountRecent),
+        helper: 'Mobile installs seen in the last 2 hours',
         tone: 'neutral',
       },
       {
-        label: 'Reachable push targets',
+        label: 'Push-ready installs',
         value: this.formatNumber(metrics?.notificationsEnabledDeviceCount),
-        helper: `${this.formatNumber(metrics?.pushReadyIosDeviceCount)} iOS, ${this.formatNumber(metrics?.pushReadyAndroidDeviceCount)} Android reachable targets`,
+        helper: `${this.formatNumber(metrics?.pushReadyIosDeviceCount)} iOS, ${this.formatNumber(metrics?.pushReadyAndroidDeviceCount)} Android can receive Firebase`,
         tone: metrics?.notificationsEnabledDeviceCount ? 'good' : 'warning',
       },
     ];
@@ -460,7 +460,7 @@ export class AdminDashboardComponent {
     return [
       {
         title: 'Audience',
-        summary: 'The only account and anonymous usage signals worth watching while testing.',
+        summary: 'Account and app-usage signals worth watching while testing.',
         cards: [
           {
             label: 'Registered accounts',
@@ -484,35 +484,35 @@ export class AdminDashboardComponent {
             helper: 'Longer-term registered account activity.',
           },
           {
-            label: 'Anonymous active today',
+            label: 'Anonymous app activity today',
             value: this.formatNumber(metrics?.anonymousActiveDevicesToday),
-            helper: 'Anonymous mobile records seen in the last 24 hours.',
+            helper: 'Not signed in, seen in the last 24 hours.',
             tone: 'neutral',
           },
           {
-            label: 'Anonymous active 7 days',
+            label: 'Anonymous app activity 7 days',
             value: this.formatNumber(metrics?.anonymousActiveDevices7Days),
-            helper: 'Anonymous mobile records seen in the last 7 days.',
+            helper: 'Not signed in, seen in the last 7 days.',
           },
         ],
       },
       {
         title: 'Push Readiness',
-        summary: 'Whether the backend has current Firebase targets it can try to send to.',
+        summary: 'Current mobile installs the backend can see and try to notify.',
         cards: [
           {
-            label: 'Reachable push targets',
+            label: 'Push-ready installs',
             value: this.formatNumber(metrics?.notificationsEnabledDeviceCount),
             helper: `${this.formatNumber(metrics?.pushReadyIosDeviceCount)} iOS, ${this.formatNumber(metrics?.pushReadyAndroidDeviceCount)} Android with valid token and permission.`,
             tone: 'primary',
           },
           {
-            label: 'Active records now',
+            label: 'Active app installs now',
             value: this.formatNumber(metrics?.activeKnownDeviceCountRecent),
-            helper: 'Deduped records seen in the last 2 hours. This is the best local testing count.',
+            helper: 'Seen in the last 2 hours. This is the install/use count to watch.',
           },
           {
-            label: 'Reachable platform mix',
+            label: 'Push-ready platform mix',
             value: this.pushReadyPlatformMixLabel(),
             helper: 'Push-ready targets with valid Firebase tokens and notification permission.',
           },
