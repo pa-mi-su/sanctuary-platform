@@ -234,6 +234,7 @@ export interface AdminUserMetrics {
   activeUsers30Days: number;
   anonymousActiveDevicesToday: number;
   anonymousActiveDevices7Days: number;
+  knownAppInstallCount: number;
   activeKnownDeviceCountRecent: number;
   pushReadyIosDeviceCount: number;
   pushReadyAndroidDeviceCount: number;
@@ -273,7 +274,10 @@ export interface AdminDeviceInstall {
   language: 'en' | 'es' | 'pl' | string | null;
   notificationsEnabled: boolean;
   tokenStatus: string;
+  hasPushToken: boolean;
   pushReady: boolean;
+  clientInstanceId: string | null;
+  checkInSource: string | null;
   firstSeenAt: string;
   lastSeenAt: string;
 }

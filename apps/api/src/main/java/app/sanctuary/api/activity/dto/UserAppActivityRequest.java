@@ -10,7 +10,7 @@ public record UserAppActivityRequest(
     String anonymousDeviceId,
 
     @NotBlank
-    @Pattern(regexp = "app_open|session_start")
+    @Pattern(regexp = "app_open|session_start|foreground_heartbeat")
     String eventType,
 
     @NotBlank
@@ -25,5 +25,15 @@ public record UserAppActivityRequest(
     String language,
 
     @Size(max = 128)
-    String timeZoneId
+    String timeZoneId,
+
+    @Size(max = 128)
+    @Pattern(regexp = "[A-Za-z0-9._:-]+")
+    String clientInstanceId,
+
+    Boolean automatedTest,
+
+    @Size(max = 64)
+    @Pattern(regexp = "app|automated_test|legacy")
+    String checkInSource
 ) {}

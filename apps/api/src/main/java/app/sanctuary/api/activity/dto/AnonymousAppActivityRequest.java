@@ -11,7 +11,7 @@ public record AnonymousAppActivityRequest(
     String anonymousDeviceId,
 
     @NotBlank
-    @Pattern(regexp = "app_open|session_start|notification_permission_allowed|notification_permission_denied|screen_view")
+    @Pattern(regexp = "app_open|session_start|foreground_heartbeat|notification_permission_allowed|notification_permission_denied|screen_view")
     String eventType,
 
     @NotBlank
@@ -34,5 +34,15 @@ public record AnonymousAppActivityRequest(
     @Size(max = 4096)
     String fcmToken,
 
-    Boolean notificationsEnabled
+    Boolean notificationsEnabled,
+
+    @Size(max = 128)
+    @Pattern(regexp = "[A-Za-z0-9._:-]+")
+    String clientInstanceId,
+
+    Boolean automatedTest,
+
+    @Size(max = 64)
+    @Pattern(regexp = "app|automated_test|legacy")
+    String checkInSource
 ) {}

@@ -193,8 +193,20 @@ public class AdminNotificationRepository {
                     FROM user_devices
                     WHERE notifications_enabled = TRUE
                       AND token_status = 'valid'
-                      AND last_seen_at >= NOW() - INTERVAL '3 minutes'
+                      AND automated_test = FALSE
+                      AND check_in_source = 'app'
+                      AND NULLIF(TRIM(client_instance_id), '') IS NOT NULL
                       AND NULLIF(TRIM(fcm_token), '') IS NOT NULL
+                      AND EXISTS (
+                          SELECT 1
+                          FROM user_app_activity_events e
+                          WHERE e.user_id = user_devices.user_id
+                            AND e.event_type = 'foreground_heartbeat'
+                            AND e.occurred_at >= NOW() - INTERVAL '2 minutes'
+                            AND e.automated_test = FALSE
+                            AND e.check_in_source = 'app'
+                            AND NULLIF(TRIM(e.client_instance_id), '') = NULLIF(TRIM(user_devices.client_instance_id), '')
+                      )
 
                     UNION ALL
 
@@ -209,8 +221,21 @@ public class AdminNotificationRepository {
                     FROM anonymous_app_devices
                     WHERE notifications_enabled = TRUE
                       AND token_status = 'valid'
-                      AND last_seen_at >= NOW() - INTERVAL '3 minutes'
+                      AND linked_user_id IS NULL
+                      AND automated_test = FALSE
+                      AND check_in_source = 'app'
+                      AND NULLIF(TRIM(client_instance_id), '') IS NOT NULL
                       AND NULLIF(TRIM(fcm_token), '') IS NOT NULL
+                      AND EXISTS (
+                          SELECT 1
+                          FROM anonymous_app_activity_events e
+                          WHERE e.anonymous_device_id = anonymous_app_devices.anonymous_device_id
+                            AND e.event_type = 'foreground_heartbeat'
+                            AND e.occurred_at >= NOW() - INTERVAL '2 minutes'
+                            AND e.automated_test = FALSE
+                            AND e.check_in_source = 'app'
+                            AND NULLIF(TRIM(e.client_instance_id), '') = NULLIF(TRIM(anonymous_app_devices.client_instance_id), '')
+                      )
                 ),
                 ranked AS (
                     SELECT

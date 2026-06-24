@@ -631,7 +631,8 @@ final class AccountSessionStore: ObservableObject {
     private func registerPushDeviceIfPossible(token: String) async {
         await pushNotificationRegistrar.registerCurrentDevice(
             token: token,
-            preferredLanguage: profile?.preferredLanguage
+            preferredLanguage: profile?.preferredLanguage,
+            clientInstanceId: anonymousDeviceID()
         )
     }
 
@@ -645,7 +646,10 @@ final class AccountSessionStore: ObservableObject {
                 platform: "ios",
                 appVersion: appVersion,
                 language: language,
-                timeZoneId: TimeZone.current.identifier
+                timeZoneId: TimeZone.current.identifier,
+                clientInstanceId: anonymousDeviceID(),
+                automatedTest: false,
+                checkInSource: "app"
             )
             try? await apiClient.recordAppActivity(request: request, token: token)
         }
@@ -656,11 +660,14 @@ final class AccountSessionStore: ObservableObject {
         let language = profile?.preferredLanguage?.rawValue ?? "en"
         let request = APIUserAppActivityRequest(
             anonymousDeviceId: anonymousDeviceID(),
-            eventType: "session_start",
+            eventType: "foreground_heartbeat",
             platform: "ios",
             appVersion: appVersion,
             language: language,
-            timeZoneId: TimeZone.current.identifier
+            timeZoneId: TimeZone.current.identifier,
+            clientInstanceId: anonymousDeviceID(),
+            automatedTest: false,
+            checkInSource: "app"
         )
         try? await apiClient.recordAppActivity(request: request, token: token)
     }
@@ -682,7 +689,10 @@ final class AccountSessionStore: ObservableObject {
                 timeZoneId: TimeZone.current.identifier,
                 screenName: nil,
                 fcmToken: anonymousPush.token,
-                notificationsEnabled: anonymousPush.notificationsEnabled
+                notificationsEnabled: anonymousPush.notificationsEnabled,
+                clientInstanceId: anonymousDeviceID(),
+                automatedTest: false,
+                checkInSource: "app"
             )
             try? await apiClient.recordAnonymousAppActivity(request: request)
         }
@@ -695,14 +705,17 @@ final class AccountSessionStore: ObservableObject {
         let anonymousPush = await pushNotificationRegistrar.anonymousPushTokenIfAvailable()
         let request = APIAnonymousAppActivityRequest(
             anonymousDeviceId: anonymousDeviceID(),
-            eventType: "session_start",
+            eventType: "foreground_heartbeat",
             platform: "ios",
             appVersion: appVersion,
             language: supportedLanguage,
             timeZoneId: TimeZone.current.identifier,
             screenName: nil,
             fcmToken: anonymousPush.token,
-            notificationsEnabled: anonymousPush.notificationsEnabled
+            notificationsEnabled: anonymousPush.notificationsEnabled,
+            clientInstanceId: anonymousDeviceID(),
+            automatedTest: false,
+            checkInSource: "app"
         )
         try? await apiClient.recordAnonymousAppActivity(request: request)
     }

@@ -18,7 +18,7 @@ final class PushNotificationRegistrar {
         self.platformConfiguration = platformConfiguration
     }
 
-    func registerCurrentDevice(token: String, preferredLanguage: ContentLocale?) async {
+    func registerCurrentDevice(token: String, preferredLanguage: ContentLocale?, clientInstanceId: String?) async {
         #if canImport(FirebaseCore) && canImport(FirebaseMessaging) && canImport(UserNotifications) && canImport(UIKit)
         guard FirebaseApp.app() != nil else { return }
 
@@ -34,7 +34,10 @@ final class PushNotificationRegistrar {
                     platform: "ios",
                     appVersion: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String,
                     language: preferredLanguage?.rawValue ?? "en",
-                    notificationsEnabled: notificationsEnabled
+                    notificationsEnabled: notificationsEnabled,
+                    clientInstanceId: clientInstanceId,
+                    automatedTest: false,
+                    checkInSource: "app"
                 ),
                 token: token
             )

@@ -24,84 +24,148 @@ public class AdminUserRepository {
     public AdminUserMetricsDto metrics() {
         return jdbcTemplate.queryForObject(
             """
+                WITH live_user_devices AS (
+                    SELECT DISTINCT ON (
+                        COALESCE(NULLIF(TRIM(d.fcm_token), ''), NULLIF(TRIM(d.client_instance_id), ''), d.id::text)
+                    )
+                        d.*
+                    FROM user_devices d
+                    WHERE d.automated_test = FALSE
+                      AND d.check_in_source = 'app'
+                      AND NULLIF(TRIM(d.client_instance_id), '') IS NOT NULL
+                      AND EXISTS (
+                          SELECT 1
+                          FROM user_app_activity_events e
+                          WHERE e.user_id = d.user_id
+                            AND e.event_type = 'foreground_heartbeat'
+                            AND e.occurred_at >= NOW() - INTERVAL '2 minutes'
+                            AND e.automated_test = FALSE
+                            AND e.check_in_source = 'app'
+                            AND NULLIF(TRIM(e.client_instance_id), '') = NULLIF(TRIM(d.client_instance_id), '')
+                      )
+                    ORDER BY
+                        COALESCE(NULLIF(TRIM(d.fcm_token), ''), NULLIF(TRIM(d.client_instance_id), ''), d.id::text),
+                        d.updated_at DESC
+                ),
+                live_anonymous_devices AS (
+                    SELECT DISTINCT ON (
+                        COALESCE(NULLIF(TRIM(d.fcm_token), ''), NULLIF(TRIM(d.client_instance_id), ''), d.anonymous_device_id)
+                    )
+                        d.*
+                    FROM anonymous_app_devices d
+                    WHERE d.linked_user_id IS NULL
+                      AND d.automated_test = FALSE
+                      AND d.check_in_source = 'app'
+                      AND NULLIF(TRIM(d.client_instance_id), '') IS NOT NULL
+                      AND EXISTS (
+                          SELECT 1
+                          FROM anonymous_app_activity_events e
+                          WHERE e.anonymous_device_id = d.anonymous_device_id
+                            AND e.event_type = 'foreground_heartbeat'
+                            AND e.occurred_at >= NOW() - INTERVAL '2 minutes'
+                            AND e.automated_test = FALSE
+                            AND e.check_in_source = 'app'
+                            AND NULLIF(TRIM(e.client_instance_id), '') = NULLIF(TRIM(d.client_instance_id), '')
+                      )
+                    ORDER BY
+                        COALESCE(NULLIF(TRIM(d.fcm_token), ''), NULLIF(TRIM(d.client_instance_id), ''), d.anonymous_device_id),
+                        d.updated_at DESC
+                ),
+                live_devices AS (
+                    SELECT platform, fcm_token, notifications_enabled, token_status, app_version
+                    FROM live_user_devices
+                    UNION ALL
+                    SELECT platform, fcm_token, notifications_enabled, token_status, app_version
+                    FROM live_anonymous_devices
+                ),
+                known_app_installs AS (
+                    SELECT DISTINCT
+                        COALESCE(NULLIF(TRIM(client_instance_id), ''), NULLIF(TRIM(fcm_token), ''), id::text) AS install_key
+                    FROM user_devices
+                    WHERE automated_test = FALSE
+                      AND check_in_source = 'app'
+                      AND (
+                          NULLIF(TRIM(client_instance_id), '') IS NOT NULL
+                          OR NULLIF(TRIM(fcm_token), '') IS NOT NULL
+                      )
+                    UNION
+                    SELECT DISTINCT
+                        COALESCE(NULLIF(TRIM(client_instance_id), ''), NULLIF(TRIM(fcm_token), ''), anonymous_device_id) AS install_key
+                    FROM anonymous_app_devices
+                    WHERE automated_test = FALSE
+                      AND check_in_source = 'app'
+                      AND (
+                          NULLIF(TRIM(client_instance_id), '') IS NOT NULL
+                          OR NULLIF(TRIM(fcm_token), '') IS NOT NULL
+                      )
+                )
                 SELECT
                     (SELECT COUNT(*) FROM users) AS total_users,
                     (SELECT COUNT(*) FROM users WHERE created_at >= NOW() - INTERVAL '1 day') AS registered_users_today,
                     (SELECT COUNT(*) FROM users WHERE last_sign_in_at >= NOW() - INTERVAL '1 day') AS active_users_today,
                     (SELECT COUNT(*) FROM users WHERE last_sign_in_at >= NOW() - INTERVAL '30 days') AS active_users_30_days,
                     (
-                        SELECT COUNT(DISTINCT COALESCE(NULLIF(TRIM(fcm_token), ''), anonymous_device_id))
-                        FROM anonymous_app_devices
-                        WHERE last_seen_at >= NOW() - INTERVAL '1 day'
-                          AND linked_user_id IS NULL
+                        SELECT COUNT(DISTINCT NULLIF(TRIM(e.client_instance_id), ''))
+                        FROM anonymous_app_activity_events e
+                        INNER JOIN anonymous_app_devices d ON d.anonymous_device_id = e.anonymous_device_id
+                        WHERE e.event_type = 'foreground_heartbeat'
+                          AND e.occurred_at >= NOW() - INTERVAL '1 day'
+                          AND e.automated_test = FALSE
+                          AND e.check_in_source = 'app'
+                          AND d.linked_user_id IS NULL
                     ) AS anonymous_active_devices_today,
                     (
-                        SELECT COUNT(DISTINCT COALESCE(NULLIF(TRIM(fcm_token), ''), anonymous_device_id))
-                        FROM anonymous_app_devices
-                        WHERE last_seen_at >= NOW() - INTERVAL '7 days'
-                          AND linked_user_id IS NULL
+                        SELECT COUNT(DISTINCT NULLIF(TRIM(e.client_instance_id), ''))
+                        FROM anonymous_app_activity_events e
+                        INNER JOIN anonymous_app_devices d ON d.anonymous_device_id = e.anonymous_device_id
+                        WHERE e.event_type = 'foreground_heartbeat'
+                          AND e.occurred_at >= NOW() - INTERVAL '7 days'
+                          AND e.automated_test = FALSE
+                          AND e.check_in_source = 'app'
+                          AND d.linked_user_id IS NULL
                     ) AS anonymous_active_devices_7_days,
-                    (
-                        SELECT COUNT(DISTINCT device_key)
-                        FROM (
-                            SELECT COALESCE(NULLIF(TRIM(fcm_token), ''), id::text) AS device_key FROM user_devices
-                            WHERE last_seen_at >= NOW() - INTERVAL '3 minutes'
-                            UNION ALL
-                            SELECT COALESCE(NULLIF(TRIM(fcm_token), ''), anonymous_device_id) AS device_key FROM anonymous_app_devices
-                            WHERE last_seen_at >= NOW() - INTERVAL '3 minutes'
-                        ) active_known_devices
-                    ) AS active_known_device_count_recent,
+                    (SELECT COUNT(*) FROM known_app_installs) AS known_app_install_count,
+                    (SELECT COUNT(*) FROM live_devices) AS active_known_device_count_recent,
                     (
                         SELECT COUNT(DISTINCT fcm_token)
-                        FROM (
-                            SELECT fcm_token FROM user_devices
-                            WHERE platform = 'ios' AND last_seen_at >= NOW() - INTERVAL '3 minutes' AND notifications_enabled = TRUE AND token_status = 'valid' AND NULLIF(TRIM(fcm_token), '') IS NOT NULL
-                            UNION ALL
-                            SELECT fcm_token FROM anonymous_app_devices
-                            WHERE platform = 'ios' AND last_seen_at >= NOW() - INTERVAL '3 minutes' AND notifications_enabled = TRUE AND token_status = 'valid' AND NULLIF(TRIM(fcm_token), '') IS NOT NULL
-                        ) ios_push_ready_tokens
+                        FROM live_devices
+                        WHERE platform = 'ios'
+                          AND notifications_enabled = TRUE
+                          AND token_status = 'valid'
+                          AND NULLIF(TRIM(fcm_token), '') IS NOT NULL
                     ) AS push_ready_ios_device_count,
                     (
                         SELECT COUNT(DISTINCT fcm_token)
-                        FROM (
-                            SELECT fcm_token FROM user_devices
-                            WHERE platform = 'android' AND last_seen_at >= NOW() - INTERVAL '3 minutes' AND notifications_enabled = TRUE AND token_status = 'valid' AND NULLIF(TRIM(fcm_token), '') IS NOT NULL
-                            UNION ALL
-                            SELECT fcm_token FROM anonymous_app_devices
-                            WHERE platform = 'android' AND last_seen_at >= NOW() - INTERVAL '3 minutes' AND notifications_enabled = TRUE AND token_status = 'valid' AND NULLIF(TRIM(fcm_token), '') IS NOT NULL
-                        ) android_push_ready_tokens
+                        FROM live_devices
+                        WHERE platform = 'android'
+                          AND notifications_enabled = TRUE
+                          AND token_status = 'valid'
+                          AND NULLIF(TRIM(fcm_token), '') IS NOT NULL
                     ) AS push_ready_android_device_count,
                     (
                         SELECT COUNT(DISTINCT fcm_token)
-                        FROM (
-                            SELECT fcm_token FROM user_devices
-                            WHERE last_seen_at >= NOW() - INTERVAL '3 minutes' AND notifications_enabled = TRUE AND token_status = 'valid' AND NULLIF(TRIM(fcm_token), '') IS NOT NULL
-                            UNION ALL
-                            SELECT fcm_token FROM anonymous_app_devices
-                            WHERE last_seen_at >= NOW() - INTERVAL '3 minutes' AND notifications_enabled = TRUE AND token_status = 'valid' AND NULLIF(TRIM(fcm_token), '') IS NOT NULL
-                        ) push_ready_tokens
+                        FROM live_devices
+                        WHERE notifications_enabled = TRUE
+                          AND token_status = 'valid'
+                          AND NULLIF(TRIM(fcm_token), '') IS NOT NULL
                     ) AS notifications_enabled_device_count,
                     (
                         SELECT COUNT(DISTINCT fcm_token)
-                        FROM (
-                            SELECT fcm_token FROM user_devices
-                            WHERE last_seen_at >= NOW() - INTERVAL '3 minutes' AND token_status = 'valid' AND NULLIF(TRIM(fcm_token), '') IS NOT NULL
-                            UNION ALL
-                            SELECT fcm_token FROM anonymous_app_devices
-                            WHERE last_seen_at >= NOW() - INTERVAL '3 minutes' AND token_status = 'valid' AND NULLIF(TRIM(fcm_token), '') IS NOT NULL
-                        ) valid_tokens
+                        FROM live_devices
+                        WHERE token_status = 'valid'
+                          AND NULLIF(TRIM(fcm_token), '') IS NOT NULL
                     ) AS valid_token_count,
                     (
                         SELECT COUNT(*)
                         FROM (
                             SELECT fcm_token FROM user_devices
-                            WHERE token_status = 'invalid' AND NULLIF(TRIM(fcm_token), '') IS NOT NULL
+                            WHERE automated_test = FALSE AND check_in_source = 'app' AND token_status = 'invalid' AND NULLIF(TRIM(fcm_token), '') IS NOT NULL
                             UNION ALL
                             SELECT fcm_token FROM anonymous_app_devices
-                            WHERE token_status = 'invalid' AND NULLIF(TRIM(fcm_token), '') IS NOT NULL
+                            WHERE automated_test = FALSE AND check_in_source = 'app' AND token_status = 'invalid' AND NULLIF(TRIM(fcm_token), '') IS NOT NULL
                         ) invalid_tokens
                     ) AS invalid_token_count,
-                    (SELECT COUNT(*) FROM user_devices WHERE app_version IS NULL) AS unknown_app_version_device_count,
+                    (SELECT COUNT(*) FROM live_devices WHERE app_version IS NULL) AS unknown_app_version_device_count,
                     (SELECT COUNT(*) FROM admin_notification_deliveries) AS notification_targeted_count,
                     (SELECT COUNT(*) FROM admin_notification_deliveries WHERE status = 'sent') AS notification_sent_count,
                     (SELECT COUNT(*) FROM admin_notification_deliveries WHERE status = 'failed') AS notification_failed_count
@@ -113,6 +177,7 @@ public class AdminUserRepository {
                 rs.getInt("active_users_30_days"),
                 rs.getInt("anonymous_active_devices_today"),
                 rs.getInt("anonymous_active_devices_7_days"),
+                rs.getInt("known_app_install_count"),
                 rs.getInt("active_known_device_count_recent"),
                 rs.getInt("push_ready_ios_device_count"),
                 rs.getInt("push_ready_android_device_count"),
@@ -130,6 +195,29 @@ public class AdminUserRepository {
     public List<AdminUserListItemDto> listUsers(int limit) {
         return jdbcTemplate.query(
             """
+                WITH live_user_devices AS (
+                    SELECT DISTINCT ON (
+                        COALESCE(NULLIF(TRIM(d.fcm_token), ''), NULLIF(TRIM(d.client_instance_id), ''), d.id::text)
+                    )
+                        d.*
+                    FROM user_devices d
+                    WHERE d.automated_test = FALSE
+                      AND d.check_in_source = 'app'
+                      AND NULLIF(TRIM(d.client_instance_id), '') IS NOT NULL
+                      AND EXISTS (
+                          SELECT 1
+                          FROM user_app_activity_events e
+                          WHERE e.user_id = d.user_id
+                            AND e.event_type = 'foreground_heartbeat'
+                            AND e.occurred_at >= NOW() - INTERVAL '2 minutes'
+                            AND e.automated_test = FALSE
+                            AND e.check_in_source = 'app'
+                            AND NULLIF(TRIM(e.client_instance_id), '') = NULLIF(TRIM(d.client_instance_id), '')
+                      )
+                    ORDER BY
+                        COALESCE(NULLIF(TRIM(d.fcm_token), ''), NULLIF(TRIM(d.client_instance_id), ''), d.id::text),
+                        d.updated_at DESC
+                )
                 SELECT
                     u.id AS user_id,
                     u.email,
@@ -138,8 +226,7 @@ public class AdminUserRepository {
                     u.created_at AS registration_date,
                     u.last_sign_in_at,
                     COUNT(DISTINCT d.fcm_token) FILTER (
-                        WHERE d.last_seen_at >= NOW() - INTERVAL '3 minutes'
-                          AND d.notifications_enabled = TRUE
+                        WHERE d.notifications_enabled = TRUE
                           AND d.token_status = 'valid'
                           AND NULLIF(TRIM(d.fcm_token), '') IS NOT NULL
                     )::int AS device_count,
@@ -148,19 +235,20 @@ public class AdminUserRepository {
                     latest_device.language AS latest_device_language,
                     latest_device.last_seen_at AS latest_device_last_seen_at,
                     COALESCE(BOOL_OR(
-                        d.last_seen_at >= NOW() - INTERVAL '3 minutes'
-                        AND d.notifications_enabled = TRUE
+                        d.notifications_enabled = TRUE
                         AND d.token_status = 'valid'
                         AND NULLIF(TRIM(d.fcm_token), '') IS NOT NULL
                     ), FALSE) AS notifications_enabled,
                     COALESCE(a.enabled, FALSE) AS admin
                 FROM users u
-                LEFT JOIN user_devices d ON d.user_id = u.id
+                LEFT JOIN live_user_devices d ON d.user_id = u.id
                 LEFT JOIN admin_users a ON a.user_id = u.id
                 LEFT JOIN LATERAL (
                     SELECT platform, app_version, language, last_seen_at
                     FROM user_devices
                     WHERE user_id = u.id
+                      AND automated_test = FALSE
+                      AND check_in_source = 'app'
                     ORDER BY updated_at DESC
                     LIMIT 1
                 ) latest_device ON TRUE
@@ -201,6 +289,53 @@ public class AdminUserRepository {
     public List<AdminDeviceInstallDto> listRecentDeviceInstalls(int limit) {
         return jdbcTemplate.query(
             """
+                WITH live_user_devices AS (
+                    SELECT DISTINCT ON (
+                        COALESCE(NULLIF(TRIM(d.fcm_token), ''), NULLIF(TRIM(d.client_instance_id), ''), d.id::text)
+                    )
+                        d.*
+                    FROM user_devices d
+                    WHERE d.automated_test = FALSE
+                      AND d.check_in_source = 'app'
+                      AND NULLIF(TRIM(d.client_instance_id), '') IS NOT NULL
+                      AND EXISTS (
+                          SELECT 1
+                          FROM user_app_activity_events e
+                          WHERE e.user_id = d.user_id
+                            AND e.event_type = 'foreground_heartbeat'
+                            AND e.occurred_at >= NOW() - INTERVAL '2 minutes'
+                            AND e.automated_test = FALSE
+                            AND e.check_in_source = 'app'
+                            AND NULLIF(TRIM(e.client_instance_id), '') = NULLIF(TRIM(d.client_instance_id), '')
+                      )
+                    ORDER BY
+                        COALESCE(NULLIF(TRIM(d.fcm_token), ''), NULLIF(TRIM(d.client_instance_id), ''), d.id::text),
+                        d.updated_at DESC
+                ),
+                live_anonymous_devices AS (
+                    SELECT DISTINCT ON (
+                        COALESCE(NULLIF(TRIM(d.fcm_token), ''), NULLIF(TRIM(d.client_instance_id), ''), d.anonymous_device_id)
+                    )
+                        d.*
+                    FROM anonymous_app_devices d
+                    WHERE d.linked_user_id IS NULL
+                      AND d.automated_test = FALSE
+                      AND d.check_in_source = 'app'
+                      AND NULLIF(TRIM(d.client_instance_id), '') IS NOT NULL
+                      AND EXISTS (
+                          SELECT 1
+                          FROM anonymous_app_activity_events e
+                          WHERE e.anonymous_device_id = d.anonymous_device_id
+                            AND e.event_type = 'foreground_heartbeat'
+                            AND e.occurred_at >= NOW() - INTERVAL '2 minutes'
+                            AND e.automated_test = FALSE
+                            AND e.check_in_source = 'app'
+                            AND NULLIF(TRIM(e.client_instance_id), '') = NULLIF(TRIM(d.client_instance_id), '')
+                      )
+                    ORDER BY
+                        COALESCE(NULLIF(TRIM(d.fcm_token), ''), NULLIF(TRIM(d.client_instance_id), ''), d.anonymous_device_id),
+                        d.updated_at DESC
+                )
                 SELECT
                     id,
                     user_id,
@@ -212,7 +347,10 @@ public class AdminUserRepository {
                     language,
                     notifications_enabled,
                     token_status,
+                    has_push_token,
                     push_ready,
+                    client_instance_id,
+                    check_in_source,
                     first_seen_at,
                     last_seen_at
                 FROM (
@@ -224,7 +362,7 @@ public class AdminUserRepository {
                         ) AS row_number
                     FROM (
                         SELECT
-                            COALESCE(NULLIF(TRIM(d.fcm_token), ''), d.id::text) AS device_key,
+                            COALESCE(NULLIF(TRIM(d.fcm_token), ''), NULLIF(TRIM(d.client_instance_id), ''), d.id::text) AS device_key,
                             d.id::text AS id,
                             u.id AS user_id,
                             u.email AS user_email,
@@ -235,19 +373,21 @@ public class AdminUserRepository {
                             d.language,
                             d.notifications_enabled,
                             d.token_status,
+                            NULLIF(TRIM(d.fcm_token), '') IS NOT NULL AS has_push_token,
                             (
-                                d.last_seen_at >= NOW() - INTERVAL '3 minutes'
-                                AND d.notifications_enabled = TRUE
+                                d.notifications_enabled = TRUE
                                 AND d.token_status = 'valid'
                                 AND NULLIF(TRIM(d.fcm_token), '') IS NOT NULL
                             ) AS push_ready,
+                            d.client_instance_id,
+                            d.check_in_source,
                             d.created_at AS first_seen_at,
                             d.last_seen_at
-                        FROM user_devices d
+                        FROM live_user_devices d
                         INNER JOIN users u ON u.id = d.user_id
                         UNION ALL
                         SELECT
-                            COALESCE(NULLIF(TRIM(d.fcm_token), ''), d.anonymous_device_id) AS device_key,
+                            COALESCE(NULLIF(TRIM(d.fcm_token), ''), NULLIF(TRIM(d.client_instance_id), ''), d.anonymous_device_id) AS device_key,
                             d.anonymous_device_id AS id,
                             u.id AS user_id,
                             u.email AS user_email,
@@ -258,20 +398,21 @@ public class AdminUserRepository {
                             d.language,
                             d.notifications_enabled,
                             d.token_status,
+                            NULLIF(TRIM(d.fcm_token), '') IS NOT NULL AS has_push_token,
                             (
-                                d.last_seen_at >= NOW() - INTERVAL '3 minutes'
-                                AND d.notifications_enabled = TRUE
+                                d.notifications_enabled = TRUE
                                 AND d.token_status = 'valid'
                                 AND NULLIF(TRIM(d.fcm_token), '') IS NOT NULL
                             ) AS push_ready,
+                            d.client_instance_id,
+                            d.check_in_source,
                             d.first_seen_at,
                             d.last_seen_at
-                        FROM anonymous_app_devices d
+                        FROM live_anonymous_devices d
                         LEFT JOIN users u ON u.id = d.linked_user_id
                     ) candidates
                 ) installs
                 WHERE row_number = 1
-                  AND last_seen_at >= NOW() - INTERVAL '3 minutes'
                 ORDER BY last_seen_at DESC
                 LIMIT ?
                 """,
@@ -286,7 +427,10 @@ public class AdminUserRepository {
                 rs.getString("language"),
                 rs.getBoolean("notifications_enabled"),
                 rs.getString("token_status"),
+                rs.getBoolean("has_push_token"),
                 rs.getBoolean("push_ready"),
+                rs.getString("client_instance_id"),
+                rs.getString("check_in_source"),
                 rs.getObject("first_seen_at", java.time.OffsetDateTime.class),
                 rs.getObject("last_seen_at", java.time.OffsetDateTime.class)
             ),

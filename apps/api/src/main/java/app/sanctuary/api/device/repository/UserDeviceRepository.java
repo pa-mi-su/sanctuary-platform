@@ -29,10 +29,13 @@ public class UserDeviceRepository {
                     language,
                     notifications_enabled,
                     token_status,
+                    client_instance_id,
+                    automated_test,
+                    check_in_source,
                     last_seen_at,
                     updated_at
                 )
-                VALUES (?, ?, ?, ?, ?, ?, 'valid', NOW(), NOW())
+                VALUES (?, ?, ?, ?, ?, ?, 'valid', ?, ?, ?, NOW(), NOW())
                 ON CONFLICT (fcm_token)
                 DO UPDATE SET
                     user_id = EXCLUDED.user_id,
@@ -41,6 +44,9 @@ public class UserDeviceRepository {
                     language = EXCLUDED.language,
                     notifications_enabled = EXCLUDED.notifications_enabled,
                     token_status = 'valid',
+                    client_instance_id = COALESCE(EXCLUDED.client_instance_id, user_devices.client_instance_id),
+                    automated_test = EXCLUDED.automated_test,
+                    check_in_source = EXCLUDED.check_in_source,
                     last_seen_at = NOW(),
                     updated_at = NOW()
                 RETURNING
@@ -72,7 +78,10 @@ public class UserDeviceRepository {
             request.platform(),
             emptyToNull(request.appVersion()),
             request.language(),
-            request.notificationsEnabled()
+            request.notificationsEnabled(),
+            emptyToNull(request.clientInstanceId()),
+            Boolean.TRUE.equals(request.automatedTest()),
+            normalizeCheckInSource(request.checkInSource(), Boolean.TRUE.equals(request.automatedTest()))
         );
     }
 
@@ -112,5 +121,20 @@ public class UserDeviceRepository {
 
     private String emptyToNull(String value) {
         return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    private String normalizeCheckInSource(String requestedSource, boolean automatedTest) {
+        if (automatedTest) {
+            return "automated_test";
+        }
+
+        String source = emptyToNull(requestedSource);
+        if ("automated_test".equals(source)) {
+            return "automated_test";
+        }
+        if ("legacy".equals(source)) {
+            return "legacy";
+        }
+        return "app";
     }
 }
