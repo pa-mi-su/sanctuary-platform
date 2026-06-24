@@ -4,6 +4,5 @@ import java.util.List;
 
 public record AdminUsersResponse(
     AdminUserMetricsDto metrics,
-    List<AdminUserListItemDto> users,
     List<AdminDeviceInstallDto> recentDeviceInstalls
 ) {}

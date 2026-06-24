@@ -44,15 +44,23 @@ class AdminNotificationServiceTest {
     private AdminNotificationService service;
 
     @Test
-    void createDraftPersistsNotificationAndAuditEvent() {
+    void sendCreatesNotificationAndAuditEvent() {
         UUID adminUserId = UUID.randomUUID();
         AdminNotificationRequest request = new AdminNotificationRequest("Update", "Please update Sanctuary.");
         AdminNotificationDto notification = notification();
+        PushNotificationTarget target = target();
+        UUID deliveryId = UUID.randomUUID();
+        when(pushNotificationGateway.enabled()).thenReturn(true);
         when(notificationRepository.createDraft(adminUserId, request)).thenReturn(notification);
+        when(notificationRepository.findValidTargetsForAllAudience()).thenReturn(List.of(target));
+        when(notificationRepository.markSending(notification.id(), adminUserId, 1)).thenReturn(true);
+        when(notificationRepository.createDelivery(notification.id(), target)).thenReturn(deliveryId);
+        when(pushNotificationGateway.send(target, new PushNotificationPayload(notification.id(), notification.title(), notification.message())))
+            .thenReturn(PushNotificationSendResult.sent("firebase-message-id"));
 
-        AdminNotificationDto result = service.createDraft(adminUserId, request);
+        AdminNotificationSendResultDto result = service.send(adminUserId, request);
 
-        assertEquals(notification, result);
+        assertEquals("sent", result.status());
         verify(auditRepository).record(
             adminUserId,
             "admin.notification.create_draft",
@@ -87,7 +95,7 @@ class AdminNotificationServiceTest {
 
         ResponseStatusException exception = assertThrows(
             ResponseStatusException.class,
-            () -> service.send(UUID.randomUUID(), UUID.randomUUID())
+            () -> service.send(UUID.randomUUID(), new AdminNotificationRequest("Update", "Please update Sanctuary."))
         );
 
         assertEquals(HttpStatus.SERVICE_UNAVAILABLE, exception.getStatusCode());
@@ -95,30 +103,17 @@ class AdminNotificationServiceTest {
     }
 
     @Test
-    void sendRejectsNonDraftNotification() {
-        UUID notificationId = UUID.randomUUID();
-        when(pushNotificationGateway.enabled()).thenReturn(true);
-        when(notificationRepository.findById(notificationId)).thenReturn(notification("sent"));
-
-        ResponseStatusException exception = assertThrows(
-            ResponseStatusException.class,
-            () -> service.send(UUID.randomUUID(), notificationId)
-        );
-
-        assertEquals(HttpStatus.CONFLICT, exception.getStatusCode());
-    }
-
-    @Test
     void sendRejectsDraftWithNoValidDevices() {
         UUID adminUserId = UUID.randomUUID();
+        AdminNotificationRequest request = new AdminNotificationRequest("Update", "Please update Sanctuary.");
         AdminNotificationDto notification = notification();
         when(pushNotificationGateway.enabled()).thenReturn(true);
-        when(notificationRepository.findById(notification.id())).thenReturn(notification);
+        when(notificationRepository.createDraft(adminUserId, request)).thenReturn(notification);
         when(notificationRepository.findValidTargetsForAllAudience()).thenReturn(List.of());
 
         ResponseStatusException exception = assertThrows(
             ResponseStatusException.class,
-            () -> service.send(adminUserId, notification.id())
+            () -> service.send(adminUserId, request)
         );
 
         assertEquals(HttpStatus.CONFLICT, exception.getStatusCode());
@@ -127,18 +122,19 @@ class AdminNotificationServiceTest {
     @Test
     void sendRecordsSuccessfulDeliveries() {
         UUID adminUserId = UUID.randomUUID();
+        AdminNotificationRequest request = new AdminNotificationRequest("Update", "Please update Sanctuary.");
         AdminNotificationDto notification = notification();
         PushNotificationTarget target = target();
         UUID deliveryId = UUID.randomUUID();
         when(pushNotificationGateway.enabled()).thenReturn(true);
-        when(notificationRepository.findById(notification.id())).thenReturn(notification);
+        when(notificationRepository.createDraft(adminUserId, request)).thenReturn(notification);
         when(notificationRepository.findValidTargetsForAllAudience()).thenReturn(List.of(target));
         when(notificationRepository.markSending(notification.id(), adminUserId, 1)).thenReturn(true);
         when(notificationRepository.createDelivery(notification.id(), target)).thenReturn(deliveryId);
         when(pushNotificationGateway.send(target, new PushNotificationPayload(notification.id(), notification.title(), notification.message())))
             .thenReturn(PushNotificationSendResult.sent("firebase-message-id"));
 
-        AdminNotificationSendResultDto result = service.send(adminUserId, notification.id());
+        AdminNotificationSendResultDto result = service.send(adminUserId, request);
 
         assertEquals("sent", result.status());
         assertEquals(1, result.targetCount());
@@ -151,18 +147,19 @@ class AdminNotificationServiceTest {
     @Test
     void sendRecordsFailuresAndInvalidatesBadTokens() {
         UUID adminUserId = UUID.randomUUID();
+        AdminNotificationRequest request = new AdminNotificationRequest("Update", "Please update Sanctuary.");
         AdminNotificationDto notification = notification();
         PushNotificationTarget target = target();
         UUID deliveryId = UUID.randomUUID();
         when(pushNotificationGateway.enabled()).thenReturn(true);
-        when(notificationRepository.findById(notification.id())).thenReturn(notification);
+        when(notificationRepository.createDraft(adminUserId, request)).thenReturn(notification);
         when(notificationRepository.findValidTargetsForAllAudience()).thenReturn(List.of(target));
         when(notificationRepository.markSending(notification.id(), adminUserId, 1)).thenReturn(true);
         when(notificationRepository.createDelivery(notification.id(), target)).thenReturn(deliveryId);
         when(pushNotificationGateway.send(target, new PushNotificationPayload(notification.id(), notification.title(), notification.message())))
             .thenReturn(PushNotificationSendResult.failed("registration token is not valid", true));
 
-        AdminNotificationSendResultDto result = service.send(adminUserId, notification.id());
+        AdminNotificationSendResultDto result = service.send(adminUserId, request);
 
         assertEquals("failed", result.status());
         assertEquals(1, result.targetCount());

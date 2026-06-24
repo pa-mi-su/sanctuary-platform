@@ -6,176 +6,54 @@ import java.util.UUID;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
-import app.sanctuary.api.admin.dto.AdminNotificationDeliveryDto;
 import app.sanctuary.api.admin.dto.AdminNotificationDto;
 import app.sanctuary.api.admin.dto.AdminNotificationRequest;
+import app.sanctuary.api.admin.entity.AdminNotificationDeliveryEntity;
+import app.sanctuary.api.admin.entity.AdminNotificationEntity;
 import app.sanctuary.api.admin.notification.PushNotificationTarget;
+import jakarta.persistence.EntityManager;
 
 @Repository
 public class AdminNotificationRepository {
 
+    private final EntityManager entityManager;
     private final JdbcTemplate jdbcTemplate;
 
-    public AdminNotificationRepository(JdbcTemplate jdbcTemplate) {
+    public AdminNotificationRepository(EntityManager entityManager, JdbcTemplate jdbcTemplate) {
+        this.entityManager = entityManager;
         this.jdbcTemplate = jdbcTemplate;
     }
 
     public AdminNotificationDto createDraft(UUID createdByUserId, AdminNotificationRequest request) {
-        return jdbcTemplate.queryForObject(
-            """
-                INSERT INTO admin_notifications (
-                    title,
-                    message,
-                    audience_type,
-                    status,
-                    created_by_user_id,
-                    updated_at
-                )
-                VALUES (?, ?, 'all', 'draft', ?, NOW())
-                RETURNING
-                    id,
-                    title,
-                    message,
-                    audience_type,
-                    status,
-                    target_count,
-                    sent_count,
-                    failed_count,
-                    sent_at,
-                    created_at,
-                    updated_at
-                """,
-            this::mapNotification,
-            request.title().trim(),
-            request.message().trim(),
-            createdByUserId
-        );
+        AdminNotificationEntity notification = new AdminNotificationEntity(createdByUserId, request);
+        entityManager.persist(notification);
+        entityManager.flush();
+        return notification.toDto();
     }
 
     public List<AdminNotificationDto> history(int limit) {
-        return jdbcTemplate.query(
+        return entityManager.createQuery(
             """
-                SELECT
-                    id,
-                    title,
-                    message,
-                    audience_type,
-                    status,
-                    target_count,
-                    sent_count,
-                    failed_count,
-                    sent_at,
-                    created_at,
-                    updated_at
-                FROM admin_notifications
-                ORDER BY created_at DESC
-                LIMIT ?
+                SELECT notification
+                FROM AdminNotificationEntity notification
+                ORDER BY notification.createdAt DESC
                 """,
-            this::mapNotification,
-            limit
-        );
-    }
-
-    public AdminNotificationDto findById(UUID notificationId) {
-        return jdbcTemplate.query(
-            """
-                SELECT
-                    id,
-                    title,
-                    message,
-                    audience_type,
-                    status,
-                    target_count,
-                    sent_count,
-                    failed_count,
-                    sent_at,
-                    created_at,
-                    updated_at
-                FROM admin_notifications
-                WHERE id = ?
-                """,
-            this::mapNotification,
-            notificationId
-        ).stream().findFirst().orElse(null);
-    }
-
-    public List<AdminNotificationDeliveryDto> recentDeliveries(int limit) {
-        return jdbcTemplate.query(
-            """
-                SELECT
-                    d.id,
-                    d.notification_id,
-                    n.title AS notification_title,
-                    d.user_device_id,
-                    d.anonymous_device_id,
-                    d.user_id,
-                    d.platform,
-                    d.status,
-                    d.failure_reason,
-                    d.sent_at,
-                    d.created_at,
-                    d.updated_at
-                FROM admin_notification_deliveries d
-                JOIN admin_notifications n ON n.id = d.notification_id
-                ORDER BY d.created_at DESC
-                LIMIT ?
-                """,
-            (rs, rowNum) -> new AdminNotificationDeliveryDto(
-                rs.getObject("id", UUID.class),
-                rs.getObject("notification_id", UUID.class),
-                rs.getString("notification_title"),
-                rs.getObject("user_device_id", UUID.class),
-                rs.getString("anonymous_device_id"),
-                rs.getObject("user_id", UUID.class),
-                rs.getString("platform"),
-                rs.getString("status"),
-                rs.getString("failure_reason"),
-                rs.getObject("sent_at", java.time.OffsetDateTime.class),
-                rs.getObject("created_at", java.time.OffsetDateTime.class),
-                rs.getObject("updated_at", java.time.OffsetDateTime.class)
-            ),
-            limit
-        );
+            AdminNotificationEntity.class
+        ).setMaxResults(limit).getResultStream()
+            .map(AdminNotificationEntity::toDto)
+            .toList();
     }
 
     public boolean markSending(UUID notificationId, UUID sentByUserId, int targetCount) {
-        int updated = jdbcTemplate.update(
-            """
-                UPDATE admin_notifications
-                SET
-                    status = 'sending',
-                    sent_by_user_id = ?,
-                    target_count = ?,
-                    sent_count = 0,
-                    failed_count = 0,
-                    updated_at = NOW()
-                WHERE id = ?
-                  AND status = 'draft'
-                """,
-            sentByUserId,
-            targetCount,
-            notificationId
-        );
-        return updated == 1;
+        AdminNotificationEntity notification = entityManager.find(AdminNotificationEntity.class, notificationId);
+        return notification != null && notification.markSending(sentByUserId, targetCount);
     }
 
     public void finishSend(UUID notificationId, String status, int sentCount, int failedCount) {
-        jdbcTemplate.update(
-            """
-                UPDATE admin_notifications
-                SET
-                    status = ?,
-                    sent_count = ?,
-                    failed_count = ?,
-                    sent_at = NOW(),
-                    updated_at = NOW()
-                WHERE id = ?
-                """,
-            status,
-            sentCount,
-            failedCount,
-            notificationId
-        );
+        AdminNotificationEntity notification = entityManager.find(AdminNotificationEntity.class, notificationId);
+        if (notification != null) {
+            notification.finishSend(status, sentCount, failedCount);
+        }
     }
 
     public List<PushNotificationTarget> findValidTargetsForAllAudience() {
@@ -183,6 +61,7 @@ public class AdminNotificationRepository {
             """
                 WITH targets AS (
                     SELECT
+                        COALESCE(NULLIF(TRIM(client_instance_id), ''), NULLIF(TRIM(fcm_token), ''), id::text) AS install_key,
                         id AS user_device_id,
                         NULL::text AS anonymous_device_id,
                         user_id,
@@ -195,22 +74,12 @@ public class AdminNotificationRepository {
                       AND token_status = 'valid'
                       AND automated_test = FALSE
                       AND check_in_source = 'app'
-                      AND NULLIF(TRIM(client_instance_id), '') IS NOT NULL
                       AND NULLIF(TRIM(fcm_token), '') IS NOT NULL
-                      AND EXISTS (
-                          SELECT 1
-                          FROM user_app_activity_events e
-                          WHERE e.user_id = user_devices.user_id
-                            AND e.event_type = 'foreground_heartbeat'
-                            AND e.occurred_at >= NOW() - INTERVAL '2 minutes'
-                            AND e.automated_test = FALSE
-                            AND e.check_in_source = 'app'
-                            AND NULLIF(TRIM(e.client_instance_id), '') = NULLIF(TRIM(user_devices.client_instance_id), '')
-                      )
 
                     UNION ALL
 
                     SELECT
+                        COALESCE(NULLIF(TRIM(client_instance_id), ''), NULLIF(TRIM(fcm_token), ''), anonymous_device_id) AS install_key,
                         NULL::uuid AS user_device_id,
                         anonymous_device_id,
                         linked_user_id AS user_id,
@@ -224,26 +93,15 @@ public class AdminNotificationRepository {
                       AND linked_user_id IS NULL
                       AND automated_test = FALSE
                       AND check_in_source = 'app'
-                      AND NULLIF(TRIM(client_instance_id), '') IS NOT NULL
                       AND NULLIF(TRIM(fcm_token), '') IS NOT NULL
-                      AND EXISTS (
-                          SELECT 1
-                          FROM anonymous_app_activity_events e
-                          WHERE e.anonymous_device_id = anonymous_app_devices.anonymous_device_id
-                            AND e.event_type = 'foreground_heartbeat'
-                            AND e.occurred_at >= NOW() - INTERVAL '2 minutes'
-                            AND e.automated_test = FALSE
-                            AND e.check_in_source = 'app'
-                            AND NULLIF(TRIM(e.client_instance_id), '') = NULLIF(TRIM(anonymous_app_devices.client_instance_id), '')
-                      )
                 ),
                 ranked AS (
                     SELECT
                         *,
                         ROW_NUMBER() OVER (
-                            PARTITION BY fcm_token
+                            PARTITION BY install_key
                             ORDER BY priority ASC, updated_at DESC
-                        ) AS token_rank
+                        ) AS install_rank
                     FROM targets
                 )
                 SELECT
@@ -253,7 +111,7 @@ public class AdminNotificationRepository {
                     platform,
                     fcm_token
                 FROM ranked
-                WHERE token_rank = 1
+                WHERE install_rank = 1
                 ORDER BY updated_at DESC
                 """,
             (rs, rowNum) -> new PushNotificationTarget(
@@ -267,55 +125,24 @@ public class AdminNotificationRepository {
     }
 
     public UUID createDelivery(UUID notificationId, PushNotificationTarget target) {
-        return jdbcTemplate.queryForObject(
-            """
-                INSERT INTO admin_notification_deliveries (
-                    notification_id,
-                    user_device_id,
-                    anonymous_device_id,
-                    user_id,
-                    platform,
-                    status
-                )
-                VALUES (?, ?, ?, ?, ?, 'targeted')
-                RETURNING id
-                """,
-            UUID.class,
-            notificationId,
-            target.deviceId(),
-            target.anonymousDeviceId(),
-            target.userId(),
-            target.platform()
-        );
+        AdminNotificationDeliveryEntity delivery = new AdminNotificationDeliveryEntity(notificationId, target);
+        entityManager.persist(delivery);
+        entityManager.flush();
+        return delivery.getId();
     }
 
     public void markDeliverySent(UUID deliveryId) {
-        jdbcTemplate.update(
-            """
-                UPDATE admin_notification_deliveries
-                SET
-                    status = 'sent',
-                    sent_at = NOW(),
-                    updated_at = NOW()
-                WHERE id = ?
-                """,
-            deliveryId
-        );
+        AdminNotificationDeliveryEntity delivery = entityManager.find(AdminNotificationDeliveryEntity.class, deliveryId);
+        if (delivery != null) {
+            delivery.markSent();
+        }
     }
 
     public void markDeliveryFailed(UUID deliveryId, String failureReason) {
-        jdbcTemplate.update(
-            """
-                UPDATE admin_notification_deliveries
-                SET
-                    status = 'failed',
-                    failure_reason = ?,
-                    updated_at = NOW()
-                WHERE id = ?
-                """,
-            truncate(failureReason, 1000),
-            deliveryId
-        );
+        AdminNotificationDeliveryEntity delivery = entityManager.find(AdminNotificationDeliveryEntity.class, deliveryId);
+        if (delivery != null) {
+            delivery.markFailed(failureReason);
+        }
     }
 
     public void markDeviceInvalid(UUID deviceId) {
@@ -350,26 +177,4 @@ public class AdminNotificationRepository {
         );
     }
 
-    private AdminNotificationDto mapNotification(java.sql.ResultSet rs, int rowNum) throws java.sql.SQLException {
-        return new AdminNotificationDto(
-            rs.getObject("id", UUID.class),
-            rs.getString("title"),
-            rs.getString("message"),
-            rs.getString("audience_type"),
-            rs.getString("status"),
-            rs.getInt("target_count"),
-            rs.getInt("sent_count"),
-            rs.getInt("failed_count"),
-            rs.getObject("sent_at", java.time.OffsetDateTime.class),
-            rs.getObject("created_at", java.time.OffsetDateTime.class),
-            rs.getObject("updated_at", java.time.OffsetDateTime.class)
-        );
-    }
-
-    private String truncate(String value, int maxLength) {
-        if (value == null) {
-            return null;
-        }
-        return value.length() <= maxLength ? value : value.substring(0, maxLength);
-    }
 }

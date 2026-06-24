@@ -2,33 +2,21 @@ package app.sanctuary.api.admin.repository;
 
 import java.util.UUID;
 
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
+
+import app.sanctuary.api.admin.entity.AdminAuditEventEntity;
+import jakarta.persistence.EntityManager;
 
 @Repository
 public class AdminAuditRepository {
 
-    private final JdbcTemplate jdbcTemplate;
+    private final EntityManager entityManager;
 
-    public AdminAuditRepository(JdbcTemplate jdbcTemplate) {
-        this.jdbcTemplate = jdbcTemplate;
+    public AdminAuditRepository(EntityManager entityManager) {
+        this.entityManager = entityManager;
     }
 
     public void record(UUID actorUserId, String action, String targetType, String targetId) {
-        jdbcTemplate.update(
-            """
-                INSERT INTO admin_audit_events (
-                    actor_user_id,
-                    action,
-                    target_type,
-                    target_id
-                )
-                VALUES (?, ?, ?, ?)
-                """,
-            actorUserId,
-            action,
-            targetType,
-            targetId
-        );
+        entityManager.persist(new AdminAuditEventEntity(actorUserId, action, targetType, targetId));
     }
 }
