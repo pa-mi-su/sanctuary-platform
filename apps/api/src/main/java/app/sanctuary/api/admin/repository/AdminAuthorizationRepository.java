@@ -27,4 +27,33 @@ public class AdminAuthorizationRepository {
         ).setParameter("userId", userId).getSingleResult();
         return count > 0;
     }
+
+    public void grantAdmin(UUID userId, String notes) {
+        entityManager.createNativeQuery(
+            """
+                INSERT INTO admin_users (
+                    user_id,
+                    enabled,
+                    notes,
+                    created_at,
+                    updated_at
+                )
+                VALUES (
+                    :userId,
+                    TRUE,
+                    :notes,
+                    NOW(),
+                    NOW()
+                )
+                ON CONFLICT (user_id)
+                DO UPDATE SET
+                    enabled = TRUE,
+                    notes = COALESCE(admin_users.notes, EXCLUDED.notes),
+                    updated_at = NOW()
+                """
+        )
+            .setParameter("userId", userId)
+            .setParameter("notes", notes)
+            .executeUpdate();
+    }
 }

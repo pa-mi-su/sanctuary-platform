@@ -13,6 +13,8 @@ server:
   port: ${SANCTUARY_API_PORT:8080}
 
 sanctuary:
+  admin:
+    bootstrap-emails: ${SANCTUARY_ADMIN_EMAILS:pamisu@protonmail.com}
   web:
     allowed-origins:
       - http://localhost:4200

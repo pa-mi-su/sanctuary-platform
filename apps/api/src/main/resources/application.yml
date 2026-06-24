@@ -21,6 +21,8 @@ management:
         include: health,info
 
 sanctuary:
+  admin:
+    bootstrap-emails: ${SANCTUARY_ADMIN_EMAILS:}
   auth:
     enabled: false
     audience: ""
