@@ -1043,7 +1043,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private suspend fun syncForegroundPresence() {
         if (_session.value.status == SessionStatus.Authenticated) {
             runCatching { pushDeviceRegistrar.registerCurrentDevice() }
-            runCatching { repository.recordAppActivity("session_start") }
+            runCatching { repository.recordAppActivity("foreground_heartbeat") }
             return
         }
 
@@ -1051,7 +1051,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val notificationsEnabled = pushDeviceRegistrar.notificationsEnabled()
         runCatching {
             repository.recordAnonymousAppActivity(
-                "session_start",
+                "foreground_heartbeat",
                 fcmToken = anonymousPushToken,
                 notificationsEnabled = notificationsEnabled
             )

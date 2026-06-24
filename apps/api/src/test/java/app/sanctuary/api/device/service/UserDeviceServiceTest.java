@@ -60,7 +60,7 @@ class UserDeviceServiceTest {
     }
 
     private UserDeviceRegistrationRequest request() {
-        return new UserDeviceRegistrationRequest("token-123", "ios", "1.0.12", "en", true);
+        return new UserDeviceRegistrationRequest("token-123", "ios", "1.0.12", "en", true, "ios-instance-1", false, "app");
     }
 
     private UserDeviceDto device(UUID userId) {

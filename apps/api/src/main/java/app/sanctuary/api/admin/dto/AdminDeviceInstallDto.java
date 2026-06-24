@@ -14,7 +14,10 @@ public record AdminDeviceInstallDto(
     String language,
     boolean notificationsEnabled,
     String tokenStatus,
+    boolean hasPushToken,
     boolean pushReady,
+    String clientInstanceId,
+    String checkInSource,
     OffsetDateTime firstSeenAt,
     OffsetDateTime lastSeenAt
 ) {}

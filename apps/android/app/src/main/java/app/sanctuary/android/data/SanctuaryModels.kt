@@ -89,7 +89,10 @@ data class UserDeviceRegistrationRequest(
     val platform: String,
     val appVersion: String?,
     val language: String,
-    val notificationsEnabled: Boolean
+    val notificationsEnabled: Boolean,
+    val clientInstanceId: String,
+    val automatedTest: Boolean,
+    val checkInSource: String
 )
 
 data class UserDeviceResponse(
@@ -110,7 +113,10 @@ data class UserAppActivityRequest(
     val platform: String,
     val appVersion: String?,
     val language: String,
-    val timeZoneId: String?
+    val timeZoneId: String?,
+    val clientInstanceId: String,
+    val automatedTest: Boolean,
+    val checkInSource: String
 )
 
 data class AnonymousAppActivityRequest(
@@ -122,7 +128,10 @@ data class AnonymousAppActivityRequest(
     val timeZoneId: String?,
     val screenName: String?,
     val fcmToken: String?,
-    val notificationsEnabled: Boolean?
+    val notificationsEnabled: Boolean?,
+    val clientInstanceId: String,
+    val automatedTest: Boolean,
+    val checkInSource: String
 )
 
 data class UserFavoriteResponse(

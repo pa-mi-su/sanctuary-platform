@@ -31,8 +31,11 @@ class SessionRepository(
     private val sessionKey = "primary_session"
     private val languageKey = "preferred_language"
     private val anonymousDeviceIdKey = "anonymous_device_id"
+    private val clientInstanceIdKey = "client_instance_id"
     private val anonymousDeviceIdLock = Any()
+    private val clientInstanceIdLock = Any()
     @Volatile private var cachedAnonymousDeviceId: String? = null
+    @Volatile private var cachedClientInstanceId: String? = null
 
     suspend fun bootstrap(): SessionBootstrapResult = withContext(Dispatchers.IO) {
         val stored = loadSession()
@@ -87,6 +90,32 @@ class SessionRepository(
         }
     }
 
+    fun clientInstanceId(): String {
+        cachedClientInstanceId?.let { return it }
+
+        return synchronized(clientInstanceIdLock) {
+            cachedClientInstanceId?.let { return@synchronized it }
+
+            val existing = preferences.getString(clientInstanceIdKey, null)?.trim()
+            if (!existing.isNullOrBlank()) {
+                cachedClientInstanceId = existing
+                return@synchronized existing
+            }
+
+            "android-instance-${UUID.randomUUID()}".also {
+                preferences.edit().putString(clientInstanceIdKey, it).apply()
+                cachedClientInstanceId = it
+            }
+        }
+    }
+
+    private fun automatedTest(): Boolean =
+        Settings.System.getString(appContext.contentResolver, "firebase.test.lab") == "true"
+
+    private fun checkInSource(): String = if (automatedTest()) "automated_test" else "app"
+
+    private fun appVersionWithBuild(): String = "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})"
+
     private fun stableAnonymousDeviceId(): String? {
         val androidId = Settings.Secure.getString(appContext.contentResolver, Settings.Secure.ANDROID_ID)
             ?.trim()
@@ -138,9 +167,12 @@ class SessionRepository(
                 UserDeviceRegistrationRequest(
                     fcmToken = token,
                     platform = "android",
-                    appVersion = BuildConfig.VERSION_NAME,
+                    appVersion = appVersionWithBuild(),
                     language = currentLanguage(),
-                    notificationsEnabled = notificationsEnabled
+                    notificationsEnabled = notificationsEnabled,
+                    clientInstanceId = clientInstanceId(),
+                    automatedTest = automatedTest(),
+                    checkInSource = checkInSource()
                 )
             )
         }
@@ -153,9 +185,12 @@ class SessionRepository(
                     eventType = eventType,
                     anonymousDeviceId = anonymousDeviceId(),
                     platform = "android",
-                    appVersion = BuildConfig.VERSION_NAME,
+                    appVersion = appVersionWithBuild(),
                     language = currentLanguage(),
-                    timeZoneId = TimeZone.getDefault().id
+                    timeZoneId = TimeZone.getDefault().id,
+                    clientInstanceId = clientInstanceId(),
+                    automatedTest = automatedTest(),
+                    checkInSource = checkInSource()
                 )
             )
         }
@@ -173,12 +208,15 @@ class SessionRepository(
                     anonymousDeviceId = anonymousDeviceId(),
                     eventType = eventType,
                     platform = "android",
-                    appVersion = BuildConfig.VERSION_NAME,
+                    appVersion = appVersionWithBuild(),
                     language = currentLanguage(),
                     timeZoneId = TimeZone.getDefault().id,
                     screenName = screenName,
                     fcmToken = fcmToken,
-                    notificationsEnabled = notificationsEnabled
+                    notificationsEnabled = notificationsEnabled,
+                    clientInstanceId = clientInstanceId(),
+                    automatedTest = automatedTest(),
+                    checkInSource = checkInSource()
                 )
             )
         }

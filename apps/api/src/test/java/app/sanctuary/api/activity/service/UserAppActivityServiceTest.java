@@ -52,7 +52,10 @@ class UserAppActivityServiceTest {
             "America/New_York",
             null,
             "fcm-token",
-            true
+            true,
+            "ios-instance-1",
+            false,
+            "app"
         );
 
         service.recordAnonymous(request);
@@ -61,6 +64,6 @@ class UserAppActivityServiceTest {
     }
 
     private UserAppActivityRequest request() {
-        return new UserAppActivityRequest("ios-123", "session_start", "ios", "1.0.12", "en", "America/New_York");
+        return new UserAppActivityRequest("ios-123", "session_start", "ios", "1.0.12", "en", "America/New_York", "ios-instance-1", false, "app");
     }
 }

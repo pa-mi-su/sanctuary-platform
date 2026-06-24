@@ -20,5 +20,15 @@ public record UserDeviceRegistrationRequest(
     @Pattern(regexp = "en|es|pl")
     String language,
 
-    boolean notificationsEnabled
+    boolean notificationsEnabled,
+
+    @Size(max = 128)
+    @Pattern(regexp = "[A-Za-z0-9._:-]+")
+    String clientInstanceId,
+
+    Boolean automatedTest,
+
+    @Size(max = 64)
+    @Pattern(regexp = "app|automated_test|legacy")
+    String checkInSource
 ) {}

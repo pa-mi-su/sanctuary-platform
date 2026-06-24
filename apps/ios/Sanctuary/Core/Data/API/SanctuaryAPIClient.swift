@@ -88,6 +88,9 @@ struct APIAnonymousAppActivityRequest: Encodable, Sendable {
     let screenName: String?
     let fcmToken: String?
     let notificationsEnabled: Bool?
+    let clientInstanceId: String?
+    let automatedTest: Bool?
+    let checkInSource: String?
 }
 
 struct APIUserProfileResponse: Decodable, Sendable {
@@ -155,6 +158,9 @@ struct APIUserDeviceRegistrationRequest: Encodable, Sendable {
     let appVersion: String?
     let language: String
     let notificationsEnabled: Bool
+    let clientInstanceId: String?
+    let automatedTest: Bool?
+    let checkInSource: String?
 }
 
 struct APIUserDeviceResponse: Decodable, Sendable {
@@ -176,6 +182,9 @@ struct APIUserAppActivityRequest: Encodable, Sendable {
     let appVersion: String?
     let language: String
     let timeZoneId: String?
+    let clientInstanceId: String?
+    let automatedTest: Bool?
+    let checkInSource: String?
 }
 
 struct APIContentSaintSummaryResponse: Decodable, Sendable {

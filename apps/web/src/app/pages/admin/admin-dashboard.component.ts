@@ -295,13 +295,13 @@ interface MetricSection {
           <div class="panel-heading">
             <div>
               <p class="eyebrow">Devices</p>
-              <h2>Phones Seen Recently</h2>
-              <p>Phones that checked in while the app was open during the last 3 minutes. Closed or deleted apps disappear after they stop checking in.</p>
+              <h2>Phones Open Now</h2>
+              <p>Phones whose app is open and sent a live check-in during the last 2 minutes.</p>
             </div>
             <span>{{ recentDeviceInstalls().length }} active</span>
           </div>
 
-          <div class="install-table" role="table" aria-label="Phones seen recently">
+          <div class="install-table" role="table" aria-label="Phones open now">
             <div class="install-row install-row--header" role="row">
               <span>Device</span>
               <span>Owner</span>
@@ -330,7 +330,7 @@ interface MetricSection {
                 <span>{{ formatDate(install.lastSeenAt) }}</span>
               </div>
             } @empty {
-              <p class="empty-copy">No phones have checked in during the last 3 minutes.</p>
+              <p class="empty-copy">No phones have sent a live check-in during the last 2 minutes.</p>
             }
           </div>
         </section>
@@ -443,7 +443,7 @@ export class AdminDashboardComponent {
       {
         label: 'Phones seen now',
         value: this.formatNumber(metrics?.activeKnownDeviceCountRecent),
-        helper: 'App open and checked in during the last 3 minutes',
+        helper: 'App open and checked in during the last 2 minutes',
         tone: 'neutral',
       },
       {
@@ -509,7 +509,7 @@ export class AdminDashboardComponent {
           {
             label: 'Phones seen now',
             value: this.formatNumber(metrics?.activeKnownDeviceCountRecent),
-            helper: 'App open and checked in during the last 3 minutes. This is the live testing count.',
+            helper: 'App open and checked in during the last 2 minutes. This is the live testing count.',
           },
           {
             label: 'iOS / Android split',
@@ -757,10 +757,13 @@ export class AdminDashboardComponent {
     if (!install.notificationsEnabled) {
       return 'Permission off';
     }
+    if (!install.hasPushToken) {
+      return 'No token';
+    }
     if (install.tokenStatus !== 'valid') {
       return `Token ${install.tokenStatus}`;
     }
-    return 'Not active';
+    return 'Not reachable';
   }
 
   protected formatPlatform(value: string | null): string {

@@ -273,7 +273,10 @@ export interface AdminDeviceInstall {
   language: 'en' | 'es' | 'pl' | string | null;
   notificationsEnabled: boolean;
   tokenStatus: string;
+  hasPushToken: boolean;
   pushReady: boolean;
+  clientInstanceId: string | null;
+  checkInSource: string | null;
   firstSeenAt: string;
   lastSeenAt: string;
 }

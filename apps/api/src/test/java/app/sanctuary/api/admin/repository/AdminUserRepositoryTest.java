@@ -130,7 +130,11 @@ class AdminUserRepositoryTest {
         repository.listRecentDeviceInstalls(25);
 
         assertTrue(sqlCaptor.getValue().contains("ORDER BY push_ready DESC, signed_in DESC, last_seen_at DESC"));
-        assertTrue(sqlCaptor.getValue().contains("last_seen_at >= NOW() - INTERVAL '3 minutes'"));
+        assertTrue(sqlCaptor.getValue().contains("event_type = 'foreground_heartbeat'"));
+        assertTrue(sqlCaptor.getValue().contains("occurred_at >= NOW() - INTERVAL '2 minutes'"));
+        assertTrue(sqlCaptor.getValue().contains("NULLIF(TRIM(e.client_instance_id), '') = NULLIF(TRIM(d.client_instance_id), '')"));
+        assertTrue(sqlCaptor.getValue().contains("automated_test = FALSE"));
+        assertTrue(sqlCaptor.getValue().contains("check_in_source = 'app'"));
 
         OffsetDateTime firstSeenAt = OffsetDateTime.now().minusHours(1);
         OffsetDateTime lastSeenAt = OffsetDateTime.now();
@@ -144,7 +148,10 @@ class AdminUserRepositoryTest {
         when(resultSet.getString("language")).thenReturn("en");
         when(resultSet.getBoolean("notifications_enabled")).thenReturn(true);
         when(resultSet.getString("token_status")).thenReturn("valid");
+        when(resultSet.getBoolean("has_push_token")).thenReturn(true);
         when(resultSet.getBoolean("push_ready")).thenReturn(true);
+        when(resultSet.getString("client_instance_id")).thenReturn("android-instance-1");
+        when(resultSet.getString("check_in_source")).thenReturn("app");
         when(resultSet.getObject("first_seen_at", OffsetDateTime.class)).thenReturn(firstSeenAt);
         when(resultSet.getObject("last_seen_at", OffsetDateTime.class)).thenReturn(lastSeenAt);
 
@@ -160,7 +167,10 @@ class AdminUserRepositoryTest {
         assertEquals("en", install.language());
         assertEquals(true, install.notificationsEnabled());
         assertEquals("valid", install.tokenStatus());
+        assertEquals(true, install.hasPushToken());
         assertEquals(true, install.pushReady());
+        assertEquals("android-instance-1", install.clientInstanceId());
+        assertEquals("app", install.checkInSource());
         assertEquals(firstSeenAt, install.firstSeenAt());
         assertEquals(lastSeenAt, install.lastSeenAt());
     }
