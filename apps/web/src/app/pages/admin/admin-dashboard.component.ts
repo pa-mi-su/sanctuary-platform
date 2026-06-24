@@ -441,9 +441,9 @@ export class AdminDashboardComponent {
         tone: 'good',
       },
       {
-        label: 'Phones seen now',
-        value: this.formatNumber(metrics?.activeKnownDeviceCountRecent),
-        helper: 'App open and checked in during the last 2 minutes',
+        label: 'Known phone records',
+        value: this.formatNumber(metrics?.knownAppInstallCount),
+        helper: 'Phone/app records the backend has ever seen',
         tone: 'neutral',
       },
       {
@@ -500,6 +500,11 @@ export class AdminDashboardComponent {
         title: 'Notifications',
         summary: 'Phones the backend has heard from recently and can try to notify.',
         cards: [
+          {
+            label: 'Known phone records',
+            value: this.formatNumber(metrics?.knownAppInstallCount),
+            helper: 'Historical phone/app records seen by the backend. Uninstalls are not reported by iOS or Android.',
+          },
           {
             label: 'Can receive notifications',
             value: this.formatNumber(metrics?.notificationsEnabledDeviceCount),

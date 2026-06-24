@@ -234,6 +234,7 @@ export interface AdminUserMetrics {
   activeUsers30Days: number;
   anonymousActiveDevicesToday: number;
   anonymousActiveDevices7Days: number;
+  knownAppInstallCount: number;
   activeKnownDeviceCountRecent: number;
   pushReadyIosDeviceCount: number;
   pushReadyAndroidDeviceCount: number;

@@ -77,6 +77,27 @@ public class AdminUserRepository {
                     UNION ALL
                     SELECT platform, fcm_token, notifications_enabled, token_status, app_version
                     FROM live_anonymous_devices
+                ),
+                known_app_installs AS (
+                    SELECT DISTINCT
+                        COALESCE(NULLIF(TRIM(client_instance_id), ''), NULLIF(TRIM(fcm_token), ''), id::text) AS install_key
+                    FROM user_devices
+                    WHERE automated_test = FALSE
+                      AND check_in_source = 'app'
+                      AND (
+                          NULLIF(TRIM(client_instance_id), '') IS NOT NULL
+                          OR NULLIF(TRIM(fcm_token), '') IS NOT NULL
+                      )
+                    UNION
+                    SELECT DISTINCT
+                        COALESCE(NULLIF(TRIM(client_instance_id), ''), NULLIF(TRIM(fcm_token), ''), anonymous_device_id) AS install_key
+                    FROM anonymous_app_devices
+                    WHERE automated_test = FALSE
+                      AND check_in_source = 'app'
+                      AND (
+                          NULLIF(TRIM(client_instance_id), '') IS NOT NULL
+                          OR NULLIF(TRIM(fcm_token), '') IS NOT NULL
+                      )
                 )
                 SELECT
                     (SELECT COUNT(*) FROM users) AS total_users,
@@ -103,6 +124,7 @@ public class AdminUserRepository {
                           AND e.check_in_source = 'app'
                           AND d.linked_user_id IS NULL
                     ) AS anonymous_active_devices_7_days,
+                    (SELECT COUNT(*) FROM known_app_installs) AS known_app_install_count,
                     (SELECT COUNT(*) FROM live_devices) AS active_known_device_count_recent,
                     (
                         SELECT COUNT(DISTINCT fcm_token)
@@ -155,6 +177,7 @@ public class AdminUserRepository {
                 rs.getInt("active_users_30_days"),
                 rs.getInt("anonymous_active_devices_today"),
                 rs.getInt("anonymous_active_devices_7_days"),
+                rs.getInt("known_app_install_count"),
                 rs.getInt("active_known_device_count_recent"),
                 rs.getInt("push_ready_ios_device_count"),
                 rs.getInt("push_ready_android_device_count"),

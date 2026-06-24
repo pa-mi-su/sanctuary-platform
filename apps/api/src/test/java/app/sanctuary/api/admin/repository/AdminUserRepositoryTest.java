@@ -46,6 +46,7 @@ class AdminUserRepositoryTest {
         when(resultSet.getInt("active_users_30_days")).thenReturn(8);
         when(resultSet.getInt("anonymous_active_devices_today")).thenReturn(6);
         when(resultSet.getInt("anonymous_active_devices_7_days")).thenReturn(14);
+        when(resultSet.getInt("known_app_install_count")).thenReturn(13);
         when(resultSet.getInt("active_known_device_count_recent")).thenReturn(10);
         when(resultSet.getInt("push_ready_ios_device_count")).thenReturn(6);
         when(resultSet.getInt("push_ready_android_device_count")).thenReturn(4);
@@ -65,6 +66,7 @@ class AdminUserRepositoryTest {
         assertEquals(8, metrics.activeUsers30Days());
         assertEquals(6, metrics.anonymousActiveDevicesToday());
         assertEquals(14, metrics.anonymousActiveDevices7Days());
+        assertEquals(13, metrics.knownAppInstallCount());
         assertEquals(10, metrics.activeKnownDeviceCountRecent());
         assertEquals(6, metrics.pushReadyIosDeviceCount());
         assertEquals(4, metrics.pushReadyAndroidDeviceCount());

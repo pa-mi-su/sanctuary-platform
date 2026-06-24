@@ -7,6 +7,7 @@ public record AdminUserMetricsDto(
     int activeUsers30Days,
     int anonymousActiveDevicesToday,
     int anonymousActiveDevices7Days,
+    int knownAppInstallCount,
     int activeKnownDeviceCountRecent,
     int pushReadyIosDeviceCount,
     int pushReadyAndroidDeviceCount,
