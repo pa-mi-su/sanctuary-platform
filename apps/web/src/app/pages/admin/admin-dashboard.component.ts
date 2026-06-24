@@ -296,7 +296,7 @@ interface MetricSection {
             <div>
               <p class="eyebrow">Devices</p>
               <h2>Phones Seen Recently</h2>
-              <p>Phones that checked in while the app was open during the last 5 minutes. Closed or deleted apps disappear after they stop checking in.</p>
+              <p>Phones that checked in while the app was open during the last 3 minutes. Closed or deleted apps disappear after they stop checking in.</p>
             </div>
             <span>{{ recentDeviceInstalls().length }} active</span>
           </div>
@@ -330,7 +330,7 @@ interface MetricSection {
                 <span>{{ formatDate(install.lastSeenAt) }}</span>
               </div>
             } @empty {
-              <p class="empty-copy">No phones have checked in during the last 5 minutes.</p>
+              <p class="empty-copy">No phones have checked in during the last 3 minutes.</p>
             }
           </div>
         </section>
@@ -443,7 +443,7 @@ export class AdminDashboardComponent {
       {
         label: 'Phones seen now',
         value: this.formatNumber(metrics?.activeKnownDeviceCountRecent),
-        helper: 'App open and checked in during the last 5 minutes',
+        helper: 'App open and checked in during the last 3 minutes',
         tone: 'neutral',
       },
       {
@@ -509,7 +509,7 @@ export class AdminDashboardComponent {
           {
             label: 'Phones seen now',
             value: this.formatNumber(metrics?.activeKnownDeviceCountRecent),
-            helper: 'App open and checked in during the last 5 minutes. This is the live testing count.',
+            helper: 'App open and checked in during the last 3 minutes. This is the live testing count.',
           },
           {
             label: 'iOS / Android split',

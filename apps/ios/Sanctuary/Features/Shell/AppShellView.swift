@@ -133,7 +133,7 @@ struct AppShellView: View {
         foregroundHeartbeatTask = Task {
             while !Task.isCancelled {
                 await accountStore.recordForegroundPresence()
-                try? await Task.sleep(nanoseconds: 120_000_000_000)
+                try? await Task.sleep(nanoseconds: 60_000_000_000)
             }
         }
     }
