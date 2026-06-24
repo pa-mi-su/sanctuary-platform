@@ -30,6 +30,8 @@ import app.sanctuary.android.ui.SanctuaryStrings
 import java.text.Normalizer
 import java.time.Instant
 import java.util.Locale
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -121,6 +123,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val pendingFavoriteToggles = mutableSetOf<String>()
     private val pendingNovenaStarts = mutableSetOf<String>()
     private val pendingNovenaStops = mutableSetOf<String>()
+    private var foregroundHeartbeatJob: Job? = null
 
     private val _session = MutableStateFlow(
         SessionUiState(
@@ -165,6 +168,24 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     init {
         syncAnonymousAppActivity()
         bootstrap()
+    }
+
+    fun startForegroundHeartbeat() {
+        if (foregroundHeartbeatJob?.isActive == true) {
+            return
+        }
+
+        foregroundHeartbeatJob = viewModelScope.launch {
+            while (true) {
+                syncForegroundPresence()
+                delay(120_000)
+            }
+        }
+    }
+
+    fun stopForegroundHeartbeat() {
+        foregroundHeartbeatJob?.cancel()
+        foregroundHeartbeatJob = null
     }
 
     fun bootstrap() {
@@ -1017,6 +1038,24 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun refreshPushRegistration() {
         syncAnonymousAppActivity()
         syncPushDevice()
+    }
+
+    private suspend fun syncForegroundPresence() {
+        if (_session.value.status == SessionStatus.Authenticated) {
+            runCatching { pushDeviceRegistrar.registerCurrentDevice() }
+            runCatching { repository.recordAppActivity("session_start") }
+            return
+        }
+
+        val anonymousPushToken = pushDeviceRegistrar.anonymousPushTokenIfAvailable()
+        val notificationsEnabled = pushDeviceRegistrar.notificationsEnabled()
+        runCatching {
+            repository.recordAnonymousAppActivity(
+                "session_start",
+                fcmToken = anonymousPushToken,
+                notificationsEnabled = notificationsEnabled
+            )
+        }
     }
 
     private fun loadInitialContent() {

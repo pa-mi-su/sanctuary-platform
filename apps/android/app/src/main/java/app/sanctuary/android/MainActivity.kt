@@ -180,6 +180,16 @@ class MainActivity : ComponentActivity() {
         handleSharedContentIntent(intent)
     }
 
+    override fun onStart() {
+        super.onStart()
+        viewModel.startForegroundHeartbeat()
+    }
+
+    override fun onStop() {
+        viewModel.stopForegroundHeartbeat()
+        super.onStop()
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)

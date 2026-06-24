@@ -10,8 +10,10 @@ enum AppTab: Hashable {
 
 struct AppShellView: View {
     let environment: AppEnvironment
+    @Environment(\.scenePhase) private var scenePhase
     @State private var selectedTab: AppTab = .home
     @State private var sharedContentLink: SharedContentLink?
+    @State private var foregroundHeartbeatTask: Task<Void, Never>?
     @StateObject private var localization: LocalizationManager
     @StateObject private var accountStore: AccountSessionStore
     @StateObject private var progressStore: UserProgressStore
@@ -80,6 +82,12 @@ struct AppShellView: View {
             try? await Task.sleep(nanoseconds: 700_000_000)
             await accountStore.bootstrap()
         }
+        .onAppear {
+            updateForegroundHeartbeat(for: scenePhase)
+        }
+        .onChange(of: scenePhase) { newPhase in
+            updateForegroundHeartbeat(for: newPhase)
+        }
         .task(id: accountStore.profile?.userID) {
             await progressStore.setAuthenticatedUser(id: accountStore.profile?.userID)
         }
@@ -109,6 +117,25 @@ struct AppShellView: View {
         let novena = accountStore.profile?.novenaRemindersEnabled == true ? "1" : "0"
         let general = accountStore.profile?.feastRemindersEnabled == true ? "1" : "0"
         return "\(novena)-\(general)-\(accountStore.profile?.userID ?? "signed-out")"
+    }
+
+    private func updateForegroundHeartbeat(for phase: ScenePhase) {
+        guard phase == .active else {
+            foregroundHeartbeatTask?.cancel()
+            foregroundHeartbeatTask = nil
+            return
+        }
+
+        guard foregroundHeartbeatTask == nil else {
+            return
+        }
+
+        foregroundHeartbeatTask = Task {
+            while !Task.isCancelled {
+                await accountStore.recordForegroundPresence()
+                try? await Task.sleep(nanoseconds: 120_000_000_000)
+            }
+        }
     }
 
     private func openSharedContent(_ url: URL) {
