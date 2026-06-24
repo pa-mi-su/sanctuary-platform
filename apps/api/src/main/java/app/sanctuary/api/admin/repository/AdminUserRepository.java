@@ -33,11 +33,13 @@ public class AdminUserRepository {
                         SELECT COUNT(DISTINCT COALESCE(NULLIF(TRIM(fcm_token), ''), anonymous_device_id))
                         FROM anonymous_app_devices
                         WHERE last_seen_at >= NOW() - INTERVAL '1 day'
+                          AND linked_user_id IS NULL
                     ) AS anonymous_active_devices_today,
                     (
                         SELECT COUNT(DISTINCT COALESCE(NULLIF(TRIM(fcm_token), ''), anonymous_device_id))
                         FROM anonymous_app_devices
                         WHERE last_seen_at >= NOW() - INTERVAL '7 days'
+                          AND linked_user_id IS NULL
                     ) AS anonymous_active_devices_7_days,
                     (
                         SELECT COUNT(DISTINCT device_key)
@@ -250,7 +252,7 @@ public class AdminUserRepository {
                             u.id AS user_id,
                             u.email AS user_email,
                             u.display_name AS user_display_name,
-                            FALSE AS signed_in,
+                            d.linked_user_id IS NOT NULL AS signed_in,
                             d.platform,
                             d.app_version,
                             d.language,
