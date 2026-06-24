@@ -3,11 +3,9 @@ package app.sanctuary.api.admin.service;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.when;
 
 import java.time.OffsetDateTime;
-import java.util.List;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
@@ -18,7 +16,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
-import app.sanctuary.api.admin.config.AdminProperties;
 import app.sanctuary.api.admin.repository.AdminAuthorizationRepository;
 import app.sanctuary.api.user.dto.UserAccountDto;
 import app.sanctuary.api.user.service.UserAccountService;
@@ -32,9 +29,6 @@ class AdminAuthorizationServiceTest {
 
     @Mock
     private AdminAuthorizationRepository adminAuthorizationRepository;
-
-    @Mock
-    private AdminProperties adminProperties;
 
     @InjectMocks
     private AdminAuthorizationService service;
@@ -50,7 +44,6 @@ class AdminAuthorizationServiceTest {
 
         assertEquals(account, result);
         verify(adminAuthorizationRepository).isAdmin(account.id());
-        verify(adminAuthorizationRepository, never()).grantAdmin(account.id(), "Bootstrapped from configured admin email.");
     }
 
     @Test
@@ -59,7 +52,6 @@ class AdminAuthorizationServiceTest {
         UserAccountDto account = account();
         when(userAccountService.ensureAccount(currentUser)).thenReturn(account);
         when(adminAuthorizationRepository.isAdmin(account.id())).thenReturn(false);
-        when(adminProperties.isBootstrapAdmin(account.email())).thenReturn(false);
 
         ResponseStatusException exception = assertThrows(
             ResponseStatusException.class,
@@ -67,27 +59,6 @@ class AdminAuthorizationServiceTest {
         );
 
         assertEquals(HttpStatus.FORBIDDEN, exception.getStatusCode());
-    }
-
-    @Test
-    void requireAdminBootstrapsConfiguredAdminEmail() {
-        CurrentUser currentUser = currentUser();
-        UserAccountDto account = account();
-        when(userAccountService.ensureAccount(currentUser)).thenReturn(account);
-        when(adminAuthorizationRepository.isAdmin(account.id())).thenReturn(false);
-        when(adminProperties.isBootstrapAdmin(account.email())).thenReturn(true);
-
-        UserAccountDto result = service.requireAdmin(currentUser);
-
-        assertEquals(account, result);
-        verify(adminAuthorizationRepository).grantAdmin(account.id(), "Bootstrapped from configured admin email.");
-    }
-
-    @Test
-    void adminPropertiesMatchBootstrapEmailCaseInsensitively() {
-        AdminProperties properties = new AdminProperties(List.of("Admin@Example.com"));
-
-        assertEquals(true, properties.isBootstrapAdmin(" admin@example.com "));
     }
 
     private CurrentUser currentUser() {
