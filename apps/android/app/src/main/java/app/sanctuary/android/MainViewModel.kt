@@ -820,19 +820,51 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun toggleFavorite(itemType: FavoriteItemType, itemId: String) {
         if (_session.value.status != SessionStatus.Authenticated) return
-        val currentlyFavorite = _novenaProgress.value.favorites.any { it.itemType == itemType && it.itemId == itemId }
+        val mutationKey = "${itemType.name}:$itemId"
+        if (!pendingFavoriteToggles.add(mutationKey)) {
+            return
+        }
+        val previousProgress = _novenaProgress.value
+        val previousProfile = _session.value.profile
+        val currentlyFavorite = previousProgress.favorites.any { it.itemType == itemType && it.itemId == itemId }
+        val nextFavorite = !currentlyFavorite
+
+        _novenaProgress.update { progress ->
+            val favorites = if (nextFavorite) {
+                progress.favorites + UserFavorite(itemType, itemId, Instant.now().toString())
+            } else {
+                progress.favorites.filterNot { it.itemType == itemType && it.itemId == itemId }
+            }
+            progress.copy(favorites = favorites, error = null)
+        }
+        updateFavoriteCount(itemType, if (nextFavorite) 1 else -1)
+
         viewModelScope.launch {
             runCatching {
                 repository.toggleFavorite(
                     itemType = itemType,
                     itemId = itemId,
-                    enabled = !currentlyFavorite
+                    enabled = nextFavorite
                 )
             }.onSuccess {
-                refreshNovenaProgress()
+                pendingFavoriteToggles.remove(mutationKey)
             }.onFailure { failure ->
-                _novenaProgress.update { it.copy(error = failure.message) }
+                pendingFavoriteToggles.remove(mutationKey)
+                _novenaProgress.value = previousProgress.copy(error = failure.message)
+                _session.update { it.copy(profile = previousProfile) }
             }
+        }
+    }
+
+    private fun updateFavoriteCount(itemType: FavoriteItemType, delta: Int) {
+        _session.update { sessionState ->
+            val profile = sessionState.profile ?: return@update sessionState
+            val updatedProfile = when (itemType) {
+                FavoriteItemType.Saint -> profile.copy(favoriteSaintCount = (profile.favoriteSaintCount + delta).coerceAtLeast(0))
+                FavoriteItemType.Novena -> profile.copy(favoriteNovenaCount = (profile.favoriteNovenaCount + delta).coerceAtLeast(0))
+                FavoriteItemType.Prayer -> profile.copy(favoritePrayerCount = (profile.favoritePrayerCount + delta).coerceAtLeast(0))
+            }
+            sessionState.copy(profile = updatedProfile)
         }
     }
 
