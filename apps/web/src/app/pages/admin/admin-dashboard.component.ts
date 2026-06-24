@@ -53,7 +53,7 @@ interface MetricSection {
         <div>
           <p class="eyebrow">Sanctuary Admin</p>
           <h1>Operations Dashboard</h1>
-          <p>See who is using the app, which phones can receive notifications, and what happened after each send.</p>
+          <p>See which phones are open now, who is signed in, and whether notifications can reach them.</p>
           <p class="build-copy">Version {{ appVersion }} · Build {{ appBuild }}{{ environmentLabel }}</p>
         </div>
         <div class="header-actions">
@@ -193,7 +193,7 @@ interface MetricSection {
             <div class="panel-heading">
               <div>
                 <p class="eyebrow">History</p>
-              <h2>Notifications</h2>
+                <h2>Notifications</h2>
               </div>
             </div>
             <div class="history-list">
@@ -296,7 +296,7 @@ interface MetricSection {
             <div>
               <p class="eyebrow">Devices</p>
               <h2>Phones Seen Recently</h2>
-              <p>Phones that checked in during the last 5 minutes. Deleted or closed apps disappear after they stop checking in.</p>
+              <p>Phones that checked in while the app was open during the last 5 minutes. Closed or deleted apps disappear after they stop checking in.</p>
             </div>
             <span>{{ recentDeviceInstalls().length }} active</span>
           </div>
@@ -443,13 +443,13 @@ export class AdminDashboardComponent {
       {
         label: 'Phones seen now',
         value: this.formatNumber(metrics?.activeKnownDeviceCountRecent),
-        helper: 'Checked in during the last 5 minutes',
+        helper: 'App open and checked in during the last 5 minutes',
         tone: 'neutral',
       },
       {
         label: 'Can receive notifications',
         value: this.formatNumber(metrics?.notificationsEnabledDeviceCount),
-        helper: `${this.formatNumber(metrics?.pushReadyIosDeviceCount)} iOS, ${this.formatNumber(metrics?.pushReadyAndroidDeviceCount)} Android reachable now`,
+        helper: `${this.formatNumber(metrics?.pushReadyIosDeviceCount)} iOS, ${this.formatNumber(metrics?.pushReadyAndroidDeviceCount)} Android open recently with notifications on`,
         tone: metrics?.notificationsEnabledDeviceCount ? 'good' : 'warning',
       },
     ];
@@ -498,18 +498,18 @@ export class AdminDashboardComponent {
       },
       {
         title: 'Notifications',
-        summary: 'Whether the app currently has phones it can try to notify.',
+        summary: 'Phones the backend has heard from recently and can try to notify.',
         cards: [
           {
             label: 'Can receive notifications',
             value: this.formatNumber(metrics?.notificationsEnabledDeviceCount),
-            helper: `${this.formatNumber(metrics?.pushReadyIosDeviceCount)} iOS, ${this.formatNumber(metrics?.pushReadyAndroidDeviceCount)} Android checked in recently with permission on.`,
+            helper: `${this.formatNumber(metrics?.pushReadyIosDeviceCount)} iOS, ${this.formatNumber(metrics?.pushReadyAndroidDeviceCount)} Android open recently with notifications on.`,
             tone: 'primary',
           },
           {
             label: 'Phones seen now',
             value: this.formatNumber(metrics?.activeKnownDeviceCountRecent),
-            helper: 'Checked in during the last 5 minutes. This is the live testing count.',
+            helper: 'App open and checked in during the last 5 minutes. This is the live testing count.',
           },
           {
             label: 'iOS / Android split',

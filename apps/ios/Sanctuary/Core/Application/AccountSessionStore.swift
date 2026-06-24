@@ -135,6 +135,16 @@ final class AccountSessionStore: ObservableObject {
         await refreshProfile()
     }
 
+    func recordForegroundPresence() async {
+        if let token = await authorizationToken() {
+            await registerPushDeviceIfPossible(token: token)
+            await recordAppPresenceHeartbeat(token: token)
+            return
+        }
+
+        await recordAnonymousPresenceHeartbeat()
+    }
+
     func register(
         firstName: String,
         lastName: String,
@@ -637,6 +647,20 @@ final class AccountSessionStore: ObservableObject {
         }
     }
 
+    private func recordAppPresenceHeartbeat(token: String) async {
+        let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String
+        let language = profile?.preferredLanguage?.rawValue ?? "en"
+        let request = APIUserAppActivityRequest(
+            anonymousDeviceId: anonymousDeviceID(),
+            eventType: "session_start",
+            platform: "ios",
+            appVersion: appVersion,
+            language: language,
+            timeZoneId: TimeZone.current.identifier
+        )
+        try? await apiClient.recordAppActivity(request: request, token: token)
+    }
+
     private func recordAnonymousAppActivityIfPossible() async {
         let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String
         let language = profile?.preferredLanguage?.rawValue ?? Locale.current.language.languageCode?.identifier ?? "en"
@@ -658,6 +682,25 @@ final class AccountSessionStore: ObservableObject {
             )
             try? await apiClient.recordAnonymousAppActivity(request: request)
         }
+    }
+
+    private func recordAnonymousPresenceHeartbeat() async {
+        let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String
+        let language = profile?.preferredLanguage?.rawValue ?? Locale.current.language.languageCode?.identifier ?? "en"
+        let supportedLanguage = ["en", "es", "pl"].contains(language) ? language : "en"
+        let anonymousPush = await pushNotificationRegistrar.anonymousPushTokenIfAvailable()
+        let request = APIAnonymousAppActivityRequest(
+            anonymousDeviceId: anonymousDeviceID(),
+            eventType: "session_start",
+            platform: "ios",
+            appVersion: appVersion,
+            language: supportedLanguage,
+            timeZoneId: TimeZone.current.identifier,
+            screenName: nil,
+            fcmToken: anonymousPush.token,
+            notificationsEnabled: anonymousPush.notificationsEnabled
+        )
+        try? await apiClient.recordAnonymousAppActivity(request: request)
     }
 
     private func anonymousDeviceID() -> String {
