@@ -82,17 +82,10 @@ export interface NovenaDayDetail {
   body: string;
 }
 
-export interface NovenaServingWindow {
-  startDate: string;
-  endDate: string;
-  feastDate: string;
-}
-
 export interface NovenaDetail extends NovenaSummary {
   tags: string[];
   intentions: string[];
   days: NovenaDayDetail[];
-  servingWindow: NovenaServingWindow | null;
 }
 
 export interface NovenaCalendarDateResponse {
@@ -124,7 +117,6 @@ export interface UserProfile {
   favoritePrayerCount?: number;
   activeNovenaCount?: number;
   completedNovenaCount?: number;
-  admin?: boolean;
 }
 
 export interface UserPreferencesUpdateRequest {
@@ -227,77 +219,6 @@ export interface UserNovenaCommitmentRequest {
   status: 'active' | 'paused' | 'completed';
 }
 
-export interface AdminUserMetrics {
-  totalUsers: number;
-  registeredUsersToday: number;
-  activeUsersToday: number;
-  activeUsers30Days: number;
-  anonymousActiveDevicesToday: number;
-  anonymousActiveDevices7Days: number;
-  knownAppInstallCount: number;
-  activeKnownDeviceCountRecent: number;
-  pushReadyIosDeviceCount: number;
-  pushReadyAndroidDeviceCount: number;
-  notificationsEnabledDeviceCount: number;
-  validTokenCount: number;
-  invalidTokenCount: number;
-  unknownAppVersionDeviceCount: number;
-  notificationTargetedCount: number;
-  notificationSentCount: number;
-  notificationFailedCount: number;
-}
-
-export interface AdminDeviceInstall {
-  id: string;
-  userId: string | null;
-  userEmail: string | null;
-  userDisplayName: string | null;
-  signedIn: boolean;
-  platform: 'ios' | 'android' | string;
-  appVersion: string | null;
-  language: 'en' | 'es' | 'pl' | string | null;
-  notificationsEnabled: boolean;
-  tokenStatus: string;
-  hasPushToken: boolean;
-  pushReady: boolean;
-  clientInstanceId: string | null;
-  checkInSource: string | null;
-  firstSeenAt: string;
-  lastSeenAt: string;
-}
-
-export interface AdminUsersResponse {
-  metrics: AdminUserMetrics;
-  recentDeviceInstalls: AdminDeviceInstall[];
-}
-
-export interface AdminNotification {
-  id: string;
-  title: string;
-  message: string;
-  audienceType: string;
-  status: string;
-  targetCount: number;
-  sentCount: number;
-  failedCount: number;
-  sentAt: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface AdminNotificationRequest {
-  title: string;
-  message: string;
-}
-
-export interface AdminNotificationSendResult {
-  notificationId: string;
-  status: string;
-  targetCount: number;
-  sentCount: number;
-  failedCount: number;
-}
-
 @Injectable({ providedIn: 'root' })
 export class SanctuaryApiService {
   private readonly http = inject(HttpClient);
@@ -387,14 +308,9 @@ export class SanctuaryApiService {
     });
   }
 
-  getNovenaDetail(slug: string, language: 'en' | 'es' | 'pl', year?: number): Observable<NovenaDetail> {
-    let params = new HttpParams().set('lang', language);
-    if (year) {
-      params = params.set('year', year);
-    }
-
+  getNovenaDetail(slug: string, language: 'en' | 'es' | 'pl'): Observable<NovenaDetail> {
     return this.http.get<NovenaDetail>(`${this.apiBaseUrl}/content/novenas/${slug}`, {
-      params,
+      params: new HttpParams().set('lang', language),
     });
   }
 
@@ -482,22 +398,6 @@ export class SanctuaryApiService {
 
   deleteNovenaCommitment(novenaId: string): Observable<void> {
     return this.http.delete<void>(`${this.apiBaseUrl}/me/novena-commitments/${novenaId}`);
-  }
-
-  listAdminUsers(limit = 50): Observable<AdminUsersResponse> {
-    return this.http.get<AdminUsersResponse>(`${this.apiBaseUrl}/admin/users`, {
-      params: new HttpParams().set('limit', String(limit)),
-    });
-  }
-
-  listAdminNotifications(limit = 50): Observable<AdminNotification[]> {
-    return this.http.get<AdminNotification[]>(`${this.apiBaseUrl}/admin/notifications`, {
-      params: new HttpParams().set('limit', String(limit)),
-    });
-  }
-
-  sendAdminNotification(request: AdminNotificationRequest): Observable<AdminNotificationSendResult> {
-    return this.http.post<AdminNotificationSendResult>(`${this.apiBaseUrl}/admin/notifications/send`, request);
   }
 
   private rangeParams(start: string, end: string): HttpParams {

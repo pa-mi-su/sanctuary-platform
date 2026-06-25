@@ -33,9 +33,6 @@
   </section>
 }
 
-@if (isAdminRoute()) {
-  <router-outlet />
-} @else {
 <div class="app-shell">
   <main class="phone-frame">
     <app-header
@@ -43,7 +40,6 @@
       [isEnglish]="facade.isEnglish()"
       [currentLanguage]="facade.language()"
       [isAuthenticated]="facade.isAuthenticated()"
-      [isAuthLoading]="facade.isAuthLoading()"
       (navigate)="facade.handlePrimaryNavigate($event)"
       (selectLanguage)="facade.setLanguage($event)"
       (logout)="facade.logout()"
@@ -81,14 +77,11 @@
     }
 
     @if (facade.currentTab() === 'auth') {
-      @defer {
-        <app-auth-page
-          [currentLanguage]="facade.language()"
-          [isConfigured]="facade.authConfigured()"
-          (authenticated)="facade.setTab('me')"
-        />
-      } @placeholder {
-      }
+      <app-auth-page
+        [currentLanguage]="facade.language()"
+        [isConfigured]="facade.authConfigured()"
+        (authenticated)="facade.setTab('me')"
+      />
     }
 
     @if (facade.currentTab() === 'about' && !facade.activeLegalDocument()) {
@@ -245,4 +238,3 @@
     }
   </main>
 </div>
-}

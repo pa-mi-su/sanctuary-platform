@@ -48,15 +48,6 @@ interface SanctuaryApiService {
     @PUT("me/preferences")
     suspend fun updateMePreferences(@Body request: UserPreferencesUpdateRequest): UserProfileResponse
 
-    @PUT("me/devices")
-    suspend fun registerDevice(@Body request: UserDeviceRegistrationRequest): UserDeviceResponse
-
-    @POST("me/activity")
-    suspend fun recordAppActivity(@Body request: UserAppActivityRequest)
-
-    @POST("app/activity")
-    suspend fun recordAnonymousAppActivity(@Body request: AnonymousAppActivityRequest)
-
     @GET("me/favorites")
     suspend fun listFavorites(): List<UserFavoriteResponse>
 

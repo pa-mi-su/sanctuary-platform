@@ -65,7 +65,6 @@ export class AppShellFacade {
   readonly language = signal<AppLanguage>('en');
   readonly authState = this.auth.state;
   readonly isAuthenticated = computed(() => this.authState().status === 'authenticated');
-  readonly isAuthLoading = computed(() => this.authState().status === 'loading');
   readonly authConfigured = computed(() => this.authState().configured);
   readonly authMessage = computed(() => this.authState().message);
   readonly currentUserName = computed(() => {
@@ -243,13 +242,13 @@ export class AppShellFacade {
   );
 
   readonly novenaDetail = toSignal(
-    combineLatest([toObservable(this.selectedNovenaSlug), toObservable(this.language), toObservable(this.selectedDate)]).pipe(
-      switchMap(([slug, language, selectedDate]) => {
+    combineLatest([toObservable(this.selectedNovenaSlug), toObservable(this.language)]).pipe(
+      switchMap(([slug, language]) => {
         if (!slug) {
           return of<NovenaDetail | null>(null);
         }
 
-        return this.api.getNovenaDetail(slug, this.apiLanguage(language), this.yearFromDate(selectedDate)).pipe(
+        return this.api.getNovenaDetail(slug, this.apiLanguage(language)).pipe(
           startWith(null),
           catchError(() => of<NovenaDetail | null>(null)),
         );
@@ -618,10 +617,6 @@ export class AppShellFacade {
 
     if (tab === 'saints') {
       this.browseSaintsCalendar();
-      return;
-    }
-
-    if (tab === 'me' && this.isAuthLoading()) {
       return;
     }
 
@@ -1555,11 +1550,6 @@ export class AppShellFacade {
 
   private apiLanguage(language: AppLanguage): 'en' | 'es' | 'pl' {
     return language;
-  }
-
-  private yearFromDate(date: string): number {
-    const parsed = new Date(`${date}T00:00:00`);
-    return Number.isNaN(parsed.getTime()) ? new Date().getFullYear() : parsed.getFullYear();
   }
 
   private translate(english: string, spanish: string, polish: string): string {

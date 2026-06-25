@@ -1,22 +1,19 @@
 # Android Play Console Setup
 
-This is the exact setup needed to take the Android app from "builds locally
-and in GitHub" to "uploads to the correct Google Play app for each
-environment".
+This is the exact setup needed to take the Android app on `codex/android-dev-distribution`
+from "builds locally and in GitHub" to "uploads to Google Play tracks".
 
 ## Current Android release model
 
-The Android project uses separate package names for each environment:
+The Android project now uses one package name across all flavors:
 
-- dev: `com.pamisu.sanctuary.dev`
-- UAT: `com.pamisu.sanctuary.uat`
-- prod: `com.pamisu.sanctuary`
+- `com.pamisu.sanctuary`
 
-Google Play app mapping:
+Track mapping in GitHub Actions:
 
-- `dev` branch push -> `com.pamisu.sanctuary.dev` -> Play **internal** track
-- `uat` branch push -> `com.pamisu.sanctuary.uat` -> Play **closed testing** track
-- `main` branch push -> `com.pamisu.sanctuary` -> Play **production draft**
+- `dev` branch push -> Play **internal** track
+- `uat` branch push -> Play **closed testing** track (`beta`)
+- `main` branch push -> Play **production draft**
 
 Workflow file:
 
@@ -34,24 +31,18 @@ The project already builds:
 
 So the remaining work is credentials and Play Console access, not Android code structure.
 
-## Step 1: Create the Android apps in Play Console
+## Step 1: Create the Android app in Play Console
 
 In Google Play Console:
 
-1. Create `Sanctuary Dev`
-   - package name locked by first bundle: `com.pamisu.sanctuary.dev`
-   - track used by CI: Internal testing
-2. Create `Sanctuary UAT`
-   - package name locked by first bundle: `com.pamisu.sanctuary.uat`
-   - track used by CI: Closed testing
-3. Keep `Sanctuary`
-   - package name: `com.pamisu.sanctuary`
-   - track used by CI: Production draft
-
-Google Play locks the package name when the first bundle is uploaded. If the
-Android Publisher API returns 404 for a package, the matching Play app does not
-exist yet, the first bundle has not established that package yet, or the service
-account cannot access that app.
+1. Create one app named `Sanctuary`
+2. Use package name:
+   - `com.pamisu.sanctuary`
+3. Complete the minimum app creation fields
+4. Make sure these tracks exist:
+   - Internal testing
+   - Closed testing
+   - Production
 
 ## Step 2: Create a Google service account for Play uploads
 
@@ -61,10 +52,7 @@ account cannot access that app.
    - `API access`
 3. Link a Google Cloud project if one is not linked yet
 4. Create a **service account**
-5. Grant it Play Console access to all three apps:
-   - `Sanctuary Dev`
-   - `Sanctuary UAT`
-   - `Sanctuary`
+5. Grant it Play Console access to this app
 
 Recommended permission scope:
 
@@ -127,17 +115,17 @@ Notes:
 - `ANDROID_PLAY_SERVICE_ACCOUNT_JSON`
   - paste the raw JSON service account key content
 
-## Step 5: Confirm GitHub secrets
+## Step 5: Add GitHub variable
 
-The workflow hard-codes the Play package name for each lane so dev/UAT/prod
-cannot accidentally upload to the wrong Play app:
+Add this repository variable:
 
-- dev: `com.pamisu.sanctuary.dev`
-- UAT: `com.pamisu.sanctuary.uat`
-- prod: `com.pamisu.sanctuary`
+- `ANDROID_PLAY_PACKAGE_NAME`
 
-Do not add GitHub variables to override Android Play package names. If a package
-name changes, update the workflow and review it in code.
+Value:
+
+- `com.pamisu.sanctuary`
+
+The workflow already defaults to this package name, but storing it as a variable is cleaner.
 
 ## Step 6: First end-to-end test
 
@@ -147,7 +135,7 @@ After the secrets and variable are in place:
 2. the Android workflow should:
    - build `app-dev-release.aab`
    - upload it as a GitHub artifact
-   - upload it to the `Sanctuary Dev` Play app **internal** track
+   - upload it to Play **internal** track
 
 Then:
 
@@ -155,7 +143,7 @@ Then:
 4. the Android workflow should:
    - build `app-uat-release.aab`
    - upload it as a GitHub artifact
-   - upload it to the `Sanctuary UAT` Play app **closed testing** track
+   - upload it to Play **closed testing**
 
 Then:
 
@@ -163,7 +151,7 @@ Then:
 6. the Android workflow should:
    - build `app-prod-release.aab`
    - upload it as a GitHub artifact
-   - upload it to the `Sanctuary` Play app **production** track as a **draft**
+   - upload it to Play **production** as a **draft**
 
 ## Step 7: Important release behavior
 
@@ -176,8 +164,7 @@ That means:
 - web changes trigger web
 - iOS changes trigger iOS
 
-So Android releases stay independent from the other app surfaces. Manual
-workflow dispatch is also supported for deliberate rebuild/upload testing.
+So Android releases stay independent from the other app surfaces.
 
 ## What is still intentionally unfinished
 
@@ -212,6 +199,5 @@ Operational side still needed:
 - service account created and granted access
 - upload keystore created
 - GitHub secrets added
-- Play Console has separate apps for dev/UAT/prod
 
 Once those are done, the GitHub workflow is ready to perform real Android track uploads.

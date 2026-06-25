@@ -1,15 +1,9 @@
 package app.sanctuary.android.data
 
 import android.content.Context
-import android.provider.Settings
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
-import app.sanctuary.android.BuildConfig
-import java.security.MessageDigest
 import java.time.Instant
-import java.util.Locale
-import java.util.TimeZone
-import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -17,11 +11,10 @@ class SessionRepository(
     context: Context,
     private val api: SanctuaryApiService
 ) {
-    private val appContext = context.applicationContext
     private val preferences = EncryptedSharedPreferences.create(
-        appContext,
+        context,
         "sanctuary_session",
-        MasterKey.Builder(appContext)
+        MasterKey.Builder(context)
             .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
             .build(),
         EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
@@ -30,12 +23,6 @@ class SessionRepository(
 
     private val sessionKey = "primary_session"
     private val languageKey = "preferred_language"
-    private val anonymousDeviceIdKey = "anonymous_device_id"
-    private val clientInstanceIdKey = "client_instance_id"
-    private val anonymousDeviceIdLock = Any()
-    private val clientInstanceIdLock = Any()
-    @Volatile private var cachedAnonymousDeviceId: String? = null
-    @Volatile private var cachedClientInstanceId: String? = null
 
     suspend fun bootstrap(): SessionBootstrapResult = withContext(Dispatchers.IO) {
         val stored = loadSession()
@@ -65,73 +52,6 @@ class SessionRepository(
 
     fun currentLanguage(): String = preferences.getString(languageKey, null)?.ifBlank { null } ?: "en"
 
-    fun anonymousDeviceId(): String {
-        cachedAnonymousDeviceId?.let { return it }
-
-        return synchronized(anonymousDeviceIdLock) {
-            cachedAnonymousDeviceId?.let { return@synchronized it }
-
-            val existing = preferences.getString(anonymousDeviceIdKey, null)?.trim()
-            if (!existing.isNullOrBlank()) {
-                cachedAnonymousDeviceId = existing
-                return@synchronized existing
-            }
-
-            stableAnonymousDeviceId()?.let { stable ->
-                preferences.edit().putString(anonymousDeviceIdKey, stable).apply()
-                cachedAnonymousDeviceId = stable
-                return@synchronized stable
-            }
-
-            "android-${UUID.randomUUID()}".also {
-                preferences.edit().putString(anonymousDeviceIdKey, it).apply()
-                cachedAnonymousDeviceId = it
-            }
-        }
-    }
-
-    fun clientInstanceId(): String {
-        cachedClientInstanceId?.let { return it }
-
-        return synchronized(clientInstanceIdLock) {
-            cachedClientInstanceId?.let { return@synchronized it }
-
-            val existing = preferences.getString(clientInstanceIdKey, null)?.trim()
-            if (!existing.isNullOrBlank()) {
-                cachedClientInstanceId = existing
-                return@synchronized existing
-            }
-
-            "android-instance-${UUID.randomUUID()}".also {
-                preferences.edit().putString(clientInstanceIdKey, it).apply()
-                cachedClientInstanceId = it
-            }
-        }
-    }
-
-    private fun automatedTest(): Boolean =
-        Settings.System.getString(appContext.contentResolver, "firebase.test.lab") == "true"
-
-    private fun checkInSource(): String = if (automatedTest()) "automated_test" else "app"
-
-    private fun appVersionWithBuild(): String = "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})"
-
-    private fun stableAnonymousDeviceId(): String? {
-        val androidId = Settings.Secure.getString(appContext.contentResolver, Settings.Secure.ANDROID_ID)
-            ?.trim()
-            ?.takeIf { it.isNotEmpty() && it != "9774d56d682e549c" }
-            ?: return null
-
-        return "android-${sha256("${appContext.packageName}:$androidId").take(32)}"
-    }
-
-    private fun sha256(value: String): String =
-        MessageDigest.getInstance("SHA-256")
-            .digest(value.toByteArray(Charsets.UTF_8))
-            .joinToString("") { byte ->
-                String.format(Locale.US, "%02x", byte.toInt() and 0xff)
-            }
-
     suspend fun updatePreferredLanguage(language: String): UserProfile? = withContext(Dispatchers.IO) {
         persistLanguage(language)
         val session = loadSession() ?: return@withContext null
@@ -150,75 +70,6 @@ class SessionRepository(
         }
         updatedProfile.toUserProfile(session).also {
             persistLanguage(it.preferredLanguage ?: language)
-        }
-    }
-
-    suspend fun registerDevice(
-        fcmToken: String,
-        notificationsEnabled: Boolean
-    ) = withContext(Dispatchers.IO) {
-        val token = fcmToken.trim()
-        if (token.isBlank()) {
-            return@withContext
-        }
-
-        authenticatedCall {
-            it.registerDevice(
-                UserDeviceRegistrationRequest(
-                    fcmToken = token,
-                    platform = "android",
-                    appVersion = appVersionWithBuild(),
-                    language = currentLanguage(),
-                    notificationsEnabled = notificationsEnabled,
-                    clientInstanceId = clientInstanceId(),
-                    automatedTest = automatedTest(),
-                    checkInSource = checkInSource()
-                )
-            )
-        }
-    }
-
-    suspend fun recordAppActivity(eventType: String = "session_start") = withContext(Dispatchers.IO) {
-        authenticatedCall {
-            it.recordAppActivity(
-                UserAppActivityRequest(
-                    eventType = eventType,
-                    anonymousDeviceId = anonymousDeviceId(),
-                    platform = "android",
-                    appVersion = appVersionWithBuild(),
-                    language = currentLanguage(),
-                    timeZoneId = TimeZone.getDefault().id,
-                    clientInstanceId = clientInstanceId(),
-                    automatedTest = automatedTest(),
-                    checkInSource = checkInSource()
-                )
-            )
-        }
-    }
-
-    suspend fun recordAnonymousAppActivity(
-        eventType: String,
-        screenName: String? = null,
-        fcmToken: String? = null,
-        notificationsEnabled: Boolean? = null
-    ) = withContext(Dispatchers.IO) {
-        runApiCall {
-            api.recordAnonymousAppActivity(
-                AnonymousAppActivityRequest(
-                    anonymousDeviceId = anonymousDeviceId(),
-                    eventType = eventType,
-                    platform = "android",
-                    appVersion = appVersionWithBuild(),
-                    language = currentLanguage(),
-                    timeZoneId = TimeZone.getDefault().id,
-                    screenName = screenName,
-                    fcmToken = fcmToken,
-                    notificationsEnabled = notificationsEnabled,
-                    clientInstanceId = clientInstanceId(),
-                    automatedTest = automatedTest(),
-                    checkInSource = checkInSource()
-                )
-            )
         }
     }
 
@@ -585,7 +436,13 @@ class SessionRepository(
     }
 
     suspend fun deleteAccount() = withContext(Dispatchers.IO) {
-        authenticatedCall { it.deleteMe() }
+        try {
+            authenticatedCall { it.deleteMe() }
+        } catch (exception: SanctuaryApiException) {
+            if (!exception.isSessionRejected()) {
+                throw exception
+            }
+        }
         clearSession()
     }
 

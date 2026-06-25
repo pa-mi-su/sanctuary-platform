@@ -1,5 +1,4 @@
 import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output } from '@angular/core';
-import { RouterLink } from '@angular/router';
 
 import { UserProfile } from '../core/api/sanctuary-api.service';
 import { MeLinkedItem } from '../core/state/app-shell.facade';
@@ -9,7 +8,6 @@ type AppLanguage = 'en' | 'es' | 'pl';
 @Component({
   selector: 'app-me-page',
   standalone: true,
-  imports: [RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './me-page.component.scss',
   template: `
@@ -34,17 +32,6 @@ type AppLanguage = 'en' | 'es' | 'pl';
           </div>
         </div>
       </div>
-
-      @if (profile?.admin) {
-        <section class="admin-entry glass-subtle">
-          <div>
-            <p class="eyebrow">{{ t('Admin', 'Admin', 'Admin') }}</p>
-            <h3>{{ t('Operations dashboard', 'Panel de operaciones', 'Panel operacyjny') }}</h3>
-            <p>{{ t('Review users, devices, activity metrics, and notification drafts.', 'Revisa usuarios, dispositivos, métricas de actividad y borradores de notificaciones.', 'Przeglądaj użytkowników, urządzenia, metryki aktywności i szkice powiadomień.') }}</p>
-          </div>
-          <a class="admin-action" routerLink="/sanctuary-ops">{{ t('Open Operations', 'Abrir operaciones', 'Otwórz operacje') }}</a>
-        </section>
-      }
 
       <section class="linked-grid">
         <article class="panel-card glass-subtle linked-card">

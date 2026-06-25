@@ -24,7 +24,6 @@ class WebConfigTest {
                     "http://localhost:4200",
                     "https://dev.mydailysanctuary.com"
                 );
-                assertThat(context).hasSingleBean(OriginEnforcementFilter.class);
             });
     }
 

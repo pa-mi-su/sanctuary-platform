@@ -57,10 +57,8 @@ public class NovenaContentController {
     @GetMapping("/{slug}")
     public NovenaDetailDto getNovenaBySlug(
         @PathVariable String slug,
-        @RequestParam(defaultValue = "en") String lang,
-        @RequestParam(required = false) Integer year
+        @RequestParam(defaultValue = "en") String lang
     ) {
-        int servingWindowYear = year == null ? LocalDate.now().getYear() : year;
-        return novenaContentService.getBySlug(slug, lang, servingWindowYear);
+        return novenaContentService.getBySlug(slug, lang);
     }
 }

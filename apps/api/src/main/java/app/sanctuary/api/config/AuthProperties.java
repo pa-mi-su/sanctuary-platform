@@ -8,7 +8,6 @@ public class AuthProperties {
     private String audience;
     private String userPoolId;
     private String clientId;
-    private String adminGroup = "SanctuaryAdmins";
     private Cookie cookie = new Cookie();
 
     public AuthProperties() {
@@ -51,14 +50,6 @@ public class AuthProperties {
 
     public void setClientId(String clientId) {
         this.clientId = clientId;
-    }
-
-    public String adminGroup() {
-        return adminGroup == null || adminGroup.isBlank() ? "SanctuaryAdmins" : adminGroup.trim();
-    }
-
-    public void setAdminGroup(String adminGroup) {
-        this.adminGroup = adminGroup;
     }
 
     public Cookie cookie() {

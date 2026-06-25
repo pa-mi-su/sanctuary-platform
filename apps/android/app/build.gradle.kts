@@ -2,7 +2,6 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
-    id("com.google.gms.google-services")
 }
 
 import java.io.ByteArrayOutputStream
@@ -35,14 +34,6 @@ val hasUploadSigning =
         !uploadKeystorePassword.isNullOrBlank() &&
         !uploadKeyAlias.isNullOrBlank() &&
         !uploadKeyPassword.isNullOrBlank()
-val isLocalDevDebugTask =
-    gradle.startParameter.taskNames.any { taskName ->
-        taskName.contains("DevDebug", ignoreCase = true)
-    }
-val devApiBaseUrl =
-    (findProperty("SANCTUARY_ANDROID_API_BASE_URL") as String?)
-        ?: System.getenv("SANCTUARY_ANDROID_API_BASE_URL")
-        ?: if (isLocalDevDebugTask) "http://10.0.2.2:8080" else "https://dev-api.mydailysanctuary.com"
 
 android {
     namespace = "app.sanctuary.android"
@@ -53,7 +44,7 @@ android {
         minSdk = 26
         targetSdk = 35
         versionCode = ciVersionCode
-        versionName = "1.0.13"
+        versionName = "1.0.12"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -66,17 +57,15 @@ android {
     productFlavors {
         create("dev") {
             dimension = "environment"
-            applicationIdSuffix = ".dev"
             versionNameSuffix = "-dev"
             resValue("string", "app_name", "Sanctuary Dev")
             buildConfigField("String", "ENVIRONMENT", "\"dev\"")
-            buildConfigField("String", "API_BASE_URL", "\"$devApiBaseUrl\"")
+            buildConfigField("String", "API_BASE_URL", "\"https://dev-api.mydailysanctuary.com\"")
             buildConfigField("boolean", "AUTH_ENABLED", "true")
         }
 
         create("uat") {
             dimension = "environment"
-            applicationIdSuffix = ".uat"
             versionNameSuffix = "-uat"
             resValue("string", "app_name", "Sanctuary UAT")
             buildConfigField("String", "ENVIRONMENT", "\"uat\"")
@@ -142,13 +131,10 @@ android {
 
 dependencies {
     val composeBom = platform("androidx.compose:compose-bom:2024.10.01")
-    val firebaseBom = platform("com.google.firebase:firebase-bom:33.7.0")
 
     implementation(composeBom)
     androidTestImplementation(composeBom)
-    implementation(firebaseBom)
 
-    implementation("com.google.firebase:firebase-messaging-ktx")
     implementation("androidx.core:core-ktx:1.15.0")
     implementation("androidx.core:core-splashscreen:1.0.1")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")

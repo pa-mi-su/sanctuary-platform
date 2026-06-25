@@ -17,23 +17,12 @@
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
-        android:networkSecurityConfig="@xml/network_security_config"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.Sanctuary">
-        <meta-data
-            android:name="com.google.firebase.messaging.default_notification_channel_id"
-            android:value="sanctuary-updates" />
         <receiver
             android:name=".ReminderNotificationReceiver"
             android:exported="false" />
-        <service
-            android:name=".SanctuaryFirebaseMessagingService"
-            android:exported="false">
-            <intent-filter>
-                <action android:name="com.google.firebase.MESSAGING_EVENT" />
-            </intent-filter>
-        </service>
         <receiver
             android:name=".ReminderBootReceiver"
             android:enabled="true"

@@ -84,56 +84,6 @@ data class UserPreferencesUpdateRequest(
     val onboardingCompleted: Boolean
 )
 
-data class UserDeviceRegistrationRequest(
-    val fcmToken: String,
-    val platform: String,
-    val appVersion: String?,
-    val language: String,
-    val notificationsEnabled: Boolean,
-    val clientInstanceId: String,
-    val automatedTest: Boolean,
-    val checkInSource: String
-)
-
-data class UserDeviceResponse(
-    val id: String,
-    val platform: String,
-    val appVersion: String?,
-    val language: String,
-    val notificationsEnabled: Boolean,
-    val tokenStatus: String,
-    val lastSeenAt: String,
-    val createdAt: String,
-    val updatedAt: String
-)
-
-data class UserAppActivityRequest(
-    val anonymousDeviceId: String?,
-    val eventType: String,
-    val platform: String,
-    val appVersion: String?,
-    val language: String,
-    val timeZoneId: String?,
-    val clientInstanceId: String,
-    val automatedTest: Boolean,
-    val checkInSource: String
-)
-
-data class AnonymousAppActivityRequest(
-    val anonymousDeviceId: String,
-    val eventType: String,
-    val platform: String,
-    val appVersion: String?,
-    val language: String,
-    val timeZoneId: String?,
-    val screenName: String?,
-    val fcmToken: String?,
-    val notificationsEnabled: Boolean?,
-    val clientInstanceId: String,
-    val automatedTest: Boolean,
-    val checkInSource: String
-)
-
 data class UserFavoriteResponse(
     val itemType: String,
     val itemId: String,

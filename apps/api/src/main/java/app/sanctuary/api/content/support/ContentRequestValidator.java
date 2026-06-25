@@ -27,10 +27,4 @@ public class ContentRequestValidator {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "date range exceeds maximum supported span");
         }
     }
-
-    public void validateYear(int year) {
-        if (year < 1900 || year > 4099) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "year must be between 1900 and 4099");
-        }
-    }
 }

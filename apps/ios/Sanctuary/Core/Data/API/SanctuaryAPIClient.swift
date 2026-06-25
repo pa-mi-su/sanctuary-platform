@@ -78,21 +78,6 @@ struct APIAuthSessionResponse: Decodable, Sendable {
     let displayName: String
 }
 
-struct APIAnonymousAppActivityRequest: Encodable, Sendable {
-    let anonymousDeviceId: String
-    let eventType: String
-    let platform: String
-    let appVersion: String?
-    let language: String
-    let timeZoneId: String?
-    let screenName: String?
-    let fcmToken: String?
-    let notificationsEnabled: Bool?
-    let clientInstanceId: String?
-    let automatedTest: Bool?
-    let checkInSource: String?
-}
-
 struct APIUserProfileResponse: Decodable, Sendable {
     let userId: String
     let email: String?
@@ -150,41 +135,6 @@ struct APIUserPreferencesUpdateRequest: Encodable, Sendable {
     let feastRemindersEnabled: Bool
     let emailUpdatesEnabled: Bool
     let onboardingCompleted: Bool
-}
-
-struct APIUserDeviceRegistrationRequest: Encodable, Sendable {
-    let fcmToken: String
-    let platform: String
-    let appVersion: String?
-    let language: String
-    let notificationsEnabled: Bool
-    let clientInstanceId: String?
-    let automatedTest: Bool?
-    let checkInSource: String?
-}
-
-struct APIUserDeviceResponse: Decodable, Sendable {
-    let id: String
-    let platform: String
-    let appVersion: String?
-    let language: String
-    let notificationsEnabled: Bool
-    let tokenStatus: String
-    let lastSeenAt: Date
-    let createdAt: Date
-    let updatedAt: Date
-}
-
-struct APIUserAppActivityRequest: Encodable, Sendable {
-    let anonymousDeviceId: String?
-    let eventType: String
-    let platform: String
-    let appVersion: String?
-    let language: String
-    let timeZoneId: String?
-    let clientInstanceId: String?
-    let automatedTest: Bool?
-    let checkInSource: String?
 }
 
 struct APIContentSaintSummaryResponse: Decodable, Sendable {
@@ -385,24 +335,6 @@ actor SanctuaryAPIClient {
         token: String
     ) async throws -> APIUserProfileResponse {
         try await performRequest(path: "/me/preferences", method: "PUT", body: request, token: token)
-    }
-
-    func registerDevice(
-        request: APIUserDeviceRegistrationRequest,
-        token: String
-    ) async throws -> APIUserDeviceResponse {
-        try await performRequest(path: "/me/devices", method: "PUT", body: request, token: token)
-    }
-
-    func recordAppActivity(
-        request: APIUserAppActivityRequest,
-        token: String
-    ) async throws {
-        try await performVoidRequest(path: "/me/activity", method: "POST", body: request, token: token)
-    }
-
-    func recordAnonymousAppActivity(request: APIAnonymousAppActivityRequest) async throws {
-        try await performVoidRequest(path: "/app/activity", method: "POST", body: request, token: nil)
     }
 
     func favorites(token: String) async throws -> [APIUserFavoriteResponse] {

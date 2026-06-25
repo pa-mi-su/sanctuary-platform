@@ -17,8 +17,6 @@ class AuthAbuseProtectionConfigTest {
         contextRunner.run(context -> {
             assertThat(context).hasSingleBean(AuthAbuseProtectionProperties.class);
             assertThat(context).hasSingleBean(AuthAbuseProtectionFilter.class);
-            assertThat(context).hasSingleBean(AdminAbuseProtectionProperties.class);
-            assertThat(context).hasSingleBean(AdminAbuseProtectionFilter.class);
         });
     }
 }

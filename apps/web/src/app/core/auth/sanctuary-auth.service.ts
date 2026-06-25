@@ -38,7 +38,7 @@ export class SanctuaryAuthService {
 
   readonly state = signal<SanctuaryAuthState>({
     configured: this.config.enabled,
-    status: this.config.enabled ? 'loading' : 'signed-out',
+    status: 'signed-out',
     accessToken: null,
     idToken: null,
     email: null,

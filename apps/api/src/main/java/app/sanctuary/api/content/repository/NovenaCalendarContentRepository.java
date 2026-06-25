@@ -17,7 +17,6 @@ import app.sanctuary.api.calendar.service.NovenaServingWindowResolver;
 import app.sanctuary.api.content.dto.NovenaCalendarDateDto;
 import app.sanctuary.api.content.dto.NovenaDayDetailDto;
 import app.sanctuary.api.content.dto.NovenaDetailDto;
-import app.sanctuary.api.content.dto.NovenaServingWindowDto;
 import app.sanctuary.api.content.dto.NovenaSummaryDto;
 import app.sanctuary.api.content.support.SupportedLanguage;
 
@@ -173,7 +172,7 @@ public class NovenaCalendarContentRepository {
         return response;
     }
 
-    public Optional<NovenaDetailDto> findBySlug(String slug, SupportedLanguage language, int servingWindowYear) {
+    public Optional<NovenaDetailDto> findBySlug(String slug, SupportedLanguage language) {
         String locale = language.code();
         String sql = """
             SELECT
@@ -198,8 +197,7 @@ public class NovenaCalendarContentRepository {
                 rs.getString("image_url"),
                 List.of(),
                 List.of(),
-                List.of(),
-                null
+                List.of()
             ),
             slug
         );
@@ -254,24 +252,7 @@ public class NovenaCalendarContentRepository {
             novena.id()
         );
 
-        return Optional.of(novena
-            .withTags(tags)
-            .withIntentions(intentions)
-            .withDays(days)
-            .withServingWindow(resolveServingWindow(novena.id(), servingWindowYear)));
-    }
-
-    private NovenaServingWindowDto resolveServingWindow(String novenaId, int year) {
-        return novenaServingRuleRepository.findByNovenaId(novenaId)
-            .map(rule -> {
-                try {
-                    NovenaServingWindowResult window = novenaServingWindowResolver.resolve(rule, year);
-                    return new NovenaServingWindowDto(window.startDate(), window.endDate(), window.feastDate());
-                } catch (IllegalArgumentException ex) {
-                    return null;
-                }
-            })
-            .orElse(null);
+        return Optional.of(novena.withTags(tags).withIntentions(intentions).withDays(days));
     }
 
     private NovenaSummaryDto fetchNovenaSummary(String novenaId, String locale) {

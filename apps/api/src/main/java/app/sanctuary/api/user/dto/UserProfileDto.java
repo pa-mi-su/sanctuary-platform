@@ -17,14 +17,12 @@ public record UserProfileDto(
     int favoriteNovenaCount,
     int favoritePrayerCount,
     int activeNovenaCount,
-    int completedNovenaCount,
-    boolean admin
+    int completedNovenaCount
 ) {
     public static UserProfileDto from(
         UserAccountDto account,
         UserPreferenceDto preferences,
-        UserProfileCountsDto counts,
-        boolean admin
+        UserProfileCountsDto counts
     ) {
         return new UserProfileDto(
             account.id().toString(),
@@ -43,8 +41,7 @@ public record UserProfileDto(
             counts.favoriteNovenaCount(),
             counts.favoritePrayerCount(),
             counts.activeNovenaCount(),
-            counts.completedNovenaCount(),
-            admin
+            counts.completedNovenaCount()
         );
     }
 }

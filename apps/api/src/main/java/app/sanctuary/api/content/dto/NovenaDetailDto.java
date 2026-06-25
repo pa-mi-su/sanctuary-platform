@@ -11,22 +11,17 @@ public record NovenaDetailDto(
     String imageUrl,
     List<String> tags,
     List<String> intentions,
-    List<NovenaDayDetailDto> days,
-    NovenaServingWindowDto servingWindow
+    List<NovenaDayDetailDto> days
 ) {
     public NovenaDetailDto withTags(List<String> tags) {
-        return new NovenaDetailDto(id, slug, title, description, durationDays, imageUrl, tags, intentions, days, servingWindow);
+        return new NovenaDetailDto(id, slug, title, description, durationDays, imageUrl, tags, intentions, days);
     }
 
     public NovenaDetailDto withIntentions(List<String> intentions) {
-        return new NovenaDetailDto(id, slug, title, description, durationDays, imageUrl, tags, intentions, days, servingWindow);
+        return new NovenaDetailDto(id, slug, title, description, durationDays, imageUrl, tags, intentions, days);
     }
 
     public NovenaDetailDto withDays(List<NovenaDayDetailDto> days) {
-        return new NovenaDetailDto(id, slug, title, description, durationDays, imageUrl, tags, intentions, days, servingWindow);
-    }
-
-    public NovenaDetailDto withServingWindow(NovenaServingWindowDto servingWindow) {
-        return new NovenaDetailDto(id, slug, title, description, durationDays, imageUrl, tags, intentions, days, servingWindow);
+        return new NovenaDetailDto(id, slug, title, description, durationDays, imageUrl, tags, intentions, days);
     }
 }

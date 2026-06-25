@@ -2,7 +2,6 @@ package app.sanctuary.api.user.service;
 
 import org.springframework.stereotype.Service;
 
-import app.sanctuary.api.config.AuthProperties;
 import app.sanctuary.api.user.dto.UserPreferenceDto;
 import app.sanctuary.api.user.dto.UserPreferencesUpdateRequest;
 import app.sanctuary.api.user.dto.UserProfileCountsDto;
@@ -18,25 +17,22 @@ public class UserProfileService {
     private final UserAccountService userAccountService;
     private final UserPreferencesRepository userPreferencesRepository;
     private final UserProgressRepository userProgressRepository;
-    private final AuthProperties authProperties;
 
     public UserProfileService(
         UserAccountService userAccountService,
         UserPreferencesRepository userPreferencesRepository,
-        UserProgressRepository userProgressRepository,
-        AuthProperties authProperties
+        UserProgressRepository userProgressRepository
     ) {
         this.userAccountService = userAccountService;
         this.userPreferencesRepository = userPreferencesRepository;
         this.userProgressRepository = userProgressRepository;
-        this.authProperties = authProperties;
     }
 
     public UserProfileDto getProfile(CurrentUser currentUser) {
         var account = userAccountService.ensureAccount(currentUser);
         UserPreferenceDto preferences = userPreferencesRepository.ensureForUser(account.id());
         UserProfileCountsDto counts = userProgressRepository.profileCounts(account.id());
-        return UserProfileDto.from(account, preferences, counts, currentUser.belongsToGroup(authProperties.adminGroup()));
+        return UserProfileDto.from(account, preferences, counts);
     }
 
     public UserProfileDto updatePreferences(CurrentUser currentUser, UserPreferencesUpdateRequest request) {
@@ -46,7 +42,7 @@ public class UserProfileService {
         var updatedAccount = userAccountService.updatePreferredLanguage(account.id(), request.preferredLanguage());
         UserPreferenceDto preferences = userPreferencesRepository.update(updatedAccount.id(), request);
         UserProfileCountsDto counts = userProgressRepository.profileCounts(updatedAccount.id());
-        return UserProfileDto.from(updatedAccount, preferences, counts, currentUser.belongsToGroup(authProperties.adminGroup()));
+        return UserProfileDto.from(updatedAccount, preferences, counts);
     }
 
     private void validateLanguage(String preferredLanguage) {
