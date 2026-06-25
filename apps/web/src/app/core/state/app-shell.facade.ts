@@ -65,6 +65,7 @@ export class AppShellFacade {
   readonly language = signal<AppLanguage>('en');
   readonly authState = this.auth.state;
   readonly isAuthenticated = computed(() => this.authState().status === 'authenticated');
+  readonly isAuthLoading = computed(() => this.authState().status === 'loading');
   readonly authConfigured = computed(() => this.authState().configured);
   readonly authMessage = computed(() => this.authState().message);
   readonly currentUserName = computed(() => {
@@ -617,6 +618,10 @@ export class AppShellFacade {
 
     if (tab === 'saints') {
       this.browseSaintsCalendar();
+      return;
+    }
+
+    if (tab === 'me' && this.isAuthLoading()) {
       return;
     }
 

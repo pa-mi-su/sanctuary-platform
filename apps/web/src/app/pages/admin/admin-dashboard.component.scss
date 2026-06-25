@@ -162,6 +162,10 @@ button:disabled {
   border-color: rgba(242, 215, 125, 0.46);
 }
 
+.notice-card--loading {
+  border-color: rgba(151, 231, 244, 0.28);
+}
+
 .panel-heading {
   display: flex;
   align-items: flex-start;

@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 
 import {
@@ -34,7 +35,7 @@ interface MetricCard {
 @Component({
   selector: 'app-admin-dashboard',
   standalone: true,
-  imports: [FormsModule],
+  imports: [FormsModule, RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './admin-dashboard.component.scss',
   template: `
@@ -47,7 +48,7 @@ interface MetricCard {
           <p class="build-copy">Version {{ appVersion }} · Build {{ appBuild }}{{ environmentLabel }}</p>
         </div>
         <div class="header-actions">
-          <a class="button-secondary button-link" href="/">Return to Site</a>
+          <a class="button-secondary button-link" routerLink="/">Return to Site</a>
           <button type="button" (click)="reload()" [disabled]="state() === 'loading'">Refresh</button>
         </div>
       </header>
@@ -56,6 +57,11 @@ interface MetricCard {
         <section class="notice-card notice-card--danger">
           <h2>Admin Access Required</h2>
           <p>Your account is signed in, but it is not enabled for admin access.</p>
+        </section>
+      } @else if (state() === 'loading' || state() === 'idle') {
+        <section class="notice-card notice-card--loading">
+          <h2>Loading Admin Data</h2>
+          <p>Checking your admin session and loading phone metrics.</p>
         </section>
       } @else if (state() === 'error') {
         <section class="notice-card notice-card--danger">
@@ -247,18 +253,35 @@ export class AdminDashboardComponent {
     this.errorMessage.set('Sanctuary could not load admin data.');
 
     try {
-      const [usersResponse, notifications] = await Promise.all([
-        firstValueFrom(this.api.listAdminUsers(100)),
-        firstValueFrom(this.api.listAdminNotifications(10)),
-      ]);
-      this.metrics.set(usersResponse.metrics);
-      this.recentDeviceInstalls.set(usersResponse.recentDeviceInstalls ?? []);
-      this.notifications.set(notifications);
+      await this.loadAdminData();
       this.state.set('ready');
     } catch (error) {
-      this.state.set(this.statusCode(error) === 403 ? 'forbidden' : 'error');
+      if (this.statusCode(error) === 403) {
+        try {
+          await firstValueFrom(this.api.refreshWebSession());
+          await this.loadAdminData();
+          this.state.set('ready');
+          return;
+        } catch (retryError) {
+          this.state.set(this.statusCode(retryError) === 403 ? 'forbidden' : 'error');
+          this.errorMessage.set(this.errorCopy(retryError));
+          return;
+        }
+      }
+
+      this.state.set('error');
       this.errorMessage.set(this.errorCopy(error));
     }
+  }
+
+  private async loadAdminData(): Promise<void> {
+    const [usersResponse, notifications] = await Promise.all([
+      firstValueFrom(this.api.listAdminUsers(100)),
+      firstValueFrom(this.api.listAdminNotifications(10)),
+    ]);
+    this.metrics.set(usersResponse.metrics);
+    this.recentDeviceInstalls.set(usersResponse.recentDeviceInstalls ?? []);
+    this.notifications.set(notifications);
   }
 
   protected async sendNotificationNow(): Promise<void> {
