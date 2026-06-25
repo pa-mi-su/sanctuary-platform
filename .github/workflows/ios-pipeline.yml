@@ -154,13 +154,24 @@ jobs:
             exit 0
           fi
 
-          xcodebuild \
-            -project apps/ios/Sanctuary.xcodeproj \
-            -scheme "${{ steps.resolve.outputs.scheme }}" \
-            -configuration "${{ steps.resolve.outputs.configuration }}" \
-            -destination 'generic/platform=iOS Simulator' \
-            CODE_SIGNING_ALLOWED=NO \
-            build
+          for attempt in 1 2 3; do
+            if xcodebuild \
+              -project apps/ios/Sanctuary.xcodeproj \
+              -scheme "${{ steps.resolve.outputs.scheme }}" \
+              -configuration "${{ steps.resolve.outputs.configuration }}" \
+              -destination 'generic/platform=iOS Simulator' \
+              CODE_SIGNING_ALLOWED=NO \
+              build; then
+              exit 0
+            fi
+
+            if [[ "${attempt}" == "3" ]]; then
+              exit 1
+            fi
+
+            echo "iOS simulator build failed, retrying after package download backoff..."
+            sleep 20
+          done
 
   upload-dev:
     name: Upload Dev TestFlight Build
@@ -381,14 +392,7 @@ jobs:
             -configuration "${IOS_CONFIGURATION}" \
             -archivePath "${ARCHIVE_PATH}" \
             -destination "generic/platform=iOS" \
-            CODE_SIGN_STYLE=Manual \
             DEVELOPMENT_TEAM="${IOS_TEAM_ID}" \
-            CODE_SIGN_IDENTITY="Apple Distribution" \
-            PROVISIONING_PROFILE_SPECIFIER="Sanctuary Dev App Store" \
-            -allowProvisioningUpdates \
-            -authenticationKeyPath "${API_KEY_PATH}" \
-            -authenticationKeyID "${APP_STORE_CONNECT_API_KEY_ID}" \
-            -authenticationKeyIssuerID "${APP_STORE_CONNECT_API_ISSUER_ID}" \
             CURRENT_PROJECT_VERSION="${BUILD_NUMBER}" \
             archive
 
@@ -396,11 +400,7 @@ jobs:
             -exportArchive \
             -archivePath "${ARCHIVE_PATH}" \
             -exportPath "${EXPORT_PATH}" \
-            -exportOptionsPlist "${EXPORT_OPTIONS_PATH}" \
-            -allowProvisioningUpdates \
-            -authenticationKeyPath "${API_KEY_PATH}" \
-            -authenticationKeyID "${APP_STORE_CONNECT_API_KEY_ID}" \
-            -authenticationKeyIssuerID "${APP_STORE_CONNECT_API_ISSUER_ID}"
+            -exportOptionsPlist "${EXPORT_OPTIONS_PATH}"
 
           IPA_PATH="$(find "${EXPORT_PATH}" -maxdepth 1 -name '*.ipa' | head -n 1)"
 
@@ -637,14 +637,7 @@ jobs:
             -configuration "${IOS_CONFIGURATION}" \
             -archivePath "${ARCHIVE_PATH}" \
             -destination "generic/platform=iOS" \
-            CODE_SIGN_STYLE=Manual \
             DEVELOPMENT_TEAM="${IOS_TEAM_ID}" \
-            CODE_SIGN_IDENTITY="Apple Distribution" \
-            PROVISIONING_PROFILE_SPECIFIER="Sanctuary UAT App Store" \
-            -allowProvisioningUpdates \
-            -authenticationKeyPath "${API_KEY_PATH}" \
-            -authenticationKeyID "${APP_STORE_CONNECT_API_KEY_ID}" \
-            -authenticationKeyIssuerID "${APP_STORE_CONNECT_API_ISSUER_ID}" \
             CURRENT_PROJECT_VERSION="${BUILD_NUMBER}" \
             archive
 
@@ -652,11 +645,7 @@ jobs:
             -exportArchive \
             -archivePath "${ARCHIVE_PATH}" \
             -exportPath "${EXPORT_PATH}" \
-            -exportOptionsPlist "${EXPORT_OPTIONS_PATH}" \
-            -allowProvisioningUpdates \
-            -authenticationKeyPath "${API_KEY_PATH}" \
-            -authenticationKeyID "${APP_STORE_CONNECT_API_KEY_ID}" \
-            -authenticationKeyIssuerID "${APP_STORE_CONNECT_API_ISSUER_ID}"
+            -exportOptionsPlist "${EXPORT_OPTIONS_PATH}"
 
           IPA_PATH="$(find "${EXPORT_PATH}" -maxdepth 1 -name '*.ipa' | head -n 1)"
 
@@ -893,14 +882,7 @@ jobs:
             -configuration "${IOS_CONFIGURATION}" \
             -archivePath "${ARCHIVE_PATH}" \
             -destination "generic/platform=iOS" \
-            CODE_SIGN_STYLE=Manual \
             DEVELOPMENT_TEAM="${IOS_TEAM_ID}" \
-            CODE_SIGN_IDENTITY="Apple Distribution" \
-            PROVISIONING_PROFILE_SPECIFIER="Sanctuary Prod App Store" \
-            -allowProvisioningUpdates \
-            -authenticationKeyPath "${API_KEY_PATH}" \
-            -authenticationKeyID "${APP_STORE_CONNECT_API_KEY_ID}" \
-            -authenticationKeyIssuerID "${APP_STORE_CONNECT_API_ISSUER_ID}" \
             CURRENT_PROJECT_VERSION="${BUILD_NUMBER}" \
             archive
 
@@ -908,11 +890,7 @@ jobs:
             -exportArchive \
             -archivePath "${ARCHIVE_PATH}" \
             -exportPath "${EXPORT_PATH}" \
-            -exportOptionsPlist "${EXPORT_OPTIONS_PATH}" \
-            -allowProvisioningUpdates \
-            -authenticationKeyPath "${API_KEY_PATH}" \
-            -authenticationKeyID "${APP_STORE_CONNECT_API_KEY_ID}" \
-            -authenticationKeyIssuerID "${APP_STORE_CONNECT_API_ISSUER_ID}"
+            -exportOptionsPlist "${EXPORT_OPTIONS_PATH}"
 
           IPA_PATH="$(find "${EXPORT_PATH}" -maxdepth 1 -name '*.ipa' | head -n 1)"
 
