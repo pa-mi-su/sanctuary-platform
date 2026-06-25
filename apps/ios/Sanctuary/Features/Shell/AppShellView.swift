@@ -44,7 +44,7 @@ struct AppShellView: View {
             }
                 .tag(AppTab.novenas)
                 .tabItem {
-                    Label(localization.t("tab.novenas"), systemImage: "calendar.badge.clock")
+                    Label(localization.t("tab.novenas"), systemImage: "book.closed.fill")
                 }
 
             LazyTabContent(activeTab: $selectedTab, tab: .liturgical) {
@@ -60,7 +60,7 @@ struct AppShellView: View {
             }
                 .tag(AppTab.saints)
                 .tabItem {
-                    Label(localization.t("tab.saints"), systemImage: "calendar.badge.clock")
+                    Label(localization.t("tab.saints"), systemImage: "person.2.crop.square.stack.fill")
                 }
 
             LazyTabContent(activeTab: $selectedTab, tab: .me) {
