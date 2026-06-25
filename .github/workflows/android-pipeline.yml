@@ -27,9 +27,6 @@ concurrency:
   group: android-pipeline-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  ANDROID_PLAY_PACKAGE_NAME: ${{ vars.ANDROID_PLAY_PACKAGE_NAME || 'com.pamisu.sanctuary' }}
-
 jobs:
   validate:
     name: Validate Android Build
@@ -77,6 +74,8 @@ jobs:
     runs-on: ubuntu-latest
     environment: dev
     env:
+      ANDROID_PLAY_PACKAGE_NAME: com.pamisu.sanctuary.dev
+      ANDROID_PLAY_UPLOAD_ENABLED: true
       ANDROID_UPLOAD_KEYSTORE_BASE64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_BASE64 }}
       ANDROID_UPLOAD_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_PASSWORD }}
       ANDROID_UPLOAD_KEY_ALIAS: ${{ secrets.ANDROID_UPLOAD_KEY_ALIAS }}
@@ -121,7 +120,7 @@ jobs:
 
       - name: Generate Google Play access token
         id: play-token
-        if: env.ANDROID_PLAY_SERVICE_ACCOUNT_JSON != ''
+        if: env.ANDROID_PLAY_UPLOAD_ENABLED == 'true' && env.ANDROID_PLAY_SERVICE_ACCOUNT_JSON != ''
         shell: bash
         run: |
           set -euo pipefail
@@ -177,12 +176,32 @@ jobs:
           if [[ -n "${PLAY_ACCESS_TOKEN:-}" ]]; then
             api_base="https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${ANDROID_PLAY_PACKAGE_NAME}"
 
-            edit_response="$(curl -fsSL \
+            edit_response_file="$(mktemp)"
+            edit_http_code="$(curl -sS \
+              -o "${edit_response_file}" \
+              -w "%{http_code}" \
               -X POST \
               -H "Authorization: Bearer ${PLAY_ACCESS_TOKEN}" \
               -H "Content-Type: application/json" \
               -d '{}' \
               "${api_base}/edits")"
+
+            if [[ "${edit_http_code}" == "404" ]]; then
+              cat "${edit_response_file}" >&2
+              echo "::error::Google Play could not find package '${ANDROID_PLAY_PACKAGE_NAME}'. Create the matching Play Console app first, upload the first bundle if Play requires it, and grant the Android Publisher service account access to that app."
+              exit 1
+            elif [[ "${edit_http_code}" == "401" || "${edit_http_code}" == "403" ]]; then
+              cat "${edit_response_file}" >&2
+              echo "::error::Google Play service account cannot access '${ANDROID_PLAY_PACKAGE_NAME}'. Grant the service account release access to this Play Console app."
+              exit 1
+            elif [[ "${edit_http_code}" != "200" ]]; then
+              cat "${edit_response_file}" >&2
+              echo "::error::Unable to create Google Play edit for ${ANDROID_PLAY_PACKAGE_NAME}; HTTP ${edit_http_code}."
+              exit 1
+            fi
+
+            edit_response="$(cat "${edit_response_file}")"
+            rm -f "${edit_response_file}"
 
             edit_id="$(python3 -c 'import json,sys; print(json.load(sys.stdin).get("id",""))' <<< "${edit_response}")"
 
@@ -260,7 +279,7 @@ jobs:
           if-no-files-found: error
 
       - name: Upload Android dev bundle to Play internal testing
-        if: env.ANDROID_PLAY_SERVICE_ACCOUNT_JSON != '' && env.ANDROID_UPLOAD_KEYSTORE_BASE64 != ''
+        if: env.ANDROID_PLAY_UPLOAD_ENABLED == 'true' && env.ANDROID_PLAY_SERVICE_ACCOUNT_JSON != '' && env.ANDROID_UPLOAD_KEYSTORE_BASE64 != ''
         uses: r0adkll/upload-google-play@v1
         with:
           serviceAccountJsonPlainText: ${{ env.ANDROID_PLAY_SERVICE_ACCOUNT_JSON }}
@@ -276,6 +295,8 @@ jobs:
     runs-on: ubuntu-latest
     environment: uat
     env:
+      ANDROID_PLAY_PACKAGE_NAME: com.pamisu.sanctuary.uat
+      ANDROID_PLAY_UPLOAD_ENABLED: true
       ANDROID_UPLOAD_KEYSTORE_BASE64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_BASE64 }}
       ANDROID_UPLOAD_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_PASSWORD }}
       ANDROID_UPLOAD_KEY_ALIAS: ${{ secrets.ANDROID_UPLOAD_KEY_ALIAS }}
@@ -320,7 +341,7 @@ jobs:
 
       - name: Generate Google Play access token
         id: play-token
-        if: env.ANDROID_PLAY_SERVICE_ACCOUNT_JSON != ''
+        if: env.ANDROID_PLAY_UPLOAD_ENABLED == 'true' && env.ANDROID_PLAY_SERVICE_ACCOUNT_JSON != ''
         shell: bash
         run: |
           set -euo pipefail
@@ -376,12 +397,32 @@ jobs:
           if [[ -n "${PLAY_ACCESS_TOKEN:-}" ]]; then
             api_base="https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${ANDROID_PLAY_PACKAGE_NAME}"
 
-            edit_response="$(curl -fsSL \
+            edit_response_file="$(mktemp)"
+            edit_http_code="$(curl -sS \
+              -o "${edit_response_file}" \
+              -w "%{http_code}" \
               -X POST \
               -H "Authorization: Bearer ${PLAY_ACCESS_TOKEN}" \
               -H "Content-Type: application/json" \
               -d '{}' \
               "${api_base}/edits")"
+
+            if [[ "${edit_http_code}" == "404" ]]; then
+              cat "${edit_response_file}" >&2
+              echo "::error::Google Play could not find package '${ANDROID_PLAY_PACKAGE_NAME}'. Create the matching Play Console app first, upload the first bundle if Play requires it, and grant the Android Publisher service account access to that app."
+              exit 1
+            elif [[ "${edit_http_code}" == "401" || "${edit_http_code}" == "403" ]]; then
+              cat "${edit_response_file}" >&2
+              echo "::error::Google Play service account cannot access '${ANDROID_PLAY_PACKAGE_NAME}'. Grant the service account release access to this Play Console app."
+              exit 1
+            elif [[ "${edit_http_code}" != "200" ]]; then
+              cat "${edit_response_file}" >&2
+              echo "::error::Unable to create Google Play edit for ${ANDROID_PLAY_PACKAGE_NAME}; HTTP ${edit_http_code}."
+              exit 1
+            fi
+
+            edit_response="$(cat "${edit_response_file}")"
+            rm -f "${edit_response_file}"
 
             edit_id="$(python3 -c 'import json,sys; print(json.load(sys.stdin).get("id",""))' <<< "${edit_response}")"
 
@@ -459,7 +500,7 @@ jobs:
           if-no-files-found: error
 
       - name: Upload Android UAT bundle to Play closed testing
-        if: env.ANDROID_PLAY_SERVICE_ACCOUNT_JSON != '' && env.ANDROID_UPLOAD_KEYSTORE_BASE64 != ''
+        if: env.ANDROID_PLAY_UPLOAD_ENABLED == 'true' && env.ANDROID_PLAY_SERVICE_ACCOUNT_JSON != '' && env.ANDROID_UPLOAD_KEYSTORE_BASE64 != ''
         uses: r0adkll/upload-google-play@v1
         with:
           serviceAccountJsonPlainText: ${{ env.ANDROID_PLAY_SERVICE_ACCOUNT_JSON }}
@@ -475,6 +516,8 @@ jobs:
     runs-on: ubuntu-latest
     environment: prod
     env:
+      ANDROID_PLAY_PACKAGE_NAME: com.pamisu.sanctuary
+      ANDROID_PLAY_UPLOAD_ENABLED: true
       ANDROID_UPLOAD_KEYSTORE_BASE64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_BASE64 }}
       ANDROID_UPLOAD_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_PASSWORD }}
       ANDROID_UPLOAD_KEY_ALIAS: ${{ secrets.ANDROID_UPLOAD_KEY_ALIAS }}
@@ -519,7 +562,7 @@ jobs:
 
       - name: Generate Google Play access token
         id: play-token
-        if: env.ANDROID_PLAY_SERVICE_ACCOUNT_JSON != ''
+        if: env.ANDROID_PLAY_UPLOAD_ENABLED == 'true' && env.ANDROID_PLAY_SERVICE_ACCOUNT_JSON != ''
         shell: bash
         run: |
           set -euo pipefail
@@ -575,12 +618,32 @@ jobs:
           if [[ -n "${PLAY_ACCESS_TOKEN:-}" ]]; then
             api_base="https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${ANDROID_PLAY_PACKAGE_NAME}"
 
-            edit_response="$(curl -fsSL \
+            edit_response_file="$(mktemp)"
+            edit_http_code="$(curl -sS \
+              -o "${edit_response_file}" \
+              -w "%{http_code}" \
               -X POST \
               -H "Authorization: Bearer ${PLAY_ACCESS_TOKEN}" \
               -H "Content-Type: application/json" \
               -d '{}' \
               "${api_base}/edits")"
+
+            if [[ "${edit_http_code}" == "404" ]]; then
+              cat "${edit_response_file}" >&2
+              echo "::error::Google Play could not find package '${ANDROID_PLAY_PACKAGE_NAME}'. Create the matching Play Console app first, upload the first bundle if Play requires it, and grant the Android Publisher service account access to that app."
+              exit 1
+            elif [[ "${edit_http_code}" == "401" || "${edit_http_code}" == "403" ]]; then
+              cat "${edit_response_file}" >&2
+              echo "::error::Google Play service account cannot access '${ANDROID_PLAY_PACKAGE_NAME}'. Grant the service account release access to this Play Console app."
+              exit 1
+            elif [[ "${edit_http_code}" != "200" ]]; then
+              cat "${edit_response_file}" >&2
+              echo "::error::Unable to create Google Play edit for ${ANDROID_PLAY_PACKAGE_NAME}; HTTP ${edit_http_code}."
+              exit 1
+            fi
+
+            edit_response="$(cat "${edit_response_file}")"
+            rm -f "${edit_response_file}"
 
             edit_id="$(python3 -c 'import json,sys; print(json.load(sys.stdin).get("id",""))' <<< "${edit_response}")"
 
@@ -658,7 +721,7 @@ jobs:
           if-no-files-found: error
 
       - name: Upload Android production bundle to Play production draft
-        if: env.ANDROID_PLAY_SERVICE_ACCOUNT_JSON != '' && env.ANDROID_UPLOAD_KEYSTORE_BASE64 != ''
+        if: env.ANDROID_PLAY_UPLOAD_ENABLED == 'true' && env.ANDROID_PLAY_SERVICE_ACCOUNT_JSON != '' && env.ANDROID_UPLOAD_KEYSTORE_BASE64 != ''
         uses: r0adkll/upload-google-play@v1
         with:
           serviceAccountJsonPlainText: ${{ env.ANDROID_PLAY_SERVICE_ACCOUNT_JSON }}
