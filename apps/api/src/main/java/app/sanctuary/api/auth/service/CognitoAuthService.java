@@ -19,6 +19,7 @@ import app.sanctuary.api.auth.dto.AuthStatusResponse;
 import app.sanctuary.api.config.AuthAbuseProtectionProperties;
 import app.sanctuary.api.config.AuthProperties;
 import software.amazon.awssdk.services.cognitoidentityprovider.CognitoIdentityProviderClient;
+import software.amazon.awssdk.services.cognitoidentityprovider.model.AdminListGroupsForUserRequest;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.AdminUserGlobalSignOutRequest;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.AttributeType;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.AuthFlowType;
@@ -300,6 +301,43 @@ public class CognitoAuthService {
         );
     }
 
+    public boolean isUserInGroup(String cognitoSub, String email, String groupName) {
+        validateConfigured();
+
+        if (groupName == null || groupName.isBlank()) {
+            return false;
+        }
+
+        if (authProperties.userPoolId() == null || authProperties.userPoolId().isBlank()) {
+            throw new AuthFlowException(HttpStatus.SERVICE_UNAVAILABLE, "Authentication is not configured for this environment yet.");
+        }
+
+        for (String candidate : deleteUserCandidates(cognitoSub, email)) {
+            try {
+                boolean inGroup = cognitoClient.adminListGroupsForUser(AdminListGroupsForUserRequest.builder()
+                    .userPoolId(authProperties.userPoolId())
+                    .username(candidate)
+                    .build())
+                    .groups()
+                    .stream()
+                    .anyMatch(group -> groupName.trim().equals(group.groupName()));
+                if (inGroup) {
+                    return true;
+                }
+            } catch (UserNotFoundException exception) {
+                // Try the next stable identifier for this Cognito account.
+            } catch (TooManyRequestsException exception) {
+                throw new AuthFlowException(HttpStatus.TOO_MANY_REQUESTS, "Too many attempts. Please wait a moment and try again.");
+            } catch (InvalidParameterException exception) {
+                throw new AuthFlowException(HttpStatus.BAD_REQUEST, friendlyMessage(exception.getMessage(), "Sanctuary could not verify admin access."));
+            } catch (CognitoIdentityProviderException exception) {
+                throw new AuthFlowException(HttpStatus.BAD_GATEWAY, "Sanctuary could not verify admin access right now.");
+            }
+        }
+
+        return false;
+    }
+
     private List<String> deleteUserCandidates(String cognitoSub, String email) {
         var candidates = new LinkedHashSet<String>();
         String sub = cleaned(cognitoSub);
@@ -351,7 +389,7 @@ public class CognitoAuthService {
         } catch (InvalidParameterException exception) {
             throw new AuthFlowException(HttpStatus.BAD_REQUEST, friendlyMessage(exception.getMessage(), "Sanctuary could not find this account."));
         } catch (CognitoIdentityProviderException exception) {
-            throw new AuthFlowException(HttpStatus.BAD_GATEWAY, "Sanctuary could not delete this account right now.");
+            throw new AuthFlowException(HttpStatus.BAD_GATEWAY, "Sanctuary could not identify this account in Cognito.");
         }
     }
 

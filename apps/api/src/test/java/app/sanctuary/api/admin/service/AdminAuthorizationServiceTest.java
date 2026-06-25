@@ -2,6 +2,8 @@ package app.sanctuary.api.admin.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.time.OffsetDateTime;
@@ -16,6 +18,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
+import app.sanctuary.api.auth.service.CognitoAuthService;
 import app.sanctuary.api.config.AuthProperties;
 import app.sanctuary.api.user.dto.UserAccountDto;
 import app.sanctuary.api.user.service.UserAccountService;
@@ -30,6 +33,9 @@ class AdminAuthorizationServiceTest {
     @Mock
     private AuthProperties authProperties;
 
+    @Mock
+    private CognitoAuthService cognitoAuthService;
+
     @InjectMocks
     private AdminAuthorizationService service;
 
@@ -43,6 +49,20 @@ class AdminAuthorizationServiceTest {
         UserAccountDto result = service.requireAdmin(currentUser);
 
         assertEquals(account, result);
+        verify(cognitoAuthService, never()).isUserInGroup(currentUser.cognitoSub(), currentUser.email(), "SanctuaryAdmins");
+    }
+
+    @Test
+    void requireAdminReturnsAccountWhenCognitoConfirmsAdminGroup() {
+        CurrentUser currentUser = currentUser(List.of());
+        UserAccountDto account = account();
+        when(userAccountService.ensureAccount(currentUser)).thenReturn(account);
+        when(authProperties.adminGroup()).thenReturn("SanctuaryAdmins");
+        when(cognitoAuthService.isUserInGroup(currentUser.cognitoSub(), currentUser.email(), "SanctuaryAdmins")).thenReturn(true);
+
+        UserAccountDto result = service.requireAdmin(currentUser);
+
+        assertEquals(account, result);
     }
 
     @Test
@@ -51,6 +71,7 @@ class AdminAuthorizationServiceTest {
         UserAccountDto account = account();
         when(userAccountService.ensureAccount(currentUser)).thenReturn(account);
         when(authProperties.adminGroup()).thenReturn("SanctuaryAdmins");
+        when(cognitoAuthService.isUserInGroup(currentUser.cognitoSub(), currentUser.email(), "SanctuaryAdmins")).thenReturn(false);
 
         ResponseStatusException exception = assertThrows(
             ResponseStatusException.class,
