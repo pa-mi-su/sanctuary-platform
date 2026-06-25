@@ -57,6 +57,7 @@ android {
     productFlavors {
         create("dev") {
             dimension = "environment"
+            applicationIdSuffix = ".dev"
             versionNameSuffix = "-dev"
             resValue("string", "app_name", "Sanctuary Dev")
             buildConfigField("String", "ENVIRONMENT", "\"dev\"")
@@ -66,6 +67,7 @@ android {
 
         create("uat") {
             dimension = "environment"
+            applicationIdSuffix = ".uat"
             versionNameSuffix = "-uat"
             resValue("string", "app_name", "Sanctuary UAT")
             buildConfigField("String", "ENVIRONMENT", "\"uat\"")
