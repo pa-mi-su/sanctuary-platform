@@ -39,7 +39,7 @@ public class AdminNotificationRepository {
                 ORDER BY notification.createdAt DESC
                 """,
             AdminNotificationEntity.class
-        ).setMaxResults(limit).getResultStream()
+        ).setMaxResults(limit).getResultList().stream()
             .map(AdminNotificationEntity::toDto)
             .toList();
     }
