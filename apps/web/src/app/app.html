@@ -43,6 +43,7 @@
       [isEnglish]="facade.isEnglish()"
       [currentLanguage]="facade.language()"
       [isAuthenticated]="facade.isAuthenticated()"
+      [isAuthLoading]="facade.isAuthLoading()"
       (navigate)="facade.handlePrimaryNavigate($event)"
       (selectLanguage)="facade.setLanguage($event)"
       (logout)="facade.logout()"

@@ -29,11 +29,14 @@ type AppLanguage = 'en' | 'es' | 'pl';
         <button
           class="tab"
           [class.active]="isAuthenticated() ? currentTab() === 'me' : currentTab() === 'auth'"
+          [disabled]="isAuthLoading()"
           type="button"
           (click)="navigate.emit(isAuthenticated() ? 'me' : 'auth')"
         >
-          <span class="tab-icon">{{ isAuthenticated() ? '●' : '◉' }}</span>
-          @if (isAuthenticated()) {
+          <span class="tab-icon">{{ isAuthenticated() ? '●' : isAuthLoading() ? '○' : '◉' }}</span>
+          @if (isAuthLoading()) {
+            <span class="tab-label">{{ t('Checking', 'Verificando', 'Sprawdzanie') }}</span>
+          } @else if (isAuthenticated()) {
             <span class="tab-label">{{ t('Me', 'Yo', 'Ja') }}</span>
           } @else {
             <span class="tab-label tab-label--desktop">
@@ -87,6 +90,7 @@ export class AppHeaderComponent {
   readonly isEnglish = input<boolean>(true);
   readonly currentLanguage = input<AppLanguage>('en');
   readonly isAuthenticated = input<boolean>(false);
+  readonly isAuthLoading = input<boolean>(false);
 
   readonly navigate = output<AppTab>();
   readonly selectLanguage = output<AppLanguage>();
