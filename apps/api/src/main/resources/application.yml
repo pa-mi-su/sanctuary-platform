@@ -24,6 +24,7 @@ sanctuary:
   auth:
     enabled: false
     audience: ""
+    admin-group: ${SANCTUARY_ADMIN_GROUP:SanctuaryAdmins}
     cookie:
       secure: true
       same-site: None

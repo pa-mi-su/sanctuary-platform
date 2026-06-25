@@ -5,6 +5,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
@@ -13,7 +14,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import app.sanctuary.api.admin.repository.AdminAuthorizationRepository;
+import app.sanctuary.api.config.AuthProperties;
 import app.sanctuary.api.user.dto.UserAccountDto;
 import app.sanctuary.api.user.dto.UserPreferenceDto;
 import app.sanctuary.api.user.dto.UserPreferencesUpdateRequest;
@@ -35,14 +36,14 @@ class UserProfileServiceTest {
     private UserProgressRepository userProgressRepository;
 
     @Mock
-    private AdminAuthorizationRepository adminAuthorizationRepository;
+    private AuthProperties authProperties;
 
     @InjectMocks
     private UserProfileService service;
 
     @Test
     void getProfileBuildsAggregateView() {
-        CurrentUser currentUser = new CurrentUser("sub-1", "saint@example.com", "Saint", "User", "Saint User", "https://example.com/avatar.png");
+        CurrentUser currentUser = new CurrentUser("sub-1", "saint@example.com", "Saint", "User", "Saint User", "https://example.com/avatar.png", List.of("SanctuaryAdmins"));
         UUID userId = UUID.randomUUID();
         UserAccountDto account = new UserAccountDto(userId, "sub-1", "saint@example.com", "Saint", "User", "Saint User", "en", null, OffsetDateTime.now(), OffsetDateTime.now());
         UserPreferenceDto preferences = new UserPreferenceDto(userId, "America/New_York", true, false, true, true, OffsetDateTime.now(), OffsetDateTime.now());
@@ -51,7 +52,7 @@ class UserProfileServiceTest {
         when(userAccountService.ensureAccount(currentUser)).thenReturn(account);
         when(userPreferencesRepository.ensureForUser(userId)).thenReturn(preferences);
         when(userProgressRepository.profileCounts(userId)).thenReturn(counts);
-        when(adminAuthorizationRepository.isAdmin(userId)).thenReturn(true);
+        when(authProperties.adminGroup()).thenReturn("SanctuaryAdmins");
 
         var result = service.getProfile(currentUser);
 
@@ -64,7 +65,7 @@ class UserProfileServiceTest {
 
     @Test
     void updatePreferencesReturnsRefreshedProfile() {
-        CurrentUser currentUser = new CurrentUser("sub-1", "saint@example.com", "Saint", "User", "Saint User", "https://example.com/avatar.png");
+        CurrentUser currentUser = new CurrentUser("sub-1", "saint@example.com", "Saint", "User", "Saint User", "https://example.com/avatar.png", List.of());
         UUID userId = UUID.randomUUID();
         UserAccountDto account = new UserAccountDto(userId, "sub-1", "saint@example.com", "Saint", "User", "Saint User", "en", null, OffsetDateTime.now(), OffsetDateTime.now());
         UserPreferencesUpdateRequest request = new UserPreferencesUpdateRequest("pl", "Europe/Warsaw", true, true, false, true);
@@ -76,7 +77,7 @@ class UserProfileServiceTest {
         when(userAccountService.updatePreferredLanguage(userId, "pl")).thenReturn(updatedAccount);
         when(userPreferencesRepository.update(userId, request)).thenReturn(preferences);
         when(userProgressRepository.profileCounts(userId)).thenReturn(counts);
-        when(adminAuthorizationRepository.isAdmin(userId)).thenReturn(false);
+        when(authProperties.adminGroup()).thenReturn("SanctuaryAdmins");
 
         var result = service.updatePreferences(currentUser, request);
 

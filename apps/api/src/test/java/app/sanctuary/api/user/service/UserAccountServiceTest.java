@@ -36,7 +36,7 @@ class UserAccountServiceTest {
 
     @Test
     void ensureAccountUpsertsCurrentUser() {
-        CurrentUser currentUser = new CurrentUser("cognito-sub-123", "saint@example.com", "Saint", "User", "Saint User", "https://example.com/avatar.png");
+        CurrentUser currentUser = new CurrentUser("cognito-sub-123", "saint@example.com", "Saint", "User", "Saint User", "https://example.com/avatar.png", java.util.List.of());
         UserAccountDto account = new UserAccountDto(
             UUID.randomUUID(),
             currentUser.cognitoSub(),
@@ -77,14 +77,14 @@ class UserAccountServiceTest {
 
     @Test
     void ensureAccountRejectsMissingCognitoSubject() {
-        CurrentUser currentUser = new CurrentUser(" ", "saint@example.com", "Saint", "User", "Saint User", null);
+        CurrentUser currentUser = new CurrentUser(" ", "saint@example.com", "Saint", "User", "Saint User", null, java.util.List.of());
 
         assertThrows(IllegalArgumentException.class, () -> service.ensureAccount(currentUser));
     }
 
     @Test
     void ensureAccountRejectsDeletedIdentity() {
-        CurrentUser currentUser = new CurrentUser("cognito-sub-123", "saint@example.com", "Saint", "User", "Saint User", null);
+        CurrentUser currentUser = new CurrentUser("cognito-sub-123", "saint@example.com", "Saint", "User", "Saint User", null, java.util.List.of());
         when(repository.isDeletedIdentity(eq(currentUser.cognitoSub()), isNull()))
             .thenReturn(true);
 
@@ -93,7 +93,7 @@ class UserAccountServiceTest {
 
     @Test
     void deleteAccountDeletesCognitoUserThenLocalAccount() {
-        CurrentUser currentUser = new CurrentUser("cognito-sub-123", "saint@example.com", "Saint", "User", "Saint User", null);
+        CurrentUser currentUser = new CurrentUser("cognito-sub-123", "saint@example.com", "Saint", "User", "Saint User", null, java.util.List.of());
         UserAccountDto account = new UserAccountDto(
             UUID.randomUUID(),
             currentUser.cognitoSub(),

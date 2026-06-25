@@ -4,7 +4,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
-import app.sanctuary.api.admin.repository.AdminAuthorizationRepository;
+import app.sanctuary.api.config.AuthProperties;
 import app.sanctuary.api.user.dto.UserAccountDto;
 import app.sanctuary.api.user.service.UserAccountService;
 import app.sanctuary.api.user.web.CurrentUser;
@@ -13,19 +13,19 @@ import app.sanctuary.api.user.web.CurrentUser;
 public class AdminAuthorizationService {
 
     private final UserAccountService userAccountService;
-    private final AdminAuthorizationRepository adminAuthorizationRepository;
+    private final AuthProperties authProperties;
 
     public AdminAuthorizationService(
         UserAccountService userAccountService,
-        AdminAuthorizationRepository adminAuthorizationRepository
+        AuthProperties authProperties
     ) {
         this.userAccountService = userAccountService;
-        this.adminAuthorizationRepository = adminAuthorizationRepository;
+        this.authProperties = authProperties;
     }
 
     public UserAccountDto requireAdmin(CurrentUser currentUser) {
         UserAccountDto account = userAccountService.ensureAccount(currentUser);
-        if (!adminAuthorizationRepository.isAdmin(account.id())) {
+        if (!currentUser.belongsToGroup(authProperties.adminGroup())) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Admin access is required.");
         }
         return account;

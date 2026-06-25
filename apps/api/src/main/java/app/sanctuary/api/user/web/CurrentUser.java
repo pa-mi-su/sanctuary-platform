@@ -1,5 +1,7 @@
 package app.sanctuary.api.user.web;
 
+import java.util.List;
+
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.jwt.Jwt;
 
@@ -9,7 +11,8 @@ public record CurrentUser(
     String firstName,
     String lastName,
     String displayName,
-    String avatarUrl
+    String avatarUrl,
+    List<String> groups
 ) {
     public static CurrentUser from(Authentication authentication) {
         if (authentication == null || !(authentication.getPrincipal() instanceof Jwt jwt)) {
@@ -33,8 +36,21 @@ public record CurrentUser(
             firstPresent(
                 jwt.getClaimAsString("picture"),
                 jwt.getClaimAsString("custom:avatar_url")
-            )
+            ),
+            groups(jwt)
         );
+    }
+
+    public boolean belongsToGroup(String groupName) {
+        if (groupName == null || groupName.isBlank() || groups == null || groups.isEmpty()) {
+            return false;
+        }
+        return groups.stream().anyMatch(groupName.trim()::equals);
+    }
+
+    private static List<String> groups(Jwt jwt) {
+        List<String> groups = jwt.getClaimAsStringList("cognito:groups");
+        return groups == null ? List.of() : List.copyOf(groups);
     }
 
     private static String firstPresent(String... values) {
