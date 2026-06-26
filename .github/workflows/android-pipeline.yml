@@ -719,14 +719,14 @@ jobs:
           path: apps/android/app/build/outputs/bundle/prodRelease/app-prod-release.aab
           if-no-files-found: error
 
-      - name: Upload Android production bundle to Play production draft
+      - name: Upload Android production bundle to Play closed testing
         if: env.ANDROID_PLAY_UPLOAD_ENABLED == 'true' && env.ANDROID_PLAY_SERVICE_ACCOUNT_JSON != '' && env.ANDROID_UPLOAD_KEYSTORE_BASE64 != ''
         uses: r0adkll/upload-google-play@v1
         with:
           serviceAccountJsonPlainText: ${{ env.ANDROID_PLAY_SERVICE_ACCOUNT_JSON }}
           packageName: ${{ env.ANDROID_PLAY_PACKAGE_NAME }}
           releaseFiles: apps/android/app/build/outputs/bundle/prodRelease/app-prod-release.aab
-          track: production
+          track: alpha
           status: draft
           releaseName: ${{ env.ANDROID_RELEASE_NAME }}
           changesNotSentForReview: true
