@@ -63,7 +63,9 @@ jobs:
         run: npm run build --workspace web
 
   deploy:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
+    if: >
+      (github.event_name == 'push' && github.ref == 'refs/heads/dev') ||
+      github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     environment: dev
     env:

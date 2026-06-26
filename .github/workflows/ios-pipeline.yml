@@ -154,13 +154,24 @@ jobs:
             exit 0
           fi
 
-          xcodebuild \
-            -project apps/ios/Sanctuary.xcodeproj \
-            -scheme "${{ steps.resolve.outputs.scheme }}" \
-            -configuration "${{ steps.resolve.outputs.configuration }}" \
-            -destination 'generic/platform=iOS Simulator' \
-            CODE_SIGNING_ALLOWED=NO \
-            build
+          for attempt in 1 2 3; do
+            if xcodebuild \
+              -project apps/ios/Sanctuary.xcodeproj \
+              -scheme "${{ steps.resolve.outputs.scheme }}" \
+              -configuration "${{ steps.resolve.outputs.configuration }}" \
+              -destination 'generic/platform=iOS Simulator' \
+              CODE_SIGNING_ALLOWED=NO \
+              build; then
+              exit 0
+            fi
+
+            if [[ "${attempt}" == "3" ]]; then
+              exit 1
+            fi
+
+            echo "iOS simulator build failed, retrying after package download backoff..."
+            sleep 20
+          done
 
   upload-dev:
     name: Upload Dev TestFlight Build
