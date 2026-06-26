@@ -15,7 +15,6 @@ on:
       - main
     paths:
       - "apps/api/**"
-      - ".github/workflows/api-prod-deploy.yml"
   workflow_dispatch:
 
 permissions:
