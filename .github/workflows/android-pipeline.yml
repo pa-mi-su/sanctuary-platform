@@ -17,7 +17,6 @@ on:
       - main
     paths:
       - "apps/android/**"
-      - ".github/workflows/android-pipeline.yml"
   workflow_dispatch:
 
 permissions:
@@ -730,3 +729,4 @@ jobs:
           track: production
           status: draft
           releaseName: ${{ env.ANDROID_RELEASE_NAME }}
+          changesNotSentForReview: true
