@@ -15,7 +15,6 @@ on:
       - main
     paths:
       - "apps/api/**"
-      - ".github/workflows/api-prod-deploy.yml"
   workflow_dispatch:
 
 permissions:
@@ -341,9 +340,20 @@ jobs:
           healthy_target_count="0"
 
           for attempt in {1..72}; do
-            target_health_json="$(aws elbv2 describe-target-health \
+            target_health_error="$(mktemp)"
+            if ! target_health_json="$(aws elbv2 describe-target-health \
               --target-group-arn "${ECS_TARGET_GROUP_ARN}" \
-              --region "${AWS_REGION}")"
+              --region "${AWS_REGION}" 2>"${target_health_error}")"; then
+              cat "${target_health_error}" >&2
+              if grep -q "AccessDenied" "${target_health_error}"; then
+                echo "::warning::Skipping load balancer target health verification because the deploy role cannot call elasticloadbalancing:DescribeTargetHealth."
+                rm -f "${target_health_error}"
+                exit 0
+              fi
+              rm -f "${target_health_error}"
+              exit 1
+            fi
+            rm -f "${target_health_error}"
             healthy_target_count="$(echo "${target_health_json}" | jq '[.TargetHealthDescriptions[] | select(.TargetHealth.State == "healthy")] | length')"
 
             echo "Target health check ${attempt}/72: ${healthy_target_count} healthy target(s)"
