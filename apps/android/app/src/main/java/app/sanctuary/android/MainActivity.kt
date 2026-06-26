@@ -3752,9 +3752,9 @@ private fun DetailSectionLabel(text: String) {
 
 private fun AppTab.icon(): ImageVector = when (this) {
     AppTab.Home -> Icons.Filled.Today
-    AppTab.Novenas -> Icons.Filled.MenuBook
+    AppTab.Novenas -> Icons.Filled.CalendarMonth
     AppTab.Liturgical -> Icons.Filled.CalendarMonth
-    AppTab.Saints -> Icons.Filled.People
+    AppTab.Saints -> Icons.Filled.CalendarMonth
     AppTab.Me -> Icons.Filled.Person
 }
 
