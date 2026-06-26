@@ -3752,9 +3752,9 @@ private fun DetailSectionLabel(text: String) {
 
 private fun AppTab.icon(): ImageVector = when (this) {
     AppTab.Home -> Icons.Filled.Today
-    AppTab.Novenas -> Icons.Filled.MenuBook
+    AppTab.Novenas -> Icons.Filled.CalendarMonth
     AppTab.Liturgical -> Icons.Filled.CalendarMonth
-    AppTab.Saints -> Icons.Filled.People
+    AppTab.Saints -> Icons.Filled.CalendarMonth
     AppTab.Me -> Icons.Filled.Person
 }
 
@@ -3936,6 +3936,7 @@ private fun <T> SearchListSheet(
     items: List<T>,
     itemContent: @Composable (T) -> Unit
 ) {
+    val l10n = sanctuaryStrings()
     LaunchedEffect(query) {
         delay(250)
         onSubmit()
@@ -3948,8 +3949,14 @@ private fun <T> SearchListSheet(
             onQueryChanged = onQueryChanged,
             onSubmit = onSubmit
         )
+        Text(
+            text = "${items.size} ${l10n.t("search.results")}",
+            color = Color.White.copy(alpha = 0.92f),
+            fontWeight = FontWeight.Medium,
+            fontSize = 17.sp
+        )
         when {
-            isLoading -> InlineLoading(sanctuaryStrings().t("inline.loading"))
+            isLoading -> InlineLoading(l10n.t("inline.loading"))
             error != null -> Banner(error, isError = true)
             items.isEmpty() -> Text(emptyLabel, color = Color(0xFFD0DFEA))
             else -> LazyColumn(

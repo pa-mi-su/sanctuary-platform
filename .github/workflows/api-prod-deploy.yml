@@ -114,15 +114,66 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build and push API image
+      - name: Build API image
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
           echo "EXPECTED_API_IMAGE=${ECR_REGISTRY}/${API_ECR_REPOSITORY}:${IMAGE_TAG}" >> "$GITHUB_ENV"
+          echo "API_LATEST_IMAGE=${ECR_REGISTRY}/${API_ECR_REPOSITORY}:latest" >> "$GITHUB_ENV"
           docker build -t "${ECR_REGISTRY}/${API_ECR_REPOSITORY}:${IMAGE_TAG}" -f apps/api/Dockerfile apps/api
           docker tag "${ECR_REGISTRY}/${API_ECR_REPOSITORY}:${IMAGE_TAG}" "${ECR_REGISTRY}/${API_ECR_REPOSITORY}:latest"
-          docker push "${ECR_REGISTRY}/${API_ECR_REPOSITORY}:${IMAGE_TAG}"
-          docker push "${ECR_REGISTRY}/${API_ECR_REPOSITORY}:latest"
+
+      - name: Smoke test API image startup
+        run: |
+          container_id=""
+
+          cleanup() {
+            if [[ -n "${container_id}" ]]; then
+              docker logs "${container_id}" || true
+              docker stop "${container_id}" >/dev/null 2>&1 || true
+            fi
+          }
+
+          trap cleanup EXIT
+
+          container_id="$(docker run -d \
+            -p 18080:8080 \
+            -e SPRING_PROFILES_ACTIVE=prod \
+            -e SPRING_FLYWAY_ENABLED=false \
+            -e MANAGEMENT_HEALTH_DB_ENABLED=false \
+            -e SANCTUARY_API_PORT=8080 \
+            -e SANCTUARY_DB_URL="${SANCTUARY_DB_URL}" \
+            -e SANCTUARY_DB_USERNAME="${SANCTUARY_DB_USERNAME}" \
+            -e SANCTUARY_DB_PASSWORD=smoke-test \
+            -e SANCTUARY_AUTH_ENABLED="${SANCTUARY_AUTH_ENABLED}" \
+            -e SANCTUARY_COGNITO_ISSUER_URI="${SANCTUARY_COGNITO_ISSUER_URI}" \
+            -e SANCTUARY_COGNITO_CLIENT_ID="${SANCTUARY_COGNITO_CLIENT_ID}" \
+            -e SANCTUARY_AUTH_COOKIE_DOMAIN="${SANCTUARY_AUTH_COOKIE_DOMAIN}" \
+            -e SANCTUARY_AUTH_COOKIE_SAME_SITE="${SANCTUARY_AUTH_COOKIE_SAME_SITE}" \
+            "${EXPECTED_API_IMAGE}")"
+
+          for attempt in {1..30}; do
+            if curl --fail --silent --show-error http://127.0.0.1:18080/health >/dev/null; then
+              echo "API image startup smoke test passed."
+              exit 0
+            fi
+
+            if ! docker ps --quiet --filter "id=${container_id}" | grep -q .; then
+              echo "API image exited before becoming healthy."
+              exit 1
+            fi
+
+            echo "Waiting for API image health ${attempt}/30..."
+            sleep 2
+          done
+
+          echo "API image did not become healthy during smoke test."
+          exit 1
+
+      - name: Push API image
+        run: |
+          docker push "${EXPECTED_API_IMAGE}"
+          docker push "${API_LATEST_IMAGE}"
 
       - name: Check for existing ECS production service
         run: |
