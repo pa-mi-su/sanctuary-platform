@@ -216,6 +216,7 @@ struct APIContentSearchTermResponse: Decodable, Sendable {
     let key: String
     let label: String
     let resultCount: Int
+    let resultLabels: [String]?
     let imageUrls: [String]?
 }
 

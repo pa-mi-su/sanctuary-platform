@@ -4062,7 +4062,7 @@ private fun TermSearchSheet(
                 items(state.terms) { term ->
                     ContentCard(
                         title = term.label,
-                        subtitle = "${term.resultCount} ${l10n.t("search.results")}",
+                        subtitle = termResultLabel(term, l10n),
                         detail = null,
                         imageUrls = term.imageUrls,
                         onClick = { onSelectTerm(term) }
@@ -4107,6 +4107,16 @@ private fun TermSearchSheet(
             }
         }
     }
+}
+
+private fun termResultLabel(term: SearchTerm, l10n: SanctuaryStrings): String {
+    val labels = term.resultLabels.filter { it.isNotBlank() }
+    if (labels.isEmpty()) {
+        return "${term.resultCount} ${l10n.t("search.results")}"
+    }
+
+    val suffix = if (term.resultCount > labels.size) " +${term.resultCount - labels.size}" else ""
+    return labels.joinToString(" • ") + suffix
 }
 
 @Composable

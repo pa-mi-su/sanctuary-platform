@@ -191,7 +191,7 @@ struct PreviewContentRepository: ContentRepository, SaintRangeRepository {
             }
             .sorted { (labels[$0] ?? $0).localizedCaseInsensitiveCompare(labels[$1] ?? $1) == .orderedAscending }
             .map { key in
-                SearchTerm(key: key, label: labels[key] ?? key, resultCount: itemIDs[key]?.count ?? 0, imageURLs: [])
+                SearchTerm(key: key, label: labels[key] ?? key, resultCount: itemIDs[key]?.count ?? 0, resultLabels: nil, imageURLs: [])
             }
     }
 

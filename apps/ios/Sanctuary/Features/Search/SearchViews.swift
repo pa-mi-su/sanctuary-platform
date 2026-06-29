@@ -238,7 +238,7 @@ struct TermSearchView: View {
                                         } label: {
                                             SearchResultCard(
                                                 title: term.label,
-                                                subtitle: resultLabel(for: term.resultCount),
+                                                subtitle: resultLabel(for: term),
                                                 meta: nil,
                                                 accent: accent,
                                                 icon: mode == .intentions ? "heart.text.square.fill" : "person.crop.circle.badge.checkmark",
@@ -419,7 +419,7 @@ struct TermSearchView: View {
                 Text(term.label)
                     .font(AppTheme.rounded(17, weight: .bold))
                     .foregroundStyle(.white)
-                Text(resultLabel(for: term.resultCount))
+                Text(resultLabel(for: term))
                     .font(AppTheme.rounded(13, weight: .semibold))
                     .foregroundStyle(AppTheme.cardText.opacity(0.72))
             }
@@ -428,6 +428,14 @@ struct TermSearchView: View {
         }
         .padding(14)
         .appGlassCard(cornerRadius: 22)
+    }
+
+    private func resultLabel(for term: SearchTerm) -> String {
+        let labels = (term.resultLabels ?? []).filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        guard !labels.isEmpty else { return resultLabel(for: term.resultCount) }
+
+        let suffix = term.resultCount > labels.count ? " +\(term.resultCount - labels.count)" : ""
+        return labels.joined(separator: " • ") + suffix
     }
 
     private func resultLabel(for count: Int) -> String {
