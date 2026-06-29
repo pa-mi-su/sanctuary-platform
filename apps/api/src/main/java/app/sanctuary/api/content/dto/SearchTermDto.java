@@ -6,6 +6,7 @@ public record SearchTermDto(
     String key,
     String label,
     int resultCount,
-    List<String> imageUrls
+    List<String> imageUrls,
+    List<String> resultLabels
 ) {
 }

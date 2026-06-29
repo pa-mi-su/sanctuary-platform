@@ -23,6 +23,7 @@ export interface SearchTerm {
   label: string;
   resultCount: number;
   imageUrls?: string[];
+  resultLabels?: string[];
 }
 
 export interface SaintSummary {

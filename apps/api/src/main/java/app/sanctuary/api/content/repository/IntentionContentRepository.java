@@ -44,7 +44,8 @@ public class IntentionContentRepository {
                 COUNT(DISTINCT nil.novena_id) AS result_count,
                 (ARRAY_AGG(DISTINCT n.image_url ORDER BY n.image_url) FILTER (
                     WHERE n.image_url IS NOT NULL AND trim(n.image_url) <> ''
-                ))[1:3] AS image_urls
+                ))[1:3] AS image_urls,
+                (ARRAY_AGG(DISTINCT n.title_%s ORDER BY n.title_%s))[1:3] AS result_labels
             FROM content_intentions ci
             JOIN novena_intention_links nil ON nil.intention_id = ci.id
             JOIN novenas n ON n.id = nil.novena_id
@@ -59,7 +60,7 @@ public class IntentionContentRepository {
                 ))
             GROUP BY ci.slug, ci.label_%s
             ORDER BY ci.label_%s
-            """.formatted(locale, locale, locale, locale);
+            """.formatted(locale, locale, locale, locale, locale, locale);
 
         return jdbcTemplate.query(
             sql,
@@ -67,7 +68,8 @@ public class IntentionContentRepository {
                 rs.getString("key"),
                 rs.getString("label"),
                 rs.getInt("result_count"),
-                stringArray(rs.getArray("image_urls"))
+                stringArray(rs.getArray("image_urls")),
+                stringArray(rs.getArray("result_labels"))
             ),
             filter,
             likeQuery,
