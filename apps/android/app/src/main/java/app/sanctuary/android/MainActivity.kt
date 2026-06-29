@@ -1039,38 +1039,44 @@ private fun AuthenticatedShell(
 
                 AppTab.Novenas -> {
                     item {
-                        NovenasCalendarScreen(
-                            mode = novenasCalendarMode,
-                            onModeChange = { novenasCalendarMode = it },
-                            onSearch = { showNovenaSearch = true },
-                            onOpenNovena = onOpenNovena,
-                            fetchNovenasInRange = fetchNovenasInRange,
-                            fetchLiturgicalRange = fetchLiturgicalRange
-                        )
+                        Box(modifier = Modifier.fillParentMaxHeight()) {
+                            NovenasCalendarScreen(
+                                mode = novenasCalendarMode,
+                                onModeChange = { novenasCalendarMode = it },
+                                onSearch = { showNovenaSearch = true },
+                                onOpenNovena = onOpenNovena,
+                                fetchNovenasInRange = fetchNovenasInRange,
+                                fetchLiturgicalRange = fetchLiturgicalRange
+                            )
+                        }
                     }
                 }
 
                 AppTab.Liturgical -> {
                     item {
-                        LiturgicalCalendarScreen(
-                            mode = liturgicalCalendarMode,
-                            onModeChange = { liturgicalCalendarMode = it },
-                            fetchLiturgicalRange = fetchLiturgicalRange,
-                            onOpenReadings = { dailyReadingsUrl = it }
-                        )
+                        Box(modifier = Modifier.fillParentMaxHeight()) {
+                            LiturgicalCalendarScreen(
+                                mode = liturgicalCalendarMode,
+                                onModeChange = { liturgicalCalendarMode = it },
+                                fetchLiturgicalRange = fetchLiturgicalRange,
+                                onOpenReadings = { dailyReadingsUrl = it }
+                            )
+                        }
                     }
                 }
 
                 AppTab.Saints -> {
                     item {
-                        SaintsCalendarScreen(
-                            mode = saintsCalendarMode,
-                            onModeChange = { saintsCalendarMode = it },
-                            onSearch = { showSaintSearch = true },
-                            onOpenSaint = onOpenSaint,
-                            fetchSaintsInRange = fetchSaintsInRange,
-                            fetchLiturgicalRange = fetchLiturgicalRange
-                        )
+                        Box(modifier = Modifier.fillParentMaxHeight()) {
+                            SaintsCalendarScreen(
+                                mode = saintsCalendarMode,
+                                onModeChange = { saintsCalendarMode = it },
+                                onSearch = { showSaintSearch = true },
+                                onOpenSaint = onOpenSaint,
+                                fetchSaintsInRange = fetchSaintsInRange,
+                                fetchLiturgicalRange = fetchLiturgicalRange
+                            )
+                        }
                     }
                 }
 
@@ -2384,41 +2390,67 @@ private fun CalendarSearchButton(
     label: String,
     onClick: () -> Unit
 ) {
+    val shape = RoundedCornerShape(26.dp)
     Button(
         onClick = onClick,
         modifier = Modifier
             .fillMaxWidth()
-            .height(54.dp)
-            .sanctuaryCardShadow(RoundedCornerShape(22.dp)),
-        contentPadding = PaddingValues(horizontal = 18.dp),
+            .height(58.dp)
+            .shadow(22.dp, shape, clip = false),
+        contentPadding = PaddingValues(0.dp),
         colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
-        shape = RoundedCornerShape(22.dp)
+        shape = shape
     ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .clip(RoundedCornerShape(22.dp))
+                .clip(shape)
                 .background(
                     Brush.linearGradient(
-                        listOf(Color(0xFF55B7DC), Color(0xFF1E7F9B))
+                        listOf(
+                            Color(0xFF55C0E1),
+                            Color(0xFF2B8DAA),
+                            Color(0xFF22394C)
+                        )
                     )
                 )
-                .border(1.dp, Color.White.copy(alpha = 0.18f), RoundedCornerShape(22.dp))
-                .padding(horizontal = 16.dp),
-            contentAlignment = Alignment.Center
+                .border(1.dp, Color.White.copy(alpha = 0.18f), shape)
+                .padding(horizontal = 18.dp),
+            contentAlignment = Alignment.CenterStart
         ) {
             Row(
-                horizontalArrangement = Arrangement.Center,
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = Icons.Filled.Search,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(18.dp)
+                Box(
+                    modifier = Modifier
+                        .size(34.dp)
+                        .background(Color.White.copy(alpha = 0.14f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Search,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+                Text(
+                    label,
+                    modifier = Modifier.weight(1f),
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(label, color = Color.White, fontWeight = FontWeight.Bold)
+                Icon(
+                    imageVector = Icons.Filled.ChevronRight,
+                    contentDescription = null,
+                    tint = Color.White.copy(alpha = 0.78f),
+                    modifier = Modifier.size(20.dp)
+                )
             }
         }
     }
@@ -4220,6 +4252,10 @@ private fun SaintsCalendarScreen(
                     selectedDay = selectedDay.coerceIn(1, next.lengthOfMonth())
                 }
             }
+        },
+        footer = {
+            CalendarSearchButton(label = l10n.t("calendar.searchSaints"), onClick = onSearch)
+            SeasonLegend()
         }
     ) {
         when (val current = state) {
@@ -4272,8 +4308,6 @@ private fun SaintsCalendarScreen(
                         )
                     }
                 }
-                CalendarSearchButton(label = l10n.t("calendar.searchSaints"), onClick = onSearch)
-                SeasonLegend()
             }
         }
     }
@@ -4374,6 +4408,10 @@ private fun NovenasCalendarScreen(
                     selectedDay = selectedDay.coerceIn(1, next.lengthOfMonth())
                 }
             }
+        },
+        footer = {
+            CalendarSearchButton(label = l10n.t("calendar.searchNovenas"), onClick = onSearch)
+            SeasonLegend()
         }
     ) {
         when (val current = state) {
@@ -4436,8 +4474,6 @@ private fun NovenasCalendarScreen(
                         )
                     }
                 }
-                CalendarSearchButton(label = l10n.t("calendar.searchNovenas"), onClick = onSearch)
-                SeasonLegend()
             }
         }
     }
@@ -4530,6 +4566,9 @@ private fun LiturgicalCalendarScreen(
                     selectedDay = selectedDay.coerceIn(1, next.lengthOfMonth())
                 }
             }
+        },
+        footer = {
+            SeasonLegend()
         }
     ) {
         when (val current = state) {
@@ -4594,7 +4633,6 @@ private fun LiturgicalCalendarScreen(
             }
         }
         readingError?.let { Banner(it, isError = true) }
-        SeasonLegend()
     }
 }
 
@@ -4678,10 +4716,14 @@ private fun CalendarSurface(
     onToday: () -> Unit,
     onPrev: () -> Unit,
     onNext: () -> Unit,
+    footer: @Composable ColumnScope.() -> Unit = {},
     content: @Composable ColumnScope.() -> Unit
 ) {
     val l10n = sanctuaryStrings()
-    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
         Card(
             colors = CardDefaults.cardColors(containerColor = Color(0xCC22394C)),
             shape = RoundedCornerShape(28.dp)
@@ -4715,7 +4757,24 @@ private fun CalendarSurface(
                 )
             }
         }
-        content()
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f),
+            contentAlignment = Alignment.TopCenter
+        ) {
+            Column(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                content()
+            }
+        }
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+            content = footer
+        )
     }
 }
 
@@ -4874,29 +4933,37 @@ private fun CalendarMonthGrid(
     val first = month.atDay(1)
     val offset = (first.dayOfWeek.value % 7)
     val total = month.lengthOfMonth()
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        CalendarWeekHeaderRow()
-        var dayNumber = 1
-        repeat(6) { row ->
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                repeat(7) { column ->
-                    val index = row * 7 + column
-                    if (index < offset || dayNumber > total) {
-                        Spacer(modifier = Modifier.weight(1f).height(72.dp))
-                    } else {
-                        val currentDay = dayNumber
-                        val today = LocalDate.now()
-                        CalendarEntryCell(
-                            day = currentDay,
-                            label = labelForDay(currentDay),
-                            borderColor = borderColorForDay(currentDay),
-                            selected = currentDay == selectedDay,
-                            isToday = month.atDay(currentDay) == today,
-                            height = 72.dp,
-                            modifier = Modifier.weight(1f),
-                            onClick = { onDaySelected(currentDay) }
-                        )
-                        dayNumber += 1
+    val rowCount = ((offset + total + 6) / 7).coerceIn(4, 6)
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val rowGap = if (maxHeight < 390.dp) 8.dp else 10.dp
+        val headerHeight = 20.dp
+        val availableForRows = maxHeight - headerHeight - rowGap * rowCount
+        val cellHeight = (availableForRows / rowCount).coerceIn(54.dp, 72.dp)
+
+        Column(verticalArrangement = Arrangement.spacedBy(rowGap)) {
+            CalendarWeekHeaderRow()
+            var dayNumber = 1
+            repeat(rowCount) { row ->
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    repeat(7) { column ->
+                        val index = row * 7 + column
+                        if (index < offset || dayNumber > total) {
+                            Spacer(modifier = Modifier.weight(1f).height(cellHeight))
+                        } else {
+                            val currentDay = dayNumber
+                            val today = LocalDate.now()
+                            CalendarEntryCell(
+                                day = currentDay,
+                                label = labelForDay(currentDay),
+                                borderColor = borderColorForDay(currentDay),
+                                selected = currentDay == selectedDay,
+                                isToday = month.atDay(currentDay) == today,
+                                height = cellHeight,
+                                modifier = Modifier.weight(1f),
+                                onClick = { onDaySelected(currentDay) }
+                            )
+                            dayNumber += 1
+                        }
                     }
                 }
             }

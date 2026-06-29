@@ -927,8 +927,12 @@ private struct CalendarSearchActionButton: View {
                 Image(systemName: systemImage)
                     .font(.system(size: 16 * scale, weight: .bold))
                     .foregroundStyle(.white)
-                    .frame(width: 30 * scale, height: 30 * scale)
-                    .background(Color.white.opacity(0.14))
+                    .frame(width: 34 * scale, height: 34 * scale)
+                    .background(
+                        Circle()
+                            .fill(Color.white.opacity(0.14))
+                            .overlay(Circle().stroke(Color.white.opacity(0.1), lineWidth: 1))
+                    )
                     .clipShape(Circle())
 
                 Text(title)
@@ -950,12 +954,20 @@ private struct CalendarSearchActionButton: View {
                 LinearGradient(
                     colors: [
                         tint.opacity(0.92),
-                        AppTheme.glowBlue.opacity(0.52),
-                        Color.white.opacity(0.06)
+                        AppTheme.glowBlue.opacity(0.56),
+                        AppTheme.cardBackgroundSoft.opacity(0.96)
                     ],
                     startPoint: .leading,
                     endPoint: .trailing
                 )
+            )
+            .overlay(
+                LinearGradient(
+                    colors: [Color.white.opacity(0.18), Color.clear],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 22 * scale, style: .continuous))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 22 * scale, style: .continuous)
@@ -963,6 +975,7 @@ private struct CalendarSearchActionButton: View {
             )
             .clipShape(RoundedRectangle(cornerRadius: 22 * scale, style: .continuous))
             .shadow(color: tint.opacity(0.22), radius: 18 * scale, x: 0, y: 10 * scale)
+            .shadow(color: Color.black.opacity(0.22), radius: 12 * scale, x: 0, y: 8 * scale)
         }
         .buttonStyle(.plain)
         .accessibilityLabel(title)
