@@ -65,6 +65,7 @@ struct SearchTerm: Identifiable, Codable, Hashable, Sendable {
     let key: String
     let label: String
     let resultCount: Int
+    let resultLabels: [String]?
     let imageURLs: [URL]
 
     var id: String { key }

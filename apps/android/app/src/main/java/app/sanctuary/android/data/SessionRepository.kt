@@ -614,6 +614,7 @@ private fun SearchTermResponse.toDomain(): SearchTerm = SearchTerm(
     key = key,
     label = label,
     resultCount = resultCount,
+    resultLabels = resultLabels.orEmpty(),
     imageUrls = imageUrls.orEmpty()
 )
 

@@ -219,6 +219,7 @@ data class SearchTermResponse(
     val key: String,
     val label: String,
     val resultCount: Int,
+    val resultLabels: List<String>?,
     val imageUrls: List<String>?
 )
 
@@ -370,6 +371,7 @@ data class SearchTerm(
     val key: String,
     val label: String,
     val resultCount: Int,
+    val resultLabels: List<String> = emptyList(),
     val imageUrls: List<String> = emptyList()
 )
 

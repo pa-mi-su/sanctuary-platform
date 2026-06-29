@@ -243,6 +243,7 @@ actor APIContentRepository: ContentRepository, SaintRangeRepository {
             key: response.key,
             label: response.label,
             resultCount: response.resultCount,
+            resultLabels: response.resultLabels,
             imageURLs: response.imageUrls?.compactMap { url(from: $0) } ?? []
         )
     }
