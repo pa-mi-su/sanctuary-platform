@@ -90,11 +90,12 @@ public class SaintContentRepository {
         SaintDetailDto saint = saints.getFirst();
         List<String> patronages = jdbcTemplate.query(
             """
-                SELECT patronage
-                FROM saint_patronages
-                WHERE saint_id = ?
-                ORDER BY LOWER(patronage), patronage
-                """,
+                SELECT cp.label_%s AS patronage
+                FROM saint_patronage_links spl
+                JOIN content_patronages cp ON cp.id = spl.patronage_id
+                WHERE spl.saint_id = ?
+                ORDER BY LOWER(cp.label_%s), cp.label_%s
+                """.formatted(locale, locale, locale),
             (rs, rowNum) -> rs.getString("patronage"),
             saint.id()
         );

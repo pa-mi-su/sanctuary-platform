@@ -21,25 +21,36 @@ public class PatronageContentRepository {
         this.jdbcTemplate = jdbcTemplate;
     }
 
-    public List<SearchTermDto> searchTerms(String query) {
+    public List<SearchTermDto> searchTerms(SupportedLanguage language, String query) {
+        String locale = language.code();
         String filter = query == null ? "" : query.trim();
         String likeQuery = "%" + filter + "%";
-        return jdbcTemplate.query(
-            """
+        String sql = """
                 SELECT
-                    regexp_replace(lower(trim(sp.patronage)), '[^a-z0-9]+', '-', 'g') AS key,
-                    MIN(trim(sp.patronage)) AS label,
-                    COUNT(DISTINCT sp.saint_id) AS result_count,
+                    cp.slug AS key,
+                    cp.label_%s AS label,
+                    COUNT(DISTINCT spl.saint_id) AS result_count,
                     (ARRAY_AGG(DISTINCT s.image_url ORDER BY s.image_url) FILTER (
                         WHERE s.image_url IS NOT NULL AND trim(s.image_url) <> ''
                     ))[1:3] AS image_urls
-                FROM saint_patronages sp
-                JOIN saints s ON s.id = sp.saint_id
-                WHERE trim(sp.patronage) <> ''
-                  AND (? = '' OR sp.patronage ILIKE ?)
-                GROUP BY regexp_replace(lower(trim(sp.patronage)), '[^a-z0-9]+', '-', 'g')
-                ORDER BY MIN(lower(trim(sp.patronage)))
-                """,
+                FROM content_patronages cp
+                JOIN saint_patronage_links spl ON spl.patronage_id = cp.id
+                JOIN saints s ON s.id = spl.saint_id
+                WHERE (? = ''
+                    OR cp.label_%s ILIKE ?
+                    OR EXISTS (
+                        SELECT 1
+                        FROM content_patronage_aliases cpa
+                        WHERE cpa.patronage_id = cp.id
+                          AND cpa.locale = ?
+                          AND cpa.alias_text ILIKE ?
+                    ))
+                GROUP BY cp.slug, cp.label_%s
+                ORDER BY lower(cp.label_%s), cp.label_%s
+                """.formatted(locale, locale, locale, locale, locale);
+
+        return jdbcTemplate.query(
+            sql,
             (rs, rowNum) -> new SearchTermDto(
                 rs.getString("key"),
                 rs.getString("label"),
@@ -47,6 +58,8 @@ public class PatronageContentRepository {
                 stringArray(rs.getArray("image_urls"))
             ),
             filter,
+            likeQuery,
+            locale,
             likeQuery
         );
     }
@@ -63,14 +76,16 @@ public class PatronageContentRepository {
                 s.feast_label_%s AS feast_label,
                 s.summary_%s AS summary,
                 s.image_url,
-                ARRAY_AGG(DISTINCT all_patronages.patronage ORDER BY all_patronages.patronage) AS patronages
+                ARRAY_AGG(DISTINCT all_patronages.label_%s ORDER BY all_patronages.label_%s) AS patronages
             FROM saints s
-            JOIN saint_patronages sp ON sp.saint_id = s.id
-            LEFT JOIN saint_patronages all_patronages ON all_patronages.saint_id = s.id
-            WHERE regexp_replace(lower(trim(sp.patronage)), '[^a-z0-9]+', '-', 'g') = ?
+            JOIN saint_patronage_links spl ON spl.saint_id = s.id
+            JOIN content_patronages cp ON cp.id = spl.patronage_id
+            LEFT JOIN saint_patronage_links all_links ON all_links.saint_id = s.id
+            LEFT JOIN content_patronages all_patronages ON all_patronages.id = all_links.patronage_id
+            WHERE cp.slug = ?
             GROUP BY s.id, s.slug, s.name_%s, s.feast_month, s.feast_day, s.feast_label_%s, s.summary_%s, s.image_url
             ORDER BY s.feast_month, s.feast_day, name
-            """.formatted(locale, locale, locale, locale, locale, locale);
+            """.formatted(locale, locale, locale, locale, locale, locale, locale, locale);
 
         return jdbcTemplate.query(
             sql,

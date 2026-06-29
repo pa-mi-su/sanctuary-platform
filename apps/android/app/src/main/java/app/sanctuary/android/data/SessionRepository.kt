@@ -406,7 +406,7 @@ class SessionRepository(
     }
 
     suspend fun searchPatronageTerms(query: String): List<SearchTerm> = withContext(Dispatchers.IO) {
-        runApiCall { api.searchPatronageTerms(query = query.trim()) }
+        runApiCall { api.searchPatronageTerms(lang = currentLanguage(), query = query.trim()) }
             .map { it.toDomain() }
     }
 

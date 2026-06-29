@@ -24,9 +24,10 @@ public class PatronageContentController {
 
     @GetMapping("/terms")
     public List<SearchTermDto> searchPatronageTerms(
+        @RequestParam(defaultValue = "en") String lang,
         @RequestParam(defaultValue = "") String query
     ) {
-        return patronageContentService.searchTerms(query);
+        return patronageContentService.searchTerms(lang, query);
     }
 
     @GetMapping("/terms/{key}/saints")

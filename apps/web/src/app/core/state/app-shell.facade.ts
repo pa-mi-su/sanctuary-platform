@@ -584,13 +584,13 @@ export class AppShellFacade {
   );
 
   readonly patronageTerms = toSignal(
-    combineLatest([toObservable(this.termQuery), toObservable(this.currentTab)]).pipe(
-      switchMap(([query, tab]) => {
+    combineLatest([toObservable(this.termQuery), toObservable(this.language), toObservable(this.currentTab)]).pipe(
+      switchMap(([query, language, tab]) => {
         if (tab !== 'patronage') {
           return of<SearchTerm[]>([]);
         }
 
-        return this.api.searchPatronageTerms(query).pipe(
+        return this.api.searchPatronageTerms(this.apiLanguage(language), query).pipe(
           catchError(() => {
             this.termLoadFailed.set(true);
             return of<SearchTerm[]>([]);

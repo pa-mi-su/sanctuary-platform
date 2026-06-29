@@ -81,8 +81,11 @@ actor APIContentRepository: ContentRepository, SaintRangeRepository {
             .map { mapNovenaSummary($0, locale: locale) }
     }
 
-    func searchPatronageTerms(query: String) async throws -> [SearchTerm] {
-        try await apiClient.searchPatronageTerms(query: query.trimmingCharacters(in: .whitespacesAndNewlines))
+    func searchPatronageTerms(
+        locale: ContentLocale,
+        query: String
+    ) async throws -> [SearchTerm] {
+        try await apiClient.searchPatronageTerms(locale: locale, query: query.trimmingCharacters(in: .whitespacesAndNewlines))
             .map(mapSearchTerm)
     }
 

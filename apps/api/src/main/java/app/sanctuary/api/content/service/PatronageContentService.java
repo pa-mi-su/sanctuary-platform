@@ -18,8 +18,8 @@ public class PatronageContentService {
         this.repository = repository;
     }
 
-    public List<SearchTermDto> searchTerms(String query) {
-        return repository.searchTerms(query);
+    public List<SearchTermDto> searchTerms(String language, String query) {
+        return repository.searchTerms(SupportedLanguage.from(language), query);
     }
 
     public List<SaintSummaryDto> getSaintsByPatronage(String language, String key) {

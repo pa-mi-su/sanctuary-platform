@@ -92,7 +92,10 @@ struct PreviewContentRepository: ContentRepository, SaintRangeRepository {
         }
     }
 
-    func searchPatronageTerms(query: String) async throws -> [SearchTerm] {
+    func searchPatronageTerms(
+        locale: ContentLocale,
+        query: String
+    ) async throws -> [SearchTerm] {
         searchTerms(
             values: saints.flatMap { saint in saint.patronages.map { ($0, saint.id) } },
             query: query

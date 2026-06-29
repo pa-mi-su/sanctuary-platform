@@ -38,7 +38,10 @@ protocol ContentRepository: Sendable {
         key: String
     ) async throws -> [Novena]
 
-    func searchPatronageTerms(query: String) async throws -> [SearchTerm]
+    func searchPatronageTerms(
+        locale: ContentLocale,
+        query: String
+    ) async throws -> [SearchTerm]
 
     func saintsByPatronage(
         locale: ContentLocale,

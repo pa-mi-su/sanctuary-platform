@@ -463,10 +463,16 @@ actor SanctuaryAPIClient {
         )
     }
 
-    func searchPatronageTerms(query: String) async throws -> [APIContentSearchTermResponse] {
+    func searchPatronageTerms(
+        locale: ContentLocale,
+        query: String
+    ) async throws -> [APIContentSearchTermResponse] {
         try await performRequest(
             path: "/content/patronages/terms",
-            queryItems: [URLQueryItem(name: "query", value: query)],
+            queryItems: [
+                URLQueryItem(name: "lang", value: locale.rawValue),
+                URLQueryItem(name: "query", value: query)
+            ],
             method: "GET",
             body: Optional<String>.none,
             token: nil

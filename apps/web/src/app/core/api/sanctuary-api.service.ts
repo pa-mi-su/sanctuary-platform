@@ -311,9 +311,9 @@ export class SanctuaryApiService {
     });
   }
 
-  searchPatronageTerms(query: string): Observable<SearchTerm[]> {
+  searchPatronageTerms(language: 'en' | 'es' | 'pl', query: string): Observable<SearchTerm[]> {
     return this.http.get<SearchTerm[]>(`${this.apiBaseUrl}/content/patronages/terms`, {
-      params: new HttpParams().set('query', query),
+      params: new HttpParams().set('lang', language).set('query', query),
     });
   }
 

@@ -138,6 +138,7 @@ interface SanctuaryApiService {
 
     @GET("content/patronages/terms")
     suspend fun searchPatronageTerms(
+        @Query("lang") lang: String = "en",
         @Query("query") query: String = ""
     ): List<SearchTermResponse>
 

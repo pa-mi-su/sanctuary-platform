@@ -357,7 +357,7 @@ struct TermSearchView: View {
             case .intentions:
                 terms = try await environment.contentRepository.searchIntentionTerms(locale: locale, query: query)
             case .patronage:
-                terms = try await environment.contentRepository.searchPatronageTerms(query: query)
+                terms = try await environment.contentRepository.searchPatronageTerms(locale: locale, query: query)
             }
         } catch {
             terms = []

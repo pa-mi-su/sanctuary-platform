@@ -10,7 +10,6 @@ import org.springframework.stereotype.Repository;
 
 import app.sanctuary.api.content.dto.IntentionSearchResultDto;
 import app.sanctuary.api.content.dto.NovenaSummaryDto;
-import app.sanctuary.api.content.dto.SaintSummaryDto;
 import app.sanctuary.api.content.dto.SearchTermDto;
 import app.sanctuary.api.content.support.SupportedLanguage;
 
@@ -30,7 +29,7 @@ public class IntentionContentRepository {
 
         return new IntentionSearchResultDto(
             searchNovenas(locale, filter, likeQuery),
-            searchSaints(locale, filter, likeQuery)
+            List.of()
         );
     }
 
@@ -156,56 +155,6 @@ public class IntentionContentRepository {
         );
     }
 
-    private List<SaintSummaryDto> searchSaints(String locale, String filter, String likeQuery) {
-        String sql = """
-            SELECT DISTINCT
-                s.id,
-                s.slug,
-                s.name_%s AS name,
-                s.image_url,
-                s.feast_month,
-                s.feast_day,
-                s.feast_label_%s AS feast_label,
-                s.summary_%s AS summary
-            FROM saints s
-            JOIN saint_intention_links sil ON sil.saint_id = s.id
-            JOIN content_intentions ci ON ci.id = sil.intention_id
-            WHERE (? = ''
-                OR ci.label_%s ILIKE ?
-                OR EXISTS (
-                    SELECT 1
-                    FROM content_intention_aliases cia
-                    WHERE cia.intention_id = ci.id
-                      AND cia.locale = ?
-                      AND cia.alias_text ILIKE ?
-                ))
-            ORDER BY s.feast_month, s.feast_day, name
-            """.formatted(locale, locale, locale, locale);
-
-        return jdbcTemplate.query(
-            sql,
-            (rs, rowNum) -> {
-                String saintId = rs.getString("id");
-                return new SaintSummaryDto(
-                    saintId,
-                    rs.getString("slug"),
-                    rs.getString("name"),
-                    rs.getInt("feast_month"),
-                    rs.getInt("feast_day"),
-                    rs.getString("feast_label"),
-                    rs.getString("summary"),
-                    rs.getString("image_url"),
-                    List.of(),
-                    fetchSaintIntentions(saintId, locale)
-                );
-            },
-            filter,
-            likeQuery,
-            locale,
-            likeQuery
-        );
-    }
-
     private List<String> fetchNovenaIntentions(String novenaId, String locale) {
         return jdbcTemplate.query(
             """
@@ -217,20 +166,6 @@ public class IntentionContentRepository {
                 """.formatted(locale),
             (rs, rowNum) -> rs.getString("intention_text"),
             novenaId
-        );
-    }
-
-    private List<String> fetchSaintIntentions(String saintId, String locale) {
-        return jdbcTemplate.query(
-            """
-                SELECT ci.label_%s AS intention_text
-                FROM saint_intention_links sil
-                JOIN content_intentions ci ON ci.id = sil.intention_id
-                WHERE sil.saint_id = ?
-                ORDER BY sil.sort_order, ci.id
-                """.formatted(locale),
-            (rs, rowNum) -> rs.getString("intention_text"),
-            saintId
         );
     }
 
