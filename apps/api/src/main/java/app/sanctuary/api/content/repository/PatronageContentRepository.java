@@ -32,7 +32,8 @@ public class PatronageContentRepository {
                     COUNT(DISTINCT spl.saint_id) AS result_count,
                     (ARRAY_AGG(DISTINCT s.image_url ORDER BY s.image_url) FILTER (
                         WHERE s.image_url IS NOT NULL AND trim(s.image_url) <> ''
-                    ))[1:3] AS image_urls
+                    ))[1:3] AS image_urls,
+                    (ARRAY_AGG(DISTINCT s.name_%s ORDER BY s.name_%s))[1:3] AS result_labels
                 FROM content_patronages cp
                 JOIN saint_patronage_links spl ON spl.patronage_id = cp.id
                 JOIN saints s ON s.id = spl.saint_id
@@ -47,7 +48,7 @@ public class PatronageContentRepository {
                     ))
                 GROUP BY cp.slug, cp.label_%s
                 ORDER BY lower(cp.label_%s), cp.label_%s
-                """.formatted(locale, locale, locale, locale, locale);
+                """.formatted(locale, locale, locale, locale, locale, locale, locale);
 
         return jdbcTemplate.query(
             sql,
@@ -55,7 +56,8 @@ public class PatronageContentRepository {
                 rs.getString("key"),
                 rs.getString("label"),
                 rs.getInt("result_count"),
-                stringArray(rs.getArray("image_urls"))
+                stringArray(rs.getArray("image_urls")),
+                stringArray(rs.getArray("result_labels"))
             ),
             filter,
             likeQuery,

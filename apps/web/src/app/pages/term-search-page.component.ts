@@ -50,7 +50,7 @@ type AppLanguage = 'en' | 'es' | 'pl';
                 </div>
                 <div class="content-card__body">
                   <h3>{{ term.label }}</h3>
-                  <span class="content-tag">{{ resultCountLabel(term.resultCount) }}</span>
+                  <p>{{ termResultPreview(term) }}</p>
                 </div>
               </button>
             }
@@ -135,6 +135,17 @@ export class TermSearchPageComponent {
       case 'pl': return `${count} wyników`;
       default: return `${count} ${count === 1 ? 'result' : 'results'}`;
     }
+  }
+
+  protected termResultPreview(term: SearchTerm): string {
+    const labels = (term.resultLabels ?? []).filter(Boolean);
+    if (!labels.length) {
+      return this.resultCountLabel(term.resultCount);
+    }
+
+    const preview = labels.join(' • ');
+    const remaining = term.resultCount - labels.length;
+    return remaining > 0 ? `${preview} +${remaining}` : preview;
   }
 
   protected durationLabel(days: number): string {
