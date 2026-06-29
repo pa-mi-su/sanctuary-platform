@@ -28,7 +28,7 @@ type AppLanguage = 'en' | 'es' | 'pl';
             type="text"
             [value]="query()"
             (input)="updateQuery.emit($any($event.target).value)"
-            [placeholder]="t('Search saints', 'Buscar santos', 'Szukaj swietych')"
+            [placeholder]="t('Search saints', 'Buscar santos', 'Szukaj świętych')"
           />
         </label>
 
@@ -185,7 +185,7 @@ type AppLanguage = 'en' | 'es' | 'pl';
 
         <button class="calendar-search-action" type="button" (click)="openSearch.emit()">
           <span class="calendar-search-icon" aria-hidden="true">⌕</span>
-          <strong>{{ t('Search Saints', 'Buscar santos', 'Szukaj swietych') }}</strong>
+          <strong>{{ t('Search Saints', 'Buscar santos', 'Szukaj świętych') }}</strong>
           <span class="calendar-search-arrow" aria-hidden="true">›</span>
         </button>
       }

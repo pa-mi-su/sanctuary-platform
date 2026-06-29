@@ -76,7 +76,7 @@ type AppLanguage = 'en' | 'es' | 'pl';
             <span class="nav-icon intentions">♥</span>
             <div class="nav-text">
               <strong>{{ t('Intentions', 'Intenciones', 'Intencje') }}</strong>
-              <span>{{ t('Search by need', 'Buscar por necesidad', 'Szukaj wedlug potrzeby') }}</span>
+              <span>{{ t('Search by need', 'Buscar por necesidad', 'Szukaj według potrzeby') }}</span>
             </div>
           </div>
           <span class="nav-arrow">↗</span>

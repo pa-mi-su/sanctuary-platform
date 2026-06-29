@@ -705,7 +705,7 @@ export class AppShellFacade {
           this.translate(
             'We could not delete your account right now. Please try again.',
             'No pudimos eliminar tu cuenta en este momento. Inténtalo de nuevo.',
-            'Nie mozna teraz usunac konta. Sprobuj ponownie.'
+            'Nie można teraz usunąć konta. Spróbuj ponownie.'
           )
         );
       },
@@ -771,7 +771,7 @@ export class AppShellFacade {
           this.translate(
             'We could not save your settings right now.',
             'No pudimos guardar tu configuración en este momento.',
-            'Nie mozna teraz zapisac ustawien.'
+            'Nie można teraz zapisać ustawień.'
           )
         );
       },
@@ -1159,7 +1159,7 @@ export class AppShellFacade {
     return this.translate(
       'Selected day · Featured saint',
       'Día seleccionado · Santo destacado',
-      'Wybrany dzien · Wyrozniony swiety'
+      'Wybrany dzień · Wyróżniony święty'
     );
   }
 
@@ -1167,7 +1167,7 @@ export class AppShellFacade {
     return this.translate(
       'Selected day · Featured novena',
       'Día seleccionado · Novena destacada',
-      'Wybrany dzien · Wyrozniona nowenna'
+      'Wybrany dzień · Wyróżniona nowenna'
     );
   }
 
@@ -1175,7 +1175,7 @@ export class AppShellFacade {
     return this.translate(
       'No saints are assigned to this feast day in the imported legacy data.',
       'No hay santos asignados a este día de fiesta en los datos heredados importados.',
-      'W zaimportowanych danych nie przypisano swietych do tego dnia swieta.'
+      'W zaimportowanych danych nie przypisano świętych do tego dnia święta.'
     );
   }
 
@@ -1195,7 +1195,7 @@ export class AppShellFacade {
     return this.translate(
       `${this.saintResults().length} saints`,
       `${this.saintResults().length} santos`,
-      `${this.saintResults().length} swietych`
+      `${this.saintResults().length} świętych`
     );
   }
 
@@ -1277,7 +1277,7 @@ export class AppShellFacade {
   localizedPreviewTitle(mode: 'today' | 'selected'): string {
     return mode === 'today'
       ? this.translate('Today', 'Hoy', 'Dzisiaj')
-      : this.translate('Selected Day', 'Día seleccionado', 'Wybrany dzien');
+      : this.translate('Selected Day', 'Día seleccionado', 'Wybrany dzień');
   }
 
   localizedNoLiturgicalCopy(): string {
@@ -1292,7 +1292,7 @@ export class AppShellFacade {
     return this.translate(
       'Selected day matches today.',
       'El día seleccionado coincide con hoy.',
-      'Wybrany dzien jest taki sam jak dzisiaj.'
+      'Wybrany dzień jest taki sam jak dzisiaj.'
     );
   }
 
@@ -1300,7 +1300,7 @@ export class AppShellFacade {
     return this.translate(
       'Browse the novena library or search for a specific novena.',
       'Explora la biblioteca de novenas o busca una novena específica.',
-      'Przegladaj biblioteke nowenn lub wyszukaj konkretna nowenne.'
+      'Przeglądaj bibliotekę nowenn lub wyszukaj konkretną nowennę.'
     );
   }
 
@@ -1310,25 +1310,25 @@ export class AppShellFacade {
         return this.translate(
           'We could not load saints from the API right now.',
           'No pudimos cargar los santos desde la API en este momento.',
-          'Nie mozna teraz zaladowac swietych z API.'
+          'Nie można teraz załadować świętych z API.'
         );
       case 'liturgical':
         return this.translate(
           'We could not load the liturgical day from the API right now.',
           'No pudimos cargar el día litúrgico desde la API en este momento.',
-          'Nie mozna teraz zaladowac dnia liturgicznego z API.'
+          'Nie można teraz załadować dnia liturgicznego z API.'
         );
       case 'novenas':
         return this.translate(
           'We could not load novenas from the API right now.',
           'No pudimos cargar las novenas desde la API en este momento.',
-          'Nie mozna teraz zaladowac nowenn z API.'
+          'Nie można teraz załadować nowenn z API.'
         );
       case 'prayers':
         return this.translate(
           'We could not load prayers from the API right now.',
           'No pudimos cargar las oraciones desde la API en este momento.',
-          'Nie mozna teraz zaladowac modlitw z API.'
+          'Nie można teraz załadować modlitw z API.'
         );
     }
   }
