@@ -830,15 +830,27 @@ private struct CalendarScaffold<Content: View>: View {
                     Spacer(minLength: 6 * scale)
 
                     if let searchTitle {
-                        Button(searchTitle) { onSearchTap?() }
-                            .buttonStyle(PrimaryPillButtonStyle())
-                            .padding(.horizontal, 12 * scale)
+                        CalendarSearchActionButton(
+                            title: searchTitle,
+                            systemImage: "magnifyingglass",
+                            tint: AppTheme.glowBlue,
+                            scale: scale
+                        ) {
+                            onSearchTap?()
+                        }
+                        .padding(.horizontal, 12 * scale)
                     }
 
                     if let secondarySearchTitle {
-                        Button(secondarySearchTitle) { onSecondarySearchTap?() }
-                            .buttonStyle(SecondaryPillButtonStyle())
-                            .padding(.horizontal, 12 * scale)
+                        CalendarSearchActionButton(
+                            title: secondarySearchTitle,
+                            systemImage: "magnifyingglass",
+                            tint: AppTheme.glowGold,
+                            scale: scale
+                        ) {
+                            onSecondarySearchTap?()
+                        }
+                        .padding(.horizontal, 12 * scale)
                     }
 
                     HStack(spacing: 12 * scale) {
@@ -899,6 +911,61 @@ private struct CalendarScaffold<Content: View>: View {
             Circle().fill(color).frame(width: 8, height: 8)
             Text(text)
         }
+    }
+}
+
+private struct CalendarSearchActionButton: View {
+    let title: String
+    let systemImage: String
+    let tint: Color
+    let scale: CGFloat
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 10 * scale) {
+                Image(systemName: systemImage)
+                    .font(.system(size: 16 * scale, weight: .bold))
+                    .foregroundStyle(.white)
+                    .frame(width: 30 * scale, height: 30 * scale)
+                    .background(Color.white.opacity(0.14))
+                    .clipShape(Circle())
+
+                Text(title)
+                    .font(AppTheme.rounded(15 * scale, weight: .bold))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.82)
+
+                Spacer(minLength: 0)
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12 * scale, weight: .bold))
+                    .foregroundStyle(.white.opacity(0.78))
+            }
+            .padding(.horizontal, 16 * scale)
+            .frame(maxWidth: .infinity)
+            .frame(height: 54 * scale)
+            .background(
+                LinearGradient(
+                    colors: [
+                        tint.opacity(0.92),
+                        AppTheme.glowBlue.opacity(0.52),
+                        Color.white.opacity(0.06)
+                    ],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 22 * scale, style: .continuous)
+                    .stroke(Color.white.opacity(0.18), lineWidth: 1)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 22 * scale, style: .continuous))
+            .shadow(color: tint.opacity(0.22), radius: 18 * scale, x: 0, y: 10 * scale)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(title)
     }
 }
 

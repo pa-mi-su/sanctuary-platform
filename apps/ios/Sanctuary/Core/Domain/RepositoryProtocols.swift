@@ -28,15 +28,22 @@ protocol ContentRepository: Sendable {
         locale: ContentLocale
     ) async throws -> Novena?
 
-    func searchNovenasByIntentions(
+    func searchIntentionTerms(
         locale: ContentLocale,
         query: String
+    ) async throws -> [SearchTerm]
+
+    func novenasByIntention(
+        locale: ContentLocale,
+        key: String
     ) async throws -> [Novena]
 
-    func searchIntentions(
+    func searchPatronageTerms(query: String) async throws -> [SearchTerm]
+
+    func saintsByPatronage(
         locale: ContentLocale,
-        query: String
-    ) async throws -> IntentionSearchResult
+        key: String
+    ) async throws -> [Saint]
 
     func listNovenaCalendarDays(
         locale: ContentLocale,

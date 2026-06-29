@@ -1,8 +1,8 @@
 import { Component, input, output } from '@angular/core';
-import { NovenaSummary, SaintSummary } from '../core/api/sanctuary-api.service';
+import { NovenaSummary } from '../core/api/sanctuary-api.service';
 
 type CalendarView = 'day' | 'week' | 'month';
-type NovenasMode = 'calendar' | 'list' | 'intentions';
+type NovenasMode = 'calendar' | 'list';
 type SeasonKey = 'ADVENT' | 'CHRISTMAS' | 'LENT' | 'EASTER' | 'ORDINARY';
 type AppLanguage = 'en' | 'es' | 'pl';
 
@@ -16,7 +16,7 @@ type AppLanguage = 'en' | 'es' | 'pl';
         <div class="screen-header">
           <button class="circle-button" type="button" (click)="goHome.emit()">‹</button>
           <div>
-            <h2>{{ mode() === 'intentions' ? t('Intentions', 'Intenciones', 'Intencje') : t('Novenas', 'Novenas', 'Nowenny') }}</h2>
+            <h2>{{ t('Novenas', 'Novenas', 'Nowenny') }}</h2>
             <p class="meta-text">{{ intentionsResultsLabel() }}</p>
           </div>
         </div>
@@ -91,30 +91,7 @@ type AppLanguage = 'en' | 'es' | 'pl';
       }
 
       @if (mode() !== 'calendar') {
-        @if (searchResults().length || intentionSaintResults().length) {
-          @if (mode() === 'intentions' && intentionSaintResults().length) {
-            <h3 class="list-section-title">{{ t('Saints', 'Santos', 'Święci') }}</h3>
-            <section class="list-stack intentions-list">
-              @for (saint of intentionSaintResults(); track saint.slug) {
-                <button class="content-card glass-subtle content-button" type="button" (click)="openSaint.emit(saint)">
-                  <div class="content-card__media" [style.background-image]="cardImageStyle(saint.imageUrl)">
-                    @if (!saint.imageUrl) {
-                      <span class="content-card__fallback">♔</span>
-                    }
-                  </div>
-                  <div class="content-card__body">
-                    <h3>{{ saint.name }}</h3>
-                    <p>{{ saint.summary }}</p>
-                    <span class="content-tag">{{ intentionLabels(saint.intentions) || saint.feastLabel }}</span>
-                  </div>
-                </button>
-              }
-            </section>
-          }
-          @if (searchResults().length) {
-            @if (mode() === 'intentions') {
-              <h3 class="list-section-title">{{ t('Novenas', 'Novenas', 'Nowenny') }}</h3>
-            }
+        @if (searchResults().length) {
           <section class="list-stack intentions-list">
             @for (novena of searchResults(); track novena.slug) {
               <button class="content-card glass-subtle content-button" type="button" (click)="openNovena.emit(novena)">
@@ -126,15 +103,14 @@ type AppLanguage = 'en' | 'es' | 'pl';
                 <div class="content-card__body">
                   <h3>{{ novena.title }}</h3>
                   <p>{{ novena.description }}</p>
-                  <span class="content-tag">{{ mode() === 'intentions' ? intentionLabels(novena.intentions) : novenaDayCountLabel(novena) }}</span>
+                  <span class="content-tag">{{ novenaDayCountLabel(novena) }}</span>
                 </div>
               </button>
             }
           </section>
-          }
         } @else {
           <div class="mode-panel glass-subtle compact">
-            <strong>{{ mode() === 'intentions' ? t('Intentions Search', 'Búsqueda de intenciones', 'Wyszukiwanie intencji') : t('Novenas', 'Novenas', 'Nowenny') }}</strong>
+            <strong>{{ t('Novenas', 'Novenas', 'Nowenny') }}</strong>
             <p>{{ intentionsEmptyCopy() }}</p>
           </div>
         }
@@ -210,6 +186,12 @@ type AppLanguage = 'en' | 'es' | 'pl';
             }
           </article>
         </section>
+
+        <button class="calendar-search-action" type="button" (click)="openSearch.emit()">
+          <span class="calendar-search-icon" aria-hidden="true">⌕</span>
+          <strong>{{ t('Search Novenas', 'Buscar novenas', 'Szukaj nowenn') }}</strong>
+          <span class="calendar-search-arrow" aria-hidden="true">›</span>
+        </button>
       }
     </section>
   `,
@@ -240,7 +222,6 @@ export class NovenasPageComponent {
   readonly todayPreviewLabel = input.required<string>();
   readonly selectedPreviewLabel = input.required<string>();
   readonly searchResults = input.required<NovenaSummary[]>();
-  readonly intentionSaintResults = input<SaintSummary[]>([]);
   readonly todayNovenas = input.required<NovenaSummary[]>();
   readonly selectedNovenas = input.required<NovenaSummary[]>();
   readonly todayPrimaryNovenaInput = input<NovenaSummary | null>(null, { alias: 'todayPrimaryNovena' });
@@ -256,7 +237,7 @@ export class NovenasPageComponent {
   readonly updateQuery = output<string>();
   readonly pickDate = output<string>();
   readonly openNovena = output<NovenaSummary>();
-  readonly openSaint = output<SaintSummary>();
+  readonly openSearch = output<void>();
 
   protected isSelectedDateToday(): boolean {
     return this.selectedDate() === this.todayDate();
@@ -298,18 +279,6 @@ export class NovenasPageComponent {
     }
 
     return `linear-gradient(180deg, rgba(6, 12, 18, 0.05), rgba(6, 12, 18, 0.28)), url(${imageUrl})`;
-  }
-
-  protected intentionLabels(intentions: string[] | null | undefined): string {
-    const cleaned = (intentions ?? [])
-      .map((intention) => intention.trim())
-      .filter(Boolean);
-
-    if (!cleaned.length) {
-      return '';
-    }
-
-    return cleaned.slice(0, 3).join(' • ');
   }
 
   protected t(english: string, spanish: string, polish: string): string {

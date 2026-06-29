@@ -40,6 +40,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -60,6 +61,7 @@ import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SelfImprovement
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.SouthEast
@@ -144,6 +146,7 @@ import app.sanctuary.android.data.PrayerDetail
 import app.sanctuary.android.data.PrayerSummary
 import app.sanctuary.android.data.SaintDetail
 import app.sanctuary.android.data.SaintSummary
+import app.sanctuary.android.data.SearchTerm
 import app.sanctuary.android.data.CommitmentStatus
 import app.sanctuary.android.data.FavoriteItemType
 import app.sanctuary.android.data.UserNovenaCommitment
@@ -307,6 +310,14 @@ private enum class HomeAction(
         listOf(Color(0xFF5B4167), Color(0xFF184754)),
         "file:///android_asset/home_cards/intentions.svg"
     ),
+    Patronage(
+        "home.patronage",
+        "home.patronageSubtitle",
+        Icons.Filled.People,
+        Color(0xFFE7C76A),
+        listOf(Color(0xFF7BB4CF), Color(0xFF385E77)),
+        "file:///android_asset/home_cards/saints.svg"
+    ),
     Daily(
         "home.daily",
         "home.dailySubtitle",
@@ -317,6 +328,11 @@ private enum class HomeAction(
     )
 }
 
+private enum class TermSearchMode {
+    Intentions,
+    Patronage
+}
+
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
 private fun SanctuaryApp(viewModel: MainViewModel) {
@@ -324,7 +340,8 @@ private fun SanctuaryApp(viewModel: MainViewModel) {
     val appLanguage by viewModel.appLanguage.collectAsState()
     val saints by viewModel.saints.collectAsState()
     val novenas by viewModel.novenas.collectAsState()
-    val intentions by viewModel.intentions.collectAsState()
+    val intentionTerms by viewModel.intentionTerms.collectAsState()
+    val patronageTerms by viewModel.patronageTerms.collectAsState()
     val prayers by viewModel.prayers.collectAsState()
     val rosaries by viewModel.rosaries.collectAsState()
     val saintDetail by viewModel.saintDetail.collectAsState()
@@ -347,7 +364,8 @@ private fun SanctuaryApp(viewModel: MainViewModel) {
                     session = session,
                     saints = saints,
                     novenas = novenas,
-                    intentions = intentions,
+                    intentionTerms = intentionTerms,
+                    patronageTerms = patronageTerms,
                     prayers = prayers,
                     rosaries = rosaries,
                     selectedLanguage = appLanguage,
@@ -363,12 +381,14 @@ private fun SanctuaryApp(viewModel: MainViewModel) {
                     onDeleteAccount = viewModel::deleteAccount,
                     onSaintQueryChanged = viewModel::updateSaintQuery,
                     onNovenaQueryChanged = viewModel::updateNovenaQuery,
-                    onIntentionsQueryChanged = viewModel::updateIntentionsQuery,
+                    onIntentionTermQueryChanged = viewModel::updateIntentionTermQuery,
+                    onPatronageTermQueryChanged = viewModel::updatePatronageTermQuery,
                     onPrayerQueryChanged = viewModel::updatePrayerQuery,
                     onRosaryQueryChanged = viewModel::updateRosaryQuery,
                     onReloadSaints = viewModel::loadSaints,
                     onReloadNovenas = viewModel::loadNovenas,
-                    onReloadIntentions = viewModel::loadIntentions,
+                    onReloadIntentionTerms = viewModel::loadIntentionTerms,
+                    onReloadPatronageTerms = viewModel::loadPatronageTerms,
                     onReloadPrayers = viewModel::loadPrayers,
                     onReloadRosaries = viewModel::loadRosaries,
                     onShowSaints = { selectedTab = AppTab.Saints },
@@ -380,6 +400,10 @@ private fun SanctuaryApp(viewModel: MainViewModel) {
                     onOpenSaint = viewModel::openSaint,
                     onOpenNovena = viewModel::openNovena,
                     onOpenPrayer = viewModel::openPrayer,
+                    onSelectIntentionTerm = viewModel::selectIntentionTerm,
+                    onSelectPatronageTerm = viewModel::selectPatronageTerm,
+                    onClearSelectedIntentionTerm = viewModel::clearSelectedIntentionTerm,
+                    onClearSelectedPatronageTerm = viewModel::clearSelectedPatronageTerm,
                     onCloseSaintDetail = viewModel::closeSaintDetail,
                     onCloseNovenaDetail = viewModel::closeNovenaDetail,
                     onClosePrayerDetail = viewModel::closePrayerDetail,
@@ -795,7 +819,8 @@ private fun AuthenticatedShell(
     session: SessionUiState,
     saints: ContentListUiState<SaintSummary>,
     novenas: ContentListUiState<NovenaSummary>,
-    intentions: IntentionSearchUiState,
+    intentionTerms: TermSearchUiState,
+    patronageTerms: TermSearchUiState,
     prayers: ContentListUiState<PrayerSummary>,
     rosaries: ContentListUiState<PrayerSummary>,
     selectedLanguage: AppLanguage,
@@ -808,12 +833,14 @@ private fun AuthenticatedShell(
     onDeleteAccount: () -> Unit,
     onSaintQueryChanged: (String) -> Unit,
     onNovenaQueryChanged: (String) -> Unit,
-    onIntentionsQueryChanged: (String) -> Unit,
+    onIntentionTermQueryChanged: (String) -> Unit,
+    onPatronageTermQueryChanged: (String) -> Unit,
     onPrayerQueryChanged: (String) -> Unit,
     onRosaryQueryChanged: (String) -> Unit,
     onReloadSaints: () -> Unit,
     onReloadNovenas: () -> Unit,
-    onReloadIntentions: () -> Unit,
+    onReloadIntentionTerms: () -> Unit,
+    onReloadPatronageTerms: () -> Unit,
     onReloadPrayers: () -> Unit,
     onReloadRosaries: () -> Unit,
     onShowSaints: () -> Unit,
@@ -825,6 +852,10 @@ private fun AuthenticatedShell(
     onOpenSaint: (String) -> Unit,
     onOpenNovena: (String) -> Unit,
     onOpenPrayer: (String) -> Unit,
+    onSelectIntentionTerm: (SearchTerm, (String) -> Unit) -> Unit,
+    onSelectPatronageTerm: (SearchTerm, (String) -> Unit) -> Unit,
+    onClearSelectedIntentionTerm: () -> Unit,
+    onClearSelectedPatronageTerm: () -> Unit,
     onCloseSaintDetail: () -> Unit,
     onCloseNovenaDetail: () -> Unit,
     onClosePrayerDetail: () -> Unit,
@@ -843,6 +874,7 @@ private fun AuthenticatedShell(
     var showSaintSearch by rememberSaveable { mutableStateOf(false) }
     var showNovenaSearch by rememberSaveable { mutableStateOf(false) }
     var showIntentionsSearch by rememberSaveable { mutableStateOf(false) }
+    var showPatronageSearch by rememberSaveable { mutableStateOf(false) }
     var showPrayerSearch by rememberSaveable { mutableStateOf(false) }
     var showRosarySearch by rememberSaveable { mutableStateOf(false) }
     var dailyReadingsUrl by rememberSaveable { mutableStateOf<String?>(null) }
@@ -936,50 +968,6 @@ private fun AuthenticatedShell(
                     }
                     item {
                         HomeFeatureCard(
-                            action = HomeAction.Saints,
-                            onClick = {
-                                showSaintSearch = true
-                                if (saints.items.isEmpty() && !saints.isLoading) {
-                                    onReloadSaints()
-                                }
-                            }
-                        )
-                    }
-                    item {
-                        HomeFeatureCard(
-                            action = HomeAction.Novenas,
-                            onClick = {
-                                showNovenaSearch = true
-                                if (novenas.items.isEmpty() && !novenas.isLoading) {
-                                    onReloadNovenas()
-                                }
-                            }
-                        )
-                    }
-                    item {
-                        HomeFeatureCard(
-                            action = HomeAction.Prayers,
-                            onClick = {
-                                showPrayerSearch = true
-                                if (prayers.items.isEmpty() && !prayers.isLoading) {
-                                    onReloadPrayers()
-                                }
-                            }
-                        )
-                    }
-                    item {
-                        HomeFeatureCard(
-                            action = HomeAction.Rosary,
-                            onClick = {
-                                showRosarySearch = true
-                                if (rosaries.items.isEmpty() && !rosaries.isLoading) {
-                                    onReloadRosaries()
-                                }
-                            }
-                        )
-                    }
-                    item {
-                        HomeFeatureCard(
                             action = HomeAction.Daily,
                             onClick = {
                                 isLoadingDailyReadings = true
@@ -1005,22 +993,47 @@ private fun AuthenticatedShell(
                     }
                     item {
                         HomeFeatureCard(
-                            action = HomeAction.Intentions,
+                            action = HomeAction.Prayers,
                             onClick = {
-                                showIntentionsSearch = true
-                                if (intentions.result.novenas.isEmpty() && intentions.result.saints.isEmpty() && !intentions.isLoading) {
-                                    onReloadIntentions()
+                                showPrayerSearch = true
+                                if (prayers.items.isEmpty() && !prayers.isLoading) {
+                                    onReloadPrayers()
                                 }
                             }
                         )
                     }
-                    if (session.status != SessionStatus.Authenticated) {
-                        item {
-                            SectionHint(
-                                title = l10n.t("auth.login"),
-                                body = l10n.t("auth.accountBody")
-                            )
-                        }
+                    item {
+                        HomeFeatureCard(
+                            action = HomeAction.Patronage,
+                            onClick = {
+                                showPatronageSearch = true
+                                if (patronageTerms.terms.isEmpty() && !patronageTerms.isLoading) {
+                                    onReloadPatronageTerms()
+                                }
+                            }
+                        )
+                    }
+                    item {
+                        HomeFeatureCard(
+                            action = HomeAction.Intentions,
+                            onClick = {
+                                showIntentionsSearch = true
+                                if (intentionTerms.terms.isEmpty() && !intentionTerms.isLoading) {
+                                    onReloadIntentionTerms()
+                                }
+                            }
+                        )
+                    }
+                    item {
+                        HomeFeatureCard(
+                            action = HomeAction.Rosary,
+                            onClick = {
+                                showRosarySearch = true
+                                if (rosaries.items.isEmpty() && !rosaries.isLoading) {
+                                    onReloadRosaries()
+                                }
+                            }
+                        )
                     }
                 }
 
@@ -1239,22 +1252,56 @@ private fun AuthenticatedShell(
 
         if (showIntentionsSearch) {
             SanctuaryModalSheet(onDismissRequest = { showIntentionsSearch = false }) {
-                IntentionSearchSheet(
+                TermSearchSheet(
                     title = l10n.t("search.intentionsTitle"),
-                    query = intentions.query,
-                    onQueryChanged = onIntentionsQueryChanged,
-                    onSubmit = onReloadIntentions,
-                    isLoading = intentions.isLoading,
-                    error = intentions.error,
-                    emptyLabel = l10n.t("search.intentionsTitle"),
-                    saints = intentions.result.saints,
-                    novenas = intentions.result.novenas,
+                    query = intentionTerms.query,
+                    prompt = l10n.t("search.intentionsPrompt"),
+                    state = intentionTerms,
+                    mode = TermSearchMode.Intentions,
+                    onQueryChanged = onIntentionTermQueryChanged,
+                    onSubmit = onReloadIntentionTerms,
+                    onClearSelectedTerm = onClearSelectedIntentionTerm,
+                    onSelectTerm = { term ->
+                        onSelectIntentionTerm(term) {
+                            showIntentionsSearch = false
+                            onOpenNovena(it)
+                        }
+                    },
                     onOpenSaint = {
                         showIntentionsSearch = false
                         onOpenSaint(it)
                     },
                     onOpenNovena = {
                         showIntentionsSearch = false
+                        onOpenNovena(it)
+                    }
+                )
+            }
+        }
+
+        if (showPatronageSearch) {
+            SanctuaryModalSheet(onDismissRequest = { showPatronageSearch = false }) {
+                TermSearchSheet(
+                    title = l10n.t("search.patronageTitle"),
+                    query = patronageTerms.query,
+                    prompt = l10n.t("search.patronagePrompt"),
+                    state = patronageTerms,
+                    mode = TermSearchMode.Patronage,
+                    onQueryChanged = onPatronageTermQueryChanged,
+                    onSubmit = onReloadPatronageTerms,
+                    onClearSelectedTerm = onClearSelectedPatronageTerm,
+                    onSelectTerm = { term ->
+                        onSelectPatronageTerm(term) {
+                            showPatronageSearch = false
+                            onOpenSaint(it)
+                        }
+                    },
+                    onOpenSaint = {
+                        showPatronageSearch = false
+                        onOpenSaint(it)
+                    },
+                    onOpenNovena = {
+                        showPatronageSearch = false
                         onOpenNovena(it)
                     }
                 )
@@ -2333,6 +2380,51 @@ private fun TopPillButton(
 }
 
 @Composable
+private fun CalendarSearchButton(
+    label: String,
+    onClick: () -> Unit
+) {
+    Button(
+        onClick = onClick,
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(54.dp)
+            .sanctuaryCardShadow(RoundedCornerShape(22.dp)),
+        contentPadding = PaddingValues(horizontal = 18.dp),
+        colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+        shape = RoundedCornerShape(22.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .clip(RoundedCornerShape(22.dp))
+                .background(
+                    Brush.linearGradient(
+                        listOf(Color(0xFF55B7DC), Color(0xFF1E7F9B))
+                    )
+                )
+                .border(1.dp, Color.White.copy(alpha = 0.18f), RoundedCornerShape(22.dp))
+                .padding(horizontal = 16.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Row(
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Search,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(label, color = Color.White, fontWeight = FontWeight.Bold)
+            }
+        }
+    }
+}
+
+@Composable
 private fun LanguagePickerSheet(
     current: AppLanguage,
     onSelect: (AppLanguage) -> Unit
@@ -2609,7 +2701,7 @@ private fun HomeActionArtwork(
 }
 
 private fun HomeAction.cardBrush(): Brush = when (this) {
-    HomeAction.Saints -> Brush.linearGradient(
+    HomeAction.Saints, HomeAction.Patronage -> Brush.linearGradient(
         listOf(Color(0xFF153646).copy(alpha = 0.92f), Color(0xFF1C5461).copy(alpha = 0.76f))
     )
     HomeAction.Novenas -> Brush.linearGradient(
@@ -2647,7 +2739,7 @@ private fun HomeActionBadgeGlyph(
         val center = Offset(size.width / 2f, size.height / 2f)
 
         when (action) {
-            HomeAction.Saints -> {
+            HomeAction.Saints, HomeAction.Patronage -> {
                 drawCircle(gold, radius = size.minDimension * 0.12f, center = Offset(size.width * 0.5f, size.height * 0.32f))
                 drawCircle(navy, radius = size.minDimension * 0.06f, center = Offset(size.width * 0.5f, size.height * 0.25f))
                 drawCircle(gold.copy(alpha = 0.85f), radius = size.minDimension * 0.09f, center = Offset(size.width * 0.28f, size.height * 0.44f))
@@ -2812,7 +2904,7 @@ private fun HomeActionIllustration(
         val center = Offset(size.width / 2f, size.height / 2f)
 
         val scaleFactor = when (action) {
-            HomeAction.Saints -> 1.22f
+            HomeAction.Saints, HomeAction.Patronage -> 1.22f
             HomeAction.Novenas -> 1.20f
             HomeAction.Liturgical -> 1.16f
             HomeAction.Prayers -> 1.18f
@@ -2821,7 +2913,7 @@ private fun HomeActionIllustration(
             HomeAction.Daily -> 1.20f
         }
         val offsetX = when (action) {
-            HomeAction.Saints -> -size.width * 0.035f
+            HomeAction.Saints, HomeAction.Patronage -> -size.width * 0.035f
             HomeAction.Novenas -> -size.width * 0.03f
             HomeAction.Liturgical -> -size.width * 0.02f
             HomeAction.Prayers -> -size.width * 0.02f
@@ -2830,7 +2922,7 @@ private fun HomeActionIllustration(
             HomeAction.Daily -> -size.width * 0.02f
         }
         val offsetY = when (action) {
-            HomeAction.Saints -> size.height * 0.01f
+            HomeAction.Saints, HomeAction.Patronage -> size.height * 0.01f
             HomeAction.Novenas -> size.height * 0.015f
             HomeAction.Liturgical -> size.height * 0.01f
             HomeAction.Prayers -> size.height * 0.01f
@@ -2844,7 +2936,7 @@ private fun HomeActionIllustration(
             scale(scaleX = scaleFactor, scaleY = scaleFactor, pivot = center)
         }) {
         when (action) {
-            HomeAction.Saints -> {
+            HomeAction.Saints, HomeAction.Patronage -> {
                 drawCircle(gold.copy(alpha = 0.35f), radius = size.minDimension * 0.34f, center = Offset(size.width * 0.64f, size.height * 0.26f))
                 drawPath(
                     path = androidx.compose.ui.graphics.Path().apply {
@@ -3064,6 +3156,7 @@ private fun ContentCard(
     subtitle: String?,
     detail: String?,
     imageUrl: String? = null,
+    imageUrls: List<String> = emptyList(),
     onClick: () -> Unit
 ) {
     Card(
@@ -3077,12 +3170,20 @@ private fun ContentCard(
             horizontalArrangement = Arrangement.spacedBy(14.dp),
             verticalAlignment = Alignment.Top
         ) {
-            ThumbnailImage(
-                imageUrl = imageUrl,
-                contentDescription = title,
-                modifier = Modifier.size(82.dp),
-                shape = RoundedCornerShape(18.dp)
-            )
+            if (imageUrls.isNotEmpty()) {
+                ThumbnailStack(
+                    imageUrls = imageUrls,
+                    contentDescription = title,
+                    modifier = Modifier.size(82.dp)
+                )
+            } else {
+                ThumbnailImage(
+                    imageUrl = imageUrl,
+                    contentDescription = title,
+                    modifier = Modifier.size(82.dp),
+                    shape = RoundedCornerShape(18.dp)
+                )
+            }
             Column(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -3105,6 +3206,39 @@ private fun ContentCard(
                 imageVector = Icons.Filled.SouthEast,
                 contentDescription = null,
                 tint = Color(0xFFBCC9D6)
+            )
+        }
+    }
+}
+
+@Composable
+private fun ThumbnailStack(
+    imageUrls: List<String>,
+    contentDescription: String,
+    modifier: Modifier = Modifier
+) {
+    val urls = imageUrls.filter { it.isNotBlank() }.take(3)
+    if (urls.size <= 1) {
+        ThumbnailImage(
+            imageUrl = urls.firstOrNull(),
+            contentDescription = contentDescription,
+            modifier = modifier,
+            shape = RoundedCornerShape(18.dp)
+        )
+        return
+    }
+
+    Box(modifier = modifier) {
+        urls.forEachIndexed { index, url ->
+            ThumbnailImage(
+                imageUrl = url,
+                contentDescription = contentDescription,
+                modifier = Modifier
+                    .size(58.dp)
+                    .align(Alignment.CenterStart)
+                    .offset(x = (index * 12).dp, y = (index * 4).dp)
+                    .border(2.dp, Color(0xFF183246), RoundedCornerShape(16.dp)),
+                shape = RoundedCornerShape(16.dp)
             )
         }
     }
@@ -3302,18 +3436,18 @@ private fun SaintDetailSheet(
             Spacer(modifier = Modifier.width(8.dp))
             Text("Share")
         }
+        if (detail.patronages.isNotEmpty()) {
+            DetailSectionCard(title = l10n.t("detail.patronages")) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    detail.patronages.forEach { patronage ->
+                        Text("• $patronage", color = Color(0xFFD0DFEA), lineHeight = 20.sp)
+                    }
+                }
+            }
+        }
         detail.summary?.takeIf { it.isNotBlank() }?.let { summary ->
             DetailSectionCard(title = l10n.t("detail.summary")) {
                 Text(summary, color = Color(0xFFD0DFEA), lineHeight = 22.sp)
-            }
-        }
-        if (detail.intentions.isNotEmpty()) {
-            DetailSectionCard(title = l10n.t("detail.intentions")) {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    detail.intentions.forEach { intention ->
-                        Text("• $intention", color = Color(0xFFD0DFEA), lineHeight = 20.sp)
-                    }
-                }
             }
         }
         detail.biography?.takeIf { it.isNotBlank() }?.let { biography ->
@@ -3381,12 +3515,6 @@ private fun NovenaDetailSheet(
             detail.description.takeIf { it.isNotBlank() }?.let {
                 Text(it, color = Color.White, lineHeight = 24.sp)
             }
-            if (detail.intentions.isNotEmpty()) {
-                Text(l10n.t("detail.intentions"), color = Color.White, fontWeight = FontWeight.SemiBold)
-                detail.intentions.take(4).forEach { intention ->
-                    Text("• $intention", color = Color(0xFFD0DFEA), lineHeight = 20.sp)
-                }
-            }
         }
 
         if (session.status == SessionStatus.Authenticated) {
@@ -3425,6 +3553,16 @@ private fun NovenaDetailSheet(
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text("Share")
+        }
+
+        if (detail.intentions.isNotEmpty()) {
+            DetailSectionCard(title = l10n.t("detail.intentions")) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    detail.intentions.forEach { intention ->
+                        Text("• $intention", color = Color(0xFFD0DFEA), lineHeight = 20.sp)
+                    }
+                }
+            }
         }
 
         Text(l10n.t("calendar.chooseDay"), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 24.sp)
@@ -3842,16 +3980,16 @@ private fun resolveImageUrl(imageUrl: String?): String? =
     }
 
 @Composable
-private fun IntentionSearchSheet(
+private fun TermSearchSheet(
     title: String,
     query: String,
+    prompt: String,
+    state: TermSearchUiState,
+    mode: TermSearchMode,
     onQueryChanged: (String) -> Unit,
     onSubmit: () -> Unit,
-    isLoading: Boolean,
-    error: String?,
-    emptyLabel: String,
-    saints: List<SaintSummary>,
-    novenas: List<NovenaSummary>,
+    onClearSelectedTerm: () -> Unit,
+    onSelectTerm: (SearchTerm) -> Unit,
     onOpenSaint: (String) -> Unit,
     onOpenNovena: (String) -> Unit
 ) {
@@ -3864,15 +4002,60 @@ private fun IntentionSearchSheet(
 
     DetailSheetScaffold(title = title) {
         SearchCard(
-            title = title,
+            title = prompt,
             query = query,
             onQueryChanged = onQueryChanged,
             onSubmit = onSubmit
         )
+        state.selectedTerm?.let { term ->
+            DetailSectionCard(title = term.label) {
+                SecondaryButton(
+                    title = l10n.t("common.back"),
+                    isBusy = false,
+                    onClick = onClearSelectedTerm
+                )
+            }
+        }
         when {
-            isLoading -> InlineLoading(l10n.t("inline.loading"))
-            error != null -> Banner(error, isError = true)
-            saints.isEmpty() && novenas.isEmpty() -> Text(emptyLabel, color = Color(0xFFD0DFEA))
+            state.isLoading -> InlineLoading(l10n.t("inline.loading"))
+            state.error != null -> Banner(state.error, isError = true)
+            state.selectedTerm == null && state.terms.isEmpty() -> Text(title, color = Color(0xFFD0DFEA))
+            state.selectedTerm == null -> LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 560.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                contentPadding = PaddingValues(bottom = 8.dp)
+            ) {
+                items(state.terms) { term ->
+                    ContentCard(
+                        title = term.label,
+                        subtitle = "${term.resultCount} ${l10n.t("search.results")}",
+                        detail = null,
+                        imageUrls = term.imageUrls,
+                        onClick = { onSelectTerm(term) }
+                    )
+                }
+            }
+            mode == TermSearchMode.Intentions && state.novenas.isEmpty() -> Text(title, color = Color(0xFFD0DFEA))
+            mode == TermSearchMode.Intentions -> LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 560.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                contentPadding = PaddingValues(bottom = 8.dp)
+            ) {
+                items(state.novenas) { novena ->
+                    ContentCard(
+                        title = novena.title,
+                        subtitle = novena.description,
+                        detail = novena.intentions.take(3).joinToString(" • ").ifBlank { "${novena.durationDays}-day novena" },
+                        imageUrl = novena.imageUrl,
+                        onClick = { onOpenNovena(novena.slug) }
+                    )
+                }
+            }
+            state.saints.isEmpty() -> Text(title, color = Color(0xFFD0DFEA))
             else -> LazyColumn(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -3880,44 +4063,14 @@ private fun IntentionSearchSheet(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 contentPadding = PaddingValues(bottom = 8.dp)
             ) {
-                if (saints.isNotEmpty()) {
-                    item {
-                        Text(
-                            l10n.t("tab.saints"),
-                            color = Color.White,
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 16.sp
-                        )
-                    }
-                    items(saints) { saint ->
-                        ContentCard(
-                            title = saint.name,
-                            subtitle = saint.summary,
-                            detail = saint.intentions.take(3).joinToString(" • ").ifBlank { saint.feastLabel },
-                            imageUrl = saint.imageUrl,
-                            onClick = { onOpenSaint(saint.slug) }
-                        )
-                    }
-                }
-                if (novenas.isNotEmpty()) {
-                    item {
-                        Text(
-                            l10n.t("tab.novenas"),
-                            color = Color.White,
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 16.sp,
-                            modifier = Modifier.padding(top = if (saints.isNotEmpty()) 8.dp else 0.dp)
-                        )
-                    }
-                    items(novenas) { novena ->
-                        ContentCard(
-                            title = novena.title,
-                            subtitle = novena.description,
-                            detail = novena.intentions.take(3).joinToString(" • ").ifBlank { "${novena.durationDays}-day novena" },
-                            imageUrl = novena.imageUrl,
-                            onClick = { onOpenNovena(novena.slug) }
-                        )
-                    }
+                items(state.saints) { saint ->
+                    ContentCard(
+                        title = saint.name,
+                        subtitle = saint.summary ?: l10n.t("home.saintsSubtitle"),
+                        detail = saint.patronages.take(3).joinToString(" • ").ifBlank { saint.feastLabel },
+                        imageUrl = saint.imageUrl,
+                        onClick = { onOpenSaint(saint.slug) }
+                    )
                 }
             }
         }
@@ -4119,7 +4272,7 @@ private fun SaintsCalendarScreen(
                         )
                     }
                 }
-                PrimaryButton(l10n.t("calendar.searchSaints"), false, onClick = onSearch)
+                CalendarSearchButton(label = l10n.t("calendar.searchSaints"), onClick = onSearch)
                 SeasonLegend()
             }
         }
@@ -4283,7 +4436,7 @@ private fun NovenasCalendarScreen(
                         )
                     }
                 }
-                PrimaryButton(l10n.t("calendar.searchNovenas"), false, onClick = onSearch)
+                CalendarSearchButton(label = l10n.t("calendar.searchNovenas"), onClick = onSearch)
                 SeasonLegend()
             }
         }

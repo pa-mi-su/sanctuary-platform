@@ -49,12 +49,33 @@
       <app-home-page
         [isEnglish]="facade.isEnglish()"
         [currentLanguage]="facade.language()"
-        (openSaints)="facade.openSaintsList()"
-        (openNovenas)="facade.openNovenasList()"
         (openPrayers)="facade.openPrayersList()"
         (openRosaries)="facade.openRosariesList()"
         (openDaily)="facade.showDailyTab()"
         (openIntentions)="facade.openIntentions()"
+        (openPatronage)="facade.openPatronage()"
+      />
+    }
+
+    @if (facade.currentTab() === 'intentions' || facade.currentTab() === 'patronage') {
+      <app-term-search-page
+        [currentLanguage]="facade.language()"
+        [mode]="facade.currentTab() === 'patronage' ? 'patronage' : 'intentions'"
+        [query]="facade.termQuery()"
+        [terms]="facade.currentTab() === 'patronage' ? facade.patronageTerms() : facade.intentionTerms()"
+        [selectedTerm]="facade.selectedTerm()"
+        [saints]="facade.selectedPatronageSaints()"
+        [novenas]="facade.selectedIntentionNovenas()"
+        [loadFailed]="facade.termLoadFailed()"
+        [apiErrorCopy]="facade.localizedApiErrorCopy(facade.currentTab() === 'patronage' ? 'saints' : 'novenas')"
+        [resultsLabel]="facade.localizedTermResultsLabel()"
+        [emptyCopy]="facade.localizedTermEmptyCopy()"
+        (goHome)="facade.setTab('home')"
+        (updateQuery)="facade.updateTermQuery($event)"
+        (selectTerm)="facade.selectTerm($event)"
+        (clearTerm)="facade.clearSelectedTerm()"
+        (openSaint)="facade.openSaintDetail($event)"
+        (openNovena)="facade.openNovenaDetail($event)"
       />
     }
 
@@ -100,11 +121,11 @@
       />
     }
 
-    @if (facade.currentTab() === 'novenas' || facade.currentTab() === 'intentions') {
+    @if (facade.currentTab() === 'novenas') {
       <app-novenas-page
         [isEnglish]="facade.isEnglish()"
         [currentLanguage]="facade.language()"
-        [mode]="facade.currentTab() === 'intentions' ? 'intentions' : facade.novenasMode()"
+        [mode]="facade.novenasMode()"
         [query]="facade.novenaQuery()"
         [selectedDate]="facade.selectedDate()"
         [todayDate]="facade.todayDate()"
@@ -126,8 +147,7 @@
         [previewSelectedTitle]="facade.localizedPreviewTitle('selected')"
         [todayPreviewLabel]="facade.previewDateLabel(facade.todayDate())"
         [selectedPreviewLabel]="facade.previewDateLabel(facade.selectedDate())"
-        [searchResults]="facade.currentTab() === 'intentions' ? facade.intentionNovenaResults() : facade.novenaSearchResults()"
-        [intentionSaintResults]="facade.intentionSaintResults()"
+        [searchResults]="facade.novenaSearchResults()"
         [todayNovenas]="facade.previewNovenas(facade.todayDate())"
         [selectedNovenas]="facade.previewNovenas(facade.selectedDate())"
         [todayPrimaryNovena]="facade.previewPrimaryNovena(facade.todayDate())"
@@ -142,7 +162,7 @@
         (updateQuery)="facade.updateNovenaQuery($event)"
         (pickDate)="facade.selectDateFromGrid($event)"
         (openNovena)="facade.openNovenaDetail($event)"
-        (openSaint)="facade.openSaintDetail($event)"
+        (openSearch)="facade.openNovenasList()"
       />
     }
 
@@ -213,6 +233,7 @@
         (changeView)="facade.setSaintsView($event)"
         (pickDate)="facade.selectDateFromGrid($event)"
         (openSaint)="facade.openSaintDetail($event)"
+        (openSearch)="facade.openSaintsList()"
       />
     }
 

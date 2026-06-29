@@ -65,25 +65,33 @@ actor APIContentRepository: ContentRepository, SaintRangeRepository {
         return mapNovenaDetail(remoteNovena, locale: locale)
     }
 
-    func searchNovenasByIntentions(
+    func searchIntentionTerms(
         locale: ContentLocale,
         query: String
-    ) async throws -> [Novena] {
-        let normalizedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        let summaries = try await apiClient.searchNovenasByIntentions(locale: locale, query: normalizedQuery)
-        return summaries.map { mapNovenaSummary($0, locale: locale) }
+    ) async throws -> [SearchTerm] {
+        try await apiClient.searchIntentionTerms(locale: locale, query: query.trimmingCharacters(in: .whitespacesAndNewlines))
+            .map(mapSearchTerm)
     }
 
-    func searchIntentions(
+    func novenasByIntention(
         locale: ContentLocale,
-        query: String
-    ) async throws -> IntentionSearchResult {
-        let normalizedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        let result = try await apiClient.searchIntentions(locale: locale, query: normalizedQuery)
-        return IntentionSearchResult(
-            novenas: result.novenas.map { mapNovenaSummary($0, locale: locale) },
-            saints: result.saints.map { mapSaintSummary($0, locale: locale) }
-        )
+        key: String
+    ) async throws -> [Novena] {
+        try await apiClient.novenasByIntention(locale: locale, key: key)
+            .map { mapNovenaSummary($0, locale: locale) }
+    }
+
+    func searchPatronageTerms(query: String) async throws -> [SearchTerm] {
+        try await apiClient.searchPatronageTerms(query: query.trimmingCharacters(in: .whitespacesAndNewlines))
+            .map(mapSearchTerm)
+    }
+
+    func saintsByPatronage(
+        locale: ContentLocale,
+        key: String
+    ) async throws -> [Saint] {
+        try await apiClient.saintsByPatronage(locale: locale, key: key)
+            .map { mapSaintSummary($0, locale: locale) }
     }
 
     func listNovenaCalendarDays(
@@ -184,7 +192,7 @@ actor APIContentRepository: ContentRepository, SaintRangeRepository {
             feastDay: feastDay,
             imageURL: url(from: response.imageUrl),
             tags: [],
-            patronages: [],
+            patronages: response.patronages ?? [],
             intentions: response.intentions ?? [],
             feastLabelByLocale: localizedValueMap(value: response.feastLabel, locale: locale),
             summaryByLocale: localizedValueMap(value: response.summary ?? "", locale: locale),
@@ -204,7 +212,7 @@ actor APIContentRepository: ContentRepository, SaintRangeRepository {
             feastDay: response.feastDay,
             imageURL: url(from: response.imageUrl),
             tags: [],
-            patronages: [],
+            patronages: response.patronages ?? [],
             intentions: response.intentions ?? [],
             feastLabelByLocale: localizedValueMap(value: response.feastLabel, locale: locale),
             summaryByLocale: localizedValueMap(value: response.summary ?? "", locale: locale),
@@ -225,6 +233,15 @@ actor APIContentRepository: ContentRepository, SaintRangeRepository {
         var values: [ContentLocale: String] = [.en: trimmed]
         values[locale] = trimmed
         return values
+    }
+
+    private func mapSearchTerm(_ response: APIContentSearchTermResponse) -> SearchTerm {
+        SearchTerm(
+            key: response.key,
+            label: response.label,
+            resultCount: response.resultCount,
+            imageURLs: response.imageUrls?.compactMap { url(from: $0) } ?? []
+        )
     }
 
     private func mapNovenaSummary(_ response: APIContentNovenaSummaryResponse, locale: ContentLocale) -> Novena {
