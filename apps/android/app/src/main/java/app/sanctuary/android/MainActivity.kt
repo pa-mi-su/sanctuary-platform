@@ -1257,7 +1257,12 @@ private fun AuthenticatedShell(
         }
 
         if (showIntentionsSearch) {
-            SanctuaryModalSheet(onDismissRequest = { showIntentionsSearch = false }) {
+            fun closeIntentionsSearch() {
+                showIntentionsSearch = false
+                onClearSelectedIntentionTerm()
+            }
+
+            SanctuaryModalSheet(onDismissRequest = { closeIntentionsSearch() }) {
                 TermSearchSheet(
                     title = l10n.t("search.intentionsTitle"),
                     query = intentionTerms.query,
@@ -1269,16 +1274,16 @@ private fun AuthenticatedShell(
                     onClearSelectedTerm = onClearSelectedIntentionTerm,
                     onSelectTerm = { term ->
                         onSelectIntentionTerm(term) {
-                            showIntentionsSearch = false
+                            closeIntentionsSearch()
                             onOpenNovena(it)
                         }
                     },
                     onOpenSaint = {
-                        showIntentionsSearch = false
+                        closeIntentionsSearch()
                         onOpenSaint(it)
                     },
                     onOpenNovena = {
-                        showIntentionsSearch = false
+                        closeIntentionsSearch()
                         onOpenNovena(it)
                     }
                 )
@@ -1286,7 +1291,12 @@ private fun AuthenticatedShell(
         }
 
         if (showPatronageSearch) {
-            SanctuaryModalSheet(onDismissRequest = { showPatronageSearch = false }) {
+            fun closePatronageSearch() {
+                showPatronageSearch = false
+                onClearSelectedPatronageTerm()
+            }
+
+            SanctuaryModalSheet(onDismissRequest = { closePatronageSearch() }) {
                 TermSearchSheet(
                     title = l10n.t("search.patronageTitle"),
                     query = patronageTerms.query,
@@ -1298,16 +1308,16 @@ private fun AuthenticatedShell(
                     onClearSelectedTerm = onClearSelectedPatronageTerm,
                     onSelectTerm = { term ->
                         onSelectPatronageTerm(term) {
-                            showPatronageSearch = false
+                            closePatronageSearch()
                             onOpenSaint(it)
                         }
                     },
                     onOpenSaint = {
-                        showPatronageSearch = false
+                        closePatronageSearch()
                         onOpenSaint(it)
                     },
                     onOpenNovena = {
-                        showPatronageSearch = false
+                        closePatronageSearch()
                         onOpenNovena(it)
                     }
                 )
@@ -4110,7 +4120,7 @@ private fun TermSearchSheet(
 }
 
 private fun termResultLabel(term: SearchTerm, l10n: SanctuaryStrings): String {
-    val labels = term.resultLabels.filter { it.isNotBlank() }
+    val labels = term.resultLabels.filter { it.isNotBlank() }.take(2)
     if (labels.isEmpty()) {
         return "${term.resultCount} ${l10n.t("search.results")}"
     }

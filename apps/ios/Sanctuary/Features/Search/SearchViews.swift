@@ -431,7 +431,9 @@ struct TermSearchView: View {
     }
 
     private func resultLabel(for term: SearchTerm) -> String {
-        let labels = (term.resultLabels ?? []).filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        let labels = (term.resultLabels ?? [])
+            .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+            .prefix(2)
         guard !labels.isEmpty else { return resultLabel(for: term.resultCount) }
 
         let suffix = term.resultCount > labels.count ? " +\(term.resultCount - labels.count)" : ""
