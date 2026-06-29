@@ -73,36 +73,42 @@ struct PreviewContentRepository: ContentRepository, SaintRangeRepository {
         novenas.first { $0.slug == slug || $0.id == slug }
     }
 
-    func searchNovenasByIntentions(
+    func searchIntentionTerms(
         locale: ContentLocale,
         query: String
+    ) async throws -> [SearchTerm] {
+        searchTerms(
+            values: novenas.flatMap { novena in novena.intentions.map { ($0, novena.id) } },
+            query: query
+        )
+    }
+
+    func novenasByIntention(
+        locale: ContentLocale,
+        key: String
     ) async throws -> [Novena] {
-        let term = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !term.isEmpty else { return novenas }
-        return novenas.filter { novena in
-            let haystack = novena.days
-                .compactMap { $0.bodyByLocale[locale] ?? $0.bodyByLocale[.en] }
-                .joined(separator: "\n")
-            return haystack.localizedCaseInsensitiveContains(term)
+        novenas.filter { novena in
+            novena.intentions.contains { slug($0) == key }
         }
     }
 
-    func searchIntentions(
+    func searchPatronageTerms(
         locale: ContentLocale,
         query: String
-    ) async throws -> IntentionSearchResult {
-        let matchingNovenas = try await searchNovenasByIntentions(locale: locale, query: query)
-        let term = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        let matchingSaints = term.isEmpty ? saints : saints.filter { saint in
-            let haystack = [
-                saint.displayName(locale: locale),
-                saint.summaryByLocale[locale] ?? saint.summaryByLocale[.en] ?? "",
-                saint.patronages.joined(separator: " "),
-                saint.tags.joined(separator: " ")
-            ].joined(separator: " ")
-            return haystack.localizedCaseInsensitiveContains(term)
+    ) async throws -> [SearchTerm] {
+        searchTerms(
+            values: saints.flatMap { saint in saint.patronages.map { ($0, saint.id) } },
+            query: query
+        )
+    }
+
+    func saintsByPatronage(
+        locale: ContentLocale,
+        key: String
+    ) async throws -> [Saint] {
+        saints.filter { saint in
+            saint.patronages.contains { slug($0) == key }
         }
-        return IntentionSearchResult(novenas: matchingNovenas, saints: matchingSaints)
     }
 
     func listNovenaCalendarDays(
@@ -164,5 +170,36 @@ struct PreviewContentRepository: ContentRepository, SaintRangeRepository {
     func fetchLiturgicalDay(for date: Date) async throws -> LiturgicalDay? {
         let calendar = Calendar(identifier: .gregorian)
         return liturgicalDays.first { calendar.isDate($0.date, inSameDayAs: date) }
+    }
+
+    private func searchTerms(values: [(String, String)], query: String) -> [SearchTerm] {
+        let term = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        var labels: [String: String] = [:]
+        var itemIDs: [String: Set<String>] = [:]
+        for (label, itemID) in values {
+            let cleaned = label.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !cleaned.isEmpty else { continue }
+            let key = slug(cleaned)
+            labels[key] = labels[key] ?? cleaned
+            itemIDs[key, default: []].insert(itemID)
+        }
+        return labels.keys
+            .filter { key in
+                term.isEmpty
+                    || labels[key]?.localizedCaseInsensitiveContains(term) == true
+                    || key.localizedCaseInsensitiveContains(term)
+            }
+            .sorted { (labels[$0] ?? $0).localizedCaseInsensitiveCompare(labels[$1] ?? $1) == .orderedAscending }
+            .map { key in
+                SearchTerm(key: key, label: labels[key] ?? key, resultCount: itemIDs[key]?.count ?? 0, imageURLs: [])
+            }
+    }
+
+    private func slug(_ value: String) -> String {
+        value
+            .lowercased()
+            .components(separatedBy: CharacterSet.alphanumerics.inverted)
+            .filter { !$0.isEmpty }
+            .joined(separator: "-")
     }
 }

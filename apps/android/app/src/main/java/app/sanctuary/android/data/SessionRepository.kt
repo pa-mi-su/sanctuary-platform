@@ -150,6 +150,7 @@ class SessionRepository(
                     summary = it.summary,
                     biography = it.biography,
                     imageUrl = it.imageUrl,
+                    patronages = it.patronages.orEmpty(),
                     intentions = it.intentions.orEmpty(),
                     sources = it.sources.orEmpty().map { source ->
                         SaintSource(
@@ -394,14 +395,24 @@ class SessionRepository(
         )
     }
 
-    suspend fun listNovenasByIntentions(query: String): List<NovenaSummary> = withContext(Dispatchers.IO) {
-        runApiCall { api.listNovenasByIntentions(lang = currentLanguage(), query = query.trim()) }
+    suspend fun searchIntentionTerms(query: String): List<SearchTerm> = withContext(Dispatchers.IO) {
+        runApiCall { api.searchIntentionTerms(lang = currentLanguage(), query = query.trim()) }
             .map { it.toDomain() }
     }
 
-    suspend fun searchIntentions(query: String): IntentionSearchResult = withContext(Dispatchers.IO) {
-        runApiCall { api.searchIntentions(lang = currentLanguage(), query = query.trim()) }
-            .toDomain()
+    suspend fun listNovenasByIntention(key: String): List<NovenaSummary> = withContext(Dispatchers.IO) {
+        runApiCall { api.getNovenasByIntention(key = key, lang = currentLanguage()) }
+            .map { it.toDomain() }
+    }
+
+    suspend fun searchPatronageTerms(query: String): List<SearchTerm> = withContext(Dispatchers.IO) {
+        runApiCall { api.searchPatronageTerms(lang = currentLanguage(), query = query.trim()) }
+            .map { it.toDomain() }
+    }
+
+    suspend fun listSaintsByPatronage(key: String): List<SaintSummary> = withContext(Dispatchers.IO) {
+        runApiCall { api.getSaintsByPatronage(key = key, lang = currentLanguage()) }
+            .map { it.toDomain() }
     }
 
     suspend fun listNovenaCalendarRange(start: String, end: String): List<NovenaCalendarDate> = withContext(Dispatchers.IO) {
@@ -585,6 +596,7 @@ private fun SaintSummaryResponse.toDomain(): SaintSummary = SaintSummary(
     feastLabel = feastLabel,
     summary = summary,
     imageUrl = imageUrl,
+    patronages = patronages.orEmpty(),
     intentions = intentions.orEmpty()
 )
 
@@ -598,9 +610,11 @@ private fun NovenaSummaryResponse.toDomain(): NovenaSummary = NovenaSummary(
     imageUrl = imageUrl
 )
 
-private fun IntentionSearchResultResponse.toDomain(): IntentionSearchResult = IntentionSearchResult(
-    novenas = novenas.map { it.toDomain() },
-    saints = saints.map { it.toDomain() }
+private fun SearchTermResponse.toDomain(): SearchTerm = SearchTerm(
+    key = key,
+    label = label,
+    resultCount = resultCount,
+    imageUrls = imageUrls.orEmpty()
 )
 
 data class SessionBootstrapResult(

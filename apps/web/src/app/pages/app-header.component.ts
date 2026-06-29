@@ -1,6 +1,6 @@
 import { Component, input, output } from '@angular/core';
 
-type AppTab = 'home' | 'novenas' | 'intentions' | 'liturgical' | 'saints' | 'prayers' | 'rosaries' | 'about' | 'auth' | 'me';
+type AppTab = 'home' | 'novenas' | 'intentions' | 'patronage' | 'liturgical' | 'saints' | 'prayers' | 'rosaries' | 'about' | 'auth' | 'me';
 type AppLanguage = 'en' | 'es' | 'pl';
 
 @Component({
@@ -65,8 +65,8 @@ type AppLanguage = 'en' | 'es' | 'pl';
         </button>
         <label class="pill-button nav-pill-button nav-language-picker" for="app-language-select">
           <span class="pill-icon">⌘</span>
-          <span class="nav-language-picker__label nav-language-picker__label--desktop">{{ t('Language', 'Idioma', 'Jezyk') }}</span>
-          <span class="nav-language-picker__label nav-language-picker__label--mobile">{{ t('Lang', 'Idioma', 'Jezyk') }}</span>
+          <span class="nav-language-picker__label nav-language-picker__label--desktop">{{ t('Language', 'Idioma', 'Język') }}</span>
+          <span class="nav-language-picker__label nav-language-picker__label--mobile">{{ t('Lang', 'Idioma', 'Język') }}</span>
           <select
             id="app-language-select"
             class="nav-language-picker__select"

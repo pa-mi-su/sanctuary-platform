@@ -12,14 +12,19 @@ public record SaintDetailDto(
     String summary,
     String biography,
     String imageUrl,
+    List<String> patronages,
     List<String> intentions,
     List<SaintSourceDto> sources
 ) {
     public SaintDetailDto withSources(List<SaintSourceDto> sources) {
-        return new SaintDetailDto(id, slug, name, feastMonth, feastDay, feastLabel, summary, biography, imageUrl, intentions, sources);
+        return new SaintDetailDto(id, slug, name, feastMonth, feastDay, feastLabel, summary, biography, imageUrl, patronages, intentions, sources);
     }
 
     public SaintDetailDto withIntentions(List<String> intentions) {
-        return new SaintDetailDto(id, slug, name, feastMonth, feastDay, feastLabel, summary, biography, imageUrl, intentions, sources);
+        return new SaintDetailDto(id, slug, name, feastMonth, feastDay, feastLabel, summary, biography, imageUrl, patronages, intentions, sources);
+    }
+
+    public SaintDetailDto withPatronages(List<String> patronages) {
+        return new SaintDetailDto(id, slug, name, feastMonth, feastDay, feastLabel, summary, biography, imageUrl, patronages, intentions, sources);
     }
 }

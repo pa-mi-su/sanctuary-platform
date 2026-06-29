@@ -18,6 +18,13 @@ export interface SaintDateGroup {
   saints: SaintSummary[];
 }
 
+export interface SearchTerm {
+  key: string;
+  label: string;
+  resultCount: number;
+  imageUrls?: string[];
+}
+
 export interface SaintSummary {
   id: string;
   slug: string;
@@ -27,6 +34,7 @@ export interface SaintSummary {
   feastLabel: string;
   summary: string;
   imageUrl: string | null;
+  patronages?: string[];
   intentions?: string[];
 }
 
@@ -92,11 +100,6 @@ export interface NovenaCalendarDateResponse {
   date: string;
   novenas: NovenaSummary[];
   startingNovena: NovenaSummary | null;
-}
-
-export interface IntentionSearchResult {
-  novenas: NovenaSummary[];
-  saints: SaintSummary[];
 }
 
 export interface UserProfile {
@@ -296,15 +299,27 @@ export class SanctuaryApiService {
     });
   }
 
-  listNovenaIntentions(language: 'en' | 'es' | 'pl', query: string): Observable<NovenaSummary[]> {
-    return this.http.get<NovenaSummary[]>(`${this.apiBaseUrl}/content/novenas/intentions`, {
+  searchIntentionTerms(language: 'en' | 'es' | 'pl', query: string): Observable<SearchTerm[]> {
+    return this.http.get<SearchTerm[]>(`${this.apiBaseUrl}/content/intentions/terms`, {
       params: new HttpParams().set('lang', language).set('query', query),
     });
   }
 
-  searchIntentions(language: 'en' | 'es' | 'pl', query: string): Observable<IntentionSearchResult> {
-    return this.http.get<IntentionSearchResult>(`${this.apiBaseUrl}/content/intentions/search`, {
+  getNovenasByIntention(language: 'en' | 'es' | 'pl', key: string): Observable<NovenaSummary[]> {
+    return this.http.get<NovenaSummary[]>(`${this.apiBaseUrl}/content/intentions/terms/${encodeURIComponent(key)}/novenas`, {
+      params: new HttpParams().set('lang', language),
+    });
+  }
+
+  searchPatronageTerms(language: 'en' | 'es' | 'pl', query: string): Observable<SearchTerm[]> {
+    return this.http.get<SearchTerm[]>(`${this.apiBaseUrl}/content/patronages/terms`, {
       params: new HttpParams().set('lang', language).set('query', query),
+    });
+  }
+
+  getSaintsByPatronage(language: 'en' | 'es' | 'pl', key: string): Observable<SaintSummary[]> {
+    return this.http.get<SaintSummary[]>(`${this.apiBaseUrl}/content/patronages/terms/${encodeURIComponent(key)}/saints`, {
+      params: new HttpParams().set('lang', language),
     });
   }
 
