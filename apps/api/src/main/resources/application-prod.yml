@@ -20,7 +20,7 @@ sanctuary:
   auth:
     enabled: ${SANCTUARY_AUTH_ENABLED:false}
     audience: ${SANCTUARY_COGNITO_CLIENT_ID:}
-    user-pool-id: ${SANCTUARY_COGNITO_USER_POOL_ID:us-east-1_syYJKg0NY}
+    user-pool-id: ${SANCTUARY_COGNITO_USER_POOL_ID:}
     client-id: ${SANCTUARY_COGNITO_CLIENT_ID:7e3anthnuctm8p9nqck6kesjm9}
     cookie:
       domain: ${SANCTUARY_AUTH_COOKIE_DOMAIN:}
