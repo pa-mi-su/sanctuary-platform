@@ -138,7 +138,7 @@ export class TermSearchPageComponent {
   }
 
   protected termResultPreview(term: SearchTerm): string {
-    const labels = (term.resultLabels ?? []).filter(Boolean);
+    const labels = (term.resultLabels ?? []).filter(Boolean).slice(0, 2);
     if (!labels.length) {
       return this.resultCountLabel(term.resultCount);
     }

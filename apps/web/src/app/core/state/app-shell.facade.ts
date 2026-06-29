@@ -604,6 +604,10 @@ export class AppShellFacade {
   readonly weekdayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   setTab(tab: AppTab): void {
+    if (tab !== this.currentTab() || tab === 'intentions' || tab === 'patronage') {
+      this.clearSelectedTerm();
+      this.termLoadFailed.set(false);
+    }
     this.currentTab.set(tab);
     if (tab === 'me' && this.isAuthenticated()) {
       this.refreshUserCollections();
