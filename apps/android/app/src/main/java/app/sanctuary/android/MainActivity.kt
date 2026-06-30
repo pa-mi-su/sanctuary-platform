@@ -24,7 +24,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -43,6 +42,8 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -120,7 +121,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -1170,7 +1170,6 @@ private fun AuthenticatedShell(
                         detail = item.feastLabel,
                         imageUrl = item.imageUrl,
                         onClick = {
-                            showSaintSearch = false
                             onOpenSaint(item.slug)
                         }
                     )
@@ -1196,7 +1195,6 @@ private fun AuthenticatedShell(
                         detail = "${item.durationDays}-day novena",
                         imageUrl = item.imageUrl,
                         onClick = {
-                            showNovenaSearch = false
                             onOpenNovena(item.slug)
                         }
                     )
@@ -1222,7 +1220,6 @@ private fun AuthenticatedShell(
                         detail = visiblePrayerCategory(item.category),
                         imageUrl = item.imageUrl,
                         onClick = {
-                            showPrayerSearch = false
                             onOpenPrayer(item.slug)
                         }
                     )
@@ -1248,7 +1245,6 @@ private fun AuthenticatedShell(
                         detail = item.bodyPreview,
                         imageUrl = item.imageUrl,
                         onClick = {
-                            showRosarySearch = false
                             onOpenPrayer(item.slug)
                         }
                     )
@@ -1274,16 +1270,13 @@ private fun AuthenticatedShell(
                     onClearSelectedTerm = onClearSelectedIntentionTerm,
                     onSelectTerm = { term ->
                         onSelectIntentionTerm(term) {
-                            closeIntentionsSearch()
                             onOpenNovena(it)
                         }
                     },
                     onOpenSaint = {
-                        closeIntentionsSearch()
                         onOpenSaint(it)
                     },
                     onOpenNovena = {
-                        closeIntentionsSearch()
                         onOpenNovena(it)
                     }
                 )
@@ -1308,16 +1301,13 @@ private fun AuthenticatedShell(
                     onClearSelectedTerm = onClearSelectedPatronageTerm,
                     onSelectTerm = { term ->
                         onSelectPatronageTerm(term) {
-                            closePatronageSearch()
                             onOpenSaint(it)
                         }
                     },
                     onOpenSaint = {
-                        closePatronageSearch()
                         onOpenSaint(it)
                     },
                     onOpenNovena = {
-                        closePatronageSearch()
                         onOpenNovena(it)
                     }
                 )
@@ -3307,32 +3297,22 @@ private fun DetailSheetScaffold(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SanctuaryModalSheet(
     onDismissRequest: () -> Unit,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val edgeWidthPx = with(LocalDensity.current) { 48.dp.toPx() }
-    ModalBottomSheet(
+    Dialog(
         onDismissRequest = onDismissRequest,
-        sheetState = sheetState,
-        containerColor = Color.Transparent,
-        dragHandle = {
-            Box(
-                modifier = Modifier
-                    .padding(top = 12.dp, bottom = 8.dp)
-                    .width(42.dp)
-                    .height(5.dp)
-                    .background(Color.White.copy(alpha = 0.72f), RoundedCornerShape(999.dp))
-            )
-        }
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            dismissOnBackPress = false,
+            dismissOnClickOutside = false
+        )
     ) {
         Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .fillMaxHeight(0.96f)
+                .fillMaxSize()
                 .background(
                     Brush.linearGradient(
                         listOf(
@@ -3342,42 +3322,15 @@ private fun SanctuaryModalSheet(
                         )
                     )
                 )
-                .pointerInput(onDismissRequest) {
-                    var startedAtLeftEdge = false
-                    var horizontalDrag = 0f
-                    var verticalDrag = 0f
-                    detectDragGestures(
-                        onDragStart = { offset ->
-                            startedAtLeftEdge = offset.x <= edgeWidthPx
-                            horizontalDrag = 0f
-                            verticalDrag = 0f
-                        },
-                        onDragEnd = {
-                            if (startedAtLeftEdge && horizontalDrag > 96f && kotlin.math.abs(verticalDrag) < 72f) {
-                                onDismissRequest()
-                            }
-                        },
-                        onDragCancel = {
-                            startedAtLeftEdge = false
-                            horizontalDrag = 0f
-                            verticalDrag = 0f
-                        },
-                        onDrag = { change, dragAmount ->
-                            if (startedAtLeftEdge) {
-                                horizontalDrag += dragAmount.x
-                                verticalDrag += dragAmount.y
-                                change.consume()
-                            }
-                        }
-                    )
-                }
+                .statusBarsPadding()
+                .navigationBarsPadding()
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .fillMaxHeight()
+                    .fillMaxSize()
                     .verticalScroll(rememberScrollState())
-                    .padding(top = 52.dp),
+                    .padding(top = 64.dp, bottom = 18.dp),
                 verticalArrangement = Arrangement.Top
             ) {
                 content()
@@ -3387,7 +3340,7 @@ private fun SanctuaryModalSheet(
                 shape = CircleShape,
                 modifier = Modifier
                     .align(Alignment.TopStart)
-                    .padding(top = 8.dp, start = 18.dp)
+                    .padding(top = 12.dp, start = 18.dp)
             ) {
                 Icon(
                     imageVector = Icons.Filled.ArrowBack,

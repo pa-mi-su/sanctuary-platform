@@ -376,7 +376,7 @@ struct TermSearchView: View {
             case .intentions:
                 let results = try await environment.contentRepository.novenasByIntention(locale: locale, key: term.key)
                 if results.count == 1 {
-                    selectedTerm = nil
+                    novenas = results
                     selectedNovena = results[0]
                     openSelectedNovena = true
                 } else {
@@ -385,7 +385,7 @@ struct TermSearchView: View {
             case .patronage:
                 let results = try await environment.contentRepository.saintsByPatronage(locale: locale, key: term.key)
                 if results.count == 1 {
-                    selectedTerm = nil
+                    saints = results
                     selectedSaint = results[0]
                     openSelectedSaint = true
                 } else {
