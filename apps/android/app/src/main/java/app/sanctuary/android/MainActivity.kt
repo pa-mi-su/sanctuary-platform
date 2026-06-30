@@ -24,6 +24,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -121,6 +122,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -3302,6 +3304,11 @@ private fun SanctuaryModalSheet(
     onDismissRequest: () -> Unit,
     content: @Composable ColumnScope.() -> Unit
 ) {
+    val density = LocalDensity.current
+    val edgeWidthPx = with(density) { 48.dp.toPx() }
+    val minSwipePx = with(density) { 96.dp.toPx() }
+    val maxVerticalDriftPx = with(density) { 72.dp.toPx() }
+
     Dialog(
         onDismissRequest = onDismissRequest,
         properties = DialogProperties(
@@ -3324,6 +3331,39 @@ private fun SanctuaryModalSheet(
                 )
                 .statusBarsPadding()
                 .navigationBarsPadding()
+                .pointerInput(onDismissRequest) {
+                    var startedAtLeftEdge = false
+                    var horizontalDrag = 0f
+                    var verticalDrag = 0f
+                    detectDragGestures(
+                        onDragStart = { offset ->
+                            startedAtLeftEdge = offset.x <= edgeWidthPx
+                            horizontalDrag = 0f
+                            verticalDrag = 0f
+                        },
+                        onDragEnd = {
+                            if (
+                                startedAtLeftEdge &&
+                                horizontalDrag > minSwipePx &&
+                                kotlin.math.abs(verticalDrag) < maxVerticalDriftPx
+                            ) {
+                                onDismissRequest()
+                            }
+                        },
+                        onDragCancel = {
+                            startedAtLeftEdge = false
+                            horizontalDrag = 0f
+                            verticalDrag = 0f
+                        },
+                        onDrag = { change, dragAmount ->
+                            if (startedAtLeftEdge) {
+                                horizontalDrag += dragAmount.x
+                                verticalDrag += dragAmount.y
+                                change.consume()
+                            }
+                        }
+                    )
+                }
         ) {
             Column(
                 modifier = Modifier
