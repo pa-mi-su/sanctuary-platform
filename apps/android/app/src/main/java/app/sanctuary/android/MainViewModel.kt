@@ -99,6 +99,7 @@ data class ContentDetailUiState<T>(
 data class NovenaProgressUiState(
     val commitments: List<UserNovenaCommitment> = emptyList(),
     val favorites: List<UserFavorite> = emptyList(),
+    val pendingNovenaStarts: Set<String> = emptySet(),
     val saintNames: Map<String, String> = emptyMap(),
     val saintSlugs: Map<String, String> = emptyMap(),
     val novenaTitles: Map<String, String> = emptyMap(),
@@ -831,17 +832,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                                 runCatching { repository.fetchPrayerDetail(id) }.getOrNull()
                             }
                             val allSaints = runCatching { repository.listSaints("") }.getOrNull().orEmpty()
+                            val saintSummaries = saintIds.associateWith { id ->
+                                allSaints.firstOrNull { it.id == id || it.slug == id }
+                            }
                             val saintDetails = saintIds.associateWith { id ->
-                                runCatching { repository.fetchSaintDetail(id) }.getOrNull()
+                                val slug = saintSummaries[id]?.slug ?: id
+                                runCatching { repository.fetchSaintDetail(slug) }.getOrNull()
                             }
                             val saintNames = saintIds.associateWith { id ->
                                 saintDetails[id]?.name
-                                    ?: allSaints.firstOrNull { it.id == id || it.slug == id }?.name
+                                    ?: saintSummaries[id]?.name
                                     ?: formatFavoriteSaintLabel(id)
                             }
                             val saintSlugs = saintIds.associateWith { id ->
                                 saintDetails[id]?.slug
-                                    ?: allSaints.firstOrNull { it.id == id || it.slug == id }?.slug
+                                    ?: saintSummaries[id]?.slug
                                     ?: id
                             }
                             val activeCommitmentCount = commitments.count { it.status == CommitmentStatus.Active }
@@ -923,6 +928,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 commitments = progress.commitments
                     .filterNot { it.novenaId == novenaId }
                     .plus(activeCommitment),
+                pendingNovenaStarts = progress.pendingNovenaStarts + novenaId,
                 error = null
             )
         }
@@ -939,6 +945,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                             commitments = progress.commitments
                                 .filterNot { it.novenaId == novenaId }
                                 .plus(commitment),
+                            pendingNovenaStarts = progress.pendingNovenaStarts - novenaId,
                             error = null
                         )
                     }
@@ -1120,8 +1127,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private fun formatFavoriteSaintLabel(id: String): String {
         val trimmed = id.trim()
         if (trimmed.isBlank()) return id
-        val rawTokens = trimmed.split("_")
-        val nameTokens = if (rawTokens.size >= 4 && rawTokens[2].equals("saint", ignoreCase = true)) {
+        val rawTokens = trimmed.split("_").filter { it.isNotBlank() }
+        val nameTokens = if (rawTokens.firstOrNull()?.matches(Regex("\\d{2}-\\d{2}")) == true) {
+            rawTokens.drop(1)
+        } else if (rawTokens.size >= 4 && rawTokens[2].equals("saint", ignoreCase = true)) {
             listOf("Saint") + rawTokens.drop(3)
         } else {
             trimmed.replace("-", " ").replace("_", " ").split(" ")

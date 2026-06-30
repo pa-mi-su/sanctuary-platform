@@ -3469,6 +3469,7 @@ private fun NovenaDetailSheet(
     val activeCommitment = progress.commitments.firstOrNull {
         it.novenaId == detail.id && it.status == CommitmentStatus.Active
     }
+    val isStarting = detail.id in progress.pendingNovenaStarts
     val isFavorite = progress.favorites.any { it.itemType == FavoriteItemType.Novena && it.itemId == detail.id }
     val latestCommitment = progress.commitments
         .filter { it.novenaId == detail.id }
@@ -3479,6 +3480,7 @@ private fun NovenaDetailSheet(
     }
     val selectedDayDetail = orderedDays.firstOrNull { it.dayNumber == selectedDay }
     val canStart = session.status == SessionStatus.Authenticated &&
+        !isStarting &&
         activeCommitment == null &&
         latestCommitment?.status != CommitmentStatus.Completed
     val completionLabel = when {
@@ -3593,6 +3595,9 @@ private fun NovenaDetailSheet(
         when {
             session.status != SessionStatus.Authenticated -> {
                 Banner(l10n.t("detail.loginToTrack"), isError = false)
+            }
+            isStarting -> {
+                PrimaryButton(l10n.t("detail.startNovena"), true, onClick = {})
             }
             activeCommitment != null -> {
                 PrimaryButton(l10n.t("detail.stopNovena"), false, onClick = { onStop(detail.id) })
