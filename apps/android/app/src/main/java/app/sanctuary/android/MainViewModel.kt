@@ -667,7 +667,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 repository.listNovenasByIntention(term.key)
             }.onSuccess { novenas ->
                 if (novenas.size == 1) {
-                    _intentionTerms.update { it.copy(selectedTerm = null, novenas = emptyList(), isLoading = false, error = null) }
+                    _intentionTerms.update { it.copy(novenas = novenas, isLoading = false, error = null) }
                     onSingleNovena(novenas.first().slug)
                 } else {
                     _intentionTerms.update { it.copy(novenas = novenas, isLoading = false, error = null) }
@@ -685,7 +685,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 repository.listSaintsByPatronage(term.key)
             }.onSuccess { saints ->
                 if (saints.size == 1) {
-                    _patronageTerms.update { it.copy(selectedTerm = null, saints = emptyList(), isLoading = false, error = null) }
+                    _patronageTerms.update { it.copy(saints = saints, isLoading = false, error = null) }
                     onSingleSaint(saints.first().slug)
                 } else {
                     _patronageTerms.update { it.copy(saints = saints, isLoading = false, error = null) }
