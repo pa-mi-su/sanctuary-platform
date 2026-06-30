@@ -173,7 +173,9 @@ class AuthHeaderInterceptor(
 ) : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {
         val token = tokenProvider()
-        val request = if (token.isNullOrBlank()) {
+        val path = chain.request().url.encodedPath.trimStart('/')
+        val requiresAuth = path == "me" || path.startsWith("me/")
+        val request = if (!requiresAuth || token.isNullOrBlank()) {
             chain.request()
         } else {
             chain.request().newBuilder()
