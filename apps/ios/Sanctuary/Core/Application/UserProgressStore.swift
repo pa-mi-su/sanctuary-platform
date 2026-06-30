@@ -98,14 +98,35 @@ final class UserProgressStore: ObservableObject {
         itemID: String
     ) async {
         guard let userID else { return }
+        let previousFavorites = favorites
+        let favoriteKeyMatches: (UserFavorite) -> Bool = { favorite in
+            favorite.itemType == itemType && favorite.itemID == itemID
+        }
+
+        if enabled {
+            if !favorites.contains(where: favoriteKeyMatches) {
+                favorites.append(
+                    UserFavorite(
+                        userID: userID,
+                        itemType: itemType,
+                        itemID: itemID,
+                        createdAt: Date()
+                    )
+                )
+            }
+        } else {
+            favorites.removeAll(where: favoriteKeyMatches)
+        }
+
         do {
             if enabled {
                 try await repository.addFavorite(userID: userID, itemType: itemType, itemID: itemID)
             } else {
                 try await repository.removeFavorite(userID: userID, itemType: itemType, itemID: itemID)
             }
-            await refresh()
-        } catch {}
+        } catch {
+            favorites = previousFavorites
+        }
     }
 
     func toggleFavorite(itemType: FavoriteItemType, itemID: String) async {
