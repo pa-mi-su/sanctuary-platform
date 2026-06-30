@@ -407,7 +407,8 @@ struct PrayerDetailView: View {
                             HStack(spacing: 10) {
                                 Button {
                                     Task {
-                                        await progressStore.toggleFavorite(itemType: .prayer, itemID: currentPrayer.id)
+                                        isFavorite.toggle()
+                                        await progressStore.setFavorite(isFavorite, itemType: .prayer, itemID: currentPrayer.id)
                                         isFavorite = progressStore.isFavorite(itemType: .prayer, itemID: currentPrayer.id)
                                     }
                                 } label: {

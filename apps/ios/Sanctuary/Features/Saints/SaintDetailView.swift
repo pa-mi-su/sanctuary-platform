@@ -90,7 +90,8 @@ struct SaintDetailView: View {
                             HStack(spacing: 10) {
                                 Button {
                                     Task {
-                                        await progressStore.toggleFavorite(itemType: .saint, itemID: saint.id)
+                                        isFavorite.toggle()
+                                        await progressStore.setFavorite(isFavorite, itemType: .saint, itemID: saint.id)
                                         isFavorite = progressStore.isFavorite(itemType: .saint, itemID: saint.id)
                                     }
                                 } label: {
