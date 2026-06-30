@@ -8,6 +8,8 @@ const API_BASE_URL =
 const OUTPUT_DIR = process.env.SANCTUARY_SHARE_PREVIEW_OUTPUT_DIR ?? path.resolve('dist/web/browser');
 const FALLBACK_IMAGE_URL = `${SITE_ORIGIN}/brand-logo.png`;
 const IOS_APP_STORE_ID = '6759986068';
+const FETCH_ATTEMPTS = 3;
+const FETCH_RETRY_DELAY_MS = 2_000;
 
 const contentTypes = [
   {
@@ -67,18 +69,36 @@ for (const type of contentTypes) {
 console.log(`Generated ${generatedCount} share preview route objects in ${OUTPUT_DIR}.`);
 
 async function fetchJson(url) {
-  const response = await fetch(url, {
-    headers: {
-      Accept: 'application/json',
-      'User-Agent': 'Sanctuary share preview generator',
-    },
-  });
+  let lastError;
+  for (let attempt = 1; attempt <= FETCH_ATTEMPTS; attempt += 1) {
+    try {
+      const response = await fetch(url, {
+        headers: {
+          Accept: 'application/json',
+          'User-Agent': 'Sanctuary share preview generator',
+        },
+      });
 
-  if (!response.ok) {
-    throw new Error(`Failed to fetch ${url}: ${response.status} ${response.statusText}`);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch ${url}: ${response.status} ${response.statusText}`);
+      }
+
+      return response.json();
+    } catch (error) {
+      lastError = error;
+      if (attempt === FETCH_ATTEMPTS) {
+        break;
+      }
+      console.warn(`Fetch failed for ${url}; retrying (${attempt}/${FETCH_ATTEMPTS})...`);
+      await delay(FETCH_RETRY_DELAY_MS * attempt);
+    }
   }
 
-  return response.json();
+  throw lastError;
+}
+
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function renderPreviewHtml(html, metadata) {
