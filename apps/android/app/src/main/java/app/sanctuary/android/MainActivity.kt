@@ -1170,7 +1170,6 @@ private fun AuthenticatedShell(
                         detail = item.feastLabel,
                         imageUrl = item.imageUrl,
                         onClick = {
-                            showSaintSearch = false
                             onOpenSaint(item.slug)
                         }
                     )
@@ -1196,7 +1195,6 @@ private fun AuthenticatedShell(
                         detail = "${item.durationDays}-day novena",
                         imageUrl = item.imageUrl,
                         onClick = {
-                            showNovenaSearch = false
                             onOpenNovena(item.slug)
                         }
                     )
@@ -1222,7 +1220,6 @@ private fun AuthenticatedShell(
                         detail = visiblePrayerCategory(item.category),
                         imageUrl = item.imageUrl,
                         onClick = {
-                            showPrayerSearch = false
                             onOpenPrayer(item.slug)
                         }
                     )
@@ -1248,7 +1245,6 @@ private fun AuthenticatedShell(
                         detail = item.bodyPreview,
                         imageUrl = item.imageUrl,
                         onClick = {
-                            showRosarySearch = false
                             onOpenPrayer(item.slug)
                         }
                     )
@@ -1274,16 +1270,13 @@ private fun AuthenticatedShell(
                     onClearSelectedTerm = onClearSelectedIntentionTerm,
                     onSelectTerm = { term ->
                         onSelectIntentionTerm(term) {
-                            closeIntentionsSearch()
                             onOpenNovena(it)
                         }
                     },
                     onOpenSaint = {
-                        closeIntentionsSearch()
                         onOpenSaint(it)
                     },
                     onOpenNovena = {
-                        closeIntentionsSearch()
                         onOpenNovena(it)
                     }
                 )
@@ -1308,16 +1301,13 @@ private fun AuthenticatedShell(
                     onClearSelectedTerm = onClearSelectedPatronageTerm,
                     onSelectTerm = { term ->
                         onSelectPatronageTerm(term) {
-                            closePatronageSearch()
                             onOpenSaint(it)
                         }
                     },
                     onOpenSaint = {
-                        closePatronageSearch()
                         onOpenSaint(it)
                     },
                     onOpenNovena = {
-                        closePatronageSearch()
                         onOpenNovena(it)
                     }
                 )
