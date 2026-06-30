@@ -26,29 +26,15 @@ type AppLanguage = 'en' | 'es' | 'pl';
       </section>
 
       <section class="quick-links">
-        <button class="nav-card action-card saints-card" type="button" (click)="openSaints.emit()">
+        <button class="nav-card action-card daily-card" type="button" (click)="openDaily.emit()">
           <span class="card-illustration" aria-hidden="true">
-            <img src="home-cards/saints.svg" alt="" />
+            <img src="home-cards/daily-readings.svg" alt="" />
           </span>
           <div class="nav-card__content">
-            <span class="nav-icon saints">👥</span>
+            <span class="nav-icon daily">☼</span>
             <div class="nav-text">
-              <strong>{{ t('Saints', 'Santos', 'Swieci') }}</strong>
-              <span>{{ t('Feasts and biographies', 'Fiestas y biografías', 'Swieta i biografie') }}</span>
-            </div>
-          </div>
-          <span class="nav-arrow">↗</span>
-        </button>
-
-        <button class="nav-card action-card novenas-card" type="button" (click)="openNovenas.emit()">
-          <span class="card-illustration" aria-hidden="true">
-            <img src="home-cards/novenas.svg" alt="" />
-          </span>
-          <div class="nav-card__content">
-            <span class="nav-icon novenas">📘</span>
-            <div class="nav-text">
-              <strong>Novenas</strong>
-              <span>{{ t('Journeys of prayer', 'Jornadas de oración', 'Drogi modlitwy') }}</span>
+              <strong>{{ t('Daily Readings', 'Lecturas diarias', 'Czytania dzienne') }}</strong>
+              <span>{{ t('Readings and seasons', 'Lecturas y tiempos', 'Czytania i okresy') }}</span>
             </div>
           </div>
           <span class="nav-arrow">↗</span>
@@ -68,29 +54,15 @@ type AppLanguage = 'en' | 'es' | 'pl';
           <span class="nav-arrow">↗</span>
         </button>
 
-        <button class="nav-card action-card rosary-card" type="button" (click)="openRosaries.emit()">
+        <button class="nav-card action-card saints-card" type="button" (click)="openPatronage.emit()">
           <span class="card-illustration" aria-hidden="true">
-            <img src="home-cards/rosary.svg" alt="" />
+            <img src="home-cards/saints.svg" alt="" />
           </span>
           <div class="nav-card__content">
-            <span class="nav-icon rosary">◌</span>
+            <span class="nav-icon saints">♔</span>
             <div class="nav-text">
-              <strong>{{ t('Rosary', 'Rosario', 'Różaniec') }}</strong>
-              <span>{{ t('Mysteries by day', 'Misterios por día', 'Tajemnice na każdy dzień') }}</span>
-            </div>
-          </div>
-          <span class="nav-arrow">↗</span>
-        </button>
-
-        <button class="nav-card action-card daily-card" type="button" (click)="openDaily.emit()">
-          <span class="card-illustration" aria-hidden="true">
-            <img src="home-cards/daily-readings.svg" alt="" />
-          </span>
-          <div class="nav-card__content">
-            <span class="nav-icon daily">☼</span>
-            <div class="nav-text">
-              <strong>{{ t('Daily Readings', 'Lecturas diarias', 'Czytania dzienne') }}</strong>
-              <span>{{ t('Readings and seasons', 'Lecturas y tiempos', 'Czytania i okresy') }}</span>
+              <strong>{{ t('Patronage', 'Patrocinios', 'Patronaty') }}</strong>
+              <span>{{ t('Find saints by patronage', 'Busca santos por patronazgo', 'Znajdź świętych według patronatu') }}</span>
             </div>
           </div>
           <span class="nav-arrow">↗</span>
@@ -104,7 +76,21 @@ type AppLanguage = 'en' | 'es' | 'pl';
             <span class="nav-icon intentions">♥</span>
             <div class="nav-text">
               <strong>{{ t('Intentions', 'Intenciones', 'Intencje') }}</strong>
-              <span>{{ t('Search by need', 'Buscar por necesidad', 'Szukaj wedlug potrzeby') }}</span>
+              <span>{{ t('Search by need', 'Buscar por necesidad', 'Szukaj według potrzeby') }}</span>
+            </div>
+          </div>
+          <span class="nav-arrow">↗</span>
+        </button>
+
+        <button class="nav-card action-card rosary-card" type="button" (click)="openRosaries.emit()">
+          <span class="card-illustration" aria-hidden="true">
+            <img src="home-cards/rosary.svg" alt="" />
+          </span>
+          <div class="nav-card__content">
+            <span class="nav-icon rosary">◌</span>
+            <div class="nav-text">
+              <strong>{{ t('Rosary', 'Rosario', 'Różaniec') }}</strong>
+              <span>{{ t('Mysteries by day', 'Misterios por día', 'Tajemnice na każdy dzień') }}</span>
             </div>
           </div>
           <span class="nav-arrow">↗</span>
@@ -117,12 +103,11 @@ export class HomePageComponent {
   readonly isEnglish = input<boolean>(true);
   readonly currentLanguage = input<AppLanguage>('en');
 
-  readonly openSaints = output<void>();
-  readonly openNovenas = output<void>();
   readonly openPrayers = output<void>();
   readonly openRosaries = output<void>();
   readonly openDaily = output<void>();
   readonly openIntentions = output<void>();
+  readonly openPatronage = output<void>();
 
   protected t(english: string, spanish: string, polish: string): string {
     switch (this.currentLanguage()) {

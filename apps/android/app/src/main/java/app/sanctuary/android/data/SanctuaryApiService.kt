@@ -11,6 +11,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
+import retrofit2.http.Path
 import retrofit2.http.POST
 import retrofit2.http.PUT
 import retrofit2.http.Query
@@ -123,17 +124,29 @@ interface SanctuaryApiService {
         @Query("query") query: String = ""
     ): List<NovenaSummaryResponse>
 
-    @GET("content/novenas/intentions")
-    suspend fun listNovenasByIntentions(
+    @GET("content/intentions/terms")
+    suspend fun searchIntentionTerms(
         @Query("lang") lang: String = "en",
         @Query("query") query: String = ""
+    ): List<SearchTermResponse>
+
+    @GET("content/intentions/terms/{key}/novenas")
+    suspend fun getNovenasByIntention(
+        @Path("key") key: String,
+        @Query("lang") lang: String = "en"
     ): List<NovenaSummaryResponse>
 
-    @GET("content/intentions/search")
-    suspend fun searchIntentions(
+    @GET("content/patronages/terms")
+    suspend fun searchPatronageTerms(
         @Query("lang") lang: String = "en",
         @Query("query") query: String = ""
-    ): IntentionSearchResultResponse
+    ): List<SearchTermResponse>
+
+    @GET("content/patronages/terms/{key}/saints")
+    suspend fun getSaintsByPatronage(
+        @Path("key") key: String,
+        @Query("lang") lang: String = "en"
+    ): List<SaintSummaryResponse>
 
     @GET("content/novenas/calendar")
     suspend fun listNovenasCalendarRange(
@@ -160,7 +173,9 @@ class AuthHeaderInterceptor(
 ) : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {
         val token = tokenProvider()
-        val request = if (token.isNullOrBlank()) {
+        val path = chain.request().url.encodedPath.trimStart('/')
+        val requiresAuth = path == "me" || path.startsWith("me/")
+        val request = if (!requiresAuth || token.isNullOrBlank()) {
             chain.request()
         } else {
             chain.request().newBuilder()

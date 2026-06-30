@@ -11,6 +11,7 @@ public record SaintSummaryDto(
     String feastLabel,
     String summary,
     String imageUrl,
+    List<String> patronages,
     List<String> intentions
 ) {
 }
