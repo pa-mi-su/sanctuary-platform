@@ -33,6 +33,12 @@ struct NovenaDetailView: View {
         effectiveNovena.days.sorted { $0.dayNumber < $1.dayNumber }
     }
 
+    private var intentions: [String] {
+        effectiveNovena.intentions
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+    }
+
     private var selectedDayContent: String {
         guard let day = orderedDays.first(where: { $0.dayNumber == selectedDay }) else {
             return ""
@@ -122,7 +128,8 @@ struct NovenaDetailView: View {
                             HStack(spacing: 10) {
                                 Button {
                                     Task {
-                                        await progressStore.toggleFavorite(itemType: .novena, itemID: effectiveNovena.id)
+                                        isFavorite.toggle()
+                                        await progressStore.setFavorite(isFavorite, itemType: .novena, itemID: effectiveNovena.id)
                                         isFavorite = progressStore.isFavorite(itemType: .novena, itemID: effectiveNovena.id)
                                     }
                                 } label: {
@@ -185,6 +192,18 @@ struct NovenaDetailView: View {
                     }
                     .padding(20)
                     .appGlassCard(cornerRadius: 28)
+
+                    if !intentions.isEmpty {
+                        DetailCard(title: localization.t("search.intentionsLabel")) {
+                            VStack(alignment: .leading, spacing: 8) {
+                                ForEach(intentions, id: \.self) { intention in
+                                    Text("• \(intention)")
+                                        .font(AppTheme.rounded(17, weight: .medium))
+                                        .foregroundStyle(AppTheme.cardText.opacity(0.9))
+                                }
+                            }
+                        }
+                    }
 
                     Text(localization.t("novena.chooseDay"))
                         .font(AppTheme.rounded(40, weight: .bold))

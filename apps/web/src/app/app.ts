@@ -10,6 +10,7 @@ import { AuthPageComponent } from './pages/auth-page.component';
 import { AboutPageComponent } from './pages/about-page.component';
 import { ContentDetailModalComponent } from './pages/content-detail-modal.component';
 import { LegalDocumentPageComponent } from './pages/legal-document-page.component';
+import { TermSearchPageComponent } from './pages/term-search-page.component';
 import { AppShellFacade } from './core/state/app-shell.facade';
 
 @Component({
@@ -27,6 +28,7 @@ import { AppShellFacade } from './core/state/app-shell.facade';
     AboutPageComponent,
     LegalDocumentPageComponent,
     ContentDetailModalComponent,
+    TermSearchPageComponent,
   ],
   templateUrl: './app.html',
   styleUrl: './app.scss',

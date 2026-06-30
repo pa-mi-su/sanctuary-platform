@@ -52,12 +52,6 @@ struct SaintDetailView: View {
         currentSaint.prayersByLocale[locale] ?? currentSaint.prayersByLocale[.en] ?? []
     }
 
-    private var intentions: [String] {
-        currentSaint.intentions
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty }
-    }
-
     private var feastLabel: String {
         currentSaint.feastLabelByLocale[locale]
             ?? currentSaint.feastLabelByLocale[.en]
@@ -96,7 +90,8 @@ struct SaintDetailView: View {
                             HStack(spacing: 10) {
                                 Button {
                                     Task {
-                                        await progressStore.toggleFavorite(itemType: .saint, itemID: saint.id)
+                                        isFavorite.toggle()
+                                        await progressStore.setFavorite(isFavorite, itemType: .saint, itemID: saint.id)
                                         isFavorite = progressStore.isFavorite(itemType: .saint, itemID: saint.id)
                                     }
                                 } label: {
@@ -150,34 +145,6 @@ struct SaintDetailView: View {
                     .padding(20)
                     .appGlassCard(cornerRadius: 28)
 
-                    if !summary.isEmpty {
-                        DetailCard(title: localization.t("detail.summary")) {
-                            Text(summary)
-                                .font(AppTheme.rounded(18, weight: .medium))
-                                .foregroundStyle(AppTheme.cardText.opacity(0.9))
-                        }
-                    }
-
-                    if !intentions.isEmpty {
-                        DetailCard(title: localization.t("search.intentionsLabel")) {
-                            VStack(alignment: .leading, spacing: 8) {
-                                ForEach(intentions, id: \.self) { intention in
-                                    Text("• \(intention)")
-                                        .font(AppTheme.rounded(17, weight: .medium))
-                                        .foregroundStyle(AppTheme.cardText.opacity(0.9))
-                                }
-                            }
-                        }
-                    }
-
-                    if !biography.isEmpty {
-                        DetailCard(title: localization.t("detail.biography")) {
-                            Text(biography)
-                                .font(AppTheme.rounded(18, weight: .medium))
-                                .foregroundStyle(AppTheme.cardText.opacity(0.9))
-                        }
-                    }
-
                     if !currentSaint.patronages.isEmpty {
                         DetailCard(title: localization.t("detail.patronages")) {
                             VStack(alignment: .leading, spacing: 8) {
@@ -187,6 +154,22 @@ struct SaintDetailView: View {
                                         .foregroundStyle(AppTheme.cardText.opacity(0.9))
                                 }
                             }
+                        }
+                    }
+
+                    if !summary.isEmpty {
+                        DetailCard(title: localization.t("detail.summary")) {
+                            Text(summary)
+                                .font(AppTheme.rounded(18, weight: .medium))
+                                .foregroundStyle(AppTheme.cardText.opacity(0.9))
+                        }
+                    }
+
+                    if !biography.isEmpty {
+                        DetailCard(title: localization.t("detail.biography")) {
+                            Text(biography)
+                                .font(AppTheme.rounded(18, weight: .medium))
+                                .foregroundStyle(AppTheme.cardText.opacity(0.9))
                         }
                     }
 

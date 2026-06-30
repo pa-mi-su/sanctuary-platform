@@ -4,7 +4,6 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import app.sanctuary.android.data.AuthRegistrationResponse
-import app.sanctuary.android.data.IntentionSearchResult
 import app.sanctuary.android.data.LiturgicalDay
 import app.sanctuary.android.data.NovenaCalendarDate
 import app.sanctuary.android.data.NovenaDayDetail
@@ -17,6 +16,7 @@ import app.sanctuary.android.data.SaintDateGroup
 import app.sanctuary.android.data.SaintDetail
 import app.sanctuary.android.data.SaintSummary
 import app.sanctuary.android.data.SanctuaryApiFactory
+import app.sanctuary.android.data.SearchTerm
 import app.sanctuary.android.data.SessionBootstrapResult
 import app.sanctuary.android.data.SessionRepository
 import app.sanctuary.android.data.StoredSession
@@ -80,8 +80,11 @@ private data class SearchDocument(
     val auxiliaryTokens: List<String> = normalizedAuxiliary.searchTokens()
 }
 
-data class IntentionSearchUiState(
-    val result: IntentionSearchResult = IntentionSearchResult(novenas = emptyList(), saints = emptyList()),
+data class TermSearchUiState(
+    val terms: List<SearchTerm> = emptyList(),
+    val selectedTerm: SearchTerm? = null,
+    val novenas: List<NovenaSummary> = emptyList(),
+    val saints: List<SaintSummary> = emptyList(),
     val isLoading: Boolean = false,
     val query: String = "",
     val error: String? = null
@@ -96,6 +99,7 @@ data class ContentDetailUiState<T>(
 data class NovenaProgressUiState(
     val commitments: List<UserNovenaCommitment> = emptyList(),
     val favorites: List<UserFavorite> = emptyList(),
+    val pendingNovenaStarts: Set<String> = emptySet(),
     val saintNames: Map<String, String> = emptyMap(),
     val saintSlugs: Map<String, String> = emptyMap(),
     val novenaTitles: Map<String, String> = emptyMap(),
@@ -137,8 +141,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _novenas = MutableStateFlow(ContentListUiState<NovenaSummary>())
     val novenas: StateFlow<ContentListUiState<NovenaSummary>> = _novenas.asStateFlow()
 
-    private val _intentions = MutableStateFlow(IntentionSearchUiState())
-    val intentions: StateFlow<IntentionSearchUiState> = _intentions.asStateFlow()
+    private val _intentionTerms = MutableStateFlow(TermSearchUiState())
+    val intentionTerms: StateFlow<TermSearchUiState> = _intentionTerms.asStateFlow()
+
+    private val _patronageTerms = MutableStateFlow(TermSearchUiState())
+    val patronageTerms: StateFlow<TermSearchUiState> = _patronageTerms.asStateFlow()
 
     private val _prayers = MutableStateFlow(ContentListUiState<PrayerSummary>())
     val prayers: StateFlow<ContentListUiState<PrayerSummary>> = _prayers.asStateFlow()
@@ -540,8 +547,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         filterRosaries()
     }
 
-    fun updateIntentionsQuery(query: String) {
-        _intentions.update { it.copy(query = query) }
+    fun updateIntentionTermQuery(query: String) {
+        _intentionTerms.update { it.copy(query = query, selectedTerm = null, novenas = emptyList(), saints = emptyList()) }
+    }
+
+    fun updatePatronageTermQuery(query: String) {
+        _patronageTerms.update { it.copy(query = query, selectedTerm = null, novenas = emptyList(), saints = emptyList()) }
     }
 
     fun loadSaints() {
@@ -616,15 +627,72 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun loadIntentions() {
+    fun loadIntentionTerms() {
         viewModelScope.launch {
-            _intentions.update { it.copy(isLoading = true, error = null) }
+            _intentionTerms.update { it.copy(isLoading = true, error = null) }
             runCatching {
-                repository.searchIntentions(_intentions.value.query)
-            }.onSuccess { result ->
-                _intentions.value = _intentions.value.copy(result = result, isLoading = false, error = null)
+                repository.searchIntentionTerms(_intentionTerms.value.query)
+            }.onSuccess { terms ->
+                _intentionTerms.update { it.copy(terms = terms, isLoading = false, error = null) }
             }.onFailure { failure ->
-                _intentions.value = _intentions.value.copy(isLoading = false, error = failure.message)
+                _intentionTerms.update { it.copy(isLoading = false, error = failure.message) }
+            }
+        }
+    }
+
+    fun loadPatronageTerms() {
+        viewModelScope.launch {
+            _patronageTerms.update { it.copy(isLoading = true, error = null) }
+            runCatching {
+                repository.searchPatronageTerms(_patronageTerms.value.query)
+            }.onSuccess { terms ->
+                _patronageTerms.update { it.copy(terms = terms, isLoading = false, error = null) }
+            }.onFailure { failure ->
+                _patronageTerms.update { it.copy(isLoading = false, error = failure.message) }
+            }
+        }
+    }
+
+    fun clearSelectedIntentionTerm() {
+        _intentionTerms.update { it.copy(selectedTerm = null, novenas = emptyList(), saints = emptyList()) }
+    }
+
+    fun clearSelectedPatronageTerm() {
+        _patronageTerms.update { it.copy(selectedTerm = null, novenas = emptyList(), saints = emptyList()) }
+    }
+
+    fun selectIntentionTerm(term: SearchTerm, onSingleNovena: (String) -> Unit) {
+        viewModelScope.launch {
+            _intentionTerms.update { it.copy(selectedTerm = term, isLoading = true, error = null, novenas = emptyList()) }
+            runCatching {
+                repository.listNovenasByIntention(term.key)
+            }.onSuccess { novenas ->
+                if (novenas.size == 1) {
+                    _intentionTerms.update { it.copy(novenas = novenas, isLoading = false, error = null) }
+                    onSingleNovena(novenas.first().slug)
+                } else {
+                    _intentionTerms.update { it.copy(novenas = novenas, isLoading = false, error = null) }
+                }
+            }.onFailure { failure ->
+                _intentionTerms.update { it.copy(isLoading = false, error = failure.message) }
+            }
+        }
+    }
+
+    fun selectPatronageTerm(term: SearchTerm, onSingleSaint: (String) -> Unit) {
+        viewModelScope.launch {
+            _patronageTerms.update { it.copy(selectedTerm = term, isLoading = true, error = null, saints = emptyList()) }
+            runCatching {
+                repository.listSaintsByPatronage(term.key)
+            }.onSuccess { saints ->
+                if (saints.size == 1) {
+                    _patronageTerms.update { it.copy(saints = saints, isLoading = false, error = null) }
+                    onSingleSaint(saints.first().slug)
+                } else {
+                    _patronageTerms.update { it.copy(saints = saints, isLoading = false, error = null) }
+                }
+            }.onFailure { failure ->
+                _patronageTerms.update { it.copy(isLoading = false, error = failure.message) }
             }
         }
     }
@@ -764,17 +832,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                                 runCatching { repository.fetchPrayerDetail(id) }.getOrNull()
                             }
                             val allSaints = runCatching { repository.listSaints("") }.getOrNull().orEmpty()
+                            val saintSummaries = saintIds.associateWith { id ->
+                                allSaints.firstOrNull { it.id == id || it.slug == id }
+                            }
                             val saintDetails = saintIds.associateWith { id ->
-                                runCatching { repository.fetchSaintDetail(id) }.getOrNull()
+                                val slug = saintSummaries[id]?.slug ?: id
+                                runCatching { repository.fetchSaintDetail(slug) }.getOrNull()
                             }
                             val saintNames = saintIds.associateWith { id ->
                                 saintDetails[id]?.name
-                                    ?: allSaints.firstOrNull { it.id == id || it.slug == id }?.name
+                                    ?: saintSummaries[id]?.name
                                     ?: formatFavoriteSaintLabel(id)
                             }
                             val saintSlugs = saintIds.associateWith { id ->
                                 saintDetails[id]?.slug
-                                    ?: allSaints.firstOrNull { it.id == id || it.slug == id }?.slug
+                                    ?: saintSummaries[id]?.slug
                                     ?: id
                             }
                             val activeCommitmentCount = commitments.count { it.status == CommitmentStatus.Active }
@@ -856,6 +928,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 commitments = progress.commitments
                     .filterNot { it.novenaId == novenaId }
                     .plus(activeCommitment),
+                pendingNovenaStarts = progress.pendingNovenaStarts + novenaId,
                 error = null
             )
         }
@@ -872,6 +945,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                             commitments = progress.commitments
                                 .filterNot { it.novenaId == novenaId }
                                 .plus(commitment),
+                            pendingNovenaStarts = progress.pendingNovenaStarts - novenaId,
                             error = null
                         )
                     }
@@ -1008,7 +1082,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         loadNovenas()
         loadPrayers()
         loadRosaries()
-        loadIntentions()
     }
 
     private fun syncReminderScheduler(profile: UserProfile?, activeCommitmentCount: Int) {
@@ -1054,8 +1127,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private fun formatFavoriteSaintLabel(id: String): String {
         val trimmed = id.trim()
         if (trimmed.isBlank()) return id
-        val rawTokens = trimmed.split("_")
-        val nameTokens = if (rawTokens.size >= 4 && rawTokens[2].equals("saint", ignoreCase = true)) {
+        val rawTokens = trimmed.split("_").filter { it.isNotBlank() }
+        val nameTokens = if (rawTokens.firstOrNull()?.matches(Regex("\\d{2}-\\d{2}")) == true) {
+            rawTokens.drop(1)
+        } else if (rawTokens.size >= 4 && rawTokens[2].equals("saint", ignoreCase = true)) {
             listOf("Saint") + rawTokens.drop(3)
         } else {
             trimmed.replace("-", " ").replace("_", " ").split(" ")

@@ -1,8 +1,8 @@
 import SwiftUI
 
-enum NovenaSearchMode {
-    case standard
+enum TermSearchMode {
     case intentions
+    case patronage
 }
 
 struct SaintsSearchView: View {
@@ -99,16 +99,8 @@ struct NovenasSearchView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var localization: LocalizationManager
     @StateObject private var viewModel: NovenasListViewModel
-    let environment: AppEnvironment
-    let mode: NovenaSearchMode
-    @State private var intentionsQuery = ""
-    @State private var intentionItems: [IntentionSearchItem] = []
-    @State private var isIntentionsLoading = false
-    @State private var hasLoadedIntentions = false
 
-    init(environment: AppEnvironment, mode: NovenaSearchMode = .standard) {
-        self.environment = environment
-        self.mode = mode
+    init(environment: AppEnvironment) {
         _viewModel = StateObject(
             wrappedValue: NovenasListViewModel(
                 useCase: ListNovenasUseCase(contentRepository: environment.contentRepository)
@@ -123,89 +115,46 @@ struct NovenasSearchView: View {
 
                 VStack(spacing: 14) {
                     SearchHeader(
-                        title: mode == .intentions ? localization.t("calendar.searchIntentions") : localization.t("search.novenasTitle"),
+                        title: localization.t("search.novenasTitle"),
                         dismiss: dismiss.callAsFunction
                     )
 
-                    if mode == .intentions {
-                        SearchField(
-                            prompt: localization.t("search.intentionsPrompt"),
-                            text: $intentionsQuery
+                    SearchField(
+                        prompt: localization.t("search.novenasPrompt"),
+                        text: $viewModel.query
+                    ) {
+                        Task { await viewModel.search() }
+                    }
+
+                    if viewModel.isLoading {
+                        SanctuaryLoadingCard(
+                            title: localization.t("common.loading"),
+                            detail: localization.t("common.loadingDetail")
                         )
-
-                        if isIntentionsLoading {
-                            SanctuaryLoadingCard(
-                                title: localization.t("common.loading"),
-                                detail: localization.t("common.loadingDetail")
-                            )
-                        } else if hasLoadedIntentions {
-                            SearchResultsCount(count: filteredIntentionItems.count)
-
-                            ScrollView(showsIndicators: false) {
-                                LazyVStack(spacing: 10) {
-                                    ForEach(filteredIntentionItems) { item in
-                                        NavigationLink {
-                                            switch item.kind {
-                                            case .saint(let saint):
-                                                SaintDetailView(contentRepository: environment.contentRepository, saint: saint)
-                                            case .novena(let novena):
-                                                NovenaDetailView(contentRepository: environment.contentRepository, novena: novena)
-                                            }
-                                        } label: {
-                                            SearchResultCard(
-                                                title: item.title,
-                                                subtitle: item.subtitle,
-                                                meta: item.meta,
-                                                accent: AppTheme.glowRose,
-                                                icon: item.icon,
-                                                imageURL: item.imageURL
-                                            )
-                                        }
-                                        .buttonStyle(.plain)
-                                    }
-                                }
-                                .padding(.bottom, 24)
-                            }
-                            .scrollDismissesKeyboard(.interactively)
-                        }
                     } else {
-                        SearchField(
-                            prompt: localization.t("search.novenasPrompt"),
-                            text: $viewModel.query
-                        ) {
-                            Task { await viewModel.search() }
-                        }
+                        SearchResultsCount(count: viewModel.novenas.count)
 
-                        if viewModel.isLoading {
-                            SanctuaryLoadingCard(
-                                title: localization.t("common.loading"),
-                                detail: localization.t("common.loadingDetail")
-                            )
-                        } else {
-                            SearchResultsCount(count: viewModel.novenas.count)
-
-                            ScrollView(showsIndicators: false) {
-                                LazyVStack(spacing: 10) {
-                                    ForEach(viewModel.novenas) { novena in
-                                        NavigationLink {
-                                            NovenaDetailView(contentRepository: environment.contentRepository, novena: novena)
-                                        } label: {
-                                            SearchResultCard(
-                                                title: viewModel.title(for: novena),
-                                                subtitle: viewModel.summary(for: novena),
-                                                meta: viewModel.dayText(for: novena),
-                                                accent: AppTheme.glowBlue,
-                                                icon: "book.closed.fill",
-                                                imageURL: novena.imageURL
-                                            )
-                                        }
-                                        .buttonStyle(.plain)
+                        ScrollView(showsIndicators: false) {
+                            LazyVStack(spacing: 10) {
+                                ForEach(viewModel.novenas) { novena in
+                                    NavigationLink {
+                                        NovenaDetailView(contentRepository: viewModel.contentRepository, novena: novena)
+                                    } label: {
+                                        SearchResultCard(
+                                            title: viewModel.title(for: novena),
+                                            subtitle: viewModel.summary(for: novena),
+                                            meta: viewModel.dayText(for: novena),
+                                            accent: AppTheme.glowBlue,
+                                            icon: "book.closed.fill",
+                                            imageURL: novena.imageURL
+                                        )
                                     }
+                                    .buttonStyle(.plain)
                                 }
-                                .padding(.bottom, 24)
                             }
-                            .scrollDismissesKeyboard(.interactively)
+                            .padding(.bottom, 24)
                         }
+                        .scrollDismissesKeyboard(.interactively)
                     }
                 }
                 .padding(.horizontal, 14)
@@ -215,126 +164,285 @@ struct NovenasSearchView: View {
             .toolbar(.hidden, for: .navigationBar)
             .leftEdgeSwipeBack(dismiss.callAsFunction)
             .task {
-                if mode == .intentions {
-                    await rebuildIntentionItems()
-                } else {
-                    viewModel.setLocale(localization.language.contentLocale)
-                    await viewModel.load()
-                }
+                viewModel.setLocale(localization.language.contentLocale)
+                await viewModel.load()
             }
             .onChange(of: localization.language) { newValue in
                 Task {
-                    if mode == .intentions {
-                        await rebuildIntentionItems()
-                    } else {
-                        viewModel.setLocale(newValue.contentLocale)
-                        await viewModel.load()
-                    }
+                    viewModel.setLocale(newValue.contentLocale)
+                    await viewModel.load()
                 }
             }
             .onChange(of: viewModel.query) { _ in
-                guard mode == .standard else { return }
                 Task { await viewModel.search() }
             }
-            .onChange(of: intentionsQuery) { _ in
-                guard mode == .intentions else { return }
-                Task { await rebuildIntentionItems() }
+        }
+    }
+
+}
+
+struct TermSearchView: View {
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var localization: LocalizationManager
+    let environment: AppEnvironment
+    let mode: TermSearchMode
+    @State private var query = ""
+    @State private var terms: [SearchTerm] = []
+    @State private var selectedTerm: SearchTerm?
+    @State private var novenas: [Novena] = []
+    @State private var saints: [Saint] = []
+    @State private var selectedNovena: Novena?
+    @State private var selectedSaint: Saint?
+    @State private var openSelectedNovena = false
+    @State private var openSelectedSaint = false
+    @State private var isLoading = false
+    @State private var errorMessage: String?
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                AppBackdrop()
+
+                VStack(spacing: 14) {
+                    SearchHeader(title: title, dismiss: dismiss.callAsFunction)
+
+                    SearchField(prompt: prompt, text: $query) {
+                        Task { await resetAndLoadTerms() }
+                    }
+
+                    if let selectedTerm {
+                        selectedTermHeader(selectedTerm)
+                    }
+
+                    if isLoading {
+                        SanctuaryLoadingCard(
+                            title: localization.t("common.loading"),
+                            detail: localization.t("common.loadingDetail")
+                        )
+                    } else if let errorMessage {
+                        Text(errorMessage)
+                            .font(AppTheme.rounded(16, weight: .semibold))
+                            .foregroundStyle(AppTheme.glowRose)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(18)
+                            .appGlassCard(cornerRadius: 22)
+                    } else {
+                        SearchResultsCount(count: selectedTerm == nil ? terms.count : resultCount)
+
+                        ScrollView(showsIndicators: false) {
+                            LazyVStack(spacing: 10) {
+                                if selectedTerm == nil {
+                                    ForEach(terms) { term in
+                                        Button {
+                                            Task { await select(term) }
+                                        } label: {
+                                            SearchResultCard(
+                                                title: term.label,
+                                                subtitle: resultLabel(for: term),
+                                                meta: nil,
+                                                accent: accent,
+                                                icon: mode == .intentions ? "heart.text.square.fill" : "person.crop.circle.badge.checkmark",
+                                                imageURLs: term.imageURLs
+                                            )
+                                        }
+                                        .buttonStyle(.plain)
+                                    }
+                                } else if mode == .intentions {
+                                    ForEach(novenas) { novena in
+                                        NavigationLink {
+                                            NovenaDetailView(contentRepository: environment.contentRepository, novena: novena)
+                                        } label: {
+                                            SearchResultCard(
+                                                title: novena.titleByLocale[localization.language.contentLocale] ?? novena.titleByLocale[.en] ?? novena.slug,
+                                                subtitle: novena.descriptionByLocale[localization.language.contentLocale] ?? novena.descriptionByLocale[.en] ?? "",
+                                                meta: "\(novena.durationDays) days",
+                                                accent: accent,
+                                                icon: "book.closed.fill",
+                                                imageURL: novena.imageURL
+                                            )
+                                        }
+                                        .buttonStyle(.plain)
+                                    }
+                                } else {
+                                    ForEach(saints) { saint in
+                                        NavigationLink {
+                                            SaintDetailView(contentRepository: environment.contentRepository, saint: saint)
+                                        } label: {
+                                            SearchResultCard(
+                                                title: saint.displayName(locale: localization.language.contentLocale),
+                                                subtitle: saint.summaryByLocale[localization.language.contentLocale] ?? saint.summaryByLocale[.en] ?? "",
+                                                meta: saint.patronages.prefix(3).joined(separator: " • "),
+                                                accent: accent,
+                                                icon: "person.fill",
+                                                imageURL: saint.imageURL
+                                            )
+                                        }
+                                        .buttonStyle(.plain)
+                                    }
+                                }
+                            }
+                            .padding(.bottom, 24)
+                        }
+                        .scrollDismissesKeyboard(.interactively)
+                    }
+                }
+                .padding(.horizontal, 14)
+                .padding(.bottom, 10)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            }
+            .toolbar(.hidden, for: .navigationBar)
+            .leftEdgeSwipeBack(dismiss.callAsFunction)
+            .background(hiddenDirectNavigation)
+            .task { await loadTerms() }
+            .onChange(of: localization.language) { _ in
+                Task { await resetAndLoadTerms() }
+            }
+            .onChange(of: query) { _ in
+                Task { await resetAndLoadTerms() }
             }
         }
     }
 
-    private var filteredIntentionItems: [IntentionSearchItem] {
-        intentionItems
-    }
-
-    private func rebuildIntentionItems() async {
-        isIntentionsLoading = true
-        defer { isIntentionsLoading = false }
-
-        let locale = localization.language.contentLocale
-        let results = (try? await environment.contentRepository.searchIntentions(locale: locale, query: intentionsQuery))
-            ?? IntentionSearchResult(novenas: [], saints: [])
-
-        let saintItems = results.saints.map { saint in
-            let title = saint.displayName(locale: locale)
-            let summary = saint.summaryByLocale[locale] ?? saint.summaryByLocale[.en] ?? ""
-            let intentionSummary = formattedIntentions(saint.intentions)
-            let feastLabel = saint.feastLabelByLocale[locale]
-                ?? saint.feastLabelByLocale[.en]
-                ?? localization.formatMonthDay(month: saint.feastMonth, day: saint.feastDay)
-            let meta = intentionSummary.isEmpty ? feastLabel : intentionSummary
-            let document = SearchMatcher.Document(
-                itemID: "saint-\(saint.id)",
-                primaryText: intentionSummary,
-                secondaryText: "",
-                auxiliaryText: ""
-            )
-            return IntentionSearchItem(
-                id: "saint-\(saint.id)",
-                kind: .saint(saint),
-                title: title,
-                subtitle: summary,
-                meta: meta,
-                icon: "person.crop.circle.fill",
-                imageURL: saint.imageURL,
-                document: document
-            )
+    @ViewBuilder
+    private var hiddenDirectNavigation: some View {
+        NavigationLink(isActive: $openSelectedNovena) {
+            if let selectedNovena {
+                NovenaDetailView(contentRepository: environment.contentRepository, novena: selectedNovena)
+            }
+        } label: {
+            EmptyView()
         }
+        .hidden()
 
-        let novenaItems = results.novenas.map { novena in
-            let title = novena.titleByLocale[locale] ?? novena.titleByLocale[.en] ?? novena.slug
-            let summary = novena.descriptionByLocale[locale] ?? novena.descriptionByLocale[.en] ?? ""
-            let intentionsSummary = formattedIntentions(for: novena)
-            let document = SearchMatcher.Document(
-                itemID: novena.id,
-                primaryText: intentionsSummary,
-                secondaryText: "",
-                auxiliaryText: ""
-            )
-            return IntentionSearchItem(
-                id: "novena-\(novena.id)",
-                kind: .novena(novena),
-                title: title,
-                subtitle: summary,
-                meta: intentionsSummary,
-                icon: "book.closed.fill",
-                imageURL: novena.imageURL,
-                document: document
-            )
+        NavigationLink(isActive: $openSelectedSaint) {
+            if let selectedSaint {
+                SaintDetailView(contentRepository: environment.contentRepository, saint: selectedSaint)
+            }
+        } label: {
+            EmptyView()
         }
-        intentionItems = saintItems + novenaItems
-        hasLoadedIntentions = true
+        .hidden()
     }
 
-    private func formattedIntentions(for novena: Novena) -> String {
-        formattedIntentions(novena.intentions)
+    private var title: String {
+        mode == .intentions ? localization.t("search.intentionsTitle") : localization.t("search.patronageTitle")
     }
 
-    private func formattedIntentions(_ intentions: [String]) -> String {
-        let cleaned = intentions
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty }
-
-        guard !cleaned.isEmpty else { return "" }
-        return Array(cleaned.prefix(3)).joined(separator: " • ")
+    private var prompt: String {
+        mode == .intentions ? localization.t("search.intentionsPrompt") : localization.t("search.patronagePrompt")
     }
 
-}
+    private var accent: Color {
+        mode == .intentions ? AppTheme.glowRose : AppTheme.glowGold
+    }
 
-private struct IntentionSearchItem: Identifiable {
-    let id: String
-    let kind: IntentionSearchItemKind
-    let title: String
-    let subtitle: String
-    let meta: String
-    let icon: String
-    let imageURL: URL?
-    let document: SearchMatcher.Document
-}
+    private var resultCount: Int {
+        mode == .intentions ? novenas.count : saints.count
+    }
 
-private enum IntentionSearchItemKind {
-    case saint(Saint)
-    case novena(Novena)
+    private func resetAndLoadTerms() async {
+        selectedTerm = nil
+        novenas = []
+        saints = []
+        await loadTerms()
+    }
+
+    private func loadTerms() async {
+        isLoading = true
+        errorMessage = nil
+        defer { isLoading = false }
+        do {
+            let locale = localization.language.contentLocale
+            switch mode {
+            case .intentions:
+                terms = try await environment.contentRepository.searchIntentionTerms(locale: locale, query: query)
+            case .patronage:
+                terms = try await environment.contentRepository.searchPatronageTerms(locale: locale, query: query)
+            }
+        } catch {
+            terms = []
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func select(_ term: SearchTerm) async {
+        selectedTerm = term
+        isLoading = true
+        errorMessage = nil
+        defer { isLoading = false }
+        do {
+            let locale = localization.language.contentLocale
+            switch mode {
+            case .intentions:
+                let results = try await environment.contentRepository.novenasByIntention(locale: locale, key: term.key)
+                if results.count == 1 {
+                    novenas = results
+                    selectedNovena = results[0]
+                    openSelectedNovena = true
+                } else {
+                    novenas = results
+                }
+            case .patronage:
+                let results = try await environment.contentRepository.saintsByPatronage(locale: locale, key: term.key)
+                if results.count == 1 {
+                    saints = results
+                    selectedSaint = results[0]
+                    openSelectedSaint = true
+                } else {
+                    saints = results
+                }
+            }
+        } catch {
+            novenas = []
+            saints = []
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func selectedTermHeader(_ term: SearchTerm) -> some View {
+        HStack(spacing: 10) {
+            Button {
+                selectedTerm = nil
+                novenas = []
+                saints = []
+            } label: {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(.white)
+                    .frame(width: 34, height: 34)
+                    .background(accent.opacity(0.18))
+                    .clipShape(Circle())
+            }
+            .buttonStyle(.plain)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(term.label)
+                    .font(AppTheme.rounded(17, weight: .bold))
+                    .foregroundStyle(.white)
+                Text(resultLabel(for: term))
+                    .font(AppTheme.rounded(13, weight: .semibold))
+                    .foregroundStyle(AppTheme.cardText.opacity(0.72))
+            }
+
+            Spacer()
+        }
+        .padding(14)
+        .appGlassCard(cornerRadius: 22)
+    }
+
+    private func resultLabel(for term: SearchTerm) -> String {
+        let labels = (term.resultLabels ?? [])
+            .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+            .prefix(2)
+        guard !labels.isEmpty else { return resultLabel(for: term.resultCount) }
+
+        let suffix = term.resultCount > labels.count ? " +\(term.resultCount - labels.count)" : ""
+        return labels.joined(separator: " • ") + suffix
+    }
+
+    private func resultLabel(for count: Int) -> String {
+        "\(count) \(localization.t("search.results"))"
+    }
 }
 
 struct GlobalSearchView: View {
@@ -446,11 +554,14 @@ struct SearchResultCard: View {
     let accent: Color
     let icon: String
     var imageURL: URL? = nil
+    var imageURLs: [URL] = []
 
     var body: some View {
         HStack(alignment: .top, spacing: 14) {
             if let imageURL {
                 SearchResultThumbnail(imageURL: imageURL, accent: accent, icon: icon)
+            } else if !imageURLs.isEmpty {
+                SearchResultThumbnailStack(imageURLs: imageURLs, accent: accent, icon: icon)
             } else {
                 ZStack {
                     Circle()
@@ -492,6 +603,51 @@ struct SearchResultCard: View {
         .padding(.vertical, 15)
         .appGlassCard(cornerRadius: 24)
         .contentShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+    }
+}
+
+private struct SearchResultThumbnailStack: View {
+    let imageURLs: [URL]
+    let accent: Color
+    let icon: String
+
+    private var urls: [URL] {
+        Array(imageURLs.prefix(3))
+    }
+
+    var body: some View {
+        if urls.count <= 1, let first = urls.first {
+            SearchResultThumbnail(imageURL: first, accent: accent, icon: icon)
+        } else {
+            ZStack(alignment: .topLeading) {
+                ForEach(Array(urls.enumerated()), id: \.offset) { index, url in
+                    AsyncImage(url: url) { phase in
+                        switch phase {
+                        case .success(let image):
+                            image
+                                .resizable()
+                                .scaledToFill()
+                        default:
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 13, style: .continuous)
+                                    .fill(accent.opacity(0.16))
+                                Image(systemName: icon)
+                                    .font(.system(size: 15, weight: .semibold))
+                                    .foregroundStyle(accent)
+                            }
+                        }
+                    }
+                    .frame(width: 50, height: 66)
+                    .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 13, style: .continuous)
+                            .stroke(Color(red: 0.08, green: 0.18, blue: 0.25), lineWidth: 2)
+                    )
+                    .offset(x: CGFloat(index * 12), y: CGFloat(index * 4))
+                }
+            }
+            .frame(width: 74, height: 82, alignment: .topLeading)
+        }
     }
 }
 
