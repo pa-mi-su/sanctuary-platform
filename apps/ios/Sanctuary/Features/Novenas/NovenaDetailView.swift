@@ -128,7 +128,8 @@ struct NovenaDetailView: View {
                             HStack(spacing: 10) {
                                 Button {
                                     Task {
-                                        await progressStore.toggleFavorite(itemType: .novena, itemID: effectiveNovena.id)
+                                        isFavorite.toggle()
+                                        await progressStore.setFavorite(isFavorite, itemType: .novena, itemID: effectiveNovena.id)
                                         isFavorite = progressStore.isFavorite(itemType: .novena, itemID: effectiveNovena.id)
                                     }
                                 } label: {
