@@ -3305,7 +3305,6 @@ private fun SanctuaryModalSheet(
     content: @Composable ColumnScope.() -> Unit
 ) {
     val density = LocalDensity.current
-    val edgeWidthPx = with(density) { 48.dp.toPx() }
     val minSwipePx = with(density) { 96.dp.toPx() }
     val maxVerticalDriftPx = with(density) { 72.dp.toPx() }
 
@@ -3331,39 +3330,6 @@ private fun SanctuaryModalSheet(
                 )
                 .statusBarsPadding()
                 .navigationBarsPadding()
-                .pointerInput(onDismissRequest) {
-                    var startedAtLeftEdge = false
-                    var horizontalDrag = 0f
-                    var verticalDrag = 0f
-                    detectDragGestures(
-                        onDragStart = { offset ->
-                            startedAtLeftEdge = offset.x <= edgeWidthPx
-                            horizontalDrag = 0f
-                            verticalDrag = 0f
-                        },
-                        onDragEnd = {
-                            if (
-                                startedAtLeftEdge &&
-                                horizontalDrag > minSwipePx &&
-                                kotlin.math.abs(verticalDrag) < maxVerticalDriftPx
-                            ) {
-                                onDismissRequest()
-                            }
-                        },
-                        onDragCancel = {
-                            startedAtLeftEdge = false
-                            horizontalDrag = 0f
-                            verticalDrag = 0f
-                        },
-                        onDrag = { change, dragAmount ->
-                            if (startedAtLeftEdge) {
-                                horizontalDrag += dragAmount.x
-                                verticalDrag += dragAmount.y
-                                change.consume()
-                            }
-                        }
-                    )
-                }
         ) {
             Column(
                 modifier = Modifier
@@ -3375,6 +3341,41 @@ private fun SanctuaryModalSheet(
             ) {
                 content()
             }
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .fillMaxHeight()
+                    .width(64.dp)
+                    .pointerInput(onDismissRequest) {
+                        var horizontalDrag = 0f
+                        var verticalDrag = 0f
+                        detectDragGestures(
+                            onDragStart = {
+                                horizontalDrag = 0f
+                                verticalDrag = 0f
+                            },
+                            onDragEnd = {
+                                if (
+                                    horizontalDrag > minSwipePx &&
+                                    kotlin.math.abs(verticalDrag) < maxVerticalDriftPx
+                                ) {
+                                    onDismissRequest()
+                                }
+                            },
+                            onDragCancel = {
+                                horizontalDrag = 0f
+                                verticalDrag = 0f
+                            },
+                            onDrag = { change, dragAmount ->
+                                horizontalDrag += dragAmount.x
+                                verticalDrag += dragAmount.y
+                                if (horizontalDrag > 0f) {
+                                    change.consume()
+                                }
+                            }
+                        )
+                    }
+            )
             Surface(
                 color = Color(0xCC102232),
                 shape = CircleShape,
