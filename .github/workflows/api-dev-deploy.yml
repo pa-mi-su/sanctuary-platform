@@ -59,6 +59,7 @@ jobs:
       SANCTUARY_AUTH_ENABLED: ${{ vars.API_DEV_AUTH_ENABLED || 'true' }}
       SANCTUARY_COGNITO_ISSUER_URI: ${{ vars.API_DEV_COGNITO_ISSUER_URI || 'https://cognito-idp.us-east-1.amazonaws.com/us-east-1_oCrXzjKbV' }}
       SANCTUARY_COGNITO_CLIENT_ID: ${{ vars.API_DEV_COGNITO_CLIENT_ID || '2ukk5f1esf1gmgi9aadvvbjjgs' }}
+      SANCTUARY_COGNITO_USER_POOL_ID: ${{ vars.API_DEV_COGNITO_USER_POOL_ID }}
       IMAGE_TAG: ${{ github.sha }}
 
     steps:
@@ -94,12 +95,18 @@ jobs:
           echo "SANCTUARY_AUTH_ENABLED=$(echo -n "${SANCTUARY_AUTH_ENABLED}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
           echo "SANCTUARY_COGNITO_ISSUER_URI=$(echo -n "${SANCTUARY_COGNITO_ISSUER_URI}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
           echo "SANCTUARY_COGNITO_CLIENT_ID=$(echo -n "${SANCTUARY_COGNITO_CLIENT_ID}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
+          echo "SANCTUARY_COGNITO_USER_POOL_ID=$(echo -n "${SANCTUARY_COGNITO_USER_POOL_ID}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
 
       - name: Validate dev DB secret source
         run: |
           if [[ "${API_DEV_DB_SECRET_ARN}" != arn:aws:secretsmanager:*:secret:rds\!* ]]; then
             echo "API_DEV_DB_SECRET_ARN must be the RDS-managed Secrets Manager secret ARN."
             echo "Do not use raw GitHub secrets or SSM parameters for dev DB credentials."
+            exit 1
+          fi
+
+          if [[ "${SANCTUARY_AUTH_ENABLED}" == "true" && -z "${SANCTUARY_COGNITO_USER_POOL_ID}" ]]; then
+            echo "API_DEV_COGNITO_USER_POOL_ID must be set in the dev GitHub environment."
             exit 1
           fi
 
@@ -141,6 +148,7 @@ jobs:
             -e SANCTUARY_AUTH_ENABLED="${SANCTUARY_AUTH_ENABLED}" \
             -e SANCTUARY_COGNITO_ISSUER_URI="${SANCTUARY_COGNITO_ISSUER_URI}" \
             -e SANCTUARY_COGNITO_CLIENT_ID="${SANCTUARY_COGNITO_CLIENT_ID}" \
+            -e SANCTUARY_COGNITO_USER_POOL_ID="${SANCTUARY_COGNITO_USER_POOL_ID}" \
             "${EXPECTED_API_IMAGE}")"
 
           for attempt in {1..30}; do
@@ -205,6 +213,7 @@ jobs:
             --arg auth_enabled "${SANCTUARY_AUTH_ENABLED}" \
             --arg cognito_issuer "${SANCTUARY_COGNITO_ISSUER_URI}" \
             --arg cognito_client_id "${SANCTUARY_COGNITO_CLIENT_ID}" \
+            --arg cognito_user_pool_id "${SANCTUARY_COGNITO_USER_POOL_ID}" \
             --arg db_secret "${API_DEV_DB_SECRET_ARN}:password::" \
             'del(
               .taskDefinitionArn,
@@ -225,7 +234,8 @@ jobs:
                   {"name": "SANCTUARY_DB_USERNAME", "value": $db_username},
                   {"name": "SANCTUARY_AUTH_ENABLED", "value": $auth_enabled},
                   {"name": "SANCTUARY_COGNITO_ISSUER_URI", "value": $cognito_issuer},
-                  {"name": "SANCTUARY_COGNITO_CLIENT_ID", "value": $cognito_client_id}
+                  {"name": "SANCTUARY_COGNITO_CLIENT_ID", "value": $cognito_client_id},
+                  {"name": "SANCTUARY_COGNITO_USER_POOL_ID", "value": $cognito_user_pool_id}
                 ]
                 | .secrets = [
                   {"name": "SANCTUARY_DB_PASSWORD", "valueFrom": $db_secret}

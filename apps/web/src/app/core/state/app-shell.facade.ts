@@ -4,7 +4,6 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { catchError, combineLatest, map, of, startWith, switchMap } from 'rxjs';
 
 import {
-  IntentionSearchResult,
   LiturgicalDayResponse,
   NovenaCalendarDateResponse,
   NovenaDetail,
@@ -14,6 +13,7 @@ import {
   SaintDateGroup,
   SaintDetail,
   SaintSummary,
+  SearchTerm,
   SanctuaryApiService,
   UserFavorite,
   UserNovenaCommitment,
@@ -23,12 +23,12 @@ import {
 } from '../api/sanctuary-api.service';
 import { SanctuaryAuthService } from '../auth/sanctuary-auth.service';
 
-export type AppTab = 'home' | 'novenas' | 'intentions' | 'liturgical' | 'saints' | 'prayers' | 'rosaries' | 'about' | 'auth' | 'me';
+export type AppTab = 'home' | 'novenas' | 'intentions' | 'patronage' | 'liturgical' | 'saints' | 'prayers' | 'rosaries' | 'about' | 'auth' | 'me';
 export type CalendarView = 'day' | 'week' | 'month';
 export type SeasonKey = 'ADVENT' | 'CHRISTMAS' | 'LENT' | 'EASTER' | 'ORDINARY';
 export type CalendarCell = { date: string | null; dayNumber: number | null; label: string; seasonKey?: SeasonKey | null };
 export type SaintsMode = 'calendar' | 'list';
-export type NovenasMode = 'calendar' | 'list' | 'intentions';
+export type NovenasMode = 'calendar' | 'list';
 export type AppLanguage = 'en' | 'es' | 'pl';
 export type LegalDocumentType = 'support' | 'privacy';
 export interface MeLinkedItem {
@@ -47,8 +47,6 @@ export interface LocalNovenaProgress {
 }
 
 const LOCAL_NOVENA_PROGRESS_KEY = 'sanctuary.localNovenaProgress';
-const EMPTY_INTENTION_SEARCH_RESULT: IntentionSearchResult = { novenas: [], saints: [] };
-
 @Injectable({ providedIn: 'root' })
 export class AppShellFacade {
   private readonly api = inject(SanctuaryApiService);
@@ -61,6 +59,11 @@ export class AppShellFacade {
   readonly novenasView = signal<CalendarView>('day');
   readonly saintsMode = signal<SaintsMode>('calendar');
   readonly novenasMode = signal<NovenasMode>('calendar');
+  readonly termQuery = signal('');
+  readonly selectedTerm = signal<SearchTerm | null>(null);
+  readonly selectedIntentionNovenas = signal<NovenaSummary[]>([]);
+  readonly selectedPatronageSaints = signal<SaintSummary[]>([]);
+  readonly termLoadFailed = signal(false);
   readonly activeLegalDocument = signal<LegalDocumentType | null>(null);
   readonly language = signal<AppLanguage>('en');
   readonly authState = this.auth.state;
@@ -550,12 +553,8 @@ export class AppShellFacade {
 
   readonly novenaSearchResults = toSignal(
     combineLatest([toObservable(this.novenaQuery), toObservable(this.language), toObservable(this.novenasMode)]).pipe(
-      switchMap(([query, language, mode]) => {
-        const request = mode === 'intentions'
-          ? of<NovenaSummary[]>([])
-          : this.api.listNovenas(this.apiLanguage(language), query);
-
-        return request.pipe(
+      switchMap(([query, language]) => {
+        return this.api.listNovenas(this.apiLanguage(language), query).pipe(
           catchError(() => {
             this.novenasLoadFailed.set(true);
             return of<NovenaSummary[]>([]);
@@ -566,30 +565,49 @@ export class AppShellFacade {
     { initialValue: [] },
   );
 
-  readonly intentionSearchResults = toSignal(
-    combineLatest([toObservable(this.novenaQuery), toObservable(this.language), toObservable(this.currentTab)]).pipe(
+  readonly intentionTerms = toSignal(
+    combineLatest([toObservable(this.termQuery), toObservable(this.language), toObservable(this.currentTab)]).pipe(
       switchMap(([query, language, tab]) => {
         if (tab !== 'intentions') {
-          return of(EMPTY_INTENTION_SEARCH_RESULT);
+          return of<SearchTerm[]>([]);
         }
 
-        return this.api.searchIntentions(this.apiLanguage(language), query).pipe(
+        return this.api.searchIntentionTerms(this.apiLanguage(language), query).pipe(
           catchError(() => {
-            this.novenasLoadFailed.set(true);
-            return of(EMPTY_INTENTION_SEARCH_RESULT);
+            this.termLoadFailed.set(true);
+            return of<SearchTerm[]>([]);
           }),
         );
       }),
     ),
-    { initialValue: EMPTY_INTENTION_SEARCH_RESULT },
+    { initialValue: [] },
   );
 
-  readonly intentionNovenaResults = computed(() => this.intentionSearchResults().novenas);
-  readonly intentionSaintResults = computed(() => this.intentionSearchResults().saints);
+  readonly patronageTerms = toSignal(
+    combineLatest([toObservable(this.termQuery), toObservable(this.language), toObservable(this.currentTab)]).pipe(
+      switchMap(([query, language, tab]) => {
+        if (tab !== 'patronage') {
+          return of<SearchTerm[]>([]);
+        }
+
+        return this.api.searchPatronageTerms(this.apiLanguage(language), query).pipe(
+          catchError(() => {
+            this.termLoadFailed.set(true);
+            return of<SearchTerm[]>([]);
+          }),
+        );
+      }),
+    ),
+    { initialValue: [] },
+  );
 
   readonly weekdayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   setTab(tab: AppTab): void {
+    if (tab !== this.currentTab() || tab === 'intentions' || tab === 'patronage') {
+      this.clearSelectedTerm();
+      this.termLoadFailed.set(false);
+    }
     this.currentTab.set(tab);
     if (tab === 'me' && this.isAuthenticated()) {
       this.refreshUserCollections();
@@ -691,7 +709,7 @@ export class AppShellFacade {
           this.translate(
             'We could not delete your account right now. Please try again.',
             'No pudimos eliminar tu cuenta en este momento. Inténtalo de nuevo.',
-            'Nie mozna teraz usunac konta. Sprobuj ponownie.'
+            'Nie można teraz usunąć konta. Spróbuj ponownie.'
           )
         );
       },
@@ -757,7 +775,7 @@ export class AppShellFacade {
           this.translate(
             'We could not save your settings right now.',
             'No pudimos guardar tu configuración en este momento.',
-            'Nie mozna teraz zapisac ustawien.'
+            'Nie można teraz zapisać ustawień.'
           )
         );
       },
@@ -1035,10 +1053,69 @@ export class AppShellFacade {
 
   openIntentions(): void {
     this.setTab('intentions');
-    this.novenasMode.set('intentions');
-    this.novenaQuery.set('');
-    this.novenasLoadFailed.set(false);
+    this.termQuery.set('');
+    this.selectedTerm.set(null);
+    this.selectedIntentionNovenas.set([]);
+    this.selectedPatronageSaints.set([]);
+    this.termLoadFailed.set(false);
     this.resetViewportToTop();
+  }
+
+  openPatronage(): void {
+    this.setTab('patronage');
+    this.termQuery.set('');
+    this.selectedTerm.set(null);
+    this.selectedIntentionNovenas.set([]);
+    this.selectedPatronageSaints.set([]);
+    this.termLoadFailed.set(false);
+    this.resetViewportToTop();
+  }
+
+  updateTermQuery(query: string): void {
+    this.termQuery.set(query);
+    this.selectedTerm.set(null);
+    this.selectedIntentionNovenas.set([]);
+    this.selectedPatronageSaints.set([]);
+    this.termLoadFailed.set(false);
+  }
+
+  clearSelectedTerm(): void {
+    this.selectedTerm.set(null);
+    this.selectedIntentionNovenas.set([]);
+    this.selectedPatronageSaints.set([]);
+  }
+
+  selectTerm(term: SearchTerm): void {
+    this.selectedTerm.set(term);
+    this.termLoadFailed.set(false);
+    if (this.currentTab() === 'patronage') {
+      this.api.getSaintsByPatronage(this.apiLanguage(this.language()), term.key).pipe(
+        catchError(() => {
+          this.termLoadFailed.set(true);
+          return of<SaintSummary[]>([]);
+        }),
+      ).subscribe((saints) => {
+        if (saints.length === 1) {
+          this.openSaintDetail(saints[0]);
+          return;
+        }
+        this.selectedPatronageSaints.set(saints);
+      });
+      return;
+    }
+
+    this.api.getNovenasByIntention(this.apiLanguage(this.language()), term.key).pipe(
+      catchError(() => {
+        this.termLoadFailed.set(true);
+        return of<NovenaSummary[]>([]);
+      }),
+    ).subscribe((novenas) => {
+      if (novenas.length === 1) {
+        this.openNovenaDetail(novenas[0]);
+        return;
+      }
+      this.selectedIntentionNovenas.set(novenas);
+    });
   }
 
   browseNovenas(): void {
@@ -1086,7 +1163,7 @@ export class AppShellFacade {
     return this.translate(
       'Selected day · Featured saint',
       'Día seleccionado · Santo destacado',
-      'Wybrany dzien · Wyrozniony swiety'
+      'Wybrany dzień · Wyróżniony święty'
     );
   }
 
@@ -1094,7 +1171,7 @@ export class AppShellFacade {
     return this.translate(
       'Selected day · Featured novena',
       'Día seleccionado · Novena destacada',
-      'Wybrany dzien · Wyrozniona nowenna'
+      'Wybrany dzień · Wyróżniona nowenna'
     );
   }
 
@@ -1102,7 +1179,7 @@ export class AppShellFacade {
     return this.translate(
       'No saints are assigned to this feast day in the imported legacy data.',
       'No hay santos asignados a este día de fiesta en los datos heredados importados.',
-      'W zaimportowanych danych nie przypisano swietych do tego dnia swieta.'
+      'W zaimportowanych danych nie przypisano świętych do tego dnia święta.'
     );
   }
 
@@ -1115,16 +1192,14 @@ export class AppShellFacade {
   }
 
   localizedNovenaSearchPlaceholder(): string {
-    return this.novenasMode() === 'intentions'
-      ? this.translate('Search intentions', 'Buscar intenciones', 'Szukaj intencji')
-      : this.translate('Search novenas', 'Buscar novenas', 'Szukaj nowenn');
+    return this.translate('Search novenas', 'Buscar novenas', 'Szukaj nowenn');
   }
 
   localizedSaintResultsLabel(): string {
     return this.translate(
       `${this.saintResults().length} saints`,
       `${this.saintResults().length} santos`,
-      `${this.saintResults().length} swietych`
+      `${this.saintResults().length} świętych`
     );
   }
 
@@ -1161,25 +1236,52 @@ export class AppShellFacade {
   }
 
   localizedIntentionsResultsLabel(): string {
-    if (this.novenasMode() === 'list') {
+    return this.translate(
+      `${this.novenaSearchResults().length} novenas`,
+      `${this.novenaSearchResults().length} novenas`,
+      `${this.novenaSearchResults().length} nowenn`
+    );
+  }
+
+  localizedTermResultsLabel(): string {
+    const tab = this.currentTab();
+    if (this.selectedTerm()) {
+      const count = tab === 'patronage'
+        ? this.selectedPatronageSaints().length
+        : this.selectedIntentionNovenas().length;
       return this.translate(
-        `${this.novenaSearchResults().length} novenas`,
-        `${this.novenaSearchResults().length} novenas`,
-        `${this.novenaSearchResults().length} nowenn`
+        `${count} ${count === 1 ? 'result' : 'results'}`,
+        `${count} ${count === 1 ? 'resultado' : 'resultados'}`,
+        `${count} wyników`
       );
     }
 
+    const count = tab === 'patronage' ? this.patronageTerms().length : this.intentionTerms().length;
     return this.translate(
-      `${this.intentionNovenaResults().length} novenas and ${this.intentionSaintResults().length} saints`,
-      `${this.intentionNovenaResults().length} novenas y ${this.intentionSaintResults().length} santos`,
-      `${this.intentionNovenaResults().length} nowenn i ${this.intentionSaintResults().length} świętych`
+      `${count} ${count === 1 ? 'term' : 'terms'}`,
+      `${count} ${count === 1 ? 'término' : 'términos'}`,
+      `${count} haseł`
     );
+  }
+
+  localizedTermEmptyCopy(): string {
+    return this.currentTab() === 'patronage'
+      ? this.translate(
+        'Search for a patronage, then choose it to find the matching saint or saints.',
+        'Busca un patronazgo y elígelo para encontrar el santo o los santos relacionados.',
+        'Wyszukaj patronat, a potem wybierz go, aby znaleźć świętego lub świętych.'
+      )
+      : this.translate(
+        'Search for an intention, then choose it to find the matching novena or novenas.',
+        'Busca una intención y elígela para encontrar la novena o las novenas relacionadas.',
+        'Wyszukaj intencję, a potem wybierz ją, aby znaleźć nowennę lub nowenny.'
+      );
   }
 
   localizedPreviewTitle(mode: 'today' | 'selected'): string {
     return mode === 'today'
       ? this.translate('Today', 'Hoy', 'Dzisiaj')
-      : this.translate('Selected Day', 'Día seleccionado', 'Wybrany dzien');
+      : this.translate('Selected Day', 'Día seleccionado', 'Wybrany dzień');
   }
 
   localizedNoLiturgicalCopy(): string {
@@ -1194,23 +1296,15 @@ export class AppShellFacade {
     return this.translate(
       'Selected day matches today.',
       'El día seleccionado coincide con hoy.',
-      'Wybrany dzien jest taki sam jak dzisiaj.'
+      'Wybrany dzień jest taki sam jak dzisiaj.'
     );
   }
 
   localizedIntentionsEmptyCopy(): string {
-    if (this.novenasMode() === 'list') {
-      return this.translate(
-        'Browse the novena library or search for a specific novena.',
-        'Explora la biblioteca de novenas o busca una novena específica.',
-        'Przegladaj biblioteke nowenn lub wyszukaj konkretna nowenne.'
-      );
-    }
-
     return this.translate(
-      'Browse saints and novenas by intention, or search for a specific need.',
-      'Revisa santos y novenas por intención, o busca una necesidad específica.',
-      'Przeglądaj świętych i nowenny według intencji albo wyszukaj konkretną potrzebę.'
+      'Browse the novena library or search for a specific novena.',
+      'Explora la biblioteca de novenas o busca una novena específica.',
+      'Przeglądaj bibliotekę nowenn lub wyszukaj konkretną nowennę.'
     );
   }
 
@@ -1220,25 +1314,25 @@ export class AppShellFacade {
         return this.translate(
           'We could not load saints from the API right now.',
           'No pudimos cargar los santos desde la API en este momento.',
-          'Nie mozna teraz zaladowac swietych z API.'
+          'Nie można teraz załadować świętych z API.'
         );
       case 'liturgical':
         return this.translate(
           'We could not load the liturgical day from the API right now.',
           'No pudimos cargar el día litúrgico desde la API en este momento.',
-          'Nie mozna teraz zaladowac dnia liturgicznego z API.'
+          'Nie można teraz załadować dnia liturgicznego z API.'
         );
       case 'novenas':
         return this.translate(
           'We could not load novenas from the API right now.',
           'No pudimos cargar las novenas desde la API en este momento.',
-          'Nie mozna teraz zaladowac nowenn z API.'
+          'Nie można teraz załadować nowenn z API.'
         );
       case 'prayers':
         return this.translate(
           'We could not load prayers from the API right now.',
           'No pudimos cargar las oraciones desde la API en este momento.',
-          'Nie mozna teraz zaladowac modlitw z API.'
+          'Nie można teraz załadować modlitw z API.'
         );
     }
   }

@@ -9,9 +9,8 @@ struct HomeView: View {
     @State private var showAbout = false
     @State private var showPrayersSearch = false
     @State private var showRosarySearch = false
-    @State private var showSaintsList = false
-    @State private var showNovenasSearch = false
     @State private var showIntentionsSearch = false
+    @State private var showPatronageSearch = false
     @State private var showDailyReadings = false
     @State private var dailyReadingsURLOverride: URL?
 
@@ -22,22 +21,13 @@ struct HomeView: View {
     private var primaryActions: [HomeAction] {
         [
             HomeAction(
-                title: localization.t("home.saints"),
-                subtitle: localization.t("home.saintsSubtitle"),
-                icon: "person.3.fill",
-                tint: AppTheme.glowGold,
-                illustrationAssetName: "HomeCardSaints"
+                title: localization.t("home.daily"),
+                subtitle: localization.t("home.dailySubtitle"),
+                icon: "sun.max.fill",
+                tint: AppTheme.todayHighlight,
+                illustrationAssetName: "HomeCardDailyReadings"
             ) {
-                showSaintsList = true
-            },
-            HomeAction(
-                title: localization.t("tab.novenas"),
-                subtitle: localization.t("home.novenasSubtitle"),
-                icon: "book.closed.fill",
-                tint: AppTheme.glowBlue,
-                illustrationAssetName: "HomeCardNovenas"
-            ) {
-                showNovenasSearch = true
+                showDailyReadings = true
             },
             HomeAction(
                 title: localization.t("home.prayers"),
@@ -49,22 +39,13 @@ struct HomeView: View {
                 showPrayersSearch = true
             },
             HomeAction(
-                title: localization.t("home.rosary"),
-                subtitle: localization.t("home.rosarySubtitle"),
-                icon: "circle",
+                title: localization.t("home.patronage"),
+                subtitle: localization.t("home.patronageSubtitle"),
+                icon: "person.crop.circle.badge.checkmark",
                 tint: AppTheme.glowGold,
-                illustrationAssetName: "HomeCardRosary"
+                illustrationAssetName: "HomeCardSaints"
             ) {
-                showRosarySearch = true
-            },
-            HomeAction(
-                title: localization.t("home.daily"),
-                subtitle: localization.t("home.dailySubtitle"),
-                icon: "sun.max.fill",
-                tint: AppTheme.todayHighlight,
-                illustrationAssetName: "HomeCardDailyReadings"
-            ) {
-                showDailyReadings = true
+                showPatronageSearch = true
             },
             HomeAction(
                 title: localization.t("home.intentions"),
@@ -74,6 +55,15 @@ struct HomeView: View {
                 illustrationAssetName: "HomeCardIntentions"
             ) {
                 showIntentionsSearch = true
+            },
+            HomeAction(
+                title: localization.t("home.rosary"),
+                subtitle: localization.t("home.rosarySubtitle"),
+                icon: "circle",
+                tint: AppTheme.glowGold,
+                illustrationAssetName: "HomeCardRosary"
+            ) {
+                showRosarySearch = true
             }
         ]
     }
@@ -200,14 +190,11 @@ struct HomeView: View {
             .fullScreenCover(isPresented: $showRosarySearch) {
                 PrayersSearchView(environment: environment, mode: .rosary)
             }
-            .fullScreenCover(isPresented: $showSaintsList) {
-                SaintsSearchView(environment: environment)
-            }
-            .fullScreenCover(isPresented: $showNovenasSearch) {
-                NovenasSearchView(environment: environment)
-            }
             .fullScreenCover(isPresented: $showIntentionsSearch) {
-                NovenasSearchView(environment: environment, mode: .intentions)
+                TermSearchView(environment: environment, mode: .intentions)
+            }
+            .fullScreenCover(isPresented: $showPatronageSearch) {
+                TermSearchView(environment: environment, mode: .patronage)
             }
             .fullScreenCover(isPresented: $showDailyReadings) {
                 DailyReadingsView(url: dailyReadingsURL)

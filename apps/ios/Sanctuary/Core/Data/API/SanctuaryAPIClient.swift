@@ -146,6 +146,7 @@ struct APIContentSaintSummaryResponse: Decodable, Sendable {
     let feastLabel: String
     let summary: String?
     let imageUrl: String?
+    let patronages: [String]?
     let intentions: [String]?
 }
 
@@ -164,6 +165,7 @@ struct APIContentSaintDetailResponse: Decodable, Sendable {
     let summary: String?
     let biography: String?
     let imageUrl: String?
+    let patronages: [String]?
     let intentions: [String]?
     let sources: [APIContentSaintSourceResponse]
 }
@@ -210,9 +212,12 @@ struct APIContentNovenaCalendarDateResponse: Decodable, Sendable {
     let startingNovena: APIContentNovenaSummaryResponse?
 }
 
-struct APIContentIntentionSearchResultResponse: Decodable, Sendable {
-    let novenas: [APIContentNovenaSummaryResponse]
-    let saints: [APIContentSaintSummaryResponse]
+struct APIContentSearchTermResponse: Decodable, Sendable {
+    let key: String
+    let label: String
+    let resultCount: Int
+    let resultLabels: [String]?
+    let imageUrls: [String]?
 }
 
 struct APINovenaServingWindowResponse: Decodable, Sendable {
@@ -430,36 +435,58 @@ actor SanctuaryAPIClient {
         )
     }
 
-    func searchNovenasByIntentions(
+    func searchIntentionTerms(
         locale: ContentLocale,
         query: String
-    ) async throws -> [APIContentNovenaSummaryResponse] {
-        let queryItems = [
-            URLQueryItem(name: "lang", value: locale.rawValue),
-            URLQueryItem(name: "query", value: query)
-        ]
-
-        return try await performRequest(
-            path: "/content/novenas/intentions",
-            queryItems: queryItems,
+    ) async throws -> [APIContentSearchTermResponse] {
+        try await performRequest(
+            path: "/content/intentions/terms",
+            queryItems: [
+                URLQueryItem(name: "lang", value: locale.rawValue),
+                URLQueryItem(name: "query", value: query)
+            ],
             method: "GET",
             body: Optional<String>.none,
             token: nil
         )
     }
 
-    func searchIntentions(
+    func novenasByIntention(
+        locale: ContentLocale,
+        key: String
+    ) async throws -> [APIContentNovenaSummaryResponse] {
+        try await performRequest(
+            path: "/content/intentions/terms/\(key)/novenas",
+            queryItems: [URLQueryItem(name: "lang", value: locale.rawValue)],
+            method: "GET",
+            body: Optional<String>.none,
+            token: nil
+        )
+    }
+
+    func searchPatronageTerms(
         locale: ContentLocale,
         query: String
-    ) async throws -> APIContentIntentionSearchResultResponse {
-        let queryItems = [
-            URLQueryItem(name: "lang", value: locale.rawValue),
-            URLQueryItem(name: "query", value: query)
-        ]
+    ) async throws -> [APIContentSearchTermResponse] {
+        try await performRequest(
+            path: "/content/patronages/terms",
+            queryItems: [
+                URLQueryItem(name: "lang", value: locale.rawValue),
+                URLQueryItem(name: "query", value: query)
+            ],
+            method: "GET",
+            body: Optional<String>.none,
+            token: nil
+        )
+    }
 
-        return try await performRequest(
-            path: "/content/intentions/search",
-            queryItems: queryItems,
+    func saintsByPatronage(
+        locale: ContentLocale,
+        key: String
+    ) async throws -> [APIContentSaintSummaryResponse] {
+        try await performRequest(
+            path: "/content/patronages/terms/\(key)/saints",
+            queryItems: [URLQueryItem(name: "lang", value: locale.rawValue)],
             method: "GET",
             body: Optional<String>.none,
             token: nil
