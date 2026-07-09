@@ -19,6 +19,7 @@ on:
       - "apps/web/**"
       - "package-lock.json"
       - "package.json"
+      - ".github/workflows/web-prod-deploy.yml"
   workflow_dispatch:
 
 permissions:
@@ -65,7 +66,9 @@ jobs:
         run: npm run build --workspace web
 
   deploy:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: >
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
     environment: prod
     env:
