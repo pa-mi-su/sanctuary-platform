@@ -1,6 +1,7 @@
 import { Component, inject } from '@angular/core';
 import { HomePageComponent } from './pages/home-page.component';
 import { AppHeaderComponent } from './pages/app-header.component';
+import { AppFooterComponent } from './pages/app-footer.component';
 import { SaintsPageComponent } from './pages/saints-page.component';
 import { LiturgicalPageComponent } from './pages/liturgical-page.component';
 import { NovenasPageComponent } from './pages/novenas-page.component';
@@ -19,6 +20,7 @@ import { AppShellFacade } from './core/state/app-shell.facade';
   imports: [
     HomePageComponent,
     AppHeaderComponent,
+    AppFooterComponent,
     SaintsPageComponent,
     LiturgicalPageComponent,
     NovenasPageComponent,
