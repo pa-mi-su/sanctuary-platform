@@ -72,8 +72,8 @@ type AppLanguage = 'en' | 'es' | 'pl';
   `,
 })
 export class AppFooterComponent {
-  protected readonly facebookUrl = 'https://www.facebook.com/mydailysanctuary';
-  protected readonly instagramUrl = 'https://www.instagram.com/mydailysanctuary/';
+  protected readonly facebookUrl = 'https://www.facebook.com/sanctuarycompanion';
+  protected readonly instagramUrl = 'https://www.instagram.com/sanctuarycompanion/';
   protected readonly appStoreUrl = 'https://apps.apple.com/us/app/sanctuary-catholic-companion/id6759986068?uo=4';
 
   readonly currentLanguage = input<AppLanguage>('en');

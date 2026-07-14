@@ -10,8 +10,8 @@ describe('AppFooterComponent', () => {
 
     const links = Array.from(fixture.nativeElement.querySelectorAll('a')) as HTMLAnchorElement[];
     expect(links.map((link) => link.href)).toEqual([
-      'https://www.facebook.com/mydailysanctuary',
-      'https://www.instagram.com/mydailysanctuary/',
+      'https://www.facebook.com/sanctuarycompanion',
+      'https://www.instagram.com/sanctuarycompanion/',
       'https://apps.apple.com/us/app/sanctuary-catholic-companion/id6759986068?uo=4',
     ]);
     expect(fixture.nativeElement.textContent).toContain('Coming soon');
