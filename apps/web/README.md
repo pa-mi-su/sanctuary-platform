@@ -45,11 +45,17 @@ apps/web/
 The API base URL is resolved in [`src/app/core/api/sanctuary-api.config.ts`](src/app/core/api/sanctuary-api.config.ts):
 
 - localhost uses `http://localhost:8080`
-- non-localhost uses the production API URL
+- `dev.mydailysanctuary.com` uses `https://dev-api.mydailysanctuary.com`
+- other hosts use `https://api.mydailysanctuary.com`
+- `?api=local`, `?api=dev`, or `?api=prod` can override host selection for diagnostics
 
 All API calls go through [`src/app/core/api/sanctuary-api.service.ts`](src/app/core/api/sanctuary-api.service.ts).
 
-Auth state is managed by [`src/app/core/auth/sanctuary-auth.service.ts`](src/app/core/auth/sanctuary-auth.service.ts). The web app stores session tokens locally and attaches bearer tokens through [`src/app/core/auth/auth-token.interceptor.ts`](src/app/core/auth/auth-token.interceptor.ts).
+Auth state is managed by [`src/app/core/auth/sanctuary-auth.service.ts`](src/app/core/auth/sanctuary-auth.service.ts). Browser login, refresh, reset, and logout use the API's `/auth/web/**` endpoints and scoped `HttpOnly` cookies. [`src/app/core/auth/auth-token.interceptor.ts`](src/app/core/auth/auth-token.interceptor.ts) sends credentials and attempts one cookie refresh after a `401`; legacy tokens are removed from browser storage.
+
+Authenticated favorites and novena commitments are stored through `/me/**`. The current novena-progress UI also keeps a local browser copy and reconciles it with the API after authentication.
+
+`app.routes.ts` is intentionally empty. Page, modal, and share-path state is coordinated by `AppShellFacade` in the standalone application shell.
 
 ## Local Development
 
@@ -79,15 +85,27 @@ From the repo root:
 npm run build --workspace web
 ```
 
-The production build outputs to Angular's configured `dist` folder.
+The build first writes Angular output to `apps/web/dist/web/browser`, then `scripts/generate-share-previews.mjs` fetches the English saint, novena, and prayer catalogs and writes extensionless share-preview route objects. The generator defaults to the production API and site, retries failed fetches, and makes the build network/API-dependent.
+
+Override its inputs when needed:
+
+```bash
+SANCTUARY_SHARE_PREVIEW_API_BASE_URL=http://localhost:8080 \
+SANCTUARY_SHARE_PREVIEW_SITE_ORIGIN=http://localhost:4200 \
+npm run build --workspace web
+```
+
+`SANCTUARY_SHARE_PREVIEW_OUTPUT_DIR` can override the generated output directory.
 
 ## Tests
 
 From the repo root:
 
 ```bash
-npm test --workspace web
+npm test --workspace web -- --watch=false
 ```
+
+The committed suite currently contains four Vitest assertions covering the application shell and footer.
 
 ## Deployment
 
@@ -98,6 +116,8 @@ Production flow:
 1. build Angular
 2. publish static assets to S3
 3. invalidate CloudFront
+
+Both deployment workflows also set JSON content types for Apple/Android association files and HTML content types for generated share routes. Dev deploys on `dev`; production deploys on `main`.
 
 Related docs:
 

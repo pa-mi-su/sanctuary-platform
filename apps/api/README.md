@@ -69,9 +69,17 @@ Expected runtime configuration includes:
 - `SANCTUARY_DB_URL`
 - `SANCTUARY_DB_USERNAME`
 - `SANCTUARY_DB_PASSWORD`
+- `SANCTUARY_API_PORT` (optional; defaults to `8080`)
 - `SANCTUARY_AUTH_ENABLED`
 - `SANCTUARY_COGNITO_ISSUER_URI`
 - `SANCTUARY_COGNITO_CLIENT_ID`
+- `SANCTUARY_COGNITO_USER_POOL_ID`
+- `SANCTUARY_AUTH_COOKIE_DOMAIN` (Dev/Prod)
+- `SANCTUARY_AUTH_COOKIE_SECURE`
+- `SANCTUARY_AUTH_COOKIE_SAME_SITE`
+- `SANCTUARY_AUTH_COOKIE_REFRESH_MAX_AGE_DAYS`
+
+The base profile disables auth. Local enables it by default with development-friendly cookie settings; Dev and Prod require explicit auth enablement and Cognito values. The UAT profile currently supplies only database and port settings and therefore inherits the base auth-disabled behavior.
 
 In production, `SANCTUARY_DB_PASSWORD` must come directly from the RDS-managed AWS Secrets Manager secret. Do not use an SSM copy for prod DB credentials.
 
@@ -111,6 +119,8 @@ JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home PATH=/o
 
 The Maven enforcer requires Java 21.
 
+The suite covers calendar, auth, validation, CORS, and user service/repository behavior. The novena rule audit uses `SANCTUARY_TEST_DATABASE_URL` when a populated database is reachable and skips by assumption otherwise.
+
 ## API Surface
 
 ### Health
@@ -127,6 +137,10 @@ The Maven enforcer requires Java 21.
 - `POST /auth/refresh`
 - `POST /auth/forgot-password`
 - `POST /auth/reset-password`
+- `POST /auth/web/login`
+- `POST /auth/web/refresh`
+- `POST /auth/web/logout`
+- `POST /auth/web/reset-password`
 
 ### Calendar
 
@@ -134,6 +148,8 @@ The Maven enforcer requires Java 21.
 - `GET /calendar/range?start=&end=`
 - `GET /calendar/anchors/{year}`
 - `GET /calendar/novenas/{novenaId}/window/{year}`
+
+`/calendar/range` and the content calendar/range endpoints accept at most 62 inclusive days. Calculated anchor/window years are limited to 1900–4099. Content language values are `en`, `es`, and `pl`.
 
 ### Saints
 
@@ -154,11 +170,22 @@ The Maven enforcer requires Java 21.
 - `GET /content/novenas/calendar?start=&end=&lang=`
 - `GET /content/novenas/{slug}?lang=`
 
+### Intentions And Patronages
+
+- `GET /content/intentions/search?query=&lang=`
+- `GET /content/intentions/terms?query=&lang=`
+- `GET /content/intentions/terms/{key}/novenas?lang=`
+- `GET /content/patronages/terms?query=&lang=`
+- `GET /content/patronages/terms/{key}/saints?lang=`
+
 ### User State
 
-These require a bearer token:
+These require authentication:
+
+Native clients send a bearer token. Browser requests may instead authenticate with the scoped `HttpOnly` cookie created by `/auth/web/login`.
 
 - `GET /me`
+- `DELETE /me`
 - `PUT /me/preferences`
 - `GET /me/favorites`
 - `PUT /me/favorites/{itemType}/{itemId}`
@@ -166,6 +193,10 @@ These require a bearer token:
 - `GET /me/novena-commitments`
 - `PUT /me/novena-commitments/{novenaId}`
 - `DELETE /me/novena-commitments/{novenaId}`
+
+Favorite item types are `saint`, `novena`, and `prayer`; commitment statuses are `active`, `paused`, and `completed`.
+
+When auth is enabled, health, actuator, auth, calendar, and content routes are public. `/me/**` accepts either a native bearer token or the scoped browser ID-token cookie; all otherwise-unmatched routes are denied. In-memory abuse limits cover registration, native login, forgot-password, and confirmation-code resend—not every `/auth/**` route.
 
 ## Database And Content
 

@@ -42,7 +42,7 @@ Environment detection is based on bundle identifier suffix in [`Sanctuary/Core/A
 - `.uat` -> `uat`
 - otherwise -> `prod`
 
-The API base URL defaults to the production API URL. You can override it with:
+Dev defaults to `https://dev-api.mydailysanctuary.com`; UAT and Prod currently default to `https://api.mydailysanctuary.com`. You can override any scheme at runtime with:
 
 ```text
 SANCTUARY_API_BASE_URL
@@ -63,7 +63,8 @@ The app includes:
 - search
 - Me/profile
 - about/support/privacy
-- novena reminder scheduling foundation
+- profile-driven local daily/novena reminders
+- Universal Links and sharing for saint, novena, and prayer detail
 
 ## API And Auth
 
@@ -78,6 +79,8 @@ At runtime it uses:
 
 Legacy JSON files remain in [`Sanctuary/Resources`](Sanctuary/Resources) as bundled source/product material, but platform-backed content should flow through the API.
 
+`LocalUserProgressRepository` remains available for previews and legacy/local use; the production `AppEnvironment` uses `RemoteUserProgressRepository`. Search loads API catalogs and performs client-side matching/ranking. `Features/Parish/ParishFinderView.swift` contains a Core Location/MapKit parish finder, but no current shell or home route presents it.
+
 ## Local Build
 
 Validate the production scheme for simulator:
@@ -89,14 +92,16 @@ xcodebuild -project apps/ios/Sanctuary.xcodeproj -scheme Sanctuary-Prod -configu
 Validate Dev:
 
 ```bash
-xcodebuild -project apps/ios/Sanctuary.xcodeproj -scheme Sanctuary-Dev -configuration Debug -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
+xcodebuild -project apps/ios/Sanctuary.xcodeproj -scheme Sanctuary-Dev -configuration Debug-Dev -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
 ```
 
 Validate UAT:
 
 ```bash
-xcodebuild -project apps/ios/Sanctuary.xcodeproj -scheme Sanctuary-UAT -configuration Debug -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
+xcodebuild -project apps/ios/Sanctuary.xcodeproj -scheme Sanctuary-UAT -configuration Debug-UAT -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
 ```
+
+The deployment target is iOS 16.6 and the app supports iPhone and iPad. There is currently no committed iOS test target, so CI verifies configuration and compiles the selected simulator scheme.
 
 ## Release And CI
 
