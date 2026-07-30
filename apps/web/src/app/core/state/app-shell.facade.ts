@@ -734,10 +734,12 @@ export class AppShellFacade {
   openLegalDocument(document: LegalDocumentType): void {
     this.activeLegalDocument.set(document);
     this.setTab('about');
+    this.pushPath(`/${document}`);
   }
 
   closeLegalDocument(): void {
     this.activeLegalDocument.set(null);
+    this.pushPath('/');
   }
 
   setLanguage(language: AppLanguage): void {
@@ -992,16 +994,28 @@ export class AppShellFacade {
 
   private openSharedContentFromPath(pathname: string, updateHistory: boolean): void {
     const [kind, slug] = pathname.split('/').filter(Boolean);
+    if (kind === 'privacy' || kind === 'support') {
+      this.selectedSaintSlug.set(null);
+      this.selectedPrayerSlug.set(null);
+      this.selectedNovenaSlug.set(null);
+      this.selectedNovenaId.set(null);
+      this.activeLegalDocument.set(kind);
+      this.setTab('about');
+      return;
+    }
+
     if (!kind || !slug) {
       if (!updateHistory) {
         this.selectedSaintSlug.set(null);
         this.selectedPrayerSlug.set(null);
         this.selectedNovenaSlug.set(null);
         this.selectedNovenaId.set(null);
+        this.activeLegalDocument.set(null);
       }
       return;
     }
 
+    this.activeLegalDocument.set(null);
     this.suppressNextHistoryUpdate = !updateHistory;
     switch (kind) {
       case 'saints':
@@ -1036,6 +1050,12 @@ export class AppShellFacade {
 
     const path = `/${kind}/${encodeURIComponent(slug)}`;
     if (window.location.pathname !== path) {
+      window.history.pushState({}, '', path);
+    }
+  }
+
+  private pushPath(path: string): void {
+    if (typeof window !== 'undefined' && window.location.pathname !== path) {
       window.history.pushState({}, '', path);
     }
   }
