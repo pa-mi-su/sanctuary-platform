@@ -55,16 +55,19 @@ type AppLanguage = 'en' | 'es' | 'pl';
               </span>
             </a>
 
-            <div
-              class="store-badge store-badge--disabled"
-              [attr.aria-label]="t('Android app coming soon on Google Play', 'La app para Android estará disponible próximamente en Google Play', 'Aplikacja na Androida wkrótce w Google Play')"
+            <a
+              class="store-badge"
+              [href]="googlePlayUrl"
+              target="_blank"
+              rel="noopener noreferrer"
+              [attr.aria-label]="t('Get Sanctuary on Google Play', 'Obtén Sanctuary en Google Play', 'Pobierz Sanctuary z Google Play')"
             >
               <span class="store-icon store-icon--play" aria-hidden="true"></span>
               <span class="store-copy">
-                <span>{{ t('Android app', 'App para Android', 'Aplikacja na Androida') }}</span>
-                <strong>{{ t('Coming soon', 'Muy pronto', 'Wkrótce') }}</strong>
+                <span>{{ t('Get it on', 'Disponible en', 'Pobierz z') }}</span>
+                <strong>Google Play</strong>
               </span>
-            </div>
+            </a>
           </section>
         </div>
       </div>
@@ -75,6 +78,7 @@ export class AppFooterComponent {
   protected readonly facebookUrl = 'https://www.facebook.com/sanctuarycompanion';
   protected readonly instagramUrl = 'https://www.instagram.com/sanctuarycompanion/';
   protected readonly appStoreUrl = 'https://apps.apple.com/us/app/sanctuary-catholic-companion/id6759986068?uo=4';
+  protected readonly googlePlayUrl = 'https://play.google.com/store/apps/details?id=com.pamisu.sanctuary';
 
   readonly currentLanguage = input<AppLanguage>('en');
 
