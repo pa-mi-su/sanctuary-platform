@@ -5,6 +5,7 @@ import { SANCTUARY_AUTH_CONFIG } from './core/auth/sanctuary-auth.config';
 
 describe('App', () => {
   beforeEach(async () => {
+    window.history.replaceState({}, '', '/');
     await TestBed.configureTestingModule({
       imports: [App],
       providers: [
@@ -27,6 +28,10 @@ describe('App', () => {
     }).compileComponents();
   });
 
+  afterEach(() => {
+    window.history.replaceState({}, '', '/');
+  });
+
   it('should create the app', () => {
     const fixture = TestBed.createComponent(App);
     const app = fixture.componentInstance;
@@ -39,5 +44,16 @@ describe('App', () => {
     fixture.detectChanges();
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.textContent).toContain('Welcome to your sanctuary');
+  });
+
+  it('should render the privacy policy from its direct URL', async () => {
+    window.history.replaceState({}, '', '/privacy');
+    const fixture = TestBed.createComponent(App);
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.textContent).toContain('Sanctuary Privacy Policy');
+    expect(compiled.textContent).toContain('Information We Collect');
   });
 });
