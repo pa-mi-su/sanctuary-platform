@@ -37,6 +37,35 @@ const indexHtml = await readFile(indexPath, 'utf8');
 
 let generatedCount = 0;
 
+const privacyUrl = `${SITE_ORIGIN}/privacy`;
+const privacyHtml = renderPreviewHtml(indexHtml, {
+  url: privacyUrl,
+  title: 'Privacy Policy | Sanctuary',
+  description: 'Read the Sanctuary privacy policy and learn how Sanctuary handles app and account data.',
+  imageUrl: FALLBACK_IMAGE_URL,
+}).replace(
+  '<app-root></app-root>',
+  `<app-root>
+    <main>
+      <h1>Sanctuary Privacy Policy</h1>
+      <p>Effective date: July 30, 2026</p>
+      <p>Sanctuary respects your privacy. This policy explains what information the app uses and how it is handled.</p>
+      <h2>Information We Collect</h2>
+      <p>You can use Sanctuary without an account. If you create an account, Sanctuary processes your name, email address, authentication information, preferences, favorites, and novena progress so those features can work and sync across supported devices.</p>
+      <h2>Notifications</h2>
+      <p>If you enable reminders, Sanctuary uses notification permission to deliver prayer and novena reminders. You can disable notifications in your device settings.</p>
+      <h2>Data Sharing</h2>
+      <p>We do not sell your personal information or use it for third-party advertising. Trusted service providers process data only as needed to operate, secure, and distribute Sanctuary.</p>
+      <h2>Data Retention and Deletion</h2>
+      <p>You can delete your Sanctuary account in the app. Account profile data, favorites, progress, and preferences are then removed, subject to limited records retained for security, fraud prevention, and legal obligations.</p>
+      <h2>Contact</h2>
+      <p>For privacy questions, email <a href="mailto:info@mydailysanctuary.com">info@mydailysanctuary.com</a>.</p>
+    </main>
+  </app-root>`,
+);
+await writeFile(path.join(OUTPUT_DIR, 'privacy'), privacyHtml);
+generatedCount += 1;
+
 for (const type of contentTypes) {
   const items = await fetchJson(`${API_BASE_URL}${type.endpoint}`);
   if (!Array.isArray(items)) {

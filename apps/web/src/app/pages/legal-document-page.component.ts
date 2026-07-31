@@ -18,7 +18,7 @@ type AppLanguage = 'en' | 'es' | 'pl';
         <h2>{{ title() }}</h2>
         @if (type() === 'privacy') {
           <p class="document-effective">
-            {{ t('Effective date: April 13, 2026', 'Fecha de vigencia: 13 de abril de 2026', 'Data wejscia w zycie: 13 kwietnia 2026') }}
+            {{ t('Effective date: July 30, 2026', 'Fecha de vigencia: 30 de julio de 2026', 'Data wejscia w zycie: 30 lipca 2026') }}
           </p>
         }
       </div>
@@ -92,22 +92,9 @@ type AppLanguage = 'en' | 'es' | 'pl';
             <p>
               {{
                 t(
-                  'Sanctuary is designed to work primarily with local content on your device. We do not require account creation to use the app.',
-                  'Sanctuary está diseñado para funcionar principalmente con contenido local en tu dispositivo. No exigimos crear una cuenta para usar la app.',
-                  'Sanctuary zostal zaprojektowany tak, aby dzialac przede wszystkim z lokalna zawartoscia na Twoim urzadzeniu. Nie wymagamy tworzenia konta, aby korzystac z aplikacji.'
-                )
-              }}
-            </p>
-          </section>
-
-          <section>
-            <h3>{{ t('Location Data', 'Datos de ubicación', 'Dane lokalizacyjne') }}</h3>
-            <p>
-              {{
-                t(
-                  'If you choose to allow location access, Sanctuary uses your location to help find nearby parishes. Location access is optional and can be changed at any time in your device settings.',
-                  'Si decides permitir el acceso a tu ubicación, Sanctuary la usa para ayudarte a encontrar parroquias cercanas. El acceso a la ubicación es opcional y puedes cambiarlo en cualquier momento en la configuración de tu dispositivo.',
-                  'Jesli zdecydujesz sie zezwolic na dostep do lokalizacji, Sanctuary wykorzysta ja, aby pomoc znalezc pobliskie parafie. Dostep do lokalizacji jest opcjonalny i mozna go zmienic w dowolnym momencie w ustawieniach urzadzenia.'
+                  'You can use Sanctuary without an account. If you create an account, Sanctuary processes your name, email address, authentication information, preferences, favorites, and novena progress so those features can work and sync across supported devices. We may also process basic technical information, such as request timestamps and IP addresses, to deliver and secure the service.',
+                  'Puedes usar Sanctuary sin una cuenta. Si creas una cuenta, Sanctuary procesa tu nombre, correo electrónico, información de autenticación, preferencias, favoritos y progreso de novenas para que esas funciones funcionen y se sincronicen entre dispositivos compatibles. También podemos procesar información técnica básica, como marcas de tiempo de solicitudes y direcciones IP, para prestar y proteger el servicio.',
+                  'Mozesz korzystac z Sanctuary bez konta. Jesli utworzysz konto, Sanctuary przetwarza Twoje imie, adres e-mail, informacje uwierzytelniajace, preferencje, ulubione elementy i postepy nowenn, aby te funkcje dzialaly i synchronizowaly sie na obslugiwanych urzadzeniach. Mozemy rowniez przetwarzac podstawowe informacje techniczne, takie jak znaczniki czasu zadan i adresy IP, aby swiadczyc i zabezpieczac usluge.'
                 )
               }}
             </p>
@@ -128,7 +115,28 @@ type AppLanguage = 'en' | 'es' | 'pl';
 
           <section>
             <h3>{{ t('Data Sharing', 'Intercambio de datos', 'Udostepnianie danych') }}</h3>
-            <p>{{ t('We do not sell your personal information.', 'No vendemos tu información personal.', 'Nie sprzedajemy Twoich danych osobowych.') }}</p>
+            <p>
+              {{
+                t(
+                  'We do not sell your personal information or use it for third-party advertising. We share data only with trusted service providers as needed to operate, secure, and distribute Sanctuary, or when required by law. These providers include Amazon Web Services for hosting, databases, authentication, and service delivery, and Google Play for Android app distribution.',
+                  'No vendemos tu información personal ni la usamos para publicidad de terceros. Compartimos datos únicamente con proveedores de confianza cuando es necesario para operar, proteger y distribuir Sanctuary, o cuando lo exige la ley. Estos proveedores incluyen Amazon Web Services para alojamiento, bases de datos, autenticación y prestación del servicio, y Google Play para distribuir la aplicación Android.',
+                  'Nie sprzedajemy Twoich danych osobowych ani nie wykorzystujemy ich do reklam podmiotow trzecich. Udostepniamy dane wylacznie zaufanym dostawcom, gdy jest to potrzebne do dzialania, zabezpieczenia i dystrybucji Sanctuary lub gdy wymaga tego prawo. Dostawcy ci obejmuja Amazon Web Services w zakresie hostingu, baz danych, uwierzytelniania i swiadczenia uslugi oraz Google Play w zakresie dystrybucji aplikacji Android.'
+                )
+              }}
+            </p>
+          </section>
+
+          <section>
+            <h3>{{ t('Data Retention and Deletion', 'Retención y eliminación de datos', 'Przechowywanie i usuwanie danych') }}</h3>
+            <p>
+              {{
+                t(
+                  'Account data is retained while your account is active. You can permanently delete your account from the Me section of the app. Your account profile, favorites, novena progress, and preferences are then removed. We may retain limited identifiers in hashed or restricted form when needed for security, fraud prevention, legal obligations, or to honor the deletion.',
+                  'Los datos de la cuenta se conservan mientras tu cuenta esté activa. Puedes eliminarla permanentemente desde la sección Yo de la aplicación. Entonces se eliminan el perfil, los favoritos, el progreso de novenas y las preferencias. Podemos conservar identificadores limitados de forma cifrada o restringida cuando sea necesario por seguridad, prevención del fraude, obligaciones legales o para respetar la eliminación.',
+                  'Dane konta sa przechowywane, gdy konto jest aktywne. Mozesz trwale usunac konto w sekcji Ja aplikacji. Profil konta, ulubione, postepy nowenn i preferencje zostana wtedy usuniete. Mozemy zachowac ograniczone identyfikatory w postaci skrotu lub z ograniczonym dostepem, gdy jest to potrzebne dla bezpieczenstwa, zapobiegania oszustwom, obowiazkow prawnych lub realizacji usuniecia.'
+                )
+              }}
+            </p>
           </section>
 
           <section>
@@ -136,9 +144,9 @@ type AppLanguage = 'en' | 'es' | 'pl';
             <p>
               {{
                 t(
-                  'You can deny location and notification permissions and still use the core app experience.',
-                  'Puedes rechazar los permisos de ubicación y notificaciones y seguir usando la experiencia principal de la app.',
-                  'Mozesz odmowic dostepu do lokalizacji i powiadomien, a mimo to nadal korzystac z podstawowej funkcjonalnosci aplikacji.'
+                  'You can decline notification permission and still use the core app experience. You can review and update your preferences in the app, remove local app data through your device settings, or delete your account from the Me section.',
+                  'Puedes rechazar el permiso de notificaciones y seguir usando la experiencia principal. Puedes revisar y actualizar tus preferencias en la aplicación, eliminar los datos locales desde los ajustes del dispositivo o eliminar tu cuenta desde la sección Yo.',
+                  'Mozesz odmowic zgody na powiadomienia i nadal korzystac z podstawowej funkcjonalnosci aplikacji. Mozesz przegladac i aktualizowac preferencje w aplikacji, usunac dane lokalne w ustawieniach urzadzenia lub usunac konto w sekcji Ja.'
                 )
               }}
             </p>

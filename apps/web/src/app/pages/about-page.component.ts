@@ -62,17 +62,17 @@ declare global {
             <p>
               {{
                 t(
-                  'Sanctuary for Android is on the roadmap so the same prayer companion can travel across more devices soon.',
-                  'Sanctuary para Android está en la hoja de ruta para que el mismo acompañante de oración pueda llegar pronto a más dispositivos.',
-                  'Sanctuary na Androida jest w planach, aby ten sam towarzysz modlitwy mógł wkrótce trafić na kolejne urządzenia.'
+                  'Take Sanctuary with you on Android for novenas, saints, liturgical browsing, and reminders.',
+                  'Lleva Sanctuary contigo en Android para novenas, santos, calendario litúrgico y recordatorios.',
+                  'Zabierz Sanctuary ze sobą na Androida: nowenny, święci, kalendarz liturgiczny i przypomnienia.'
                 )
               }}
             </p>
           </div>
-          <span class="app-store-action app-store-action--disabled" aria-disabled="true">
-            <span>{{ t('Google Play', 'Google Play', 'Google Play') }}</span>
-            <strong>{{ t('Coming soon', 'Muy pronto', 'Wkrótce') }}</strong>
-          </span>
+          <a class="app-store-action" [href]="googlePlayUrl" target="_blank" rel="noreferrer">
+            <span>{{ t('Get it on', 'Disponible en', 'Pobierz z') }}</span>
+            <strong>Google Play</strong>
+          </a>
         </article>
 
         <article class="about-card glass-subtle">
@@ -177,6 +177,7 @@ declare global {
 })
 export class AboutPageComponent {
   protected readonly appStoreUrl = 'https://apps.apple.com/us/app/sanctuary-prayer-peace/id6759986068?uo=4';
+  protected readonly googlePlayUrl = 'https://play.google.com/store/apps/details?id=com.pamisu.sanctuary';
   private readonly buildInfo = globalThis.window?.SANCTUARY_BUILD_INFO ?? {};
   protected readonly appVersion = this.buildInfo.version?.trim() || '0.0.0';
   protected readonly appBuild = this.buildInfo.build?.trim() || 'local';

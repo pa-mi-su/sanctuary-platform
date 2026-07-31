@@ -13,8 +13,10 @@ describe('AppFooterComponent', () => {
       'https://www.facebook.com/sanctuarycompanion',
       'https://www.instagram.com/sanctuarycompanion/',
       'https://apps.apple.com/us/app/sanctuary-catholic-companion/id6759986068?uo=4',
+      'https://play.google.com/store/apps/details?id=com.pamisu.sanctuary',
     ]);
-    expect(fixture.nativeElement.textContent).toContain('Coming soon');
+    expect(fixture.nativeElement.textContent).toContain('Google Play');
+    expect(fixture.nativeElement.textContent).not.toContain('Coming soon');
   });
 
   it('localizes the footer copy', async () => {
@@ -25,6 +27,6 @@ describe('AppFooterComponent', () => {
     fixture.detectChanges();
 
     expect(fixture.nativeElement.textContent).toContain('Obserwuj nas');
-    expect(fixture.nativeElement.textContent).toContain('Wkrótce');
+    expect(fixture.nativeElement.textContent).toContain('Pobierz z');
   });
 });
