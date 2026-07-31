@@ -137,6 +137,10 @@ jobs:
               --content-type "text/html; charset=utf-8" \
               --metadata-directive REPLACE
           done
+          aws s3 cp apps/web/dist/web/browser/privacy "s3://${WEB_S3_BUCKET}/privacy" \
+            --content-type "text/html; charset=utf-8" \
+            --cache-control "no-cache" \
+            --metadata-directive REPLACE
 
       - name: Invalidate CloudFront cache
         run: aws cloudfront create-invalidation --distribution-id "${WEB_CLOUDFRONT_DISTRIBUTION_ID}" --paths "/*"
