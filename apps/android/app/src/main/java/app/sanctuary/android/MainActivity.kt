@@ -190,9 +190,10 @@ private fun Modifier.calendarDaySwipe(
                 change.consume()
             },
             onDragEnd = {
-                when {
-                    dragAmountTotal > swipeThreshold -> onPrevious()
-                    dragAmountTotal < -swipeThreshold -> onNext()
+                when (calendarSwipeDirection(dragAmountTotal, swipeThreshold)) {
+                    CalendarSwipeDirection.Previous -> onPrevious()
+                    CalendarSwipeDirection.Next -> onNext()
+                    CalendarSwipeDirection.None -> Unit
                 }
             }
         )
