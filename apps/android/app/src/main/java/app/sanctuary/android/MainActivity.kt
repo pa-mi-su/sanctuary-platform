@@ -144,7 +144,6 @@ import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
 import app.sanctuary.android.data.NovenaSummary
-import app.sanctuary.android.data.NovenaDayDetail
 import app.sanctuary.android.data.PrayerDetail
 import app.sanctuary.android.data.PrayerSummary
 import app.sanctuary.android.data.SaintDetail
@@ -182,6 +181,7 @@ private fun Modifier.calendarDaySwipe(
     }
 
     return pointerInput(onPrevious, onNext) {
+        val swipeThreshold = 80.dp.toPx()
         var dragAmountTotal = 0f
         detectHorizontalDragGestures(
             onDragStart = { dragAmountTotal = 0f },
@@ -191,26 +191,13 @@ private fun Modifier.calendarDaySwipe(
             },
             onDragEnd = {
                 when {
-                    dragAmountTotal > 80f -> onPrevious()
-                    dragAmountTotal < -80f -> onNext()
+                    dragAmountTotal > swipeThreshold -> onPrevious()
+                    dragAmountTotal < -swipeThreshold -> onNext()
                 }
             }
         )
     }
 }
-
-private fun NovenaDayDetail.hasIosVisibleContent(): Boolean =
-    !title.isNullOrBlank() ||
-        !scripture.isNullOrBlank() ||
-        !prayer.isNullOrBlank() ||
-        !reflection.isNullOrBlank() ||
-        hasFallbackBodyContent()
-
-private fun NovenaDayDetail.hasStructuredContent(): Boolean =
-    !scripture.isNullOrBlank() || !prayer.isNullOrBlank() || !reflection.isNullOrBlank()
-
-private fun NovenaDayDetail.hasFallbackBodyContent(): Boolean =
-    !hasStructuredContent() && !body.isNullOrBlank()
 
 class MainActivity : ComponentActivity() {
     private val viewModel by viewModels<MainViewModel>()
@@ -3653,7 +3640,7 @@ private fun NovenaDetailSheet(
         DetailSectionCard(title = "${l10n.t("calendar.dayNumberPrefix")} $selectedDay") {
             if (selectedDayDetail == null) {
                 Text(l10n.t("detail.noDayContent"), color = Color(0xFFD0DFEA), lineHeight = 22.sp)
-            } else if (!selectedDayDetail.hasIosVisibleContent()) {
+            } else if (!selectedDayDetail.hasVisibleDayContent()) {
                 Text(l10n.t("detail.noDayContent"), color = Color(0xFFD0DFEA), lineHeight = 22.sp)
             } else {
                 selectedDayDetail.title?.takeIf { it.isNotBlank() }?.let {
