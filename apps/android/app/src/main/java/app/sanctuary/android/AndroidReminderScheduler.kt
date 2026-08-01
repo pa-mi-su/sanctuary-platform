@@ -106,7 +106,11 @@ class AndroidReminderScheduler(
             .setContentIntent(contentIntent)
             .build()
 
-        NotificationManagerCompat.from(context).notify(NOTIFICATION_ID, notification)
+        try {
+            NotificationManagerCompat.from(context).notify(NOTIFICATION_ID, notification)
+        } catch (_: SecurityException) {
+            // Permission can be revoked after the check above; skip the reminder safely.
+        }
     }
 
     private fun scheduleAlarm(kind: String, title: String, body: String, hour: Int) {
