@@ -56,14 +56,14 @@ val hasUploadSigning =
 
 android {
     namespace = "app.sanctuary.android"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.pamisu.sanctuary"
         minSdk = 26
-        targetSdk = 35
+        targetSdk = 36
         versionCode = ciVersionCode
-        versionName = "1.0.13"
+        versionName = "1.0.14"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {

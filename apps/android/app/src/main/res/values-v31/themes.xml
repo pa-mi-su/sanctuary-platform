@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Sanctuary" parent="Theme.Sanctuary.Base">
+        <item name="android:windowLightNavigationBar">false</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+        <item name="android:windowSplashScreenBackground">#132433</item>
+    </style>
+
+    <style name="Theme.Sanctuary.Starting" parent="Theme.Sanctuary">
+        <item name="android:windowSplashScreenBackground">#132433</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@mipmap/ic_launcher_round</item>
+        <item name="android:windowSplashScreenAnimationDuration">0</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">#132433</item>
+        <item name="postSplashScreenTheme">@style/Theme.Sanctuary</item>
+    </style>
+</resources>

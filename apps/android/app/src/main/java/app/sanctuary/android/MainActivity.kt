@@ -25,6 +25,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -121,6 +122,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -168,6 +170,35 @@ import kotlinx.coroutines.launch
 
 private fun Modifier.sanctuaryCardShadow(shape: RoundedCornerShape = RoundedCornerShape(24.dp)) =
     this.shadow(14.dp, shape, clip = false)
+
+private fun Modifier.calendarDaySwipe(
+    enabled: Boolean,
+    onPrevious: () -> Unit,
+    onNext: () -> Unit
+): Modifier {
+    if (!enabled) {
+        return this
+    }
+
+    return pointerInput(onPrevious, onNext) {
+        val swipeThreshold = 80.dp.toPx()
+        var dragAmountTotal = 0f
+        detectHorizontalDragGestures(
+            onDragStart = { dragAmountTotal = 0f },
+            onHorizontalDrag = { change, dragAmount ->
+                dragAmountTotal += dragAmount
+                change.consume()
+            },
+            onDragEnd = {
+                when (calendarSwipeDirection(dragAmountTotal, swipeThreshold)) {
+                    CalendarSwipeDirection.Previous -> onPrevious()
+                    CalendarSwipeDirection.Next -> onNext()
+                    CalendarSwipeDirection.None -> Unit
+                }
+            }
+        )
+    }
+}
 
 class MainActivity : ComponentActivity() {
     private val viewModel by viewModels<MainViewModel>()
@@ -3610,6 +3641,8 @@ private fun NovenaDetailSheet(
         DetailSectionCard(title = "${l10n.t("calendar.dayNumberPrefix")} $selectedDay") {
             if (selectedDayDetail == null) {
                 Text(l10n.t("detail.noDayContent"), color = Color(0xFFD0DFEA), lineHeight = 22.sp)
+            } else if (!selectedDayDetail.hasVisibleDayContent()) {
+                Text(l10n.t("detail.noDayContent"), color = Color(0xFFD0DFEA), lineHeight = 22.sp)
             } else {
                 selectedDayDetail.title?.takeIf { it.isNotBlank() }?.let {
                     Text(it, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 22.sp, lineHeight = 26.sp)
@@ -3626,20 +3659,7 @@ private fun NovenaDetailSheet(
                     DetailSectionLabel(l10n.t("detail.reflection"))
                     Text(it, color = Color(0xFFD0DFEA), lineHeight = 22.sp)
                 }
-                selectedDayDetail.body?.takeIf { it.isNotBlank() }?.let {
-                    DetailSectionLabel(l10n.t("detail.content"))
-                    Text(it, color = Color(0xFFD0DFEA), lineHeight = 22.sp)
-                }
-                selectedDayDetail.openingPrayer?.takeIf { it.isNotBlank() }?.let {
-                    DetailSectionLabel(l10n.t("detail.openingPrayer"))
-                    Text(it, color = Color(0xFFD0DFEA), lineHeight = 22.sp)
-                }
-                selectedDayDetail.meditation?.takeIf { it.isNotBlank() }?.let {
-                    DetailSectionLabel(l10n.t("detail.meditation"))
-                    Text(it, color = Color(0xFFD0DFEA), lineHeight = 22.sp)
-                }
-                selectedDayDetail.closingPrayer?.takeIf { it.isNotBlank() }?.let {
-                    DetailSectionLabel(l10n.t("detail.closingPrayer"))
+                selectedDayDetail.body?.takeIf { selectedDayDetail.hasFallbackBodyContent() && it.isNotBlank() }?.let {
                     Text(it, color = Color(0xFFD0DFEA), lineHeight = 22.sp)
                 }
             }
@@ -4738,7 +4758,12 @@ private fun CalendarSurface(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f),
+                .weight(1f)
+                .calendarDaySwipe(
+                    enabled = mode == CalendarMode.Day,
+                    onPrevious = onPrev,
+                    onNext = onNext
+                ),
             contentAlignment = Alignment.TopCenter
         ) {
             Column(
