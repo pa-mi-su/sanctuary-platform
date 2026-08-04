@@ -29,7 +29,7 @@ struct AccountAccessView: View {
     @EnvironmentObject private var localization: LocalizationManager
     @EnvironmentObject private var accountStore: AccountSessionStore
 
-    @State private var step: AccountAccessStep = .landing
+    @State private var step: AccountAccessStep
     @State private var loginEmail = ""
     @State private var loginPassword = ""
     @State private var registerFirstName = ""
@@ -48,6 +48,10 @@ struct AccountAccessView: View {
     @State private var isResetPasswordVisible = false
     @State private var isResetPasswordConfirmationVisible = false
     @FocusState private var focusedField: AccountAccessField?
+
+    init(startAtRegistration: Bool = false) {
+        _step = State(initialValue: startAtRegistration ? .register : .landing)
+    }
 
     private var isBusy: Bool {
         accountStore.status == .loading
@@ -857,6 +861,50 @@ struct AccountAccessView: View {
         case .pl:
             return polish
         }
+    }
+}
+
+private struct AccountRequiredModifier: ViewModifier {
+    @Binding var isPresented: Bool
+    @EnvironmentObject private var localization: LocalizationManager
+    @State private var isShowingRegistration = false
+
+    func body(content: Content) -> some View {
+        content
+            .alert(localization.t("accountRequired.title"), isPresented: $isPresented) {
+                Button(localization.t("accountRequired.createAccount")) {
+                    isShowingRegistration = true
+                }
+                Button(localization.t("accountRequired.dismiss"), role: .cancel) {}
+            } message: {
+                Text(localization.t("accountRequired.body"))
+            }
+            .fullScreenCover(isPresented: $isShowingRegistration) {
+                ZStack(alignment: .topTrailing) {
+                    AppBackdrop()
+                    ScrollView(showsIndicators: false) {
+                        AccountAccessView(startAtRegistration: true)
+                            .padding(16)
+                            .padding(.top, 44)
+                            .padding(.bottom, 28)
+                    }
+                    Button {
+                        isShowingRegistration = false
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 34, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .padding(16)
+                    }
+                    .accessibilityLabel(localization.t("common.close"))
+                }
+            }
+    }
+}
+
+extension View {
+    func accountRequiredPrompt(isPresented: Binding<Bool>) -> some View {
+        modifier(AccountRequiredModifier(isPresented: isPresented))
     }
 }
 
