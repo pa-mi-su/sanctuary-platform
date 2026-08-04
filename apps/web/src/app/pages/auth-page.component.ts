@@ -1,4 +1,4 @@
-import { Component, computed, inject, input, output, signal } from '@angular/core';
+import { Component, computed, effect, inject, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
 import { SanctuaryAuthService } from '../core/auth/sanctuary-auth.service';
@@ -354,6 +354,7 @@ type AuthStep = 'landing' | 'login' | 'register' | 'confirm' | 'forgot' | 'reset
 export class AuthPageComponent {
   readonly currentLanguage = input<AppLanguage>('en');
   readonly isConfigured = input<boolean>(false);
+  readonly initialStep = input<AuthStep>('landing');
   readonly authenticated = output<void>();
 
   private readonly auth = inject(SanctuaryAuthService);
@@ -362,6 +363,10 @@ export class AuthPageComponent {
   protected readonly pending = signal(false);
   protected readonly error = signal<string | null>(null);
   protected readonly message = signal<string | null>(null);
+
+  constructor() {
+    effect(() => this.step.set(this.initialStep()));
+  }
 
   protected loginEmail = '';
   protected loginPassword = '';

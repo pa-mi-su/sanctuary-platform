@@ -33,13 +33,11 @@ type AppLanguage = 'en' | 'es' | 'pl';
 
       @if (saintDetail()) {
         <div class="detail-stack">
-          @if (isAuthenticated()) {
-            <div class="detail-actions">
-              <button class="favorite-button" [class.active]="isSaintFavorite()" type="button" (click)="toggleSaintFavorite.emit()">
-                {{ isSaintFavorite() ? t('Saved to Favorites', 'Guardado en favoritos', 'Zapisano w ulubionych') : t('Add to Favorites', 'Agregar a favoritos', 'Dodaj do ulubionych') }}
-              </button>
-            </div>
-          }
+          <div class="detail-actions">
+            <button class="favorite-button" [class.active]="isSaintFavorite()" type="button" (click)="requestProtectedAction(toggleSaintFavorite)">
+              {{ isSaintFavorite() ? t('Saved to Favorites', 'Guardado en favoritos', 'Zapisano w ulubionych') : t('Add to Favorites', 'Agregar a favoritos', 'Dodaj do ulubionych') }}
+            </button>
+          </div>
           <div class="detail-hero">
             <div class="detail-image" [style.background-image]="imageStyle(saintDetail()!.imageUrl)"></div>
             <div class="detail-meta">
@@ -73,13 +71,11 @@ type AppLanguage = 'en' | 'es' | 'pl';
           </div>
           <section class="detail-section detail-info-card prayer-info-card">
             <h3>{{ prayerDetail()!.title }}</h3>
-            @if (isAuthenticated()) {
-              <div class="detail-actions">
-                <button class="favorite-button" [class.active]="isPrayerFavorite()" type="button" (click)="togglePrayerFavorite.emit()">
-                  {{ isPrayerFavorite() ? t('Saved to Favorites', 'Guardado en favoritos', 'Zapisano w ulubionych') : t('Add to Favorites', 'Agregar a favoritos', 'Dodaj do ulubionych') }}
-                </button>
-              </div>
-            }
+            <div class="detail-actions">
+              <button class="favorite-button" [class.active]="isPrayerFavorite()" type="button" (click)="requestProtectedAction(togglePrayerFavorite)">
+                {{ isPrayerFavorite() ? t('Saved to Favorites', 'Guardado en favoritos', 'Zapisano w ulubionych') : t('Add to Favorites', 'Agregar a favoritos', 'Dodaj do ulubionych') }}
+              </button>
+            </div>
             <div class="detail-meta prayer-info-meta">
               @if (prayerMeta(prayerDetail()!); as category) {
                 <span class="content-tag">{{ category }}</span>
@@ -105,18 +101,16 @@ type AppLanguage = 'en' | 'es' | 'pl';
 
       @if (novenaDetail()) {
         <div class="detail-stack">
-          @if (isAuthenticated()) {
-            <div class="detail-actions">
-              <button class="favorite-button" [class.active]="isNovenaFavorite()" type="button" (click)="toggleNovenaFavorite.emit()">
-                {{ isNovenaFavorite() ? t('Saved to Favorites', 'Guardado en favoritos', 'Zapisano w ulubionych') : t('Add to Favorites', 'Agregar a favoritos', 'Dodaj do ulubionych') }}
-              </button>
-              @if (!novenaProgress()) {
-                <button class="primary-action" type="button" (click)="startNovena.emit()">Start Novena</button>
-              } @else if (novenaProgress()!.status === 'active' || novenaProgress()!.status === 'paused') {
-                <button class="danger-action" type="button" (click)="stopNovena.emit()">Stop Novena</button>
-              }
-            </div>
-          }
+          <div class="detail-actions">
+            <button class="favorite-button" [class.active]="isNovenaFavorite()" type="button" (click)="requestProtectedAction(toggleNovenaFavorite)">
+              {{ isNovenaFavorite() ? t('Saved to Favorites', 'Guardado en favoritos', 'Zapisano w ulubionych') : t('Add to Favorites', 'Agregar a favoritos', 'Dodaj do ulubionych') }}
+            </button>
+            @if (!novenaProgress()) {
+              <button class="primary-action" type="button" (click)="requestProtectedAction(startNovena)">{{ t('Start Novena', 'Comenzar novena', 'Rozpocznij nowennę') }}</button>
+            } @else if (novenaProgress()!.status === 'active' || novenaProgress()!.status === 'paused') {
+              <button class="danger-action" type="button" (click)="stopNovena.emit()">{{ t('Stop Novena', 'Detener novena', 'Zatrzymaj nowennę') }}</button>
+            }
+          </div>
           <div class="detail-hero">
             <div class="detail-image" [style.background-image]="imageStyle(novenaDetail()!.imageUrl)"></div>
             <div class="detail-meta">
@@ -209,6 +203,7 @@ export class ContentDetailModalComponent {
   readonly selectNovenaDay = output<number>();
   readonly startNovena = output<void>();
   readonly stopNovena = output<void>();
+  readonly accountRequired = output<void>();
 
   protected visibleCategory(category: string | null | undefined): string | null {
     if (!category) {
@@ -249,6 +244,14 @@ export class ContentDetailModalComponent {
   readonly toggleSaintFavorite = output<void>();
   readonly toggleNovenaFavorite = output<void>();
   readonly togglePrayerFavorite = output<void>();
+
+  protected requestProtectedAction(action: { emit: () => void }): void {
+    if (this.isAuthenticated()) {
+      action.emit();
+    } else {
+      this.accountRequired.emit();
+    }
+  }
 
   protected imageStyle(imageUrl: string | null | undefined): string | null {
     if (!imageUrl) {
