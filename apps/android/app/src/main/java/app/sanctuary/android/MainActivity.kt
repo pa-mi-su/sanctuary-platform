@@ -513,11 +513,12 @@ private fun BrandedLaunchScreen() {
 private fun AccountAccessScreen(
     session: SessionUiState,
     onAction: MainViewModel,
-    embedded: Boolean = false
+    embedded: Boolean = false,
+    initialStep: AuthStep = AuthStep.Landing
 ) {
-    var step by rememberSaveable {
+    var step by rememberSaveable(initialStep) {
         mutableStateOf(
-            if (session.status == SessionStatus.AwaitingConfirmation) AuthStep.Confirm else AuthStep.Landing
+            if (session.status == SessionStatus.AwaitingConfirmation) AuthStep.Confirm else initialStep
         )
     }
     var loginEmail by rememberSaveable { mutableStateOf(session.pendingConfirmationEmail.orEmpty()) }
@@ -893,7 +894,7 @@ private fun AuthenticatedShell(
     onStartNovena: (String) -> Unit,
     onStopNovena: (String) -> Unit,
     onCompleteNovenaDay: (String, Int) -> Unit,
-    onToggleFavorite: (FavoriteItemType, String) -> Unit,
+    onToggleFavorite: (FavoriteItemType, String, String?, String?, Int?) -> Unit,
     onUpdateReminderPreferences: (Boolean, Boolean) -> Unit,
     fetchSaintsInRange: suspend (String, String) -> List<app.sanctuary.android.data.SaintDateGroup>,
     fetchNovenasInRange: suspend (String, String) -> List<app.sanctuary.android.data.NovenaCalendarDate>,
@@ -912,6 +913,8 @@ private fun AuthenticatedShell(
     var dailyReadingError by rememberSaveable { mutableStateOf<String?>(null) }
     var isLoadingDailyReadings by rememberSaveable { mutableStateOf(false) }
     var aboutDocument by rememberSaveable { mutableStateOf<AboutDocument?>(null) }
+    var showAccountRequiredPrompt by rememberSaveable { mutableStateOf(false) }
+    var registrationRequestVersion by rememberSaveable { mutableStateOf(0) }
     var saintsCalendarMode by rememberSaveable { mutableStateOf(CalendarMode.Day) }
     var novenasCalendarMode by rememberSaveable { mutableStateOf(CalendarMode.Day) }
     fun openSupportEmail() {
@@ -928,6 +931,25 @@ private fun AuthenticatedShell(
     }
     var liturgicalCalendarMode by rememberSaveable { mutableStateOf(CalendarMode.Month) }
     val scope = rememberCoroutineScope()
+
+    LaunchedEffect(session.status) {
+        if (session.status == SessionStatus.Authenticated) {
+            registrationRequestVersion = 0
+        }
+    }
+
+    fun requireAccount() {
+        showAccountRequiredPrompt = true
+    }
+
+    fun openRegistration() {
+        showAccountRequiredPrompt = false
+        onCloseSaintDetail()
+        onCloseNovenaDetail()
+        onClosePrayerDetail()
+        registrationRequestVersion += 1
+        onTabSelected(AppTab.Me)
+    }
 
     Scaffold(
         containerColor = Color.Transparent,
@@ -1132,7 +1154,8 @@ private fun AuthenticatedShell(
                             AccountAccessScreen(
                                 session = session,
                                 onAction = onAction,
-                                embedded = true
+                                embedded = true,
+                                initialStep = if (registrationRequestVersion > 0) AuthStep.Register else AuthStep.Landing
                             )
                         }
                     }
@@ -1355,6 +1378,7 @@ private fun AuthenticatedShell(
                         session = session,
                         progress = novenaProgress,
                         onToggleFavorite = onToggleFavorite,
+                        onRequireAccount = ::requireAccount,
                         onDismiss = onCloseSaintDetail
                     )
                 }
@@ -1374,6 +1398,7 @@ private fun AuthenticatedShell(
                         onStop = onStopNovena,
                         onCompleteDay = onCompleteNovenaDay,
                         onToggleFavorite = onToggleFavorite,
+                        onRequireAccount = ::requireAccount,
                         onDismiss = onCloseNovenaDetail
                     )
                 }
@@ -1390,10 +1415,29 @@ private fun AuthenticatedShell(
                         session = session,
                         progress = novenaProgress,
                         onToggleFavorite = onToggleFavorite,
+                        onRequireAccount = ::requireAccount,
                         onDismiss = onClosePrayerDetail
                     )
                 }
             }
+        }
+
+        if (showAccountRequiredPrompt) {
+            AlertDialog(
+                onDismissRequest = { showAccountRequiredPrompt = false },
+                title = { Text(l10n.t("accountRequired.title")) },
+                text = { Text(l10n.t("accountRequired.body")) },
+                confirmButton = {
+                    TextButton(onClick = ::openRegistration) {
+                        Text(l10n.t("accountRequired.createAccount"))
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showAccountRequiredPrompt = false }) {
+                        Text(l10n.t("accountRequired.dismiss"))
+                    }
+                }
+            )
         }
     }
 }
@@ -1849,7 +1893,7 @@ private fun MeScreen(
                         .forEach { commitment ->
                             LinkedMeRow(
                                 title = progress.novenaTitles[commitment.novenaId]
-                                    ?: commitment.novenaId.replace("-", " ").replaceFirstChar { it.uppercase() },
+                                    ?: commitment.novenaId.replace("_", " ").replace("-", " ").replaceFirstChar { it.uppercase() },
                                 subtitle = "${l10n.t("calendar.dayNumberPrefix")} ${commitment.currentDay} / ${progress.novenaDurations[commitment.novenaId] ?: 9}",
                                 onClick = { onOpenNovena(commitment.novenaId) }
                             )
@@ -1866,7 +1910,7 @@ private fun MeScreen(
                     favoriteNovenas.forEach { favorite ->
                         LinkedMeRow(
                             title = progress.novenaTitles[favorite.itemId]
-                                ?: favorite.itemId.replace("-", " ").replaceFirstChar { it.uppercase() },
+                                ?: favorite.itemId.replace("_", " ").replace("-", " ").replaceFirstChar { it.uppercase() },
                             subtitle = null,
                             onClick = { onOpenNovena(favorite.itemId) }
                         )
@@ -3407,7 +3451,8 @@ private fun SaintDetailSheet(
     detail: SaintDetail,
     session: SessionUiState,
     progress: NovenaProgressUiState,
-    onToggleFavorite: (FavoriteItemType, String) -> Unit,
+    onToggleFavorite: (FavoriteItemType, String, String?, String?, Int?) -> Unit,
+    onRequireAccount: () -> Unit,
     onDismiss: () -> Unit
 ) {
     val l10n = sanctuaryStrings()
@@ -3425,18 +3470,22 @@ private fun SaintDetailSheet(
                 .aspectRatio(1.4f),
             shape = RoundedCornerShape(24.dp)
         )
-        if (session.status == SessionStatus.Authenticated) {
-            Button(
-                onClick = { onToggleFavorite(FavoriteItemType.Saint, detail.id) },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isFavorite) Color(0xFF5CAED4) else Color(0xFF22394C),
-                    contentColor = Color.White
-                ),
-                shape = RoundedCornerShape(18.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(if (isFavorite) l10n.t("detail.favorite.saved") else l10n.t("detail.favorite.add"))
-            }
+        Button(
+            onClick = {
+                if (session.status == SessionStatus.Authenticated) {
+                    onToggleFavorite(FavoriteItemType.Saint, detail.id, detail.name, detail.slug, null)
+                } else {
+                    onRequireAccount()
+                }
+            },
+            colors = ButtonDefaults.buttonColors(
+                containerColor = if (isFavorite) Color(0xFF5CAED4) else Color(0xFF22394C),
+                contentColor = Color.White
+            ),
+            shape = RoundedCornerShape(18.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(if (isFavorite) l10n.t("detail.favorite.saved") else l10n.t("detail.favorite.add"))
         }
         Button(
             onClick = {
@@ -3492,7 +3541,8 @@ private fun NovenaDetailSheet(
     onStart: (String) -> Unit,
     onStop: (String) -> Unit,
     onCompleteDay: (String, Int) -> Unit,
-    onToggleFavorite: (FavoriteItemType, String) -> Unit,
+    onToggleFavorite: (FavoriteItemType, String, String?, String?, Int?) -> Unit,
+    onRequireAccount: () -> Unit,
     onDismiss: () -> Unit
 ) {
     val l10n = sanctuaryStrings()
@@ -3545,18 +3595,22 @@ private fun NovenaDetailSheet(
             }
         }
 
-        if (session.status == SessionStatus.Authenticated) {
-            Button(
-                onClick = { onToggleFavorite(FavoriteItemType.Novena, detail.id) },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isFavorite) Color(0xFF5CAED4) else Color(0xFF22394C),
-                    contentColor = Color.White
-                ),
-                shape = RoundedCornerShape(18.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(if (isFavorite) l10n.t("detail.favorite.saved") else l10n.t("detail.favorite.add"))
-            }
+        Button(
+            onClick = {
+                if (session.status == SessionStatus.Authenticated) {
+                    onToggleFavorite(FavoriteItemType.Novena, detail.id, detail.title, detail.slug, detail.durationDays)
+                } else {
+                    onRequireAccount()
+                }
+            },
+            colors = ButtonDefaults.buttonColors(
+                containerColor = if (isFavorite) Color(0xFF5CAED4) else Color(0xFF22394C),
+                contentColor = Color.White
+            ),
+            shape = RoundedCornerShape(18.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(if (isFavorite) l10n.t("detail.favorite.saved") else l10n.t("detail.favorite.add"))
         }
         Button(
             onClick = {
@@ -3625,7 +3679,7 @@ private fun NovenaDetailSheet(
 
         when {
             session.status != SessionStatus.Authenticated -> {
-                Banner(l10n.t("detail.loginToTrack"), isError = false)
+                PrimaryButton(l10n.t("detail.startNovena"), false, onClick = onRequireAccount)
             }
             isStarting -> {
                 PrimaryButton(l10n.t("detail.startNovena"), true, onClick = {})
@@ -3685,7 +3739,8 @@ private fun PrayerDetailSheet(
     detail: PrayerDetail,
     session: SessionUiState,
     progress: NovenaProgressUiState,
-    onToggleFavorite: (FavoriteItemType, String) -> Unit,
+    onToggleFavorite: (FavoriteItemType, String, String?, String?, Int?) -> Unit,
+    onRequireAccount: () -> Unit,
     onDismiss: () -> Unit
 ) {
     val l10n = sanctuaryStrings()
@@ -3734,24 +3789,28 @@ private fun PrayerDetailSheet(
             }
         }
         DetailSectionCard(title = detail.title) {
-            if (session.status == SessionStatus.Authenticated) {
-                Button(
-                    onClick = { onToggleFavorite(FavoriteItemType.Prayer, detail.id) },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isFavorite) Color(0xFF5CAED4) else Color(0xFF22394C),
-                        contentColor = Color.White
-                    ),
-                    shape = RoundedCornerShape(18.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Favorite,
-                        contentDescription = null,
-                        tint = Color.White
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(if (isFavorite) l10n.t("detail.favorite.saved") else l10n.t("detail.favorite.add"))
-                }
+            Button(
+                onClick = {
+                    if (session.status == SessionStatus.Authenticated) {
+                        onToggleFavorite(FavoriteItemType.Prayer, detail.id, detail.title, detail.slug, null)
+                    } else {
+                        onRequireAccount()
+                    }
+                },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (isFavorite) Color(0xFF5CAED4) else Color(0xFF22394C),
+                    contentColor = Color.White
+                ),
+                shape = RoundedCornerShape(18.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Favorite,
+                    contentDescription = null,
+                    tint = Color.White
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(if (isFavorite) l10n.t("detail.favorite.saved") else l10n.t("detail.favorite.add"))
             }
             Button(
                 onClick = {

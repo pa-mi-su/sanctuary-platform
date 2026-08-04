@@ -314,6 +314,7 @@ struct PrayerDetailView: View {
     @State private var currentPrayer: Prayer
     @State private var isFavorite = false
     @State private var isShowingExpandedHeroImage = false
+    @State private var isShowingAccountRequired = false
 
     init(contentRepository: any ContentRepository, prayer: Prayer, onClose: (() -> Void)? = nil) {
         self.contentRepository = contentRepository
@@ -403,35 +404,37 @@ struct PrayerDetailView: View {
                             .minimumScaleFactor(0.58)
                             .foregroundStyle(.white)
 
-                        if progressStore.isAuthenticated {
-                            HStack(spacing: 10) {
-                                Button {
+                        HStack(spacing: 10) {
+                            Button {
+                                if progressStore.isAuthenticated {
                                     Task {
                                         isFavorite.toggle()
                                         await progressStore.setFavorite(isFavorite, itemType: .prayer, itemID: currentPrayer.id)
                                         isFavorite = progressStore.isFavorite(itemType: .prayer, itemID: currentPrayer.id)
                                     }
-                                } label: {
-                                    HStack(spacing: 10) {
-                                        Image(systemName: isFavorite ? "heart.fill" : "heart")
-                                        Text(isFavorite ? localization.t("detail.savedFavorites") : localization.t("detail.addFavorites"))
-                                    }
-                                    .font(AppTheme.rounded(16, weight: .semibold))
-                                    .foregroundStyle(.white)
-                                    .padding(.horizontal, 18)
-                                    .padding(.vertical, 12)
-                                    .background(isFavorite ? AnyShapeStyle(AppTheme.primaryButtonGradient) : AnyShapeStyle(AppTheme.cardBackgroundSoft))
-                                    .overlay(
-                                        Capsule()
-                                            .stroke(Color.white.opacity(0.12), lineWidth: 1)
-                                    )
-                                    .clipShape(Capsule())
+                                } else {
+                                    isShowingAccountRequired = true
                                 }
-                                .buttonStyle(.plain)
-                                .animation(.spring(response: 0.32, dampingFraction: 0.82), value: isFavorite)
-
-                                Spacer()
+                            } label: {
+                                HStack(spacing: 10) {
+                                    Image(systemName: isFavorite ? "heart.fill" : "heart")
+                                    Text(isFavorite ? localization.t("detail.savedFavorites") : localization.t("detail.addFavorites"))
+                                }
+                                .font(AppTheme.rounded(16, weight: .semibold))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 18)
+                                .padding(.vertical, 12)
+                                .background(isFavorite ? AnyShapeStyle(AppTheme.primaryButtonGradient) : AnyShapeStyle(AppTheme.cardBackgroundSoft))
+                                .overlay(
+                                    Capsule()
+                                        .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                                )
+                                .clipShape(Capsule())
                             }
+                            .buttonStyle(.plain)
+                            .animation(.spring(response: 0.32, dampingFraction: 0.82), value: isFavorite)
+
+                            Spacer()
                         }
 
                         ShareLink(item: SharedContentLink(kind: .prayer, slug: currentPrayer.slug).shareText(title: title)) {
@@ -481,6 +484,7 @@ struct PrayerDetailView: View {
         }
         .leftEdgeSwipeBack(handleBack)
         .toolbar(.hidden, for: .navigationBar)
+        .accountRequiredPrompt(isPresented: $isShowingAccountRequired)
         .fullScreenCover(isPresented: $isShowingExpandedHeroImage) {
             if let imageURL {
                 ExpandedPrayerImageView(url: imageURL) {

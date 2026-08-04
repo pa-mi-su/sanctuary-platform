@@ -65,6 +65,8 @@ export class AppShellFacade {
   readonly selectedPatronageSaints = signal<SaintSummary[]>([]);
   readonly termLoadFailed = signal(false);
   readonly activeLegalDocument = signal<LegalDocumentType | null>(null);
+  readonly accountRequiredPrompt = signal(false);
+  readonly authInitialStep = signal<'landing' | 'register'>('landing');
   readonly language = signal<AppLanguage>('en');
   readonly authState = this.auth.state;
   readonly isAuthenticated = computed(() => this.authState().status === 'authenticated');
@@ -648,6 +650,22 @@ export class AppShellFacade {
 
   openAuth(): void {
     this.savePreferencesMessage.set(null);
+    this.authInitialStep.set('landing');
+    this.setTab('auth');
+  }
+
+  requireAccount(): void {
+    this.accountRequiredPrompt.set(true);
+  }
+
+  dismissAccountRequiredPrompt(): void {
+    this.accountRequiredPrompt.set(false);
+  }
+
+  openRegistrationFromPrompt(): void {
+    this.accountRequiredPrompt.set(false);
+    this.closeDetailModal();
+    this.authInitialStep.set('register');
     this.setTab('auth');
   }
 
