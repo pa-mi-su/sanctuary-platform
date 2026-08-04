@@ -110,6 +110,49 @@ data class NovenaProgressUiState(
     val error: String? = null
 )
 
+internal fun NovenaProgressUiState.withOptimisticFavorite(
+    itemType: FavoriteItemType,
+    itemId: String,
+    enabled: Boolean,
+    displayName: String? = null,
+    slug: String? = null,
+    durationDays: Int? = null,
+    createdAt: String = Instant.now().toString()
+): NovenaProgressUiState {
+    val updatedFavorites = if (enabled) {
+        favorites.filterNot { it.itemType == itemType && it.itemId == itemId } +
+            UserFavorite(itemType, itemId, createdAt)
+    } else {
+        favorites.filterNot { it.itemType == itemType && it.itemId == itemId }
+    }
+    if (!enabled) {
+        return copy(favorites = updatedFavorites, error = null)
+    }
+
+    val canonicalName = displayName?.trim()?.takeIf { it.isNotEmpty() }
+    val canonicalSlug = slug?.trim()?.takeIf { it.isNotEmpty() }
+    return when (itemType) {
+        FavoriteItemType.Saint -> copy(
+            favorites = updatedFavorites,
+            saintNames = canonicalName?.let { saintNames + (itemId to it) } ?: saintNames,
+            saintSlugs = canonicalSlug?.let { saintSlugs + (itemId to it) } ?: saintSlugs,
+            error = null
+        )
+        FavoriteItemType.Novena -> copy(
+            favorites = updatedFavorites,
+            novenaTitles = canonicalName?.let { novenaTitles + (itemId to it) } ?: novenaTitles,
+            novenaDurations = durationDays?.let { novenaDurations + (itemId to it) } ?: novenaDurations,
+            error = null
+        )
+        FavoriteItemType.Prayer -> copy(
+            favorites = updatedFavorites,
+            prayerTitles = canonicalName?.let { prayerTitles + (itemId to it) } ?: prayerTitles,
+            prayerSlugs = canonicalSlug?.let { prayerSlugs + (itemId to it) } ?: prayerSlugs,
+            error = null
+        )
+    }
+}
+
 class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val reminderScheduler = AndroidReminderScheduler(application.applicationContext)
     private val repository = SessionRepository(
@@ -839,57 +882,59 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                                 val slug = saintSummaries[id]?.slug ?: id
                                 runCatching { repository.fetchSaintDetail(slug) }.getOrNull()
                             }
-                            val saintNames = saintIds.associateWith { id ->
-                                saintDetails[id]?.name
-                                    ?: saintSummaries[id]?.name
-                                    ?: formatFavoriteSaintLabel(id)
-                            }
-                            val saintSlugs = saintIds.associateWith { id ->
-                                saintDetails[id]?.slug
-                                    ?: saintSummaries[id]?.slug
-                                    ?: id
-                            }
+                            val saintNames = saintIds.mapNotNull { id ->
+                                (saintDetails[id]?.name ?: saintSummaries[id]?.name)?.let { id to it }
+                            }.toMap()
+                            val saintSlugs = saintIds.mapNotNull { id ->
+                                (saintDetails[id]?.slug ?: saintSummaries[id]?.slug)?.let { id to it }
+                            }.toMap()
                             val activeCommitmentCount = commitments.count { it.status == CommitmentStatus.Active }
                             syncReminderScheduler(
                                 profile = _session.value.profile,
                                 activeCommitmentCount = activeCommitmentCount
                             )
 
+                            val existing = _novenaProgress.value
                             _novenaProgress.value = NovenaProgressUiState(
                                 commitments = commitments,
                                 favorites = favorites,
-                                saintNames = saintNames,
-                                saintSlugs = saintSlugs,
-                                novenaTitles = novenaDetails.mapNotNull { (id, detail) -> detail?.let { id to it.title } }.toMap(),
-                                novenaDurations = novenaDetails.mapNotNull { (id, detail) -> detail?.let { id to it.durationDays } }.toMap(),
-                                prayerTitles = prayerDetails.mapNotNull { (id, detail) -> detail?.let { id to it.title } }.toMap(),
-                                prayerSlugs = prayerDetails.mapNotNull { (id, detail) -> detail?.let { id to it.slug } }.toMap(),
+                                pendingNovenaStarts = existing.pendingNovenaStarts,
+                                saintNames = existing.saintNames + saintNames,
+                                saintSlugs = existing.saintSlugs + saintSlugs,
+                                novenaTitles = existing.novenaTitles + novenaDetails.mapNotNull { (id, detail) -> detail?.let { id to it.title } }.toMap(),
+                                novenaDurations = existing.novenaDurations + novenaDetails.mapNotNull { (id, detail) -> detail?.let { id to it.durationDays } }.toMap(),
+                                prayerTitles = existing.prayerTitles + prayerDetails.mapNotNull { (id, detail) -> detail?.let { id to it.title } }.toMap(),
+                                prayerSlugs = existing.prayerSlugs + prayerDetails.mapNotNull { (id, detail) -> detail?.let { id to it.slug } }.toMap(),
                                 isLoading = false
                             )
                         }.onFailure { failure ->
+                            val existing = _novenaProgress.value
                             _novenaProgress.value = NovenaProgressUiState(
                                 commitments = commitments,
-                                favorites = emptyList(),
-                                saintNames = emptyMap(),
-                                saintSlugs = emptyMap(),
-                                novenaTitles = emptyMap(),
-                                novenaDurations = emptyMap(),
-                                prayerTitles = emptyMap(),
-                                prayerSlugs = emptyMap(),
+                                favorites = existing.favorites,
+                                pendingNovenaStarts = existing.pendingNovenaStarts,
+                                saintNames = existing.saintNames,
+                                saintSlugs = existing.saintSlugs,
+                                novenaTitles = existing.novenaTitles,
+                                novenaDurations = existing.novenaDurations,
+                                prayerTitles = existing.prayerTitles,
+                                prayerSlugs = existing.prayerSlugs,
                                 isLoading = false,
                                 error = failure.message
                             )
                         }
                 }.onFailure { failure ->
+                    val existing = _novenaProgress.value
                     _novenaProgress.value = NovenaProgressUiState(
-                        commitments = emptyList(),
-                        favorites = emptyList(),
-                        saintNames = emptyMap(),
-                        saintSlugs = emptyMap(),
-                        novenaTitles = emptyMap(),
-                        novenaDurations = emptyMap(),
-                        prayerTitles = emptyMap(),
-                        prayerSlugs = emptyMap(),
+                        commitments = existing.commitments,
+                        favorites = existing.favorites,
+                        pendingNovenaStarts = existing.pendingNovenaStarts,
+                        saintNames = existing.saintNames,
+                        saintSlugs = existing.saintSlugs,
+                        novenaTitles = existing.novenaTitles,
+                        novenaDurations = existing.novenaDurations,
+                        prayerTitles = existing.prayerTitles,
+                        prayerSlugs = existing.prayerSlugs,
                         isLoading = false,
                         error = failure.message
                     )
@@ -1010,7 +1055,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun toggleFavorite(itemType: FavoriteItemType, itemId: String) {
+    fun toggleFavorite(
+        itemType: FavoriteItemType,
+        itemId: String,
+        displayName: String? = null,
+        slug: String? = null,
+        durationDays: Int? = null
+    ) {
         if (_session.value.status != SessionStatus.Authenticated) return
         val mutationKey = "${itemType.name}:$itemId"
         if (!pendingFavoriteToggles.add(mutationKey)) {
@@ -1022,12 +1073,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val nextFavorite = !currentlyFavorite
 
         _novenaProgress.update { progress ->
-            val favorites = if (nextFavorite) {
-                progress.favorites + UserFavorite(itemType, itemId, Instant.now().toString())
-            } else {
-                progress.favorites.filterNot { it.itemType == itemType && it.itemId == itemId }
-            }
-            progress.copy(favorites = favorites, error = null)
+            progress.withOptimisticFavorite(
+                itemType = itemType,
+                itemId = itemId,
+                enabled = nextFavorite,
+                displayName = displayName,
+                slug = slug,
+                durationDays = durationDays
+            )
         }
         updateFavoriteCount(itemType, if (nextFavorite) 1 else -1)
 
@@ -1040,6 +1093,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 )
             }.onSuccess {
                 pendingFavoriteToggles.remove(mutationKey)
+                refreshNovenaProgress()
             }.onFailure { failure ->
                 pendingFavoriteToggles.remove(mutationKey)
                 _novenaProgress.value = previousProgress.copy(error = failure.message)
@@ -1124,24 +1178,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         return repository.listLiturgicalRange(start, end)
     }
 
-    private fun formatFavoriteSaintLabel(id: String): String {
-        val trimmed = id.trim()
-        if (trimmed.isBlank()) return id
-        val rawTokens = trimmed.split("_").filter { it.isNotBlank() }
-        val nameTokens = if (rawTokens.firstOrNull()?.matches(Regex("\\d{2}-\\d{2}")) == true) {
-            rawTokens.drop(1)
-        } else if (rawTokens.size >= 4 && rawTokens[2].equals("saint", ignoreCase = true)) {
-            listOf("Saint") + rawTokens.drop(3)
-        } else {
-            trimmed.replace("-", " ").replace("_", " ").split(" ")
-        }
-
-        return nameTokens
-            .filter { it.isNotBlank() }
-            .joinToString(" ") { token ->
-                token.lowercase().replaceFirstChar { char -> char.uppercase() }
-            }
-    }
 }
 
 private fun <T> rankSearchResults(

@@ -11,6 +11,7 @@ struct SaintDetailView: View {
     @EnvironmentObject private var localization: LocalizationManager
     @EnvironmentObject private var progressStore: UserProgressStore
     @State private var isFavorite = false
+    @State private var isShowingAccountRequired = false
     @State private var detailedSaint: Saint?
 
     init(
@@ -86,35 +87,37 @@ struct SaintDetailView: View {
                             .minimumScaleFactor(0.6)
                             .foregroundStyle(.white)
 
-                        if progressStore.isAuthenticated {
-                            HStack(spacing: 10) {
-                                Button {
+                        HStack(spacing: 10) {
+                            Button {
+                                if progressStore.isAuthenticated {
                                     Task {
                                         isFavorite.toggle()
                                         await progressStore.setFavorite(isFavorite, itemType: .saint, itemID: saint.id)
                                         isFavorite = progressStore.isFavorite(itemType: .saint, itemID: saint.id)
                                     }
-                                } label: {
-                                    HStack(spacing: 10) {
-                                        Image(systemName: isFavorite ? "heart.fill" : "heart")
-                                        Text(isFavorite ? localization.t("detail.savedFavorites") : localization.t("detail.addFavorites"))
-                                    }
-                                    .font(AppTheme.rounded(16, weight: .semibold))
-                                    .foregroundStyle(.white)
-                                    .padding(.horizontal, 18)
-                                    .padding(.vertical, 12)
-                                    .background(isFavorite ? AnyShapeStyle(AppTheme.primaryButtonGradient) : AnyShapeStyle(AppTheme.cardBackgroundSoft))
-                                    .overlay(
-                                        Capsule()
-                                            .stroke(Color.white.opacity(0.12), lineWidth: 1)
-                                    )
-                                    .clipShape(Capsule())
+                                } else {
+                                    isShowingAccountRequired = true
                                 }
-                                .buttonStyle(.plain)
-                                .animation(.spring(response: 0.32, dampingFraction: 0.82), value: isFavorite)
-
-                                Spacer()
+                            } label: {
+                                HStack(spacing: 10) {
+                                    Image(systemName: isFavorite ? "heart.fill" : "heart")
+                                    Text(isFavorite ? localization.t("detail.savedFavorites") : localization.t("detail.addFavorites"))
+                                }
+                                .font(AppTheme.rounded(16, weight: .semibold))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 18)
+                                .padding(.vertical, 12)
+                                .background(isFavorite ? AnyShapeStyle(AppTheme.primaryButtonGradient) : AnyShapeStyle(AppTheme.cardBackgroundSoft))
+                                .overlay(
+                                    Capsule()
+                                        .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                                )
+                                .clipShape(Capsule())
                             }
+                            .buttonStyle(.plain)
+                            .animation(.spring(response: 0.32, dampingFraction: 0.82), value: isFavorite)
+
+                            Spacer()
                         }
 
                         ShareLink(item: SharedContentLink(kind: .saint, slug: currentSaint.slug).shareText(title: displayName)) {
@@ -196,6 +199,7 @@ struct SaintDetailView: View {
         }
         .leftEdgeSwipeBack(handleBack)
         .toolbar(.hidden, for: .navigationBar)
+        .accountRequiredPrompt(isPresented: $isShowingAccountRequired)
         .task {
             async let loadedSaint: Saint? = Task.detached(priority: .userInitiated) {
                 try? await contentRepository.fetchSaint(slug: saint.slug, locale: locale)
