@@ -138,7 +138,7 @@ final class AccountSessionStore: ObservableObject {
             return
         }
 
-        clearMessage()
+        guard beginAuthenticationRequest() else { return }
 
         do {
             let response = try await apiClient.register(
@@ -164,8 +164,7 @@ final class AccountSessionStore: ObservableObject {
             return false
         }
 
-        status = .loading
-        clearMessage()
+        guard beginAuthenticationRequest() else { return false }
 
         do {
             let response = try await apiClient.confirm(
@@ -188,8 +187,7 @@ final class AccountSessionStore: ObservableObject {
             return
         }
 
-        status = .loading
-        clearMessage()
+        guard beginAuthenticationRequest() else { return }
 
         do {
             let response = try await apiClient.resendConfirmation(email: email)
@@ -207,8 +205,7 @@ final class AccountSessionStore: ObservableObject {
             return
         }
 
-        status = .loading
-        clearMessage()
+        guard beginAuthenticationRequest() else { return }
 
         do {
             let response = try await apiClient.forgotPassword(email: email)
@@ -227,8 +224,7 @@ final class AccountSessionStore: ObservableObject {
             return false
         }
 
-        status = .loading
-        clearMessage()
+        guard beginAuthenticationRequest() else { return false }
 
         do {
             let response = try await apiClient.resetPassword(email: email, code: code, newPassword: newPassword)
@@ -252,8 +248,7 @@ final class AccountSessionStore: ObservableObject {
             return
         }
 
-        status = .loading
-        clearMessage()
+        guard beginAuthenticationRequest() else { return }
 
         do {
             let response = try await apiClient.login(APIAuthLoginRequest(email: email, password: password))
@@ -557,6 +552,13 @@ final class AccountSessionStore: ObservableObject {
     private func setMessage(_ value: String, isError: Bool) {
         message = value
         isErrorMessage = isError
+    }
+
+    private func beginAuthenticationRequest() -> Bool {
+        guard status != .loading else { return false }
+        status = .loading
+        clearMessage()
+        return true
     }
 
     private func clearMessage() {

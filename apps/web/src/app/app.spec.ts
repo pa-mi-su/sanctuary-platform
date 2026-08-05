@@ -1,8 +1,10 @@
 import { TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { App } from './app';
 import { SANCTUARY_API_BASE_URL } from './core/api/sanctuary-api.config';
 import { SANCTUARY_AUTH_CONFIG } from './core/auth/sanctuary-auth.config';
 import { AppShellFacade } from './core/state/app-shell.facade';
+import { AuthPageComponent } from './pages/auth-page.component';
 
 describe('App', () => {
   beforeEach(async () => {
@@ -84,5 +86,17 @@ describe('App', () => {
     expect(facade.currentTab()).toBe('auth');
     expect(facade.authInitialStep()).toBe('register');
     expect(facade.accountRequiredPrompt()).toBe(false);
+  });
+
+  it('returns to the home screen after prompt authentication completes', () => {
+    const fixture = TestBed.createComponent(App);
+    const facade = TestBed.inject(AppShellFacade);
+    facade.openAuthenticationFromPrompt('login');
+    fixture.detectChanges();
+
+    const authPage = fixture.debugElement.query(By.directive(AuthPageComponent)).componentInstance as AuthPageComponent;
+    authPage.authenticated.emit();
+
+    expect(facade.currentTab()).toBe('home');
   });
 });

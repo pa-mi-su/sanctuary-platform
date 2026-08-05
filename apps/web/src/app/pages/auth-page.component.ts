@@ -533,7 +533,14 @@ export class AuthPageComponent {
         password: this.loginPassword,
       });
       this.pending.set(false);
-      this.authenticated.emit();
+      if (this.auth.state().status === 'authenticated') {
+        this.authenticated.emit();
+      } else {
+        this.error.set(
+          this.auth.state().message ??
+            this.t('Sanctuary could not sign you in.', 'Sanctuary no pudo iniciar tu sesión.', 'Sanctuary nie mogło Cię zalogować.')
+        );
+      }
     } catch {
       this.pending.set(false);
       this.error.set(this.auth.state().message);
@@ -619,10 +626,12 @@ export class AuthPageComponent {
             email,
             password,
           });
-          this.pending.set(false);
-          this.message.set(null);
-          this.authenticated.emit();
-          return;
+          if (this.auth.state().status === 'authenticated') {
+            this.pending.set(false);
+            this.message.set(null);
+            this.authenticated.emit();
+            return;
+          }
         } catch {
           // Fall back to the login screen with the confirmed email prefilled.
         }
