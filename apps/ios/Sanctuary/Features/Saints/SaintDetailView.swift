@@ -199,7 +199,10 @@ struct SaintDetailView: View {
         }
         .leftEdgeSwipeBack(handleBack)
         .toolbar(.hidden, for: .navigationBar)
-        .accountRequiredPrompt(isPresented: $isShowingAccountRequired)
+        .accountRequiredPrompt(isPresented: $isShowingAccountRequired) {
+            await progressStore.setFavorite(true, itemType: .saint, itemID: saint.id)
+            isFavorite = progressStore.isFavorite(itemType: .saint, itemID: saint.id)
+        }
         .task {
             async let loadedSaint: Saint? = Task.detached(priority: .userInitiated) {
                 try? await contentRepository.fetchSaint(slug: saint.slug, locale: locale)

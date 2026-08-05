@@ -1,6 +1,6 @@
 <div class="page-bg"></div>
 
-@if (facade.saintDetail() || facade.prayerDetail() || facade.novenaDetail()) {
+@if (facade.currentTab() !== 'auth' && (facade.saintDetail() || facade.prayerDetail() || facade.novenaDetail())) {
   <app-content-detail-modal
     [currentLanguage]="facade.language()"
     [saintDetail]="facade.saintDetail()"
@@ -20,7 +20,7 @@
     (toggleSaintFavorite)="facade.toggleSelectedSaintFavorite()"
     (toggleNovenaFavorite)="facade.toggleSelectedNovenaFavorite()"
     (togglePrayerFavorite)="facade.toggleSelectedPrayerFavorite()"
-    (accountRequired)="facade.requireAccount()"
+    (accountRequired)="facade.requireAccount($event)"
   />
 }
 
@@ -135,7 +135,7 @@
         [currentLanguage]="facade.language()"
         [isConfigured]="facade.authConfigured()"
         [initialStep]="facade.authInitialStep()"
-        (authenticated)="facade.setTab('home')"
+        (authenticated)="facade.completePromptAuthentication()"
       />
     }
 

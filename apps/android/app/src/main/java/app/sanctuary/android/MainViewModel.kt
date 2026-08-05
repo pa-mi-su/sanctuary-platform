@@ -475,6 +475,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun applyAuthenticatedSession(result: SessionBootstrapResult) {
+        _novenaProgress.update { it.copy(isLoading = true, error = null) }
         _session.value = SessionUiState(
             status = SessionStatus.Authenticated,
             isBootstrapping = false,
@@ -857,8 +858,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
 
+        _novenaProgress.update { it.copy(isLoading = true, error = null) }
         viewModelScope.launch {
-            _novenaProgress.update { it.copy(isLoading = true, error = null) }
             runCatching { repository.listNovenaCommitments() }
                 .onSuccess { commitments ->
                     runCatching { repository.listFavorites() }

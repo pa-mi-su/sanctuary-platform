@@ -37,7 +37,7 @@ describe('ContentDetailModalComponent', () => {
     expect(button).toBeTruthy();
     button.click();
 
-    expect(accountRequired).toHaveBeenCalledOnce();
+    expect(accountRequired).toHaveBeenCalledWith('favorite-saint');
   });
 
   it('emits the favorite mutation when signed in', () => {
@@ -63,6 +63,6 @@ describe('ContentDetailModalComponent', () => {
     expect(button.textContent).toContain('Start Novena');
     button.click();
 
-    expect(accountRequired).toHaveBeenCalledOnce();
+    expect(accountRequired).toHaveBeenCalledWith('start-novena');
   });
 });
