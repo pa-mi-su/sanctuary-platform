@@ -2,6 +2,11 @@ import Foundation
 import SwiftUI
 
 struct NovenaDetailView: View {
+    private enum PendingAccountAction {
+        case favorite
+        case start
+    }
+
     let contentRepository: any ContentRepository
     let novena: Novena
     var displayYear: Int? = nil
@@ -17,6 +22,7 @@ struct NovenaDetailView: View {
     @State private var hydratedNovena: Novena?
     @State private var showCompletionModal = false
     @State private var isShowingAccountRequired = false
+    @State private var pendingAccountAction: PendingAccountAction?
     @State private var servingWindow: NovenaServingWindowInfo?
 
     private var locale: ContentLocale { localization.language.contentLocale }
@@ -134,6 +140,7 @@ struct NovenaDetailView: View {
                                         isFavorite = progressStore.isFavorite(itemType: .novena, itemID: effectiveNovena.id)
                                     }
                                 } else {
+                                    pendingAccountAction = .favorite
                                     isShowingAccountRequired = true
                                 }
                             } label: {
@@ -246,6 +253,7 @@ struct NovenaDetailView: View {
 
                     if !progressStore.isAuthenticated {
                         Button(localization.t("novena.start")) {
+                            pendingAccountAction = .start
                             isShowingAccountRequired = true
                         }
                         .buttonStyle(PrimaryPillButtonStyle())
@@ -355,7 +363,25 @@ struct NovenaDetailView: View {
         }
         .leftEdgeSwipeBack(handleBack)
         .toolbar(.hidden, for: .navigationBar)
-        .accountRequiredPrompt(isPresented: $isShowingAccountRequired)
+        .accountRequiredPrompt(
+            isPresented: $isShowingAccountRequired,
+            onAuthenticated: {
+                switch pendingAccountAction {
+                case .favorite:
+                    await progressStore.setFavorite(true, itemType: .novena, itemID: effectiveNovena.id)
+                    isFavorite = progressStore.isFavorite(itemType: .novena, itemID: effectiveNovena.id)
+                case .start:
+                    await progressStore.startNovena(novenaID: effectiveNovena.id)
+                    selectedDay = 1
+                case nil:
+                    break
+                }
+                pendingAccountAction = nil
+            },
+            onDismiss: {
+                pendingAccountAction = nil
+            }
+        )
         .onAppear {
             isFavorite = progressStore.isFavorite(itemType: .novena, itemID: novena.id)
             if let day = currentCommitment?.currentDay {
