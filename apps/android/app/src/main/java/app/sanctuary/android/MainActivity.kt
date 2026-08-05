@@ -275,6 +275,18 @@ private enum class AppTab {
     Me
 }
 
+private sealed interface DeferredAccountAction {
+    data class Favorite(
+        val itemType: FavoriteItemType,
+        val itemId: String,
+        val displayName: String?,
+        val slug: String?,
+        val durationDays: Int?
+    ) : DeferredAccountAction
+
+    data class StartNovena(val novenaId: String) : DeferredAccountAction
+}
+
 private enum class CalendarMode {
     Day,
     Week,
@@ -914,7 +926,9 @@ private fun AuthenticatedShell(
     var isLoadingDailyReadings by rememberSaveable { mutableStateOf(false) }
     var aboutDocument by rememberSaveable { mutableStateOf<AboutDocument?>(null) }
     var showAccountRequiredPrompt by rememberSaveable { mutableStateOf(false) }
-    var registrationRequestVersion by rememberSaveable { mutableStateOf(0) }
+    var requestedAuthStep by rememberSaveable { mutableStateOf<AuthStep?>(null) }
+    var deferredAccountAction by remember { mutableStateOf<DeferredAccountAction?>(null) }
+    var accountReturnTab by rememberSaveable { mutableStateOf<AppTab?>(null) }
     var saintsCalendarMode by rememberSaveable { mutableStateOf(CalendarMode.Day) }
     var novenasCalendarMode by rememberSaveable { mutableStateOf(CalendarMode.Day) }
     fun openSupportEmail() {
@@ -932,22 +946,56 @@ private fun AuthenticatedShell(
     var liturgicalCalendarMode by rememberSaveable { mutableStateOf(CalendarMode.Month) }
     val scope = rememberCoroutineScope()
 
-    LaunchedEffect(session.status) {
-        if (session.status == SessionStatus.Authenticated) {
-            registrationRequestVersion = 0
+    LaunchedEffect(session.status, novenaProgress.isLoading) {
+        if (
+            session.status == SessionStatus.Authenticated &&
+            requestedAuthStep != null &&
+            !novenaProgress.isLoading
+        ) {
+            val action = deferredAccountAction
+            val returnTab = accountReturnTab ?: AppTab.Home
+            requestedAuthStep = null
+            deferredAccountAction = null
+            accountReturnTab = null
+            onTabSelected(returnTab)
+            when (action) {
+                is DeferredAccountAction.Favorite -> {
+                    val isAlreadyFavorite = novenaProgress.favorites.any {
+                        it.itemType == action.itemType && it.itemId == action.itemId
+                    }
+                    if (!isAlreadyFavorite) {
+                        onToggleFavorite(
+                            action.itemType,
+                            action.itemId,
+                            action.displayName,
+                            action.slug,
+                            action.durationDays
+                        )
+                    }
+                }
+                is DeferredAccountAction.StartNovena -> {
+                    val alreadyStarted = novenaProgress.commitments.any {
+                        it.novenaId == action.novenaId &&
+                            (it.status == CommitmentStatus.Active || it.status == CommitmentStatus.Completed)
+                    }
+                    if (!alreadyStarted) {
+                        onStartNovena(action.novenaId)
+                    }
+                }
+                null -> Unit
+            }
         }
     }
 
-    fun requireAccount() {
+    fun requireAccount(action: DeferredAccountAction) {
+        deferredAccountAction = action
+        accountReturnTab = selectedTab
         showAccountRequiredPrompt = true
     }
 
-    fun openRegistration() {
+    fun openAccountAccess(step: AuthStep) {
         showAccountRequiredPrompt = false
-        onCloseSaintDetail()
-        onCloseNovenaDetail()
-        onClosePrayerDetail()
-        registrationRequestVersion += 1
+        requestedAuthStep = step
         onTabSelected(AppTab.Me)
     }
 
@@ -1155,7 +1203,7 @@ private fun AuthenticatedShell(
                                 session = session,
                                 onAction = onAction,
                                 embedded = true,
-                                initialStep = if (registrationRequestVersion > 0) AuthStep.Register else AuthStep.Landing
+                                initialStep = requestedAuthStep ?: AuthStep.Landing
                             )
                         }
                     }
@@ -1368,7 +1416,7 @@ private fun AuthenticatedShell(
             }
         }
 
-        if (saintDetail.isLoading || saintDetail.item != null || saintDetail.error != null) {
+        if (requestedAuthStep == null && (saintDetail.isLoading || saintDetail.item != null || saintDetail.error != null)) {
             SanctuaryModalSheet(onDismissRequest = onCloseSaintDetail) {
                 when {
                     saintDetail.isLoading -> DetailLoadingSheet(l10n.t("common.loading"))
@@ -1378,14 +1426,14 @@ private fun AuthenticatedShell(
                         session = session,
                         progress = novenaProgress,
                         onToggleFavorite = onToggleFavorite,
-                        onRequireAccount = ::requireAccount,
+                        onRequireAccount = { detail -> requireAccount(detail) },
                         onDismiss = onCloseSaintDetail
                     )
                 }
             }
         }
 
-        if (novenaDetail.isLoading || novenaDetail.item != null || novenaDetail.error != null) {
+        if (requestedAuthStep == null && (novenaDetail.isLoading || novenaDetail.item != null || novenaDetail.error != null)) {
             SanctuaryModalSheet(onDismissRequest = onCloseNovenaDetail) {
                 when {
                     novenaDetail.isLoading -> DetailLoadingSheet(l10n.t("common.loading"))
@@ -1398,14 +1446,14 @@ private fun AuthenticatedShell(
                         onStop = onStopNovena,
                         onCompleteDay = onCompleteNovenaDay,
                         onToggleFavorite = onToggleFavorite,
-                        onRequireAccount = ::requireAccount,
+                        onRequireAccount = { detail -> requireAccount(detail) },
                         onDismiss = onCloseNovenaDetail
                     )
                 }
             }
         }
 
-        if (prayerDetail.isLoading || prayerDetail.item != null || prayerDetail.error != null) {
+        if (requestedAuthStep == null && (prayerDetail.isLoading || prayerDetail.item != null || prayerDetail.error != null)) {
             SanctuaryModalSheet(onDismissRequest = onClosePrayerDetail) {
                 when {
                     prayerDetail.isLoading -> DetailLoadingSheet(l10n.t("common.loading"))
@@ -1415,7 +1463,7 @@ private fun AuthenticatedShell(
                         session = session,
                         progress = novenaProgress,
                         onToggleFavorite = onToggleFavorite,
-                        onRequireAccount = ::requireAccount,
+                        onRequireAccount = { detail -> requireAccount(detail) },
                         onDismiss = onClosePrayerDetail
                     )
                 }
@@ -1424,17 +1472,30 @@ private fun AuthenticatedShell(
 
         if (showAccountRequiredPrompt) {
             AlertDialog(
-                onDismissRequest = { showAccountRequiredPrompt = false },
+                onDismissRequest = {
+                    showAccountRequiredPrompt = false
+                    deferredAccountAction = null
+                    accountReturnTab = null
+                },
                 title = { Text(l10n.t("accountRequired.title")) },
                 text = { Text(l10n.t("accountRequired.body")) },
                 confirmButton = {
-                    TextButton(onClick = ::openRegistration) {
+                    TextButton(onClick = { openAccountAccess(AuthStep.Register) }) {
                         Text(l10n.t("accountRequired.createAccount"))
                     }
                 },
                 dismissButton = {
-                    TextButton(onClick = { showAccountRequiredPrompt = false }) {
-                        Text(l10n.t("accountRequired.dismiss"))
+                    Row {
+                        TextButton(onClick = { openAccountAccess(AuthStep.Login) }) {
+                            Text(l10n.t("accountRequired.signIn"))
+                        }
+                        TextButton(onClick = {
+                            showAccountRequiredPrompt = false
+                            deferredAccountAction = null
+                            accountReturnTab = null
+                        }) {
+                            Text(l10n.t("accountRequired.dismiss"))
+                        }
                     }
                 }
             )
@@ -3452,7 +3513,7 @@ private fun SaintDetailSheet(
     session: SessionUiState,
     progress: NovenaProgressUiState,
     onToggleFavorite: (FavoriteItemType, String, String?, String?, Int?) -> Unit,
-    onRequireAccount: () -> Unit,
+    onRequireAccount: (DeferredAccountAction) -> Unit,
     onDismiss: () -> Unit
 ) {
     val l10n = sanctuaryStrings()
@@ -3475,7 +3536,15 @@ private fun SaintDetailSheet(
                 if (session.status == SessionStatus.Authenticated) {
                     onToggleFavorite(FavoriteItemType.Saint, detail.id, detail.name, detail.slug, null)
                 } else {
-                    onRequireAccount()
+                    onRequireAccount(
+                        DeferredAccountAction.Favorite(
+                            FavoriteItemType.Saint,
+                            detail.id,
+                            detail.name,
+                            detail.slug,
+                            null
+                        )
+                    )
                 }
             },
             colors = ButtonDefaults.buttonColors(
@@ -3542,7 +3611,7 @@ private fun NovenaDetailSheet(
     onStop: (String) -> Unit,
     onCompleteDay: (String, Int) -> Unit,
     onToggleFavorite: (FavoriteItemType, String, String?, String?, Int?) -> Unit,
-    onRequireAccount: () -> Unit,
+    onRequireAccount: (DeferredAccountAction) -> Unit,
     onDismiss: () -> Unit
 ) {
     val l10n = sanctuaryStrings()
@@ -3600,7 +3669,15 @@ private fun NovenaDetailSheet(
                 if (session.status == SessionStatus.Authenticated) {
                     onToggleFavorite(FavoriteItemType.Novena, detail.id, detail.title, detail.slug, detail.durationDays)
                 } else {
-                    onRequireAccount()
+                    onRequireAccount(
+                        DeferredAccountAction.Favorite(
+                            FavoriteItemType.Novena,
+                            detail.id,
+                            detail.title,
+                            detail.slug,
+                            detail.durationDays
+                        )
+                    )
                 }
             },
             colors = ButtonDefaults.buttonColors(
@@ -3679,7 +3756,11 @@ private fun NovenaDetailSheet(
 
         when {
             session.status != SessionStatus.Authenticated -> {
-                PrimaryButton(l10n.t("detail.startNovena"), false, onClick = onRequireAccount)
+                PrimaryButton(
+                    l10n.t("detail.startNovena"),
+                    false,
+                    onClick = { onRequireAccount(DeferredAccountAction.StartNovena(detail.id)) }
+                )
             }
             isStarting -> {
                 PrimaryButton(l10n.t("detail.startNovena"), true, onClick = {})
@@ -3740,7 +3821,7 @@ private fun PrayerDetailSheet(
     session: SessionUiState,
     progress: NovenaProgressUiState,
     onToggleFavorite: (FavoriteItemType, String, String?, String?, Int?) -> Unit,
-    onRequireAccount: () -> Unit,
+    onRequireAccount: (DeferredAccountAction) -> Unit,
     onDismiss: () -> Unit
 ) {
     val l10n = sanctuaryStrings()
@@ -3794,7 +3875,15 @@ private fun PrayerDetailSheet(
                     if (session.status == SessionStatus.Authenticated) {
                         onToggleFavorite(FavoriteItemType.Prayer, detail.id, detail.title, detail.slug, null)
                     } else {
-                        onRequireAccount()
+                        onRequireAccount(
+                            DeferredAccountAction.Favorite(
+                                FavoriteItemType.Prayer,
+                                detail.id,
+                                detail.title,
+                                detail.slug,
+                                null
+                            )
+                        )
                     }
                 },
                 colors = ButtonDefaults.buttonColors(

@@ -1,6 +1,6 @@
 <div class="page-bg"></div>
 
-@if (facade.saintDetail() || facade.prayerDetail() || facade.novenaDetail()) {
+@if (facade.currentTab() !== 'auth' && (facade.saintDetail() || facade.prayerDetail() || facade.novenaDetail())) {
   <app-content-detail-modal
     [currentLanguage]="facade.language()"
     [saintDetail]="facade.saintDetail()"
@@ -20,7 +20,7 @@
     (toggleSaintFavorite)="facade.toggleSelectedSaintFavorite()"
     (toggleNovenaFavorite)="facade.toggleSelectedNovenaFavorite()"
     (togglePrayerFavorite)="facade.toggleSelectedPrayerFavorite()"
-    (accountRequired)="facade.requireAccount()"
+    (accountRequired)="facade.requireAccount($event)"
   />
 }
 
@@ -40,24 +40,27 @@
     <p class="completion-icon">♡</p>
     @switch (facade.language()) {
       @case ('es') {
-        <h2 id="account-required-title">Crea una cuenta para continuar</h2>
-        <p>Necesitas una cuenta gratuita de Sanctuary para guardar favoritos o comenzar una novena.</p>
+        <h2 id="account-required-title">Continúa con Sanctuary</h2>
+        <p>Crea una cuenta gratuita para guardar favoritos y el progreso de tus novenas, o inicia sesión si ya tienes una cuenta.</p>
       }
       @case ('pl') {
-        <h2 id="account-required-title">Utwórz konto, aby kontynuować</h2>
-        <p>Potrzebujesz bezpłatnego konta Sanctuary, aby zapisywać ulubione lub rozpocząć nowennę.</p>
+        <h2 id="account-required-title">Kontynuuj z Sanctuary</h2>
+        <p>Utwórz bezpłatne konto, aby zapisywać ulubione i postęp nowenn, lub zaloguj się, jeśli masz już konto.</p>
       }
       @default {
-        <h2 id="account-required-title">Create an account to continue</h2>
-        <p>You need a free Sanctuary account to save favorites or start a novena.</p>
+        <h2 id="account-required-title">Continue with Sanctuary</h2>
+        <p>Create a free account to save favorites and novena progress, or sign in if you already have an account.</p>
       }
     }
     <div class="account-required-actions">
-      <button type="button" (click)="facade.openRegistrationFromPrompt()">
+      <button type="button" (click)="facade.openAuthenticationFromPrompt('register')">
         {{ facade.language() === 'es' ? 'Crear cuenta' : facade.language() === 'pl' ? 'Utwórz konto' : 'Create Account' }}
       </button>
-      <button class="secondary-modal-action" type="button" (click)="facade.dismissAccountRequiredPrompt()">
-        {{ facade.language() === 'es' ? 'Ahora no' : facade.language() === 'pl' ? 'Nie teraz' : 'Not Now' }}
+      <button class="secondary-modal-action" type="button" (click)="facade.openAuthenticationFromPrompt('login')">
+        {{ facade.language() === 'es' ? 'Iniciar sesión' : facade.language() === 'pl' ? 'Zaloguj się' : 'Sign In' }}
+      </button>
+      <button class="tertiary-modal-action" type="button" (click)="facade.dismissAccountRequiredPrompt()">
+        {{ facade.language() === 'es' ? 'Quizás más tarde' : facade.language() === 'pl' ? 'Może później' : 'Maybe Later' }}
       </button>
     </div>
   </section>
@@ -132,7 +135,7 @@
         [currentLanguage]="facade.language()"
         [isConfigured]="facade.authConfigured()"
         [initialStep]="facade.authInitialStep()"
-        (authenticated)="facade.setTab('me')"
+        (authenticated)="facade.completePromptAuthentication()"
       />
     }
 

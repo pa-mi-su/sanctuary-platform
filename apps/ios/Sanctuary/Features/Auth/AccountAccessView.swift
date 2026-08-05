@@ -49,8 +49,9 @@ struct AccountAccessView: View {
     @State private var isResetPasswordConfirmationVisible = false
     @FocusState private var focusedField: AccountAccessField?
 
-    init(startAtRegistration: Bool = false) {
-        _step = State(initialValue: startAtRegistration ? .register : .landing)
+    init(startAtRegistration: Bool = false, startAtLogin: Bool = false) {
+        let initialStep: AccountAccessStep = startAtRegistration ? .register : (startAtLogin ? .login : .landing)
+        _step = State(initialValue: initialStep)
     }
 
     private var isBusy: Bool {
@@ -866,30 +867,46 @@ struct AccountAccessView: View {
 
 private struct AccountRequiredModifier: ViewModifier {
     @Binding var isPresented: Bool
+    let onAuthenticated: () async -> Void
+    let onDismiss: () -> Void
     @EnvironmentObject private var localization: LocalizationManager
-    @State private var isShowingRegistration = false
+    @EnvironmentObject private var accountStore: AccountSessionStore
+    @EnvironmentObject private var progressStore: UserProgressStore
+    @State private var isShowingAccountAccess = false
+    @State private var startAtRegistration = false
 
     func body(content: Content) -> some View {
         content
             .alert(localization.t("accountRequired.title"), isPresented: $isPresented) {
                 Button(localization.t("accountRequired.createAccount")) {
-                    isShowingRegistration = true
+                    startAtRegistration = true
+                    isShowingAccountAccess = true
                 }
-                Button(localization.t("accountRequired.dismiss"), role: .cancel) {}
+                Button(localization.t("accountRequired.signIn")) {
+                    startAtRegistration = false
+                    isShowingAccountAccess = true
+                }
+                Button(localization.t("accountRequired.dismiss"), role: .cancel) {
+                    onDismiss()
+                }
             } message: {
                 Text(localization.t("accountRequired.body"))
             }
-            .fullScreenCover(isPresented: $isShowingRegistration) {
+            .fullScreenCover(isPresented: $isShowingAccountAccess) {
                 ZStack(alignment: .topTrailing) {
                     AppBackdrop()
                     ScrollView(showsIndicators: false) {
-                        AccountAccessView(startAtRegistration: true)
+                        AccountAccessView(
+                            startAtRegistration: startAtRegistration,
+                            startAtLogin: !startAtRegistration
+                        )
                             .padding(16)
                             .padding(.top, 44)
                             .padding(.bottom, 28)
                     }
                     Button {
-                        isShowingRegistration = false
+                        isShowingAccountAccess = false
+                        onDismiss()
                     } label: {
                         Image(systemName: "xmark.circle.fill")
                             .font(.system(size: 34, weight: .semibold))
@@ -899,12 +916,32 @@ private struct AccountRequiredModifier: ViewModifier {
                     .accessibilityLabel(localization.t("common.close"))
                 }
             }
+            .onChange(of: accountStore.isAuthenticated) { authenticated in
+                if authenticated && isShowingAccountAccess {
+                    Task {
+                        await progressStore.setAuthenticatedUser(id: accountStore.profile?.userID)
+                        await onAuthenticated()
+                        isPresented = false
+                        isShowingAccountAccess = false
+                    }
+                }
+            }
     }
 }
 
 extension View {
-    func accountRequiredPrompt(isPresented: Binding<Bool>) -> some View {
-        modifier(AccountRequiredModifier(isPresented: isPresented))
+    func accountRequiredPrompt(
+        isPresented: Binding<Bool>,
+        onAuthenticated: @escaping () async -> Void = {},
+        onDismiss: @escaping () -> Void = {}
+    ) -> some View {
+        modifier(
+            AccountRequiredModifier(
+                isPresented: isPresented,
+                onAuthenticated: onAuthenticated,
+                onDismiss: onDismiss
+            )
+        )
     }
 }
 

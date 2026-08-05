@@ -258,8 +258,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun register(firstName: String, lastName: String, email: String, password: String) {
+        if (!beginAuthRequest()) return
         viewModelScope.launch {
-            setBusy()
             runCatching {
                 withTimeoutOrNull(15_000) {
                     repository.register(firstName, lastName, email, password)
@@ -284,8 +284,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun confirmRegistration(code: String, password: String? = null) {
         val email = _session.value.pendingConfirmationEmail ?: return
+        if (!beginAuthRequest()) return
         viewModelScope.launch {
-            setBusy()
             var confirmationMessage: String? = null
             runCatching {
                 val confirmation = withTimeoutOrNull(15_000) {
@@ -323,8 +323,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun resendConfirmation() {
         val email = _session.value.pendingConfirmationEmail ?: return
+        if (!beginAuthRequest()) return
         viewModelScope.launch {
-            setBusy()
             runCatching {
                 withTimeoutOrNull(15_000) {
                     repository.resendConfirmation(email)
@@ -347,8 +347,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun forgotPassword(email: String) {
+        if (!beginAuthRequest()) return
         viewModelScope.launch {
-            setBusy()
             runCatching {
                 withTimeoutOrNull(15_000) {
                     repository.forgotPassword(email)
@@ -373,8 +373,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun resetPassword(email: String, code: String, newPassword: String) {
+        if (!beginAuthRequest()) return
         viewModelScope.launch {
-            setBusy()
             runCatching {
                 withTimeoutOrNull(15_000) {
                     repository.resetPassword(email, code, newPassword)
@@ -403,8 +403,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun login(email: String, password: String) {
+        if (!beginAuthRequest()) return
         viewModelScope.launch {
-            setBusy()
             runCatching {
                 withTimeoutOrNull(15_000) {
                     repository.login(email, password)
@@ -475,6 +475,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun applyAuthenticatedSession(result: SessionBootstrapResult) {
+        _novenaProgress.update { it.copy(isLoading = true, error = null) }
         _session.value = SessionUiState(
             status = SessionStatus.Authenticated,
             isBootstrapping = false,
@@ -857,8 +858,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
 
+        _novenaProgress.update { it.copy(isLoading = true, error = null) }
         viewModelScope.launch {
-            _novenaProgress.update { it.copy(isLoading = true, error = null) }
             runCatching { repository.listNovenaCommitments() }
                 .onSuccess { commitments ->
                     runCatching { repository.listFavorites() }
@@ -1150,7 +1151,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         )
     }
 
-    private fun setBusy() {
+    private fun beginAuthRequest(): Boolean {
+        if (_session.value.status == SessionStatus.Loading) return false
         _session.update {
             it.copy(
                 status = SessionStatus.Loading,
@@ -1160,6 +1162,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 isErrorMessage = false
             )
         }
+        return true
     }
 
     suspend fun fetchSaintsByFeastDay(month: Int, day: Int): List<SaintSummary> {

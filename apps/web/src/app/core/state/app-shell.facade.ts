@@ -31,6 +31,7 @@ export type SaintsMode = 'calendar' | 'list';
 export type NovenasMode = 'calendar' | 'list';
 export type AppLanguage = 'en' | 'es' | 'pl';
 export type LegalDocumentType = 'support' | 'privacy';
+export type ProtectedAccountAction = 'favorite-saint' | 'favorite-novena' | 'favorite-prayer' | 'start-novena';
 export interface MeLinkedItem {
   id: string;
   slug: string;
@@ -66,7 +67,9 @@ export class AppShellFacade {
   readonly termLoadFailed = signal(false);
   readonly activeLegalDocument = signal<LegalDocumentType | null>(null);
   readonly accountRequiredPrompt = signal(false);
-  readonly authInitialStep = signal<'landing' | 'register'>('landing');
+  private readonly pendingAccountAction = signal<ProtectedAccountAction | null>(null);
+  private readonly accountReturnTab = signal<AppTab | null>(null);
+  readonly authInitialStep = signal<'landing' | 'login' | 'register'>('landing');
   readonly language = signal<AppLanguage>('en');
   readonly authState = this.auth.state;
   readonly isAuthenticated = computed(() => this.authState().status === 'authenticated');
@@ -654,19 +657,45 @@ export class AppShellFacade {
     this.setTab('auth');
   }
 
-  requireAccount(): void {
+  requireAccount(action: ProtectedAccountAction): void {
+    this.pendingAccountAction.set(action);
+    this.accountReturnTab.set(this.currentTab());
     this.accountRequiredPrompt.set(true);
   }
 
   dismissAccountRequiredPrompt(): void {
     this.accountRequiredPrompt.set(false);
+    this.pendingAccountAction.set(null);
+    this.accountReturnTab.set(null);
   }
 
-  openRegistrationFromPrompt(): void {
+  openAuthenticationFromPrompt(step: 'login' | 'register'): void {
     this.accountRequiredPrompt.set(false);
-    this.closeDetailModal();
-    this.authInitialStep.set('register');
+    this.authInitialStep.set(step);
     this.setTab('auth');
+  }
+
+  completePromptAuthentication(): void {
+    const action = this.pendingAccountAction();
+    const returnTab = this.accountReturnTab() ?? 'home';
+    this.pendingAccountAction.set(null);
+    this.accountReturnTab.set(null);
+    this.setTab(returnTab);
+
+    switch (action) {
+      case 'favorite-saint':
+        this.saveSelectedSaintFavorite();
+        break;
+      case 'favorite-novena':
+        this.saveSelectedNovenaFavorite();
+        break;
+      case 'favorite-prayer':
+        this.saveSelectedPrayerFavorite();
+        break;
+      case 'start-novena':
+        this.resumeDeferredNovenaStart();
+        break;
+    }
   }
 
   loginDemoUser(): void {
@@ -917,10 +946,22 @@ export class AppShellFacade {
       completedDays: [],
       status: 'active',
     };
+    const previousProgress = this.localNovenaProgress()[detail.id] ?? null;
     this.saveLocalNovenaProgress(progress);
     this.selectedNovenaDayManuallyChanged.set(false);
     this.selectedNovenaDayNumber.set(1);
-    this.syncNovenaProgress(progress);
+    this.syncNovenaProgress(progress, () => {
+      this.localNovenaProgress.update((current) => {
+        const next = { ...current };
+        if (previousProgress) {
+          next[detail.id] = previousProgress;
+        } else {
+          delete next[detail.id];
+        }
+        this.persistLocalNovenaProgress(next);
+        return next;
+      });
+    });
   }
 
   stopSelectedNovena(): void {
@@ -996,6 +1037,51 @@ export class AppShellFacade {
     if (prayer) {
       this.toggleFavorite('prayer', prayer.id);
     }
+  }
+
+  private saveSelectedSaintFavorite(): void {
+    const saint = this.saintDetail();
+    if (saint) {
+      this.setFavorite('saint', saint.id, true);
+    }
+  }
+
+  private saveSelectedNovenaFavorite(): void {
+    const novena = this.novenaDetail();
+    if (novena) {
+      this.setFavorite('novena', novena.id, true);
+    }
+  }
+
+  private saveSelectedPrayerFavorite(): void {
+    const prayer = this.prayerDetail();
+    if (prayer) {
+      this.setFavorite('prayer', prayer.id, true);
+    }
+  }
+
+  private resumeDeferredNovenaStart(): void {
+    const detail = this.novenaDetail();
+    if (!detail || !this.isAuthenticated()) {
+      return;
+    }
+
+    this.api.listNovenaCommitments().subscribe({
+      next: (commitments) => {
+        const existing = commitments.find(
+          (commitment) => commitment.novenaId === detail.id &&
+            (commitment.status === 'active' || commitment.status === 'completed')
+        );
+        if (existing) {
+          this.saveLocalNovenaProgress(this.toLocalNovenaProgress(existing));
+          this.selectedNovenaDayNumber.set(existing.currentDay);
+          this.refreshUserCollections();
+          return;
+        }
+        this.startSelectedNovena();
+      },
+      error: () => this.startSelectedNovena(),
+    });
   }
 
   closeDetailModal(): void {
@@ -1488,16 +1574,30 @@ export class AppShellFacade {
     }
 
     const currentlyFavorite = this.isFavorite(itemType, itemId);
-    this.favoriteOverrides.update((current) => ({ ...current, [this.favoriteKey(itemType, itemId)]: !currentlyFavorite }));
+    this.setFavorite(itemType, itemId, !currentlyFavorite);
+  }
 
-    const request = currentlyFavorite
-      ? this.api.deleteFavorite(itemType, itemId)
-      : this.api.saveFavorite(itemType, itemId);
+  private setFavorite(itemType: 'saint' | 'novena' | 'prayer', itemId: string, enabled: boolean): void {
+    if (!this.isAuthenticated()) {
+      return;
+    }
+
+    const previouslyFavorite = this.isFavorite(itemType, itemId);
+    this.favoriteOverrides.update((current) => ({ ...current, [this.favoriteKey(itemType, itemId)]: enabled }));
+
+    const request = enabled
+      ? this.api.saveFavorite(itemType, itemId)
+      : this.api.deleteFavorite(itemType, itemId);
     request.subscribe({
       next: () => {
         this.refreshUserCollections();
       },
-      error: () => undefined,
+      error: () => {
+        this.favoriteOverrides.update((current) => ({
+          ...current,
+          [this.favoriteKey(itemType, itemId)]: previouslyFavorite,
+        }));
+      },
     });
   }
 
@@ -1562,7 +1662,7 @@ export class AppShellFacade {
     });
   }
 
-  private syncNovenaProgress(progress: LocalNovenaProgress): void {
+  private syncNovenaProgress(progress: LocalNovenaProgress, onError: () => void = () => undefined): void {
     if (!this.isAuthenticated()) {
       return;
     }
@@ -1581,7 +1681,7 @@ export class AppShellFacade {
       next: () => {
         this.refreshUserCollections();
       },
-      error: () => undefined,
+      error: onError,
     });
   }
 
