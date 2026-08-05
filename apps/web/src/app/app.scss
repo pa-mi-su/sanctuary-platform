@@ -129,6 +129,12 @@
   background: rgba(255, 255, 255, 0.08);
 }
 
+.completion-modal .tertiary-modal-action {
+  border: 0;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.8);
+}
+
 @media (min-width: 900px) {
   .app-shell {
     padding: 44px 36px 48px;

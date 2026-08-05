@@ -914,7 +914,7 @@ private fun AuthenticatedShell(
     var isLoadingDailyReadings by rememberSaveable { mutableStateOf(false) }
     var aboutDocument by rememberSaveable { mutableStateOf<AboutDocument?>(null) }
     var showAccountRequiredPrompt by rememberSaveable { mutableStateOf(false) }
-    var registrationRequestVersion by rememberSaveable { mutableStateOf(0) }
+    var requestedAuthStep by rememberSaveable { mutableStateOf<AuthStep?>(null) }
     var saintsCalendarMode by rememberSaveable { mutableStateOf(CalendarMode.Day) }
     var novenasCalendarMode by rememberSaveable { mutableStateOf(CalendarMode.Day) }
     fun openSupportEmail() {
@@ -934,7 +934,7 @@ private fun AuthenticatedShell(
 
     LaunchedEffect(session.status) {
         if (session.status == SessionStatus.Authenticated) {
-            registrationRequestVersion = 0
+            requestedAuthStep = null
         }
     }
 
@@ -942,12 +942,12 @@ private fun AuthenticatedShell(
         showAccountRequiredPrompt = true
     }
 
-    fun openRegistration() {
+    fun openAccountAccess(step: AuthStep) {
         showAccountRequiredPrompt = false
         onCloseSaintDetail()
         onCloseNovenaDetail()
         onClosePrayerDetail()
-        registrationRequestVersion += 1
+        requestedAuthStep = step
         onTabSelected(AppTab.Me)
     }
 
@@ -1155,7 +1155,7 @@ private fun AuthenticatedShell(
                                 session = session,
                                 onAction = onAction,
                                 embedded = true,
-                                initialStep = if (registrationRequestVersion > 0) AuthStep.Register else AuthStep.Landing
+                                initialStep = requestedAuthStep ?: AuthStep.Landing
                             )
                         }
                     }
@@ -1428,13 +1428,18 @@ private fun AuthenticatedShell(
                 title = { Text(l10n.t("accountRequired.title")) },
                 text = { Text(l10n.t("accountRequired.body")) },
                 confirmButton = {
-                    TextButton(onClick = ::openRegistration) {
+                    TextButton(onClick = { openAccountAccess(AuthStep.Register) }) {
                         Text(l10n.t("accountRequired.createAccount"))
                     }
                 },
                 dismissButton = {
-                    TextButton(onClick = { showAccountRequiredPrompt = false }) {
-                        Text(l10n.t("accountRequired.dismiss"))
+                    Row {
+                        TextButton(onClick = { openAccountAccess(AuthStep.Login) }) {
+                            Text(l10n.t("accountRequired.signIn"))
+                        }
+                        TextButton(onClick = { showAccountRequiredPrompt = false }) {
+                            Text(l10n.t("accountRequired.dismiss"))
+                        }
                     }
                 }
             )

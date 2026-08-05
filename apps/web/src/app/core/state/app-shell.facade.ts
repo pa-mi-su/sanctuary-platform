@@ -66,7 +66,7 @@ export class AppShellFacade {
   readonly termLoadFailed = signal(false);
   readonly activeLegalDocument = signal<LegalDocumentType | null>(null);
   readonly accountRequiredPrompt = signal(false);
-  readonly authInitialStep = signal<'landing' | 'register'>('landing');
+  readonly authInitialStep = signal<'landing' | 'login' | 'register'>('landing');
   readonly language = signal<AppLanguage>('en');
   readonly authState = this.auth.state;
   readonly isAuthenticated = computed(() => this.authState().status === 'authenticated');
@@ -662,10 +662,10 @@ export class AppShellFacade {
     this.accountRequiredPrompt.set(false);
   }
 
-  openRegistrationFromPrompt(): void {
+  openAuthenticationFromPrompt(step: 'login' | 'register'): void {
     this.accountRequiredPrompt.set(false);
     this.closeDetailModal();
-    this.authInitialStep.set('register');
+    this.authInitialStep.set(step);
     this.setTab('auth');
   }
 
