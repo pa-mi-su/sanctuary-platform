@@ -868,6 +868,8 @@ struct AccountAccessView: View {
 private struct AccountRequiredModifier: ViewModifier {
     @Binding var isPresented: Bool
     @EnvironmentObject private var localization: LocalizationManager
+    @EnvironmentObject private var accountStore: AccountSessionStore
+    @Environment(\.navigateToHome) private var navigateToHome
     @State private var isShowingAccountAccess = false
     @State private var startAtRegistration = false
 
@@ -907,6 +909,13 @@ private struct AccountRequiredModifier: ViewModifier {
                             .padding(16)
                     }
                     .accessibilityLabel(localization.t("common.close"))
+                }
+            }
+            .onChange(of: accountStore.isAuthenticated) { authenticated in
+                if authenticated {
+                    isPresented = false
+                    isShowingAccountAccess = false
+                    navigateToHome()
                 }
             }
     }

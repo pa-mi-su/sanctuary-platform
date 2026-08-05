@@ -933,8 +933,9 @@ private fun AuthenticatedShell(
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(session.status) {
-        if (session.status == SessionStatus.Authenticated) {
+        if (session.status == SessionStatus.Authenticated && requestedAuthStep != null) {
             requestedAuthStep = null
+            onTabSelected(AppTab.Home)
         }
     }
 

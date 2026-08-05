@@ -138,6 +138,7 @@ final class AccountSessionStore: ObservableObject {
             return
         }
 
+        status = .loading
         clearMessage()
 
         do {
