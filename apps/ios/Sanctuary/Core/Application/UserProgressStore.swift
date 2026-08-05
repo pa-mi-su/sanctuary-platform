@@ -11,6 +11,7 @@ final class UserProgressStore: ObservableObject {
 
     private let repository: any UserProgressRepository
     private let reminderScheduler: NovenaReminderScheduler
+    private var isRefreshing = false
 
     init(
         userProgressRepository: any UserProgressRepository,
@@ -31,10 +32,10 @@ final class UserProgressStore: ObservableObject {
         }
 
         userID = id
+        commitments = []
+        favorites = []
 
         guard id != nil else {
-            commitments = []
-            favorites = []
             await syncDigestReminders()
             return
         }
@@ -54,6 +55,15 @@ final class UserProgressStore: ObservableObject {
     }
 
     func refresh() async {
+        if isRefreshing {
+            while isRefreshing {
+                try? await Task.sleep(nanoseconds: 20_000_000)
+            }
+            return
+        }
+        isRefreshing = true
+        defer { isRefreshing = false }
+
         guard let userID else {
             commitments = []
             favorites = []
@@ -66,10 +76,7 @@ final class UserProgressStore: ObservableObject {
             async let loadedFavorites = repository.listFavorites(userID: userID)
             commitments = try await loadedCommitments
             favorites = try await loadedFavorites
-        } catch {
-            commitments = []
-            favorites = []
-        }
+        } catch {}
         await syncDigestReminders()
     }
 
@@ -124,6 +131,7 @@ final class UserProgressStore: ObservableObject {
             } else {
                 try await repository.removeFavorite(userID: userID, itemType: itemType, itemID: itemID)
             }
+            await refresh()
         } catch {
             favorites = previousFavorites
         }
@@ -136,6 +144,10 @@ final class UserProgressStore: ObservableObject {
 
     func startNovena(novenaID: String) async {
         guard let userID else { return }
+        guard !commitments.contains(where: {
+            $0.novenaID == novenaID && ($0.status == .active || $0.status == .completed)
+        }) else { return }
+        let previousCommitments = commitments
         let now = Date()
         let started = UserNovenaCommitment(
             userID: userID,
@@ -147,10 +159,14 @@ final class UserProgressStore: ObservableObject {
             status: .active,
             updatedAt: now
         )
+        commitments.removeAll { $0.novenaID == novenaID }
+        commitments.append(started)
         do {
             try await repository.upsertNovenaCommitment(started)
             await refresh()
-        } catch {}
+        } catch {
+            commitments = previousCommitments
+        }
     }
 
     func completeCurrentDay(novenaID: String, totalDays: Int) async {

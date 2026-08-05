@@ -63,7 +63,7 @@ describe('App', () => {
   it('routes registered users from the account prompt directly to sign in', () => {
     const fixture = TestBed.createComponent(App);
     const facade = TestBed.inject(AppShellFacade);
-    facade.requireAccount();
+    facade.requireAccount('favorite-saint');
     fixture.detectChanges();
 
     const buttons = Array.from(fixture.nativeElement.querySelectorAll('.account-required-actions button')) as HTMLButtonElement[];
@@ -77,7 +77,7 @@ describe('App', () => {
   it('routes new users from the account prompt directly to registration', () => {
     const fixture = TestBed.createComponent(App);
     const facade = TestBed.inject(AppShellFacade);
-    facade.requireAccount();
+    facade.requireAccount('favorite-novena');
     fixture.detectChanges();
 
     const buttons = Array.from(fixture.nativeElement.querySelectorAll('.account-required-actions button')) as HTMLButtonElement[];
@@ -98,5 +98,16 @@ describe('App', () => {
     authPage.authenticated.emit();
 
     expect(facade.currentTab()).toBe('home');
+  });
+
+  it('returns to the originating detail tab after prompt authentication completes', () => {
+    const facade = TestBed.inject(AppShellFacade);
+    facade.setTab('novenas');
+    facade.requireAccount('start-novena');
+    facade.openAuthenticationFromPrompt('login');
+
+    facade.completePromptAuthentication();
+
+    expect(facade.currentTab()).toBe('novenas');
   });
 });

@@ -484,7 +484,10 @@ struct PrayerDetailView: View {
         }
         .leftEdgeSwipeBack(handleBack)
         .toolbar(.hidden, for: .navigationBar)
-        .accountRequiredPrompt(isPresented: $isShowingAccountRequired)
+        .accountRequiredPrompt(isPresented: $isShowingAccountRequired) {
+            await progressStore.setFavorite(true, itemType: .prayer, itemID: currentPrayer.id)
+            isFavorite = progressStore.isFavorite(itemType: .prayer, itemID: currentPrayer.id)
+        }
         .fullScreenCover(isPresented: $isShowingExpandedHeroImage) {
             if let imageURL {
                 ExpandedPrayerImageView(url: imageURL) {
