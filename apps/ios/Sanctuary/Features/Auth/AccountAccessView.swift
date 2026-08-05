@@ -867,9 +867,11 @@ struct AccountAccessView: View {
 
 private struct AccountRequiredModifier: ViewModifier {
     @Binding var isPresented: Bool
+    let onAuthenticated: () async -> Void
+    let onDismiss: () -> Void
     @EnvironmentObject private var localization: LocalizationManager
     @EnvironmentObject private var accountStore: AccountSessionStore
-    @Environment(\.navigateToHome) private var navigateToHome
+    @EnvironmentObject private var progressStore: UserProgressStore
     @State private var isShowingAccountAccess = false
     @State private var startAtRegistration = false
 
@@ -884,7 +886,9 @@ private struct AccountRequiredModifier: ViewModifier {
                     startAtRegistration = false
                     isShowingAccountAccess = true
                 }
-                Button(localization.t("accountRequired.dismiss"), role: .cancel) {}
+                Button(localization.t("accountRequired.dismiss"), role: .cancel) {
+                    onDismiss()
+                }
             } message: {
                 Text(localization.t("accountRequired.body"))
             }
@@ -902,6 +906,7 @@ private struct AccountRequiredModifier: ViewModifier {
                     }
                     Button {
                         isShowingAccountAccess = false
+                        onDismiss()
                     } label: {
                         Image(systemName: "xmark.circle.fill")
                             .font(.system(size: 34, weight: .semibold))
@@ -912,18 +917,31 @@ private struct AccountRequiredModifier: ViewModifier {
                 }
             }
             .onChange(of: accountStore.isAuthenticated) { authenticated in
-                if authenticated {
-                    isPresented = false
-                    isShowingAccountAccess = false
-                    navigateToHome()
+                if authenticated && isShowingAccountAccess {
+                    Task {
+                        await progressStore.setAuthenticatedUser(id: accountStore.profile?.userID)
+                        await onAuthenticated()
+                        isPresented = false
+                        isShowingAccountAccess = false
+                    }
                 }
             }
     }
 }
 
 extension View {
-    func accountRequiredPrompt(isPresented: Binding<Bool>) -> some View {
-        modifier(AccountRequiredModifier(isPresented: isPresented))
+    func accountRequiredPrompt(
+        isPresented: Binding<Bool>,
+        onAuthenticated: @escaping () async -> Void = {},
+        onDismiss: @escaping () -> Void = {}
+    ) -> some View {
+        modifier(
+            AccountRequiredModifier(
+                isPresented: isPresented,
+                onAuthenticated: onAuthenticated,
+                onDismiss: onDismiss
+            )
+        )
     }
 }
 

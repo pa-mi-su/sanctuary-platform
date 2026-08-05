@@ -8,17 +8,6 @@ enum AppTab: Hashable {
     case me
 }
 
-private struct NavigateToHomeActionKey: EnvironmentKey {
-    static let defaultValue: () -> Void = {}
-}
-
-extension EnvironmentValues {
-    var navigateToHome: () -> Void {
-        get { self[NavigateToHomeActionKey.self] }
-        set { self[NavigateToHomeActionKey.self] = newValue }
-    }
-}
-
 struct AppShellView: View {
     let environment: AppEnvironment
     @State private var selectedTab: AppTab = .home
@@ -86,9 +75,6 @@ struct AppShellView: View {
         .environmentObject(localization)
         .environmentObject(accountStore)
         .environmentObject(progressStore)
-        .environment(\.navigateToHome) {
-            selectedTab = .home
-        }
         .task {
             // Let first frame and taps land before background state refresh.
             try? await Task.sleep(nanoseconds: 700_000_000)

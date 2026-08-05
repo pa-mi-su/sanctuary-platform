@@ -1,4 +1,5 @@
 import { Component, input, output } from '@angular/core';
+import type { ProtectedAccountAction } from '../core/state/app-shell.facade';
 import { NovenaDayDetail, NovenaDetail, PrayerDetail, SaintDetail } from '../core/api/sanctuary-api.service';
 
 interface NovenaProgress {
@@ -34,7 +35,7 @@ type AppLanguage = 'en' | 'es' | 'pl';
       @if (saintDetail()) {
         <div class="detail-stack">
           <div class="detail-actions">
-            <button class="favorite-button" [class.active]="isSaintFavorite()" type="button" (click)="requestProtectedAction(toggleSaintFavorite)">
+            <button class="favorite-button" [class.active]="isSaintFavorite()" type="button" (click)="requestProtectedAction('favorite-saint', toggleSaintFavorite)">
               {{ isSaintFavorite() ? t('Saved to Favorites', 'Guardado en favoritos', 'Zapisano w ulubionych') : t('Add to Favorites', 'Agregar a favoritos', 'Dodaj do ulubionych') }}
             </button>
           </div>
@@ -72,7 +73,7 @@ type AppLanguage = 'en' | 'es' | 'pl';
           <section class="detail-section detail-info-card prayer-info-card">
             <h3>{{ prayerDetail()!.title }}</h3>
             <div class="detail-actions">
-              <button class="favorite-button" [class.active]="isPrayerFavorite()" type="button" (click)="requestProtectedAction(togglePrayerFavorite)">
+              <button class="favorite-button" [class.active]="isPrayerFavorite()" type="button" (click)="requestProtectedAction('favorite-prayer', togglePrayerFavorite)">
                 {{ isPrayerFavorite() ? t('Saved to Favorites', 'Guardado en favoritos', 'Zapisano w ulubionych') : t('Add to Favorites', 'Agregar a favoritos', 'Dodaj do ulubionych') }}
               </button>
             </div>
@@ -102,11 +103,11 @@ type AppLanguage = 'en' | 'es' | 'pl';
       @if (novenaDetail()) {
         <div class="detail-stack">
           <div class="detail-actions">
-            <button class="favorite-button" [class.active]="isNovenaFavorite()" type="button" (click)="requestProtectedAction(toggleNovenaFavorite)">
+            <button class="favorite-button" [class.active]="isNovenaFavorite()" type="button" (click)="requestProtectedAction('favorite-novena', toggleNovenaFavorite)">
               {{ isNovenaFavorite() ? t('Saved to Favorites', 'Guardado en favoritos', 'Zapisano w ulubionych') : t('Add to Favorites', 'Agregar a favoritos', 'Dodaj do ulubionych') }}
             </button>
             @if (!novenaProgress()) {
-              <button class="primary-action" type="button" (click)="requestProtectedAction(startNovena)">{{ t('Start Novena', 'Comenzar novena', 'Rozpocznij nowennę') }}</button>
+              <button class="primary-action" type="button" (click)="requestProtectedAction('start-novena', startNovena)">{{ t('Start Novena', 'Comenzar novena', 'Rozpocznij nowennę') }}</button>
             } @else if (novenaProgress()!.status === 'active' || novenaProgress()!.status === 'paused') {
               <button class="danger-action" type="button" (click)="stopNovena.emit()">{{ t('Stop Novena', 'Detener novena', 'Zatrzymaj nowennę') }}</button>
             }
@@ -203,7 +204,7 @@ export class ContentDetailModalComponent {
   readonly selectNovenaDay = output<number>();
   readonly startNovena = output<void>();
   readonly stopNovena = output<void>();
-  readonly accountRequired = output<void>();
+  readonly accountRequired = output<ProtectedAccountAction>();
 
   protected visibleCategory(category: string | null | undefined): string | null {
     if (!category) {
@@ -245,11 +246,11 @@ export class ContentDetailModalComponent {
   readonly toggleNovenaFavorite = output<void>();
   readonly togglePrayerFavorite = output<void>();
 
-  protected requestProtectedAction(action: { emit: () => void }): void {
+  protected requestProtectedAction(protectedAction: ProtectedAccountAction, action: { emit: () => void }): void {
     if (this.isAuthenticated()) {
       action.emit();
     } else {
-      this.accountRequired.emit();
+      this.accountRequired.emit(protectedAction);
     }
   }
 
