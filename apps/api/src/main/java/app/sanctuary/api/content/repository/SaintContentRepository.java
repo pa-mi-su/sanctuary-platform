@@ -27,7 +27,7 @@ public class SaintContentRepository {
             SELECT
                 id,
                 slug,
-                name,
+                name_%s AS name,
                 image_url,
                 feast_month,
                 feast_day,
@@ -35,8 +35,8 @@ public class SaintContentRepository {
                 summary_%s AS summary
             FROM saints
             WHERE feast_month = ? AND feast_day = ?
-            ORDER BY name
-            """.formatted(locale, locale);
+            ORDER BY name_%s
+            """.formatted(locale, locale, locale, locale);
 
         return jdbcTemplate.query(sql, saintSummaryMapper(), month, day);
     }
@@ -49,7 +49,7 @@ public class SaintContentRepository {
             SELECT
                 id,
                 slug,
-                name,
+                name_%s AS name,
                 image_url,
                 feast_month,
                 feast_day,
@@ -57,10 +57,10 @@ public class SaintContentRepository {
                 summary_%s AS summary
             FROM saints
             WHERE (? = ''
-                OR LOWER(name) LIKE ?
+                OR LOWER(name_%s) LIKE ?
                 OR LOWER(summary_%s) LIKE ?)
-            ORDER BY feast_month, feast_day, name
-            """.formatted(locale, locale, locale);
+            ORDER BY feast_month, feast_day, name_%s
+            """.formatted(locale, locale, locale, locale, locale, locale);
 
         return jdbcTemplate.query(sql, saintSummaryMapper(), filter, likeQuery, likeQuery);
     }
@@ -71,7 +71,7 @@ public class SaintContentRepository {
             SELECT
                 id,
                 slug,
-                name,
+                name_%s AS name,
                 image_url,
                 feast_month,
                 feast_day,
@@ -80,7 +80,7 @@ public class SaintContentRepository {
                 biography_%s AS biography
             FROM saints
             WHERE slug = ?
-            """.formatted(locale, locale, locale);
+            """.formatted(locale, locale, locale, locale);
 
         List<SaintDetailDto> saints = jdbcTemplate.query(sql, saintDetailMapper(), slug);
         if (saints.isEmpty()) {
