@@ -1,116 +1,152 @@
 # Sanctuary iOS
 
-`apps/ios` is the native iOS app for Sanctuary. It is a SwiftUI client that uses the shared Java backend for content, auth, profile state, favorites, and novena progress.
+`apps/ios` is Sanctuary's native SwiftUI client. It retrieves runtime content and account state from the shared Spring Boot API.
 
-## Stack
+Current release identity:
 
-- Swift
-- SwiftUI
-- Xcode project
-- Keychain-backed session storage
-- URLSession API client
-- Dev, UAT, and Prod schemes
-- TestFlight and App Store Connect pipeline
+- production bundle: `com.pamisu.Sanctuary`
+- display name: `Sanctuary: Prayer and Peace`
+- marketing version: `1.0.15`
+- deployment target: iOS 16.6
+- Swift language mode: 5.0
 
-## Structure
+## Product and interaction model
 
-```text
-apps/ios/
-├── Sanctuary.xcodeproj
-├── Sanctuary/
-│   ├── Core/
-│   │   ├── Application/    # Environment, API client, session/progress stores
-│   │   └── Domain/         # Entities and repository protocols
-│   ├── Features/           # Home, auth, calendar, saints, novenas, prayers, Me
-│   ├── Resources/          # Bundled legacy/source JSON resources
-│   ├── UI/                 # Shared theme/layout/localization
-│   └── SanctuaryApp.swift
-└── README.md
-```
+`AppShellView` supplies five lazy-loaded tabs:
 
-## Schemes And Environments
+- Home
+- Novenas
+- Liturgical
+- Saints
+- Me/account access
 
-The project exposes:
+Home opens daily readings, prayers, rosaries, intention search, patronage search, About, and language selection. Calendar screens support day/week/month views; detail screens support favorites, sharing, related navigation, and novena progress. The UI supports English, Spanish, and Polish.
 
-- `Sanctuary-Dev`
-- `Sanctuary-UAT`
-- `Sanctuary-Prod`
+Application state is divided by responsibility:
 
-Environment detection is based on bundle identifier suffix in [`Sanctuary/Core/Application/PlatformConfiguration.swift`](Sanctuary/Core/Application/PlatformConfiguration.swift):
+- `AppEnvironment`: creates platform configuration, URLSession API client, content repository, and search repository
+- `AccountSessionStore`: auth flow, Keychain session, refresh, profile/preferences, and account deletion
+- `UserProgressStore`: favorites, commitments, optimistic updates, and reminder synchronization
+- `APIContentRepository`: maps API DTOs to domain entities
+- `RemoteUserProgressRepository`: authenticated progress requests with one refresh/retry after session rejection
+- feature view models: local list/search/date presentation
 
-- `.dev` -> `dev`
-- `.uat` -> `uat`
-- otherwise -> `prod`
-
-The API base URL defaults to the production API URL. You can override it with:
+## Source layout
 
 ```text
-SANCTUARY_API_BASE_URL
+Sanctuary/
+├── Core/
+│   ├── Application/  # environment, configuration, sessions, progress, links, reminders
+│   ├── Data/API/     # URLSession client and API repositories
+│   ├── Data/Local/   # local search/progress implementations used by supporting paths
+│   └── Domain/       # entities and repository protocols
+├── Features/
+│   ├── About/ Auth/ Calendar/ Home/ Me/
+│   ├── Novenas/ Parish/ Prayers/ Saints/ Search/ Shell/
+├── Resources/        # bundled legacy/reference JSON
+├── UI/               # theme, localization, responsive layout
+└── SanctuaryApp.swift
 ```
 
-iOS never talks directly to PostgreSQL or RDS. All data access goes through the Sanctuary API.
+Bundled JSON is not the production runtime source of truth. `AppEnvironment.current()` creates `APIContentRepository`; PostgreSQL-backed API responses drive content.
 
-## Product Areas
+## Schemes and environments
 
-The app includes:
+| Scheme           | Bundle ID                  | Environment | API                                    |
+| ---------------- | -------------------------- | ----------- | -------------------------------------- |
+| `Sanctuary-Dev`  | `com.pamisu.Sanctuary.dev` | `dev`       | `https://dev-api.mydailysanctuary.com` |
+| `Sanctuary-UAT`  | `com.pamisu.Sanctuary.uat` | `uat`       | `https://api.mydailysanctuary.com`     |
+| `Sanctuary-Prod` | `com.pamisu.Sanctuary`     | `prod`      | `https://api.mydailysanctuary.com`     |
 
-- home
-- account access
-- liturgical calendar
-- saints list/detail
-- novenas list/detail
-- prayers and rosary search/detail flows
-- search
-- Me/profile
-- about/support/privacy
-- novena reminder scheduling foundation
+`PlatformEnvironment.current()` selects the environment by `.dev` or `.uat` bundle suffix; every other bundle is production. `SanctuaryAPIBaseURL` in generated Info.plist settings supplies the scheme URL. A valid `http`/`https` process environment variable `SANCTUARY_API_BASE_URL` takes precedence for local runs.
 
-## API And Auth
+Authentication is enabled in every `PlatformConfiguration`. iOS does not access PostgreSQL/RDS directly.
 
-The app creates its current environment through [`Sanctuary/Core/Application/AppEnvironment.swift`](Sanctuary/Core/Application/AppEnvironment.swift).
+## Native authentication and persistence
 
-At runtime it uses:
+`SanctuaryAPIClient` uses the native endpoints `/auth/login`, `/auth/refresh`, and `/auth/reset-password`. `AccountSessionStore` stores access, ID, refresh tokens, expiration, email, and display name as one Codable session in Keychain service `com.pamisu.Sanctuary.session`.
 
-- `SanctuaryAPIClient` for backend calls
-- `APIContentRepository` for API-backed content
-- `RemoteUserProgressRepository` for authenticated user state
-- `AccountSessionStore` and `KeychainStore` for session persistence
+For authenticated API requests, the ID token is preferred and the access token is the fallback. If `/me` state rejects a token, `RemoteUserProgressRepository` asks the session store to refresh once and retries. If refresh is unavailable or fails, the stored session is cleared.
 
-Legacy JSON files remain in [`Sanctuary/Resources`](Sanctuary/Resources) as bundled source/product material, but platform-backed content should flow through the API.
+Favorites and commitments are API-backed for authenticated users. `UserProgressStore` clears its in-memory state on sign-out and reloads it when the authenticated user changes.
 
-## Local Build
+## Universal links, sharing, and reminders
 
-Validate the production scheme for simulator:
+The app entitlement registers `applinks:mydailysanctuary.com`. `SharedContentLink` accepts both the apex and `www` hosts and parses:
+
+- `/saints/{slug}`
+- `/novenas/{slug}`
+- `/prayers/{slug}`
+
+Opening a link selects the appropriate tab and presents an API-backed full-screen detail. Shares emit the same canonical apex-domain URL.
+
+`NovenaReminderScheduler` uses `UNUserNotificationCenter`:
+
+- active novena + novena reminders enabled: 08:00 and 20:00 local repeating notifications
+- otherwise general daily reminders enabled: 08:00 local repeating notification
+- disabled settings remove both pending requests
+- permission is requested only when scheduling is needed; denied permission is handled without failure
+
+Reminder switches come from the profile and resynchronize when the profile/user changes.
+
+## Local validation
+
+Verify bundle-to-API mapping:
 
 ```bash
-xcodebuild -project apps/ios/Sanctuary.xcodeproj -scheme Sanctuary-Prod -configuration Debug -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
+swiftc \
+  apps/ios/Sanctuary/Core/Application/PlatformConfiguration.swift \
+  apps/ios/Scripts/verify-platform-configuration.swift \
+  -o /tmp/verify-sanctuary-platform
+/tmp/verify-sanctuary-platform
 ```
 
-Validate Dev:
+Unsigned simulator builds from repository root:
 
 ```bash
-xcodebuild -project apps/ios/Sanctuary.xcodeproj -scheme Sanctuary-Dev -configuration Debug -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
+xcodebuild -project apps/ios/Sanctuary.xcodeproj \
+  -scheme Sanctuary-Dev -configuration Debug \
+  -destination 'generic/platform=iOS Simulator' \
+  CODE_SIGNING_ALLOWED=NO build
+
+xcodebuild -project apps/ios/Sanctuary.xcodeproj \
+  -scheme Sanctuary-UAT -configuration Debug \
+  -destination 'generic/platform=iOS Simulator' \
+  CODE_SIGNING_ALLOWED=NO build
+
+xcodebuild -project apps/ios/Sanctuary.xcodeproj \
+  -scheme Sanctuary-Prod -configuration Debug \
+  -destination 'generic/platform=iOS Simulator' \
+  CODE_SIGNING_ALLOWED=NO build
 ```
 
-Validate UAT:
+There is currently no XCTest target or `apps/ios/*Tests` source tree. CI's iOS validation consists of the platform-configuration executable plus an unsigned simulator build.
 
-```bash
-xcodebuild -project apps/ios/Sanctuary.xcodeproj -scheme Sanctuary-UAT -configuration Debug -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
-```
+## CI and App Store Connect
 
-## Release And CI
+`.github/workflows/ios-pipeline.yml`:
 
-The iOS workflow is [`../../.github/workflows/ios-pipeline.yml`](../../.github/workflows/ios-pipeline.yml).
+| Trigger                                                    | Result                                                                                   |
+| ---------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| PR to `dev`, `uat`, `prod`, or `main` with iOS app changes | map target branch to scheme, verify platform configuration, build unsigned simulator app |
+| PR that changes only `ios-pipeline.yml`                    | verify platform configuration; app diff detector skips simulator compilation             |
+| Push to `dev` with iOS code changes                        | validate, sign/archive `Sanctuary-Dev`, upload to TestFlight                             |
+| Push to `uat` with iOS code changes                        | validate, sign/archive `Sanctuary-UAT`, upload to TestFlight                             |
+| Push to `main` with iOS code changes                       | validate, sign/archive `Sanctuary-Prod`, upload to App Store Connect                     |
+| Manual dispatch                                            | run selected `dev`, `uat`, or `prod` target                                              |
 
-Release model:
+Each upload queries App Store Connect for the latest build number of that bundle ID/version, increments it, archives with that `CURRENT_PROJECT_VERSION`, exports the IPA, and uploads with Apple's API key tooling. Signing certificates, provisioning profiles, API key, issuer, and team ID come from GitHub environment secrets/variables.
 
-- PRs validate iOS builds
-- feature/dev promotion uploads Dev TestFlight builds
-- UAT promotion uploads UAT TestFlight builds
-- production builds upload to App Store Connect from `main`
-- final App Store release approval remains manual
+Uploading does not itself choose TestFlight testers, submit an App Store version for review, or release it publicly; those remain App Store Connect operations.
 
-Related docs:
+Markdown-only changes under `apps/ios` do not start the workflow. A workflow YAML change can validate on a PR but does not cause a native upload on push by itself.
 
-- [`../../docs/architecture/ios-to-platform-migration-tracker.md`](../../docs/architecture/ios-to-platform-migration-tracker.md)
-- [`../../docs/deployment/ios-app-store-verification-checklist.md`](../../docs/deployment/ios-app-store-verification-checklist.md)
+## External/product integrations
+
+- daily readings: USCCB web pages, localized to the Spanish URL pattern when appropriate
+- parish finder: Core Location/MapKit-based nearby search
+- support: `info@mydailysanctuary.com`
+- privacy/support documents: native views under `Features/About`
+- associated domain: `mydailysanctuary.com`
+
+Operational release checklist: `../../docs/deployment/ios-app-store-verification-checklist.md`.
