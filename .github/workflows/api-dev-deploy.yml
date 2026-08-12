@@ -271,6 +271,7 @@ jobs:
           service_json=""
           primary_rollout_state="UNKNOWN"
           primary_task_definition=""
+          current_desired_count=""
 
           for attempt in {1..72}; do
             service_json="$(aws ecs describe-services \
@@ -280,9 +281,11 @@ jobs:
 
             primary_rollout_state="$(echo "${service_json}" | jq -r '.services[0].deployments[] | select(.status == "PRIMARY") | .rolloutState // "UNKNOWN"')"
             primary_task_definition="$(echo "${service_json}" | jq -r '.services[0].deployments[] | select(.status == "PRIMARY") | .taskDefinition')"
+            current_desired_count="$(echo "${service_json}" | jq -r '.services[0].desiredCount')"
 
             echo "ECS rollout check ${attempt}/72: ${primary_rollout_state}"
             echo "Primary task definition: ${primary_task_definition}"
+            echo "Current desired count: ${current_desired_count}"
 
             if [[ "${primary_rollout_state}" == "COMPLETED" || "${primary_rollout_state}" == "FAILED" ]]; then
               break
@@ -325,6 +328,11 @@ jobs:
           if [[ "${deployed_image}" != "${EXPECTED_API_IMAGE}" ]]; then
             echo "ECS stabilized, but the running task definition does not use the image built by this workflow."
             exit 1
+          fi
+
+          if [[ "${current_desired_count}" == "0" ]]; then
+            echo "DEV is intentionally stopped. The new task definition is deployed and will run the next time DEV is started."
+            exit 0
           fi
 
           if [[ -z "${ECS_TARGET_GROUP_ARN}" || "${ECS_TARGET_GROUP_ARN}" == "null" ]]; then
