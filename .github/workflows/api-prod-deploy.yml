@@ -9,12 +9,14 @@ on:
       - main
     paths:
       - "apps/api/**"
+      - "!apps/api/**/*.md"
       - ".github/workflows/api-prod-deploy.yml"
   push:
     branches:
       - main
     paths:
       - "apps/api/**"
+      - "!apps/api/**/*.md"
   workflow_dispatch:
 
 permissions:

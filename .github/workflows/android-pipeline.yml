@@ -9,6 +9,7 @@ on:
       - main
     paths:
       - "apps/android/**"
+      - "!apps/android/**/*.md"
       - ".github/workflows/android-pipeline.yml"
   push:
     branches:
@@ -17,6 +18,7 @@ on:
       - main
     paths:
       - "apps/android/**"
+      - "!apps/android/**/*.md"
   workflow_dispatch:
 
 permissions:

@@ -6,6 +6,7 @@ on:
       - dev
     paths:
       - "apps/web/**"
+      - "!apps/web/**/*.md"
       - "package-lock.json"
       - "package.json"
       - ".github/workflows/web-dev-deploy.yml"
@@ -14,6 +15,7 @@ on:
       - dev
     paths:
       - "apps/web/**"
+      - "!apps/web/**/*.md"
       - "package-lock.json"
       - "package.json"
       - ".github/workflows/web-dev-deploy.yml"
