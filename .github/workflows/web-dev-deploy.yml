@@ -18,7 +18,6 @@ on:
       - "!apps/web/**/*.md"
       - "package-lock.json"
       - "package.json"
-      - ".github/workflows/web-dev-deploy.yml"
   workflow_dispatch:
 
 permissions:
