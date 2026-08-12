@@ -6,13 +6,14 @@ on:
       - dev
     paths:
       - "apps/api/**"
+      - "!apps/api/**/*.md"
       - ".github/workflows/api-dev-deploy.yml"
   push:
     branches:
       - dev
     paths:
       - "apps/api/**"
-      - ".github/workflows/api-dev-deploy.yml"
+      - "!apps/api/**/*.md"
   workflow_dispatch:
 
 permissions:
