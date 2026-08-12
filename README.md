@@ -1,506 +1,273 @@
 # Sanctuary Platform
 
-Sanctuary Platform is the shared product foundation for **Sanctuary**, a Catholic prayer companion for daily liturgical life, saints, novenas, prayers, and account-based progress.
+Sanctuary is a Catholic daily companion delivered as an Angular web app, a SwiftUI iOS app, and a Jetpack Compose Android app. All three clients use one Spring Boot API and one PostgreSQL data model for liturgical content, accounts, favorites, preferences, and novena progress.
 
-This monorepo contains the production platform:
+This README describes the code at the current branch tip. Files under `docs/architecture` include historical plans and migration records; executable code, Flyway migrations, and GitHub Actions are authoritative when a planning document differs.
 
-- **Angular web app** for the responsive browser experience
-- **Spring Boot API** that owns content, auth integration, user state, and liturgical calculations
-- **iOS app** in Swift/SwiftUI
-- **Android app** in Kotlin/Jetpack Compose
-- **PostgreSQL** schema managed with Flyway
-- **AWS deployment path** for web, API, database, and native release pipelines
-
-The important architectural idea is simple: **one Java backend serves all clients**. Web, iOS, and Android use the same API contracts for content, auth, profile data, favorites, novena progress, and calendar behavior.
-
-## Product Scope
-
-Sanctuary currently supports:
-
-- liturgical day, week, and month browsing
-- saints by date, saint search, and saint detail pages
-- novenas by calendar date, list search, intention search, and detail pages
-- prayer browsing and prayer detail pages
-- account creation, confirmation, login, refresh, forgot password, and reset password
-- user profile and preferences
-- favorites for saints, novenas, and prayers
-- novena commitments and progress foundations
-- shared environment/version display across clients
-- Dev, UAT, and production-oriented release tracks
-
-## Tech Stack
-
-### Web
-
-- Angular 21
-- TypeScript 5.9
-- RxJS
-- SCSS
-- npm workspaces
-- S3 + CloudFront deployment
-
-### API
-
-- Java 21
-- Spring Boot 3.5
-- Spring MVC
-- Spring Security OAuth2 Resource Server
-- Spring JDBC
-- Flyway
-- PostgreSQL driver
-- AWS SDK for Cognito integration
-- Docker image deployed to ECS
-
-### iOS
-
-- Swift
-- SwiftUI
-- Xcode project with Dev, UAT, and Prod schemes
-- Keychain-backed session storage
-- API-backed content/account/progress flows
-- TestFlight/App Store Connect pipeline
-
-### Android
-
-- Kotlin
-- Jetpack Compose
-- Material 3
-- Navigation Compose
-- ViewModel + lifecycle libraries
-- Retrofit + OkHttp
-- Gson converter
-- Coil for image/SVG loading
-- DataStore preferences
-- AndroidX Security Crypto
-- product flavors for `dev`, `uat`, and `prod`
-- Google Play-oriented pipeline currently wired through UAT release paths
-
-### Data, Auth, And Infra
-
-- PostgreSQL for Sanctuary content and app state
-- Flyway for schema migrations
-- Amazon Cognito for identity
-- Sanctuary API for product-specific account linkage and user state
-- AWS RDS for production PostgreSQL
-- AWS Secrets Manager for production database credentials
-- AWS ECR/ECS for API runtime
-- AWS S3/CloudFront for web hosting
-- GitHub Actions for CI/CD
-
-## Repository Layout
+## Repository map
 
 ```text
 sanctuary-platform/
 ├── apps/
-│   ├── android/    # Native Android app
-│   ├── api/        # Spring Boot API
-│   ├── ios/        # Native iOS app
-│   └── web/        # Angular frontend
-├── docs/
-│   ├── architecture/
-│   └── deployment/
-├── scripts/        # Local import/export/restore utilities
-├── backups/        # Local database backups
+│   ├── api/       # Java 21 / Spring Boot 3.5.6 API
+│   ├── web/       # Angular 21 browser client
+│   ├── ios/       # SwiftUI native client
+│   └── android/   # Kotlin / Jetpack Compose native client
+├── docs/          # Architecture, security, deployment, and release records
+├── scripts/       # Explicit content import/export utilities
+├── .github/
+│   ├── workflows/ # CI/CD and DEV lifecycle automation
+│   └── scripts/   # Guarded DEV AWS start/stop implementation and tests
 ├── docker-compose.yml
 ├── package.json
-└── README.md
+└── package-lock.json
 ```
 
-## How The System Works
+Component details:
 
-### Client Flow
+- [Web README](apps/web/README.md)
+- [API README](apps/api/README.md)
+- [iOS README](apps/ios/README.md)
+- [Android README](apps/android/README.md)
 
-The clients are thin product experiences over the same backend:
+## Current product behavior
 
-1. Web/iOS/Android render the Sanctuary UI.
-2. Public content screens call the API without auth.
-3. Account screens authenticate through the API-backed Cognito flow.
-4. Authenticated requests attach a bearer token.
-5. The API validates Cognito JWTs and maps the Cognito identity to Sanctuary's own `users` model.
-6. Profile, preferences, favorites, and novena progress are persisted in PostgreSQL.
-7. Saints, novenas, prayers, and liturgical calendar data are returned from the backend in the same shape for every platform.
+The clients expose the same core product, with platform-native presentation:
 
-### Backend Flow
+- English, Spanish, and Polish UI/content selection
+- day, week, and month liturgical browsing
+- saints by date, search, detail, patronage, favorites, and shared links
+- novenas by date, search, intention, detail, nine-day progress, favorites, and shared links
+- prayer and rosary search/detail, favorites, and shared links
+- daily readings opened from USCCB URLs supplied by the calendar API
+- Cognito-backed registration, confirmation, login, refresh, forgot-password, and reset-password flows
+- profile, language/time-zone preferences, reminder settings, favorites, commitments, and account deletion
+- optional native daily/novena reminders on iOS and Android
+- verified/universal links for `https://mydailysanctuary.com/{saints|novenas|prayers}/{slug}`
 
-The API is the authority for:
+## Architecture and request flows
 
-- current liturgical day and date ranges
-- liturgical anchors such as Easter, Lent, Advent, Pentecost, and transferred feasts
-- saint date lookup and search
-- novena serving windows and calendar lookup
-- prayer and novena content
-- user profile, preferences, favorites, and novena commitments
-- Cognito-backed auth endpoints
+### Public content
 
-The API starts with the active Spring profile (`local`, `dev`, `uat`, or `prod`), connects to PostgreSQL, runs Flyway validation/migrations, and then serves the public and authenticated endpoints.
+1. A client selects an environment-specific API base URL.
+2. Public calendar and `/content/**` requests require no account.
+3. The API validates dates, ranges, search text, and `lang` (`en`, `es`, or `pl`).
+4. JDBC repositories read PostgreSQL content populated through explicit operational imports.
+5. Calendar services calculate liturgical days, movable anchors, transferred feasts, and novena serving windows.
+6. DTOs are returned to each client; clients own presentation and local navigation.
 
-### Data Model
+The API database, not the native bundled JSON files, is the runtime source of truth. JSON under `apps/ios/Sanctuary/Resources` remains source/reference material and preview support; app startup does not import it.
 
-PostgreSQL stores:
+### Account and protected state
 
-- platform metadata
-- saints and saint sources
-- prayers, prayer tags, and prayer source data
-- novenas, novena days, intentions, and serving rules
-- users and user preferences
-- favorites and novena commitments
-- account activity/progress foundations
+1. Registration and password operations pass through the API to Amazon Cognito.
+2. Native login endpoints return tokens. iOS stores the session in Keychain; Android uses encrypted shared preferences.
+3. Web login/reset endpoints set HttpOnly cookies. The Angular app does not retain bearer or refresh tokens in browser storage.
+4. When auth is enabled, Spring Security validates the Cognito issuer and audience/client ID. `/me/**` requires authentication; health, auth, calendar, and content endpoints remain public.
+5. The API maps the Cognito subject to a Sanctuary `users` row and persists profile preferences, favorites, commitments, and activity in PostgreSQL.
+6. A rejected native request can refresh the token and retry. The web interceptor sends credentials and performs one `/auth/web/refresh` retry after a non-auth API request returns `401`.
 
-Schema changes live in `apps/api/src/main/resources/db/migration`.
+When `sanctuary.auth.enabled=false`, the security chain permits all requests. Deployed environments must therefore explicitly provide the intended `SANCTUARY_AUTH_ENABLED` value; the base, dev, and prod property defaults are `false`, while the local profile defaults to `true`.
 
-Legacy JSON resources still exist in the iOS bundle as product/source material, but the backend database is the platform source of truth for API-served content.
+### Share and deep-link flow
 
-## API Overview
+The web production build runs `apps/web/scripts/generate-share-previews.mjs` after Angular compilation. It fetches English saint, novena, and prayer content from the configured API, then writes static Open Graph preview documents for share URLs and a direct `/privacy` document. CloudFront serves those files with explicit metadata. The apex-domain URLs open native detail screens through the iOS associated domain and Android verified app links when a matching app is installed; both native parsers also accept `www` URLs delivered to them.
 
-Base URL is environment-specific. Local API default:
+### Reminders
 
-```text
-http://localhost:8080
-```
+- iOS uses `UNUserNotificationCenter`: active novena reminders are scheduled at 08:00 and 20:00 local time; the general daily reminder uses 08:00.
+- Android uses `AlarmManager.setAndAllowWhileIdle`, stores reminder state, reschedules after delivery, boot, and app replacement, and uses the same 08:00/20:00 behavior.
+- Reminder switches are stored in the account profile. Native scheduling occurs only when notification permission is available.
 
-Production currently points clients at:
+## Technology and runtime versions
 
-```text
-https://sa-d7fe5f77e3bd409caf712e69b701f1e8.ecs.us-east-1.on.aws
-```
+| Area     | Current implementation                                                                               |
+| -------- | ---------------------------------------------------------------------------------------------------- |
+| Web      | Angular 21.2, TypeScript 5.9, RxJS 7.8, SCSS, Vitest 4                                               |
+| API      | Java 21 exactly, Spring Boot 3.5.6, Spring MVC/Security/JDBC, Flyway, Maven                          |
+| Database | PostgreSQL 17 locally; PostgreSQL on AWS RDS when deployed                                           |
+| iOS      | Swift 5 language mode, SwiftUI, iOS 16.6 deployment target, version 1.0.15                           |
+| Android  | Kotlin, Compose/Material 3, Java/Kotlin target 17, min SDK 26, target/compile SDK 36, version 1.0.15 |
+| AWS      | S3/CloudFront web hosting, ECR/ECS API runtime, RDS, Secrets Manager, Cognito                        |
 
-### Health
+## Environment matrix
 
-| Method | Endpoint | Purpose |
-|---|---|---|
-| `GET` | `/health` | Simple service health response |
-| `GET` | `/actuator/health` | Spring actuator health |
+| Environment | Web host                                  | API                                    | iOS identity                  | Android identity            |
+| ----------- | ----------------------------------------- | -------------------------------------- | ----------------------------- | --------------------------- |
+| Local       | `http://localhost:4200`                   | `http://localhost:8080`                | Run-scheme override as needed | DevDebug override as needed |
+| DEV         | `https://dev.mydailysanctuary.com`        | `https://dev-api.mydailysanctuary.com` | `com.pamisu.Sanctuary.dev`    | `com.pamisu.sanctuary.dev`  |
+| UAT         | no separate web/API host in client config | production API                         | `com.pamisu.Sanctuary.uat`    | `com.pamisu.sanctuary.uat`  |
+| Production  | `https://mydailysanctuary.com`            | `https://api.mydailysanctuary.com`     | `com.pamisu.Sanctuary`        | `com.pamisu.sanctuary`      |
 
-### Authentication
+UAT native builds intentionally use the production API. The `application-uat.yml` API profile exists but there is no UAT API deployment workflow in this repository.
 
-| Method | Endpoint | Purpose |
-|---|---|---|
-| `POST` | `/auth/register` | Create a Cognito-backed account |
-| `POST` | `/auth/confirm` | Confirm registration code |
-| `POST` | `/auth/resend-confirmation` | Resend account confirmation code |
-| `POST` | `/auth/login` | Login and return tokens/session data |
-| `POST` | `/auth/refresh` | Refresh an auth session |
-| `POST` | `/auth/forgot-password` | Start password reset |
-| `POST` | `/auth/reset-password` | Complete password reset |
+Web API resolution is deterministic:
 
-### Liturgical Calendar
+- `?api=local`, `?api=dev`, or `?api=prod` overrides host detection.
+- localhost/127.0.0.1 uses the local API.
+- `dev.mydailysanctuary.com` uses the DEV API.
+- every other host uses production.
 
-| Method | Endpoint | Purpose |
-|---|---|---|
-| `GET` | `/calendar/day/{date}` | Liturgical day for an ISO date |
-| `GET` | `/calendar/range?start=&end=` | Liturgical days over a date range |
-| `GET` | `/calendar/anchors/{year}` | Computed anchor dates for a year |
-| `GET` | `/calendar/novenas/{novenaId}/window/{year}` | Serving window for a novena/year |
-
-### Saints
-
-| Method | Endpoint | Purpose |
-|---|---|---|
-| `GET` | `/content/saints?month=&day=&lang=` | Saints for a calendar day |
-| `GET` | `/content/saints/range?start=&end=&lang=` | Saints grouped by date range |
-| `GET` | `/content/saints/search?query=&lang=` | Search saints |
-| `GET` | `/content/saints/{slug}?lang=` | Saint detail |
-
-### Prayers
-
-| Method | Endpoint | Purpose |
-|---|---|---|
-| `GET` | `/content/prayers?query=&lang=` | List/search prayers |
-| `GET` | `/content/prayers/{slug}?lang=` | Prayer detail |
-
-### Novenas
-
-| Method | Endpoint | Purpose |
-|---|---|---|
-| `GET` | `/content/novenas?query=&lang=` | List/search novenas |
-| `GET` | `/content/novenas/intentions?query=&lang=` | Search novenas by intention |
-| `GET` | `/content/novenas/calendar?start=&end=&lang=` | Novenas grouped by calendar date |
-| `GET` | `/content/novenas/{slug}?lang=` | Novena detail and days |
-
-### Authenticated User State
-
-These endpoints require a bearer token.
-
-| Method | Endpoint | Purpose |
-|---|---|---|
-| `GET` | `/me` | Current Sanctuary profile |
-| `PUT` | `/me/preferences` | Update preferences and reminder flags |
-| `GET` | `/me/favorites` | List favorites |
-| `PUT` | `/me/favorites/{itemType}/{itemId}` | Save favorite |
-| `DELETE` | `/me/favorites/{itemType}/{itemId}` | Remove favorite |
-| `GET` | `/me/novena-commitments` | List novena commitments |
-| `PUT` | `/me/novena-commitments/{novenaId}` | Save novena progress/commitment |
-| `DELETE` | `/me/novena-commitments/{novenaId}` | Remove novena commitment |
-
-## Applications
-
-### Web App: `apps/web`
-
-The Angular app is the responsive browser client. It includes:
-
-- home
-- liturgical calendar
-- saints day/week/month/list/detail flows
-- novenas day/week/month/list/intentions/detail flows
-- prayers
-- auth screens
-- Me/profile/about screens
-- environment/version display
-
-The web app talks to the API through `SanctuaryApiService` and attaches auth tokens through an HTTP interceptor.
-
-Run locally:
-
-```bash
-npm start --workspace web
-```
-
-Build:
-
-```bash
-npm run build --workspace web
-```
-
-### API App: `apps/api`
-
-The Java API owns the backend domain and serves every client.
-
-Important areas:
-
-- `calendar/` for liturgical calculation and novena serving windows
-- `content/` for saints, prayers, novenas, and date-based content lookup
-- `auth/` for Cognito-backed account flows
-- `user/` for profile, preferences, favorites, and novena progress
-- `db/migration/` for Flyway schema changes
-
-Run locally:
-
-```bash
-cd apps/api
-JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home PATH=/opt/homebrew/opt/openjdk@21/bin:$PATH mvn spring-boot:run
-```
-
-Or from the repo root:
-
-```bash
-./apps/api/scripts/run-local.sh
-```
-
-Test:
-
-```bash
-cd apps/api
-JAVA_HOME=/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home PATH=/opt/homebrew/opt/openjdk@21/bin:$PATH mvn -q test
-```
-
-### iOS App: `apps/ios`
-
-The iOS app is the native SwiftUI client. It includes:
-
-- Dev, UAT, and Prod schemes
-- SwiftUI app shell and feature screens
-- API-backed account/session handling
-- Keychain session storage
-- user progress/favorites foundations
-- liturgical, saints, novenas, prayers, search, and Me flows
-- TestFlight and App Store Connect release automation
-
-Validate simulator build:
-
-```bash
-xcodebuild -project apps/ios/Sanctuary.xcodeproj -scheme Sanctuary-Prod -configuration Debug -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
-```
-
-### Android App: `apps/android`
-
-The Android app is the native Kotlin/Compose client. It includes:
-
-- Android app module with Gradle Kotlin DSL
-- `dev`, `uat`, and `prod` product flavors
-- shared API base URL configuration through `BuildConfig`
-- Retrofit service matching the backend API
-- bearer-token interceptor for authenticated requests
-- session repository
-- Compose shell, theme, localization, and feature UI foundations
-- home card assets and brand assets
-- reminder scheduler foundation
-
-Build Dev debug:
-
-```bash
-cd apps/android
-./gradlew assembleDevDebug
-```
-
-Build UAT release:
-
-```bash
-cd apps/android
-./gradlew assembleUatRelease
-```
-
-Build Prod release:
-
-```bash
-cd apps/android
-./gradlew assembleProdRelease
-```
-
-Android currently shares the same Java backend and API contract as web and iOS. Its GitHub pipeline is path-scoped to `apps/android/**` so Android work does not block unrelated web/API/iOS releases.
-
-## Local Development
+## Local development
 
 ### Prerequisites
 
-- Node.js and npm
-- Java 21
-- Docker
-- Android Studio/Android SDK for Android work
-- Xcode for iOS work
+- Node.js with npm 10-compatible tooling
+- Java 21 (Maven Enforcer rejects other major versions)
+- Docker Desktop or another Docker Compose runtime
+- Xcode for iOS builds
+- Android SDK/Android Studio for Android builds
 
-### Start PostgreSQL
+### Configure and start PostgreSQL
+
+Create a root `.env` (it is gitignored) and provide both Compose and API values. The helper requires `SANCTUARY_DB_URL`, `SANCTUARY_DB_USERNAME`, and `SANCTUARY_DB_PASSWORD`; Compose consumes `POSTGRES_DB`, `POSTGRES_USER`, and `POSTGRES_PASSWORD`.
 
 ```bash
 docker compose up -d postgres
 ```
 
-### Start API
+### Start the API
 
 ```bash
 ./apps/api/scripts/run-local.sh
 ```
 
-### Start Web
+The helper finds Java 21, loads the root `.env`, and runs Spring Boot with the `local` profile.
+
+### Start the web app
+
+In another terminal:
 
 ```bash
+npm ci
 npm start --workspace web
 ```
 
-### Local URLs
+Local endpoints:
 
 - Web: `http://localhost:4200`
 - API: `http://localhost:8080`
 - Health: `http://localhost:8080/health`
+- Actuator health: `http://localhost:8080/actuator/health`
 
-Recommended local order:
+### Core verification commands
 
-1. PostgreSQL
-2. API
-3. Web or native client
+```bash
+# Web unit tests
+npm test --workspace web -- --watch=false
 
-## Environment Model
+# API tests
+(cd apps/api && mvn -q test)
 
-The platform uses a branch and environment promotion model:
+# Android unit tests and DevDebug assembly
+(cd apps/android && ./gradlew testDevDebugUnitTest assembleDevDebug)
+
+# iOS platform mapping and unsigned simulator build
+swiftc \
+  apps/ios/Sanctuary/Core/Application/PlatformConfiguration.swift \
+  apps/ios/Scripts/verify-platform-configuration.swift \
+  -o /tmp/verify-sanctuary-platform
+/tmp/verify-sanctuary-platform
+xcodebuild -project apps/ios/Sanctuary.xcodeproj \
+  -scheme Sanctuary-Prod -configuration Debug \
+  -destination 'generic/platform=iOS Simulator' \
+  CODE_SIGNING_ALLOWED=NO build
+
+# DEV lifecycle script tests
+bash .github/scripts/test-dev-environment-control.sh
+```
+
+`npm run build --workspace web` is not a fully offline build: after Angular compilation it generates previews by reading the configured content API.
+
+## API surface
+
+The full contract and validation limits are documented in [apps/api/README.md](apps/api/README.md). The route families are:
+
+| Access          | Routes                                                                                  |
+| --------------- | --------------------------------------------------------------------------------------- |
+| Public health   | `GET /health`, `GET /actuator/health`                                                   |
+| Public auth     | native and web session operations under `/auth/**`                                      |
+| Public calendar | `/calendar/day`, `/calendar/range`, `/calendar/anchors`, novena serving windows         |
+| Public content  | saints, prayers, novenas, intention terms, and patronage terms under `/content/**`      |
+| Authenticated   | profile/account deletion, preferences, favorites, and novena commitments under `/me/**` |
+
+## PostgreSQL model
+
+Flyway migrations `V1` through `V15` are authoritative and create/evolve these groups:
+
+- platform metadata
+- saints, localized fields, tags, legacy patronage strings, and sources
+- prayers and tags
+- novenas, days, legacy intention strings, tags, and serving rules
+- users, profile fields, preferences, favorites, commitments, and activity events
+- deletion audit records containing a one-way email hash rather than the deleted account row
+- normalized multilingual intention terms/aliases linked to novenas and saints
+- normalized multilingual patronage terms/aliases linked to saints
+
+Migrations run at API startup. Content import is never an implicit startup action.
+
+## Promotion and CI/CD
+
+The repository uses the operational promotion sequence:
 
 ```text
 feature branch -> dev -> uat -> prod -> main
 ```
 
-Environment concepts:
+Pull requests validate the app areas changed. Deployment/upload happens on selected branch pushes:
 
-- `dev`: development validation and internal builds
-- `uat`: release-candidate validation
-- `prod`: final pre-main promotion gate
-- `main`: production deploy/release trigger
+| Workflow           | PR validation                               | Push/deployment behavior                                                                              |
+| ------------------ | ------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `Web Dev Pipeline` | PR to `dev` when web/root npm inputs change | `dev` deploys to DEV S3/CloudFront                                                                    |
+| `Web Pipeline`     | PR to `dev`, `uat`, `prod`, or `main`       | `main` deploys production S3/CloudFront                                                               |
+| `API Dev Pipeline` | PR to `dev`                                 | `dev` tests, builds/pushes ECR, and updates DEV ECS                                                   |
+| `API Pipeline`     | PR to `dev`, `uat`, `prod`, or `main`       | `main` tests, builds/pushes ECR, updates production ECS, and verifies public health                   |
+| `iOS Pipeline`     | PR to `dev`, `uat`, `prod`, or `main`       | `dev` -> Dev TestFlight; `uat` -> UAT TestFlight; `main` -> App Store Connect production build        |
+| `Android Pipeline` | PR to `dev`, `uat`, `prod`, or `main`       | `dev` -> internal draft; `uat` -> alpha draft; `main` -> alpha draft, plus downloadable AAB artifacts |
 
-The API has Spring profiles:
+The native store workflows upload artifacts; App Store and Google Play review/release remain store-console operations. Android `main` currently uploads the production package to the Play `alpha` (closed testing) track as a draft, not directly to the public production track.
 
-- `local`
-- `dev`
-- `uat`
-- `prod`
+### Path filters
 
-Android has product flavors:
+- Markdown-only changes inside an app directory do not run that app pipeline.
+- Root `README.md` and other unrelated documentation do not run application pipelines.
+- A workflow file can validate itself on a matching PR, but workflow-only pushes do not deploy applications.
+- Web workflows additionally watch root `package.json` and `package-lock.json` because the web app is an npm workspace.
+- Manual `workflow_dispatch` remains available where declared.
 
-- `dev`
-- `uat`
-- `prod`
+## DEV AWS lifecycle control
 
-iOS has schemes:
+[`DEV Environment Control`](.github/workflows/dev-environment-control.yml) can run `status`, `start`, or `stop` manually. A nightly `07:23 UTC` schedule stops DEV again, including after AWS automatically restarts a stopped RDS instance seven days later.
 
-- `Sanctuary-Dev`
-- `Sanctuary-UAT`
-- `Sanctuary-Prod`
+The implementation is deliberately DEV-only and refuses to operate unless all of these exact targets match:
 
-## Deployment Model
+- AWS account `160885294528`
+- region `us-east-1`
+- ECS cluster `sanctuary-dev`
+- ECS service `sanctuary-api-dev`
+- RDS instance `sanctuary-dev-db`
 
-### Web
+`stop` scales ECS to zero, waits for zero running/pending tasks, then stops RDS. `start` waits for RDS, scales ECS to one, waits for a stable task, and verifies `https://dev-api.mydailysanctuary.com/health`. S3/CloudFront and the deployed ECS/RDS definitions remain in place; this is runtime suspension, not infrastructure deletion.
 
-- GitHub Actions builds Angular
-- static assets publish to S3
-- CloudFront invalidation refreshes production
+## Deployment invariants
 
-### API
+- Production database credentials come directly from the RDS-managed Secrets Manager secret; do not substitute an SSM password copy.
+- API images are smoke-tested before push and ECS rollout.
+- Flyway owns schema evolution; do not mutate production schema manually as a normal release step.
+- Web upload targets and CloudFront distributions come from GitHub environment configuration.
+- Native release signing and store credentials stay in GitHub environment secrets/variables, never in the repository.
+- The Android production package name is `com.pamisu.sanctuary`; DEV/UAT suffixes cannot update that Play listing.
+- Merging to `main` can upload new native artifacts only when the native app path changed; documentation-only merges do not.
 
-- GitHub Actions runs Maven tests
-- Docker image is built and pushed to ECR
-- ECS service is updated
-- API starts with `prod` profile
-- Flyway validates/runs schema migrations on startup
-- `/health` is the load balancer health check
+## Maintained operational references
 
-Production DB credential rule:
+- [Local development](docs/architecture/local-development.md)
+- [Deployment and pipelines](docs/architecture/deployment-and-pipelines.md)
+- [API production deployment setup](docs/deployment/api-prod-deploy-setup.md)
+- [RDS production bootstrap](docs/deployment/rds-production-bootstrap.md)
+- [Cognito setup](docs/deployment/cognito-auth-setup.md)
+- [Android Play Console setup](docs/android-play-console-setup.md)
+- [Android rollout plan](docs/android-rollout-plan.md)
+- [iOS App Store verification checklist](docs/deployment/ios-app-store-verification-checklist.md)
 
-- prod API reads `SANCTUARY_DB_PASSWORD` directly from the RDS-managed AWS Secrets Manager secret
-- do not use an SSM copy such as `/sanctuary/prod/db/password`
-- automatic DB secret rotation stays disabled until rotation also triggers an API redeploy
-
-### Database
-
-- RDS PostgreSQL in production
-- Flyway controls schema
-- content bootstrap/imports are explicit operational steps, not app startup behavior
-
-### iOS
-
-- PRs validate iOS builds
-- Dev and UAT builds upload to TestFlight
-- production builds upload to App Store Connect from `main`
-- final App Store release approval remains manual
-
-### Android
-
-- PRs validate Android when `apps/android/**` changes
-- pushes to `dev` and `uat` build Android artifacts for the matching track
-- production Google Play release setup is intentionally conservative until Play Console production configuration is ready
-- Android pipeline is independent from API, web, and iOS pipelines
-
-## CI/CD Workflows
-
-| Workflow | Scope |
-|---|---|
-| [`.github/workflows/api-prod-deploy.yml`](.github/workflows/api-prod-deploy.yml) | API tests and production ECS deploy |
-| [`.github/workflows/web-prod-deploy.yml`](.github/workflows/web-prod-deploy.yml) | Angular production build and static deploy |
-| [`.github/workflows/ios-pipeline.yml`](.github/workflows/ios-pipeline.yml) | iOS validation/TestFlight/App Store Connect flow |
-| [`.github/workflows/android-pipeline.yml`](.github/workflows/android-pipeline.yml) | Android validation and environment-scoped artifact upload |
-
-## Useful Docs
-
-- [`docs/architecture/platform-reset-architecture.md`](docs/architecture/platform-reset-architecture.md)
-- [`docs/architecture/local-development.md`](docs/architecture/local-development.md)
-- [`docs/architecture/postgres-schema.md`](docs/architecture/postgres-schema.md)
-- [`docs/architecture/liturgical-engine-plan.md`](docs/architecture/liturgical-engine-plan.md)
-- [`docs/architecture/deployment-and-pipelines.md`](docs/architecture/deployment-and-pipelines.md)
-- [`docs/deployment/api-prod-deploy-setup.md`](docs/deployment/api-prod-deploy-setup.md)
-- [`docs/deployment/rds-production-bootstrap.md`](docs/deployment/rds-production-bootstrap.md)
-- [`docs/deployment/cognito-auth-setup.md`](docs/deployment/cognito-auth-setup.md)
-- [`docs/android-rollout-plan.md`](docs/android-rollout-plan.md)
-- [`docs/android-play-console-setup.md`](docs/android-play-console-setup.md)
-- [`apps/api/README.md`](apps/api/README.md)
-- [`apps/web/README.md`](apps/web/README.md)
-- [`apps/ios/README.md`](apps/ios/README.md)
-- [`apps/android/README.md`](apps/android/README.md)
-
-## Status
-
-Sanctuary is an active platform build. The strongest current areas are:
-
-- Spring Boot API and PostgreSQL/Flyway model
-- liturgical calendar, saints, novenas, and prayers endpoints
-- Angular production web app
-- iOS native client and release path
-- Android native client foundation and UAT-oriented pipeline
-- Cognito-backed auth and account state
-- AWS production API/web/database deployment path
-
-The product direction is one shared backend, multiple native/browser clients, and a release process that keeps each platform independent while preserving one source of truth for Sanctuary content and user state.
+Historical architecture and migration files remain useful records, but they are not a substitute for checking current code and workflows before an operational change.
