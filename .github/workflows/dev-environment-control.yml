@@ -1,6 +1,14 @@
 name: DEV Environment Control
 
 on:
+  pull_request:
+    branches:
+      - dev
+    paths:
+      - ".github/scripts/dev-environment-control.sh"
+      - ".github/scripts/test-dev-environment-control.sh"
+      - ".github/workflows/api-dev-deploy.yml"
+      - ".github/workflows/dev-environment-control.yml"
   workflow_dispatch:
     inputs:
       action:
@@ -18,18 +26,37 @@ on:
 
 permissions:
   contents: read
-  id-token: write
 
 concurrency:
   group: sanctuary-dev-environment-control
   cancel-in-progress: false
 
 jobs:
+  validate:
+    name: Validate DEV environment control
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Validate shell syntax
+        run: |
+          bash -n .github/scripts/dev-environment-control.sh
+          bash -n .github/scripts/test-dev-environment-control.sh
+
+      - name: Test lifecycle state transitions
+        run: bash .github/scripts/test-dev-environment-control.sh
+
   control:
     name: ${{ github.event_name == 'schedule' && 'Nightly stop' || inputs.action }} DEV
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 130
     environment: dev
+    permissions:
+      contents: read
+      id-token: write
     env:
       AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
       EXPECTED_AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID || '160885294528' }}
@@ -40,254 +67,35 @@ jobs:
       CONTROL_ACTION: ${{ github.event_name == 'schedule' && 'stop' || inputs.action }}
 
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
       - name: Configure AWS credentials
+        id: aws_credentials
         uses: aws-actions/configure-aws-credentials@v5
         with:
           role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Verify DEV-only targets
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          actual_account_id="$(aws sts get-caller-identity --query Account --output text)"
-
-          if [[ "${actual_account_id}" != "160885294528" || "${EXPECTED_AWS_ACCOUNT_ID}" != "160885294528" ]]; then
-            echo "Refusing to run in unexpected AWS account: ${actual_account_id}"
-            exit 1
-          fi
-
-          if [[ "${AWS_REGION}" != "us-east-1" ]]; then
-            echo "Refusing to run in unexpected region: ${AWS_REGION}"
-            exit 1
-          fi
-
-          if [[ "${ECS_CLUSTER}" != "sanctuary-dev" ]]; then
-            echo "Refusing to target unexpected ECS cluster: ${ECS_CLUSTER}"
-            exit 1
-          fi
-
-          if [[ "${ECS_SERVICE}" != "sanctuary-api-dev" ]]; then
-            echo "Refusing to target unexpected ECS service: ${ECS_SERVICE}"
-            exit 1
-          fi
-
-          if [[ "${RDS_INSTANCE}" != "sanctuary-dev-db" ]]; then
-            echo "Refusing to target unexpected RDS instance: ${RDS_INSTANCE}"
-            exit 1
-          fi
-
-          case "${CONTROL_ACTION}" in
-            status|start|stop) ;;
-            *)
-              echo "Unsupported action: ${CONTROL_ACTION}"
-              exit 1
-              ;;
-          esac
-
-          echo "Validated DEV-only action: ${CONTROL_ACTION}"
-
-      - name: Show status before action
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          ecs_status="$(aws ecs describe-services \
-            --cluster "${ECS_CLUSTER}" \
-            --services "${ECS_SERVICE}" \
-            --region "${AWS_REGION}" \
-            --query 'services[0].[status,desiredCount,runningCount,pendingCount]' \
-            --output text)"
-          rds_status="$(aws rds describe-db-instances \
-            --db-instance-identifier "${RDS_INSTANCE}" \
-            --region "${AWS_REGION}" \
-            --query 'DBInstances[0].DBInstanceStatus' \
-            --output text)"
-
-          echo "ECS before: ${ecs_status}"
-          echo "RDS before: ${rds_status}"
-
-      - name: Stop DEV
-        if: env.CONTROL_ACTION == 'stop'
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          echo "Scaling ${ECS_CLUSTER}/${ECS_SERVICE} to zero tasks..."
-          aws ecs update-service \
-            --cluster "${ECS_CLUSTER}" \
-            --service "${ECS_SERVICE}" \
-            --desired-count 0 \
-            --region "${AWS_REGION}" \
-            >/dev/null
-
-          for attempt in {1..60}; do
-            task_counts="$(aws ecs describe-services \
-              --cluster "${ECS_CLUSTER}" \
-              --services "${ECS_SERVICE}" \
-              --region "${AWS_REGION}" \
-              --query 'services[0].[runningCount,pendingCount]' \
-              --output text)"
-            read -r running_count pending_count <<< "${task_counts}"
-            echo "ECS stop check ${attempt}/60: running=${running_count}, pending=${pending_count}"
-
-            if [[ "${running_count}" == "0" && "${pending_count}" == "0" ]]; then
-              break
-            fi
-
-            if [[ "${attempt}" == "60" ]]; then
-              echo "ECS did not reach zero running and pending tasks. RDS will not be stopped."
-              exit 1
-            fi
-
-            sleep 10
-          done
-
-          rds_status="$(aws rds describe-db-instances \
-            --db-instance-identifier "${RDS_INSTANCE}" \
-            --region "${AWS_REGION}" \
-            --query 'DBInstances[0].DBInstanceStatus' \
-            --output text)"
-          echo "Current RDS status: ${rds_status}"
-
-          case "${rds_status}" in
-            stopped)
-              echo "RDS is already stopped."
-              ;;
-            stopping)
-              echo "RDS is already stopping."
-              aws rds wait db-instance-stopped \
-                --db-instance-identifier "${RDS_INSTANCE}" \
-                --region "${AWS_REGION}"
-              ;;
-            available)
-              aws rds stop-db-instance \
-                --db-instance-identifier "${RDS_INSTANCE}" \
-                --region "${AWS_REGION}" \
-                >/dev/null
-              aws rds wait db-instance-stopped \
-                --db-instance-identifier "${RDS_INSTANCE}" \
-                --region "${AWS_REGION}"
-              ;;
-            starting)
-              echo "RDS is starting, likely because of AWS's automatic 7-day restart. Waiting before stopping it again..."
-              aws rds wait db-instance-available \
-                --db-instance-identifier "${RDS_INSTANCE}" \
-                --region "${AWS_REGION}"
-              aws rds stop-db-instance \
-                --db-instance-identifier "${RDS_INSTANCE}" \
-                --region "${AWS_REGION}" \
-                >/dev/null
-              aws rds wait db-instance-stopped \
-                --db-instance-identifier "${RDS_INSTANCE}" \
-                --region "${AWS_REGION}"
-              ;;
-            *)
-              echo "RDS is in state '${rds_status}'. Refusing to force a stop from an unexpected state."
-              exit 1
-              ;;
-          esac
-
-      - name: Start DEV
-        if: env.CONTROL_ACTION == 'start'
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          rds_status="$(aws rds describe-db-instances \
-            --db-instance-identifier "${RDS_INSTANCE}" \
-            --region "${AWS_REGION}" \
-            --query 'DBInstances[0].DBInstanceStatus' \
-            --output text)"
-          echo "Current RDS status: ${rds_status}"
-
-          case "${rds_status}" in
-            available)
-              echo "RDS is already available."
-              ;;
-            stopped)
-              aws rds start-db-instance \
-                --db-instance-identifier "${RDS_INSTANCE}" \
-                --region "${AWS_REGION}" \
-                >/dev/null
-              aws rds wait db-instance-available \
-                --db-instance-identifier "${RDS_INSTANCE}" \
-                --region "${AWS_REGION}"
-              ;;
-            starting)
-              aws rds wait db-instance-available \
-                --db-instance-identifier "${RDS_INSTANCE}" \
-                --region "${AWS_REGION}"
-              ;;
-            stopping)
-              aws rds wait db-instance-stopped \
-                --db-instance-identifier "${RDS_INSTANCE}" \
-                --region "${AWS_REGION}"
-              aws rds start-db-instance \
-                --db-instance-identifier "${RDS_INSTANCE}" \
-                --region "${AWS_REGION}" \
-                >/dev/null
-              aws rds wait db-instance-available \
-                --db-instance-identifier "${RDS_INSTANCE}" \
-                --region "${AWS_REGION}"
-              ;;
-            *)
-              echo "RDS is in state '${rds_status}'. Refusing to force a start from an unexpected state."
-              exit 1
-              ;;
-          esac
-
-          echo "Scaling ${ECS_CLUSTER}/${ECS_SERVICE} to one task..."
-          aws ecs update-service \
-            --cluster "${ECS_CLUSTER}" \
-            --service "${ECS_SERVICE}" \
-            --desired-count 1 \
-            --region "${AWS_REGION}" \
-            >/dev/null
-          aws ecs wait services-stable \
-            --cluster "${ECS_CLUSTER}" \
-            --services "${ECS_SERVICE}" \
-            --region "${AWS_REGION}"
-
-          for attempt in {1..60}; do
-            if curl --fail --silent --show-error "${DEV_HEALTH_URL}" >/dev/null; then
-              echo "DEV API is healthy: ${DEV_HEALTH_URL}"
-              exit 0
-            fi
-
-            echo "Waiting for DEV API health ${attempt}/60..."
-            sleep 10
-          done
-
-          echo "DEV infrastructure started, but the API health check did not pass."
-          exit 1
+      - name: Run DEV environment action
+        run: bash .github/scripts/dev-environment-control.sh "${CONTROL_ACTION}"
 
       - name: Show final status
-        if: always()
+        if: always() && steps.aws_credentials.outcome == 'success'
         shell: bash
         run: |
           set +e
-
-          ecs_status="$(aws ecs describe-services \
-            --cluster "${ECS_CLUSTER}" \
-            --services "${ECS_SERVICE}" \
-            --region "${AWS_REGION}" \
-            --query 'services[0].[status,desiredCount,runningCount,pendingCount]' \
-            --output text 2>&1)"
-          rds_status="$(aws rds describe-db-instances \
-            --db-instance-identifier "${RDS_INSTANCE}" \
-            --region "${AWS_REGION}" \
-            --query 'DBInstances[0].DBInstanceStatus' \
-            --output text 2>&1)"
-
-          echo "ECS final: ${ecs_status}"
-          echo "RDS final: ${rds_status}"
+          final_status="$(bash .github/scripts/dev-environment-control.sh status 2>&1)"
+          status_exit_code=$?
+          echo "${final_status}"
 
           {
             echo "## DEV environment control"
             echo ""
             echo "- Requested action: \`${CONTROL_ACTION}\`"
-            echo "- ECS status / desired / running / pending: \`${ecs_status}\`"
-            echo "- RDS status: \`${rds_status}\`"
+            echo "- Status command exit code: \`${status_exit_code}\`"
+            echo ""
+            echo '```text'
+            echo "${final_status}"
+            echo '```'
           } >> "${GITHUB_STEP_SUMMARY}"
