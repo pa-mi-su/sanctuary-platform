@@ -9,6 +9,7 @@ on:
       - main
     paths:
       - "apps/ios/**"
+      - "!apps/ios/**/*.md"
       - ".github/workflows/ios-pipeline.yml"
   push:
     branches:
@@ -17,7 +18,7 @@ on:
       - main
     paths:
       - "apps/ios/**"
-      - ".github/workflows/ios-pipeline.yml"
+      - "!apps/ios/**/*.md"
   workflow_dispatch:
     inputs:
       target:
