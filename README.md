@@ -239,6 +239,12 @@ The native store workflows upload artifacts; App Store and Google Play review/re
 
 [`DEV Environment Control`](.github/workflows/dev-environment-control.yml) can run `status`, `start`, or `stop` manually. A nightly `07:23 UTC` schedule stops DEV again, including after AWS automatically restarts a stopped RDS instance seven days later.
 
+An AWS-native replacement for the nightly schedule is defined in
+[`infra/dev-cost-control`](infra/dev-cost-control/README.md). It is disabled by
+default and must be deployed and verified before the existing GitHub schedule
+is removed. The GitHub manual `status`, `start`, and `stop` controls remain in
+place after cutover.
+
 The implementation is deliberately DEV-only and refuses to operate unless all of these exact targets match:
 
 - AWS account `160885294528`

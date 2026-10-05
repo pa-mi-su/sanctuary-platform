@@ -1,0 +1,348 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  AWS-native nightly shutdown for the Sanctuary DEV ECS service and RDS instance.
+  The schedule is disabled by default so deployment and activation remain separate,
+  deliberate operations.
+
+Parameters:
+  ScheduleState:
+    Type: String
+    Default: DISABLED
+    AllowedValues:
+      - DISABLED
+      - ENABLED
+    Description: Enable only after the disabled stack has been deployed and manually verified.
+
+Rules:
+  ExpectedAwsAccount:
+    Assertions:
+      - Assert: !Equals
+          - !Ref AWS::AccountId
+          - "160885294528"
+        AssertDescription: This stack may only be deployed to the Sanctuary AWS account.
+  ExpectedAwsRegion:
+    Assertions:
+      - Assert: !Equals
+          - !Ref AWS::Region
+          - us-east-1
+        AssertDescription: This stack may only be deployed in us-east-1.
+
+Resources:
+  ShutdownDeadLetterQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: sanctuary-dev-nightly-stop-dlq
+      MessageRetentionPeriod: 1209600
+      SqsManagedSseEnabled: true
+      Tags:
+        - Key: Application
+          Value: Sanctuary
+        - Key: Environment
+          Value: dev
+        - Key: Purpose
+          Value: cost-control
+
+  ShutdownLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /aws/lambda/sanctuary-dev-nightly-stop
+      RetentionInDays: 14
+
+  ShutdownFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: sanctuary-dev-nightly-stop-lambda
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: sanctuary-dev-nightly-stop
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: VerifyAccount
+                Effect: Allow
+                Action: sts:GetCallerIdentity
+                Resource: "*"
+              - Sid: StopExactDevEcsService
+                Effect: Allow
+                Action:
+                  - ecs:DescribeServices
+                  - ecs:UpdateService
+                Resource: arn:aws:ecs:us-east-1:160885294528:service/sanctuary-dev/sanctuary-api-dev
+                Condition:
+                  ArnEquals:
+                    ecs:cluster: arn:aws:ecs:us-east-1:160885294528:cluster/sanctuary-dev
+              - Sid: StopExactDevDatabase
+                Effect: Allow
+                Action:
+                  - rds:DescribeDBInstances
+                  - rds:StopDBInstance
+                Resource: arn:aws:rds:us-east-1:160885294528:db:sanctuary-dev-db
+              - Sid: WriteExactLogGroup
+                Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub ${ShutdownLogGroup.Arn}:*
+              - Sid: SendFailedInvocationToDlq
+                Effect: Allow
+                Action: sqs:SendMessage
+                Resource: !GetAtt ShutdownDeadLetterQueue.Arn
+      Tags:
+        - Key: Application
+          Value: Sanctuary
+        - Key: Environment
+          Value: dev
+        - Key: Purpose
+          Value: cost-control
+
+  ShutdownFunction:
+    Type: AWS::Lambda::Function
+    DependsOn:
+      - ShutdownLogGroup
+    Properties:
+      FunctionName: sanctuary-dev-nightly-stop
+      Description: Stops the exact Sanctuary DEV ECS service and RDS instance to control cost.
+      Runtime: python3.13
+      Handler: index.handler
+      Architectures:
+        - arm64
+      MemorySize: 128
+      Timeout: 600
+      ReservedConcurrentExecutions: 1
+      Role: !GetAtt ShutdownFunctionRole.Arn
+      DeadLetterConfig:
+        TargetArn: !GetAtt ShutdownDeadLetterQueue.Arn
+      Environment:
+        Variables:
+          EXPECTED_ACCOUNT_ID: "160885294528"
+          EXPECTED_REGION: us-east-1
+          ECS_CLUSTER: sanctuary-dev
+          ECS_SERVICE: sanctuary-api-dev
+          RDS_INSTANCE: sanctuary-dev-db
+          POLL_SECONDS: "15"
+          MAX_WAIT_SECONDS: "540"
+      Code:
+        ZipFile: |
+          import json
+          import os
+          import time
+
+          import boto3
+
+
+          EXPECTED_ACCOUNT_ID = os.environ["EXPECTED_ACCOUNT_ID"]
+          EXPECTED_REGION = os.environ["EXPECTED_REGION"]
+          ACTUAL_REGION = os.environ.get("AWS_REGION")
+          ECS_CLUSTER = os.environ["ECS_CLUSTER"]
+          ECS_SERVICE = os.environ["ECS_SERVICE"]
+          RDS_INSTANCE = os.environ["RDS_INSTANCE"]
+          POLL_SECONDS = int(os.environ.get("POLL_SECONDS", "15"))
+          MAX_WAIT_SECONDS = int(os.environ.get("MAX_WAIT_SECONDS", "540"))
+
+          EXPECTED_CLUSTER_ARN = (
+              f"arn:aws:ecs:{EXPECTED_REGION}:{EXPECTED_ACCOUNT_ID}:cluster/{ECS_CLUSTER}"
+          )
+          EXPECTED_SERVICE_ARN = (
+              f"arn:aws:ecs:{EXPECTED_REGION}:{EXPECTED_ACCOUNT_ID}:"
+              f"service/{ECS_CLUSTER}/{ECS_SERVICE}"
+          )
+          EXPECTED_DATABASE_ARN = (
+              f"arn:aws:rds:{EXPECTED_REGION}:{EXPECTED_ACCOUNT_ID}:db:{RDS_INSTANCE}"
+          )
+
+          TERMINAL_RDS_FAILURE_STATES = {
+              "failed",
+              "inaccessible-encryption-credentials",
+              "inaccessible-encryption-credentials-recoverable",
+              "incompatible-network",
+              "incompatible-option-group",
+              "incompatible-parameters",
+              "restore-error",
+              "storage-full",
+          }
+
+
+          def _clients():
+              return (
+                  boto3.client("sts", region_name=EXPECTED_REGION),
+                  boto3.client("ecs", region_name=EXPECTED_REGION),
+                  boto3.client("rds", region_name=EXPECTED_REGION),
+              )
+
+
+          def _verify_identity(sts):
+              actual_account = sts.get_caller_identity()["Account"]
+              if actual_account != EXPECTED_ACCOUNT_ID:
+                  raise RuntimeError(
+                      f"Refusing AWS account {actual_account}; expected {EXPECTED_ACCOUNT_ID}."
+                  )
+              if ACTUAL_REGION != EXPECTED_REGION:
+                  raise RuntimeError(
+                      f"Refusing AWS region {ACTUAL_REGION}; expected {EXPECTED_REGION}."
+                  )
+
+
+          def _scale_ecs_to_zero(ecs):
+              response = ecs.describe_services(
+                  cluster=ECS_CLUSTER,
+                  services=[ECS_SERVICE],
+              )
+              if response.get("failures"):
+                  raise RuntimeError(f"ECS describe failed: {response['failures']}")
+              services = response.get("services", [])
+              if len(services) != 1:
+                  raise RuntimeError(f"Expected one ECS service, found {len(services)}.")
+
+              service = services[0]
+              if service.get("clusterArn") != EXPECTED_CLUSTER_ARN:
+                  raise RuntimeError(
+                      f"Refusing ECS cluster {service.get('clusterArn')}; "
+                      f"expected {EXPECTED_CLUSTER_ARN}."
+                  )
+              if service.get("serviceArn") != EXPECTED_SERVICE_ARN:
+                  raise RuntimeError(
+                      f"Refusing ECS service {service.get('serviceArn')}; "
+                      f"expected {EXPECTED_SERVICE_ARN}."
+                  )
+              if service.get("status") != "ACTIVE":
+                  raise RuntimeError(
+                      f"Refusing ECS service status {service.get('status')}; expected ACTIVE."
+                  )
+
+              before = {
+                  "desired": service.get("desiredCount"),
+                  "running": service.get("runningCount"),
+                  "pending": service.get("pendingCount"),
+              }
+              ecs.update_service(
+                  cluster=ECS_CLUSTER,
+                  service=ECS_SERVICE,
+                  desiredCount=0,
+              )
+              return {"before": before, "requestedDesiredCount": 0}
+
+
+          def _database_state(rds):
+              response = rds.describe_db_instances(DBInstanceIdentifier=RDS_INSTANCE)
+              databases = response.get("DBInstances", [])
+              if len(databases) != 1:
+                  raise RuntimeError(f"Expected one RDS instance, found {len(databases)}.")
+              database = databases[0]
+              if database.get("DBInstanceArn") != EXPECTED_DATABASE_ARN:
+                  raise RuntimeError(
+                      f"Refusing RDS instance {database.get('DBInstanceArn')}; "
+                      f"expected {EXPECTED_DATABASE_ARN}."
+                  )
+              return database.get("DBInstanceStatus")
+
+
+          def _stop_database(rds):
+              deadline = time.monotonic() + MAX_WAIT_SECONDS
+              while True:
+                  state = _database_state(rds)
+                  if state == "available":
+                      rds.stop_db_instance(DBInstanceIdentifier=RDS_INSTANCE)
+                      return {"before": state, "requested": "stop"}
+                  if state in {"stopped", "stopping"}:
+                      return {"before": state, "requested": "none"}
+                  if state in TERMINAL_RDS_FAILURE_STATES:
+                      raise RuntimeError(f"RDS entered terminal failure state {state}.")
+                  if time.monotonic() >= deadline:
+                      raise RuntimeError(
+                          f"RDS remained in transitional state {state} for "
+                          f"{MAX_WAIT_SECONDS} seconds."
+                      )
+                  print(f"RDS is {state}; waiting before retrying.")
+                  time.sleep(POLL_SECONDS)
+
+
+          def handler(event, context):
+              if event.get("action") != "stop":
+                  raise RuntimeError("Only the stop action is supported.")
+
+              sts, ecs, rds = _clients()
+              _verify_identity(sts)
+              ecs_result = _scale_ecs_to_zero(ecs)
+              rds_result = _stop_database(rds)
+              result = {
+                  "account": EXPECTED_ACCOUNT_ID,
+                  "region": EXPECTED_REGION,
+                  "ecs": ecs_result,
+                  "rds": rds_result,
+                  "source": event.get("source", "unknown"),
+              }
+              print(json.dumps(result, sort_keys=True))
+              return result
+      Tags:
+        - Key: Application
+          Value: Sanctuary
+        - Key: Environment
+          Value: dev
+        - Key: Purpose
+          Value: cost-control
+
+  SchedulerExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: sanctuary-dev-nightly-stop-scheduler
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: scheduler.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: invoke-exact-shutdown-function
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: lambda:InvokeFunction
+                Resource: !GetAtt ShutdownFunction.Arn
+              - Effect: Allow
+                Action: sqs:SendMessage
+                Resource: !GetAtt ShutdownDeadLetterQueue.Arn
+      Tags:
+        - Key: Application
+          Value: Sanctuary
+        - Key: Environment
+          Value: dev
+        - Key: Purpose
+          Value: cost-control
+
+  NightlyShutdownSchedule:
+    Type: AWS::Scheduler::Schedule
+    Properties:
+      Name: sanctuary-dev-nightly-stop
+      Description: Stops Sanctuary DEV compute and database resources nightly.
+      State: !Ref ScheduleState
+      ScheduleExpression: cron(23 3 * * ? *)
+      ScheduleExpressionTimezone: America/New_York
+      FlexibleTimeWindow:
+        Mode: OFF
+      Target:
+        Arn: !GetAtt ShutdownFunction.Arn
+        RoleArn: !GetAtt SchedulerExecutionRole.Arn
+        Input: '{"action":"stop","source":"eventbridge-scheduler"}'
+        RetryPolicy:
+          MaximumEventAgeInSeconds: 3600
+          MaximumRetryAttempts: 3
+        DeadLetterConfig:
+          Arn: !GetAtt ShutdownDeadLetterQueue.Arn
+
+Outputs:
+  ScheduleName:
+    Value: !Ref NightlyShutdownSchedule
+  ScheduleState:
+    Value: !Ref ScheduleState
+  ShutdownFunctionName:
+    Value: !Ref ShutdownFunction
+  DeadLetterQueueUrl:
+    Value: !Ref ShutdownDeadLetterQueue
