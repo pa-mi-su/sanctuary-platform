@@ -221,6 +221,14 @@ class TemplateSafetyTests(unittest.TestCase):
         text = TEMPLATE.read_text(encoding="utf-8")
         self.assertNotIn("ReservedConcurrentExecutions", text)
 
+    def test_log_permissions_target_exact_lambda_log_streams(self):
+        text = TEMPLATE.read_text(encoding="utf-8")
+        self.assertIn(
+            "log-group:/aws/lambda/sanctuary-dev-nightly-stop:log-stream:*",
+            text,
+        )
+        self.assertNotIn("${ShutdownLogGroup.Arn}:*", text)
+
 
 if __name__ == "__main__":
     unittest.main()
