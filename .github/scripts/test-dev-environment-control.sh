@@ -4,6 +4,7 @@ set -euo pipefail
 
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly CONTROL_SCRIPT="${SCRIPT_DIR}/dev-environment-control.sh"
+readonly WORKFLOW_FILE="${SCRIPT_DIR}/../workflows/dev-environment-control.yml"
 
 TEST_ROOT="$(mktemp -d)"
 trap 'rm -rf "${TEST_ROOT}"' EXIT
@@ -61,6 +62,18 @@ record_pass() {
   pass_count=$((pass_count + 1))
   echo "PASS: $1"
 }
+
+grep -Fq 'workflow_dispatch:' "${WORKFLOW_FILE}" || \
+  fail "DEV environment control must retain manual workflow dispatch."
+grep -Fq 'CONTROL_ACTION: ${{ inputs.action }}' "${WORKFLOW_FILE}" || \
+  fail "Manual workflow action is not passed directly to the control script."
+if grep -Eq '^[[:space:]]+schedule:|^[[:space:]]+- cron:' "${WORKFLOW_FILE}"; then
+  fail "DEV environment control must not retain a GitHub scheduled trigger."
+fi
+if grep -Fq "github.event_name == 'schedule'" "${WORKFLOW_FILE}"; then
+  fail "DEV environment control contains obsolete scheduled-event logic."
+fi
+record_pass "workflow is manual-only and has no scheduled trigger"
 
 cat > "${TEST_ROOT}/mock-aws" <<'MOCK_AWS'
 #!/usr/bin/env bash
