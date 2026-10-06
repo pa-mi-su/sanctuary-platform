@@ -114,7 +114,6 @@ Resources:
         - arm64
       MemorySize: 128
       Timeout: 600
-      ReservedConcurrentExecutions: 1
       Role: !GetAtt ShutdownFunctionRole.Arn
       DeadLetterConfig:
         TargetArn: !GetAtt ShutdownDeadLetterQueue.Arn

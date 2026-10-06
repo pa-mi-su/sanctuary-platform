@@ -217,6 +217,10 @@ class TemplateSafetyTests(unittest.TestCase):
         self.assertIn("sanctuary-dev-db", text)
         self.assertIn("service/sanctuary-dev/sanctuary-api-dev", text)
 
+    def test_template_does_not_reserve_account_concurrency(self):
+        text = TEMPLATE.read_text(encoding="utf-8")
+        self.assertNotIn("ReservedConcurrentExecutions", text)
+
 
 if __name__ == "__main__":
     unittest.main()
