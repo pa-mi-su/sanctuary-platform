@@ -19,10 +19,6 @@ on:
           - status
           - start
           - stop
-  schedule:
-    # 07:23 UTC is 03:23 Eastern during daylight time and 02:23 during standard time.
-    # The nightly stop also catches RDS when AWS automatically restarts it after 7 days.
-    - cron: "23 7 * * *"
 
 permissions:
   contents: read
@@ -49,8 +45,8 @@ jobs:
         run: bash .github/scripts/test-dev-environment-control.sh
 
   control:
-    name: ${{ github.event_name == 'schedule' && 'Nightly stop' || inputs.action }} DEV
-    if: github.event_name != 'pull_request'
+    name: ${{ inputs.action }} DEV
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 130
     environment: dev
@@ -64,7 +60,7 @@ jobs:
       ECS_SERVICE: ${{ vars.API_DEV_ECS_SERVICE_NAME || 'sanctuary-api-dev' }}
       RDS_INSTANCE: sanctuary-dev-db
       DEV_HEALTH_URL: https://dev-api.mydailysanctuary.com/health
-      CONTROL_ACTION: ${{ github.event_name == 'schedule' && 'stop' || inputs.action }}
+      CONTROL_ACTION: ${{ inputs.action }}
 
     steps:
       - name: Checkout repository
