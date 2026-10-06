@@ -208,6 +208,7 @@ class TemplateSafetyTests(unittest.TestCase):
         self.assertIn("Default: DISABLED", text)
         self.assertIn("ScheduleExpressionTimezone: America/New_York", text)
         self.assertIn("ScheduleExpression: cron(23 3 * * ? *)", text)
+        self.assertIn('Mode: "OFF"', text)
 
     def test_template_contains_only_exact_dev_targets(self):
         text = TEMPLATE.read_text(encoding="utf-8")

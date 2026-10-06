@@ -326,7 +326,8 @@ Resources:
       ScheduleExpression: cron(23 3 * * ? *)
       ScheduleExpressionTimezone: America/New_York
       FlexibleTimeWindow:
-        Mode: OFF
+        # OFF must be quoted because YAML 1.1 parsers interpret bare OFF as false.
+        Mode: "OFF"
       Target:
         Arn: !GetAtt ShutdownFunction.Arn
         RoleArn: !GetAtt SchedulerExecutionRole.Arn
