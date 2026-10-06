@@ -1,0 +1,31 @@
+name: DEV Cost Control Infrastructure Tests
+
+on:
+  pull_request:
+    branches:
+      - dev
+    paths:
+      - ".github/workflows/dev-cost-control-infrastructure.yml"
+      - "infra/dev-cost-control/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sanctuary-dev-cost-control-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test exact DEV shutdown controls
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Validate deployment script syntax
+        run: bash -n infra/dev-cost-control/deploy.sh
+
+      - name: Run unit and template safety tests
+        run: python3 -m unittest infra/dev-cost-control/test_shutdown.py
