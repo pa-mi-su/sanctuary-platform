@@ -88,7 +88,7 @@ Resources:
                 Action:
                   - logs:CreateLogStream
                   - logs:PutLogEvents
-                Resource: !Sub ${ShutdownLogGroup.Arn}:*
+                Resource: !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/sanctuary-dev-nightly-stop:log-stream:*"
               - Sid: SendFailedInvocationToDlq
                 Effect: Allow
                 Action: sqs:SendMessage
