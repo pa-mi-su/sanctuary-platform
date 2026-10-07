@@ -14,7 +14,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import app.sanctuary.api.calendar.model.LiturgicalAnchorKey;
+import app.sanctuary.api.calendar.model.LiturgicalColor;
 import app.sanctuary.api.calendar.model.LiturgicalSeason;
+import app.sanctuary.api.calendar.model.RankType;
 import app.sanctuary.api.calendar.model.TransferredFeastKey;
 
 class LiturgicalCalendarServiceTest {
@@ -73,6 +75,36 @@ class LiturgicalCalendarServiceTest {
         assertEquals(
             "Easter Sunday of the Resurrection of the Lord",
             liturgicalCalendarService.getLiturgicalDay(LocalDate.of(2026, 4, 5)).primaryRank()
+        );
+    }
+
+    @Test
+    void resolvesOurLadyOfTheRosaryWithItsLiturgicalMetadata() {
+        var result = liturgicalCalendarService.getLiturgicalDay(LocalDate.of(2026, 10, 7));
+
+        assertEquals("Memorial of Our Lady of the Rosary", result.primaryRank());
+        assertEquals(RankType.MEMORIAL, result.rankType());
+        assertEquals(LiturgicalColor.WHITE, result.color());
+        assertEquals(LiturgicalSeason.ORDINARY, result.season());
+    }
+
+    @Test
+    void resolvesLiturgicalColorsForSeasonsAndMajorCelebrations() {
+        assertEquals(
+            LiturgicalColor.VIOLET,
+            liturgicalCalendarService.getLiturgicalDay(LocalDate.of(2026, 3, 2)).color()
+        );
+        assertEquals(
+            LiturgicalColor.WHITE,
+            liturgicalCalendarService.getLiturgicalDay(LocalDate.of(2026, 3, 19)).color()
+        );
+        assertEquals(
+            LiturgicalColor.RED,
+            liturgicalCalendarService.getLiturgicalDay(LocalDate.of(2026, 4, 3)).color()
+        );
+        assertEquals(
+            LiturgicalColor.GREEN,
+            liturgicalCalendarService.getLiturgicalDay(LocalDate.of(2026, 10, 8)).color()
         );
     }
 

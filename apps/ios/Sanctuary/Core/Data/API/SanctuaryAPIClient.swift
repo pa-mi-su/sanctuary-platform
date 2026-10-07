@@ -150,6 +150,21 @@ struct APIContentSaintSummaryResponse: Decodable, Sendable {
     let intentions: [String]?
 }
 
+struct APIChurchNewsArticleResponse: Decodable, Sendable {
+    let id: String
+    let title: String
+    let summary: String
+    let sourceName: String
+    let canonicalUrl: String
+    let imageUrl: String
+    let imageAlt: String
+    let imageCredit: String
+    let licenseName: String
+    let licenseUrl: String
+    let publishedAt: Date
+    let language: String
+}
+
 struct APIContentSaintRangeDateResponse: Decodable, Sendable {
     let date: String
     let saints: [APIContentSaintSummaryResponse]
@@ -233,6 +248,8 @@ struct APILiturgicalDayResponse: Decodable, Sendable {
     let primaryRank: String
     let observances: [String]
     let readingsUrl: String?
+    let rankType: String
+    let color: String?
 }
 
 struct APIPrayerSummaryResponse: Decodable, Sendable {
@@ -291,6 +308,19 @@ actor SanctuaryAPIClient {
 
     func register(_ request: APIAuthRegisterRequest) async throws -> APIAuthRegistrationResponse {
         try await performRequest(path: "/auth/register", method: "POST", body: request, token: nil)
+    }
+
+    func listChurchNews(locale: ContentLocale, limit: Int = 20) async throws -> [APIChurchNewsArticleResponse] {
+        try await performRequest(
+            path: "/content/news",
+            queryItems: [
+                URLQueryItem(name: "lang", value: locale.rawValue),
+                URLQueryItem(name: "limit", value: String(max(1, min(limit, 30))))
+            ],
+            method: "GET",
+            body: Optional<String>.none,
+            token: nil
+        )
     }
 
     func confirm(_ request: APIAuthConfirmRequest) async throws -> APIAuthStatusResponse {

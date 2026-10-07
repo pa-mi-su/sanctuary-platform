@@ -12,6 +12,7 @@ struct AppShellView: View {
     let environment: AppEnvironment
     @State private var selectedTab: AppTab = .home
     @State private var sharedContentLink: SharedContentLink?
+    @State private var hasPlayedHomeIntro = false
     @StateObject private var localization: LocalizationManager
     @StateObject private var accountStore: AccountSessionStore
     @StateObject private var progressStore: UserProgressStore
@@ -33,7 +34,7 @@ struct AppShellView: View {
 
     var body: some View {
         TabView(selection: $selectedTab) {
-            HomeView(environment: environment)
+            HomeView(environment: environment, hasPlayedIntro: $hasPlayedHomeIntro)
                 .tag(AppTab.home)
                 .tabItem {
                     Label(localization.t("tab.home"), systemImage: "house.fill")

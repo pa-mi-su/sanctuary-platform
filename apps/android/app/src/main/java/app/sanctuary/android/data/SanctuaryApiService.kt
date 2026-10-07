@@ -19,6 +19,12 @@ import java.io.IOException
 import java.util.concurrent.TimeUnit
 
 interface SanctuaryApiService {
+    @GET("content/news")
+    suspend fun listChurchNews(
+        @Query("lang") lang: String = "en",
+        @Query("limit") limit: Int = 20
+    ): List<ChurchNewsArticleResponse>
+
     @POST("auth/register")
     suspend fun register(@Body request: AuthRegisterRequest): AuthRegistrationResponse
 
