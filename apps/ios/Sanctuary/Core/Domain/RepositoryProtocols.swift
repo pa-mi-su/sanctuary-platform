@@ -5,6 +5,11 @@ struct FeastDateFilter: Sendable {
     let day: Int
 }
 
+protocol ChurchNewsRepository: Sendable {
+    func cachedArticles(locale: ContentLocale) async -> [ChurchNewsArticle]
+    func refreshArticles(locale: ContentLocale) async throws -> [ChurchNewsArticle]
+}
+
 protocol ContentRepository: Sendable {
     func listSaints(
         locale: ContentLocale,

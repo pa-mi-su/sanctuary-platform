@@ -20,6 +20,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.foundation.Canvas
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -34,6 +36,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -50,6 +53,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -63,6 +68,7 @@ import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SelfImprovement
 import androidx.compose.material.icons.filled.Share
@@ -120,7 +126,11 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.graphicsLayer
+import android.provider.Settings
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.painterResource
@@ -138,9 +148,12 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.core.content.ContextCompat
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
+import coil3.request.crossfade
 import java.time.LocalDate
+import java.time.OffsetDateTime
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
 import java.time.format.TextStyle
 import java.util.Locale
 import app.sanctuary.android.data.NovenaSummary
@@ -371,6 +384,11 @@ private enum class HomeAction(
     )
 }
 
+private data class HomeQuickAccessItem(
+    val action: HomeAction,
+    val onClick: () -> Unit
+)
+
 private enum class TermSearchMode {
     Intentions,
     Patronage
@@ -391,8 +409,10 @@ private fun SanctuaryApp(viewModel: MainViewModel) {
     val novenaDetail by viewModel.novenaDetail.collectAsState()
     val prayerDetail by viewModel.prayerDetail.collectAsState()
     val novenaProgress by viewModel.novenaProgress.collectAsState()
+    val churchNews by viewModel.churchNews.collectAsState()
     var selectedTab by rememberSaveable { mutableStateOf(AppTab.Home) }
     var showLanguagePicker by rememberSaveable { mutableStateOf(false) }
+    var hasPlayedHomeIntro by rememberSaveable { mutableStateOf(false) }
 
     CompositionLocalProvider(LocalSanctuaryStrings provides SanctuaryStrings(appLanguage)) {
         Box(
@@ -411,6 +431,9 @@ private fun SanctuaryApp(viewModel: MainViewModel) {
                     patronageTerms = patronageTerms,
                     prayers = prayers,
                     rosaries = rosaries,
+                    churchNews = churchNews,
+                    hasPlayedHomeIntro = hasPlayedHomeIntro,
+                    onHomeIntroComplete = { hasPlayedHomeIntro = true },
                     selectedLanguage = appLanguage,
                     onUpdateLanguage = {
                         viewModel.updateLanguage(it)
@@ -867,6 +890,9 @@ private fun AuthenticatedShell(
     patronageTerms: TermSearchUiState,
     prayers: ContentListUiState<PrayerSummary>,
     rosaries: ContentListUiState<PrayerSummary>,
+    churchNews: ChurchNewsUiState,
+    hasPlayedHomeIntro: Boolean,
+    onHomeIntroComplete: () -> Unit,
     selectedLanguage: AppLanguage,
     onUpdateLanguage: (AppLanguage) -> Unit,
     onShowLanguagePicker: () -> Unit,
@@ -922,7 +948,7 @@ private fun AuthenticatedShell(
     var showPrayerSearch by rememberSaveable { mutableStateOf(false) }
     var showRosarySearch by rememberSaveable { mutableStateOf(false) }
     var dailyReadingsUrl by rememberSaveable { mutableStateOf<String?>(null) }
-    var dailyReadingError by rememberSaveable { mutableStateOf<String?>(null) }
+    var todayLiturgicalDay by remember { mutableStateOf<app.sanctuary.android.data.LiturgicalDay?>(null) }
     var isLoadingDailyReadings by rememberSaveable { mutableStateOf(false) }
     var aboutDocument by rememberSaveable { mutableStateOf<AboutDocument?>(null) }
     var showAccountRequiredPrompt by rememberSaveable { mutableStateOf(false) }
@@ -945,6 +971,36 @@ private fun AuthenticatedShell(
     }
     var liturgicalCalendarMode by rememberSaveable { mutableStateOf(CalendarMode.Month) }
     val scope = rememberCoroutineScope()
+
+    fun openDailyReadings() {
+        isLoadingDailyReadings = true
+        scope.launch {
+            val today = LocalDate.now().toString()
+            runCatching { fetchLiturgicalRange(today, today) }
+                .onSuccess { days ->
+                    isLoadingDailyReadings = false
+                    val day = days.firstOrNull()
+                    if (day != null) todayLiturgicalDay = day
+                    dailyReadingsUrl = localizedDailyReadingsUrl(day?.readingsUrl, selectedLanguage)
+                }
+                .onFailure {
+                    isLoadingDailyReadings = false
+                    dailyReadingsUrl = localizedDailyReadingsUrl(null, selectedLanguage)
+                }
+        }
+    }
+
+    LaunchedEffect(selectedTab, selectedLanguage) {
+        if (selectedTab == AppTab.Home) {
+            while (true) {
+                onAction.refreshChurchNews(selectedLanguage.code)
+                val today = LocalDate.now().toString()
+                runCatching { fetchLiturgicalRange(today, today) }
+                    .onSuccess { days -> days.firstOrNull()?.let { todayLiturgicalDay = it } }
+                delay(15 * 60 * 1000L)
+            }
+        }
+    }
 
     LaunchedEffect(session.status, novenaProgress.isLoading) {
         if (
@@ -999,20 +1055,31 @@ private fun AuthenticatedShell(
         onTabSelected(AppTab.Me)
     }
 
+    val windowConfiguration = LocalConfiguration.current
+    val compactWindow = windowConfiguration.screenWidthDp < 380
+    val horizontalContentPadding = when {
+        windowConfiguration.screenWidthDp < 340 -> 14.dp
+        compactWindow -> 18.dp
+        else -> 24.dp
+    }
+
     Scaffold(
         containerColor = Color.Transparent,
         bottomBar = {
             Surface(
                 modifier = Modifier
-                    .padding(horizontal = 12.dp, vertical = 10.dp)
+                    .navigationBarsPadding()
+                    .padding(horizontal = if (compactWindow) 8.dp else 12.dp, vertical = 6.dp)
                     .shadow(18.dp, RoundedCornerShape(26.dp), clip = false),
                 shape = RoundedCornerShape(26.dp),
                 color = SanctuaryTabBackground,
                 border = androidx.compose.foundation.BorderStroke(1.dp, SanctuaryTabBorder.copy(alpha = 0.55f))
             ) {
                 NavigationBar(
+                    modifier = Modifier.height(68.dp),
                     containerColor = Color.Transparent,
-                    tonalElevation = 0.dp
+                    tonalElevation = 0.dp,
+                    windowInsets = WindowInsets(0, 0, 0, 0)
                 ) {
                     AppTab.entries.forEach { tab ->
                         NavigationBarItem(
@@ -1023,7 +1090,7 @@ private fun AuthenticatedShell(
                                     tab.label(l10n),
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
-                                    fontSize = 11.sp,
+                                    fontSize = if (compactWindow) 10.sp else 11.sp,
                                     lineHeight = 12.sp,
                                     textAlign = TextAlign.Center
                                 )
@@ -1051,90 +1118,71 @@ private fun AuthenticatedShell(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
-            contentPadding = PaddingValues(24.dp),
+            contentPadding = PaddingValues(horizontal = horizontalContentPadding, vertical = 24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             when (selectedTab) {
                 AppTab.Home -> {
                     item {
-                        HomeTopActions(
-                            language = selectedLanguage,
-                            onShowAbout = { showAbout = true }
-                            ,
-                            onShowLanguage = onShowLanguagePicker
-                        )
-                    }
-                    item {
-                        HomeHeroCard(session)
-                    }
-                    item {
-                        HomeFeatureCard(
-                            action = HomeAction.Daily,
-                            onClick = {
-                                isLoadingDailyReadings = true
-                                scope.launch {
-                                    val today = LocalDate.now().toString()
-                                    runCatching { fetchLiturgicalRange(today, today) }
-                                        .onSuccess { days ->
-                                            isLoadingDailyReadings = false
-                                            val readingsUrl = days.firstOrNull()?.readingsUrl
-                                            if (!readingsUrl.isNullOrBlank()) {
-                                                dailyReadingsUrl = readingsUrl
-                                            } else {
-                                                dailyReadingError = l10n.t("calendar.dailyReadingsMissing")
-                                            }
-                                        }
-                                        .onFailure {
-                                            isLoadingDailyReadings = false
-                                            dailyReadingError = it.message ?: l10n.t("calendar.dailyReadingsOpenError")
-                                        }
+                        val density = LocalDensity.current
+                        var toolbarHeightPx by remember { mutableStateOf(0) }
+                        val toolbarHeight = with(density) { toolbarHeightPx.toDp() }
+                        val viewportMinimumHeight = (
+                            windowConfiguration.screenHeightDp.dp -
+                                padding.calculateTopPadding() -
+                                padding.calculateBottomPadding() -
+                                48.dp
+                            ).coerceAtLeast(0.dp)
+                        val heroMinimumHeight = (viewportMinimumHeight - toolbarHeight - 16.dp)
+                            .coerceAtLeast(0.dp)
+
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = viewportMinimumHeight),
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            HomeTopActions(
+                                language = selectedLanguage,
+                                isBlooming = !hasPlayedHomeIntro,
+                                onShowAbout = { showAbout = true },
+                                onShowLanguage = onShowLanguagePicker,
+                                modifier = Modifier.onSizeChanged { toolbarHeightPx = it.height }
+                            )
+                            HomeHeroCard(
+                                articles = churchNews.articles,
+                                liturgicalDay = todayLiturgicalDay,
+                                language = selectedLanguage,
+                                quickActions = listOf(
+                                    HomeQuickAccessItem(HomeAction.Prayers) {
+                                        showPrayerSearch = true
+                                        if (prayers.items.isEmpty() && !prayers.isLoading) onReloadPrayers()
+                                    },
+                                    HomeQuickAccessItem(HomeAction.Rosary) {
+                                        showRosarySearch = true
+                                        if (rosaries.items.isEmpty() && !rosaries.isLoading) onReloadRosaries()
+                                    },
+                                    HomeQuickAccessItem(HomeAction.Intentions) {
+                                        showIntentionsSearch = true
+                                        if (intentionTerms.terms.isEmpty() && !intentionTerms.isLoading) onReloadIntentionTerms()
+                                    },
+                                    HomeQuickAccessItem(HomeAction.Patronage) {
+                                        showPatronageSearch = true
+                                        if (patronageTerms.terms.isEmpty() && !patronageTerms.isLoading) onReloadPatronageTerms()
+                                    }
+                                ),
+                                minimumHeight = heroMinimumHeight,
+                                hasPlayedIntro = hasPlayedHomeIntro,
+                                onIntroComplete = onHomeIntroComplete,
+                                onOpenReadings = ::openDailyReadings,
+                                onRefresh = { onAction.refreshChurchNews(selectedLanguage.code) },
+                                onOpenArticle = { article ->
+                                    runCatching {
+                                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(article.canonicalUrl)))
+                                    }
                                 }
-                            }
-                        )
-                    }
-                    item {
-                        HomeFeatureCard(
-                            action = HomeAction.Prayers,
-                            onClick = {
-                                showPrayerSearch = true
-                                if (prayers.items.isEmpty() && !prayers.isLoading) {
-                                    onReloadPrayers()
-                                }
-                            }
-                        )
-                    }
-                    item {
-                        HomeFeatureCard(
-                            action = HomeAction.Patronage,
-                            onClick = {
-                                showPatronageSearch = true
-                                if (patronageTerms.terms.isEmpty() && !patronageTerms.isLoading) {
-                                    onReloadPatronageTerms()
-                                }
-                            }
-                        )
-                    }
-                    item {
-                        HomeFeatureCard(
-                            action = HomeAction.Intentions,
-                            onClick = {
-                                showIntentionsSearch = true
-                                if (intentionTerms.terms.isEmpty() && !intentionTerms.isLoading) {
-                                    onReloadIntentionTerms()
-                                }
-                            }
-                        )
-                    }
-                    item {
-                        HomeFeatureCard(
-                            action = HomeAction.Rosary,
-                            onClick = {
-                                showRosarySearch = true
-                                if (rosaries.items.isEmpty() && !rosaries.isLoading) {
-                                    onReloadRosaries()
-                                }
-                            }
-                        )
+                            )
+                        }
                     }
                 }
 
@@ -1233,11 +1281,6 @@ private fun AuthenticatedShell(
             }
         }
 
-        dailyReadingError?.let { message ->
-            SanctuaryModalSheet(onDismissRequest = { dailyReadingError = null }) {
-                DetailErrorSheet(message = message, onDismiss = { dailyReadingError = null })
-            }
-        }
 
         if (isLoadingDailyReadings) {
             SanctuaryModalSheet(onDismissRequest = { isLoadingDailyReadings = false }) {
@@ -2181,58 +2224,474 @@ private fun initialsFor(name: String): String {
 }
 
 @Composable
-private fun HomeHeroCard(session: SessionUiState) {
+private fun HomeHeroCard(
+    articles: List<app.sanctuary.android.data.ChurchNewsArticle>,
+    liturgicalDay: app.sanctuary.android.data.LiturgicalDay?,
+    language: AppLanguage,
+    quickActions: List<HomeQuickAccessItem>,
+    minimumHeight: androidx.compose.ui.unit.Dp,
+    hasPlayedIntro: Boolean,
+    onIntroComplete: () -> Unit,
+    onOpenReadings: () -> Unit,
+    onRefresh: () -> Unit,
+    onOpenArticle: (app.sanctuary.android.data.ChurchNewsArticle) -> Unit
+) {
     val l10n = sanctuaryStrings()
-    Card(
-        colors = CardDefaults.cardColors(containerColor = Color(0xCC22394C)),
-        shape = RoundedCornerShape(28.dp)
-    ) {
+    val context = LocalContext.current
+    val animationsEnabled = remember {
+        runCatching {
+            Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) > 0f
+        }.getOrDefault(true)
+    }
+    var revealed by rememberSaveable { mutableStateOf(hasPlayedIntro || !animationsEnabled) }
+    LaunchedEffect(hasPlayedIntro, animationsEnabled) {
+        if (!revealed) {
+            kotlinx.coroutines.delay(120)
+            revealed = true
+        }
+        if (!hasPlayedIntro && animationsEnabled) kotlinx.coroutines.delay(950)
+        onIntroComplete()
+    }
+    val contentAlpha by animateFloatAsState(
+        targetValue = if (revealed) 1f else 0f,
+        animationSpec = tween(durationMillis = if (animationsEnabled) 620 else 0),
+        label = "home-content-alpha"
+    )
+    val density = LocalDensity.current
+    val fontScale = density.fontScale
+    var fixedContentHeightPx by remember { mutableStateOf(0) }
+    val fixedContentHeight = with(density) { fixedContentHeightPx.toDp() }
+    val newsMinimumHeight = maxOf(250.dp, minimumHeight - fixedContentHeight - 16.dp)
+    val fontScaleAllowance = ((fontScale - 1f).coerceIn(0f, 0.6f) * 90f).dp
+    val newsPageHeight = maxOf(196.dp + fontScaleAllowance, newsMinimumHeight - 134.dp)
+
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Column(
-            modifier = Modifier.padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+            modifier = Modifier.onSizeChanged { fixedContentHeightPx = it.height },
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text(
-                text = l10n.t("home.eyebrow"),
-                modifier = Modifier.fillMaxWidth(),
-                color = Color(0xFF7AC8EA),
-                style = MaterialTheme.typography.labelLarge,
-                textAlign = TextAlign.Center
+            ChurchTodayCard(
+                liturgicalDay = liturgicalDay,
+                language = language,
+                onOpenReadings = onOpenReadings,
+                modifier = Modifier.graphicsLayer { alpha = contentAlpha }
             )
+
+            HomeQuickAccessGrid(quickActions)
+        }
+
+        if (articles.isNotEmpty()) {
+            Card(
+                modifier = Modifier.fillMaxWidth().heightIn(min = newsMinimumHeight),
+                colors = CardDefaults.cardColors(containerColor = Color(0xCC22394C)),
+                shape = RoundedCornerShape(28.dp)
+            ) {
+                BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                    val newsPadding = when {
+                        maxWidth < 330.dp -> 16.dp
+                        maxWidth < 400.dp -> 20.dp
+                        else -> 24.dp
+                    }
+                    ChurchNewsCarousel(
+                        articles = articles,
+                        autoAdvanceEnabled = animationsEnabled,
+                        onRefresh = onRefresh,
+                        onOpenArticle = onOpenArticle,
+                        pageHeight = newsPageHeight,
+                        modifier = Modifier.padding(newsPadding)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ChurchTodayCard(
+    liturgicalDay: app.sanctuary.android.data.LiturgicalDay?,
+    language: AppLanguage,
+    onOpenReadings: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val l10n = sanctuaryStrings()
+    val colorName = liturgicalDay?.color?.lowercase() ?: "green"
+    val accent = when (colorName) {
+        "white" -> Color.White
+        "red" -> Color(0xFFE16A63)
+        "violet" -> Color(0xFFA886D7)
+        "rose" -> Color(0xFFD994B9)
+        else -> Color(0xFF4CAF70)
+    }
+    val date = runCatching { LocalDate.parse(liturgicalDay?.date ?: LocalDate.now().toString()) }
+        .getOrDefault(LocalDate.now())
+    val dateLabel = date.format(DateTimeFormatter.ofPattern("EEE, MMM d", language.locale)).uppercase(language.locale)
+    val rawTitle = liturgicalDay?.primaryRank ?: l10n.t("home.liturgicalFallback")
+    val title = if (rawTitle == "Memorial of Our Lady of the Rosary") {
+        l10n.t("liturgical.ourLadyRosary")
+    } else {
+        rawTitle
+    }
+
+    Card(
+        onClick = onOpenReadings,
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = Color(0xCC22394C)),
+        shape = RoundedCornerShape(24.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 15.dp, vertical = 13.dp),
+            horizontalArrangement = Arrangement.spacedBy(13.dp)
+        ) {
             Box(
                 modifier = Modifier
-                    .size(156.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                BrandLogoMark(size = 132.dp, corner = 30.dp, glowExtra = 44.dp)
+                    .width(5.dp)
+                    .height(104.dp)
+                    .shadow(7.dp, RoundedCornerShape(3.dp))
+                    .background(accent, RoundedCornerShape(3.dp))
+            )
+
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "✦  ${l10n.t("home.churchToday").uppercase(language.locale)}",
+                        color = Color(0xFFE7C76A),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.sp,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Text(dateLabel, color = Color(0xFFD0DFEA), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                }
+
+                Text(
+                    text = title,
+                    color = Color.White,
+                    fontSize = 19.sp,
+                    lineHeight = 23.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                    Box(modifier = Modifier.size(7.dp).background(accent, CircleShape))
+                    Text(
+                        text = "${l10n.t("liturgical.color.$colorName")}  •  ${l10n.t("home.calendarScope")}",
+                        color = Color(0xFFD0DFEA),
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = l10n.t("home.openReadings"),
+                        color = Color(0xFFE7C76A),
+                        fontSize = 12.5.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Icon(
+                        Icons.Filled.ChevronRight,
+                        contentDescription = null,
+                        tint = Color(0xFFE7C76A),
+                        modifier = Modifier.size(17.dp)
+                    )
+                }
             }
+        }
+    }
+}
+
+@Composable
+private fun HomeQuickAccessGrid(items: List<HomeQuickAccessItem>) {
+    val l10n = sanctuaryStrings()
+    val rows = listOf(items.take(2), items.drop(2)).filter { it.isNotEmpty() }
+    val fontScale = LocalDensity.current.fontScale
+
+    Card(
+        colors = CardDefaults.cardColors(containerColor = Color(0xCC22394C)),
+        shape = RoundedCornerShape(22.dp)
+    ) {
+        BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+            val compact = maxWidth < 330.dp || fontScale >= 1.3f
+            val artworkWidth = if (compact) 42.dp else 50.dp
+            val artworkHeight = if (compact) 34.dp else 38.dp
+            val actionHeight = if (compact) 56.dp else 60.dp
+
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(if (compact) 11.dp else 13.dp),
+                verticalArrangement = Arrangement.spacedBy(9.dp)
+            ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("✦", color = Color(0xFFE7C76A), fontSize = 14.sp)
+                    Text(
+                        l10n.t("home.quickAccess").uppercase(),
+                        color = Color(0xFFE7C76A),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.2.sp
+                    )
+                }
+
+                rows.forEach { row ->
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                        row.forEach { item ->
+                            Card(
+                                onClick = item.onClick,
+                                modifier = Modifier.weight(1f).height(actionHeight),
+                                colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.06f)),
+                                shape = RoundedCornerShape(15.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxSize().padding(horizontal = 7.dp, vertical = 6.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(if (compact) 6.dp else 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    HomeActionArtwork(
+                                        assetPath = requireNotNull(item.action.artworkAssetPath),
+                                        contentDescription = null,
+                                        modifier = Modifier
+                                            .size(width = artworkWidth, height = artworkHeight)
+                                            .clip(RoundedCornerShape(10.dp))
+                                            .border(1.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(10.dp))
+                                    )
+                                    Text(
+                                        l10n.t(item.action.titleKey),
+                                        color = Color.White,
+                                        fontSize = if (compact) 9.sp else 10.sp,
+                                        lineHeight = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        textAlign = TextAlign.Start,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ChurchNewsCarousel(
+    articles: List<app.sanctuary.android.data.ChurchNewsArticle>,
+    autoAdvanceEnabled: Boolean,
+    onRefresh: () -> Unit,
+    onOpenArticle: (app.sanctuary.android.data.ChurchNewsArticle) -> Unit,
+    pageHeight: androidx.compose.ui.unit.Dp,
+    modifier: Modifier = Modifier
+) {
+    val l10n = sanctuaryStrings()
+    val pagerState = rememberPagerState(pageCount = { articles.size })
+
+    LaunchedEffect(autoAdvanceEnabled, articles.size) {
+        if (!autoAdvanceEnabled || articles.size <= 1) return@LaunchedEffect
+
+        while (true) {
+            delay(10_000)
+            if (!pagerState.isScrollInProgress) {
+                pagerState.animateScrollToPage((pagerState.currentPage + 1) % articles.size)
+            }
+        }
+    }
+
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                text = l10n.t("home.welcome"),
-                modifier = Modifier.fillMaxWidth(),
-                color = Color.White,
-                fontSize = 34.sp,
-                lineHeight = 38.sp,
+                l10n.t("news.title"),
+                color = Color(0xFFE7C76A),
                 fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center
+                modifier = Modifier.weight(1f)
             )
             Text(
-                text = l10n.t("home.connect"),
-                modifier = Modifier.fillMaxWidth(),
-                color = Color(0xFFE7F2FA),
-                fontSize = 22.sp,
-                lineHeight = 28.sp,
-                fontWeight = FontWeight.SemiBold,
-                textAlign = TextAlign.Center
+                "${pagerState.currentPage + 1} / ${articles.size}",
+                color = Color(0xFFE7C76A),
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold
             )
-            Text(
-                text = l10n.t("home.supporting"),
-                modifier = Modifier.fillMaxWidth(),
-                color = Color(0xFFD0DFEA),
-                lineHeight = 22.sp,
-                textAlign = TextAlign.Center
+            IconButton(onClick = onRefresh) {
+                Icon(
+                    imageVector = androidx.compose.material.icons.Icons.Default.Refresh,
+                    contentDescription = l10n.t("news.refresh"),
+                    tint = Color(0xFFE7C76A)
+                )
+            }
+        }
+
+        HorizontalPager(
+            state = pagerState,
+            pageSpacing = 18.dp,
+            modifier = Modifier.fillMaxWidth().height(pageHeight)
+        ) { page ->
+            ChurchNewsPage(article = articles[page]) { onOpenArticle(articles[page]) }
+        }
+
+        BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+            val compactFooter = maxWidth < 320.dp
+            if (compactFooter) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    NewsSwipeLabel(l10n.t("news.swipe"))
+                    NewsPageIndicators(
+                        pageCount = articles.size,
+                        currentPage = pagerState.currentPage,
+                        modifier = Modifier.align(Alignment.CenterHorizontally)
+                    )
+                }
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    NewsSwipeLabel(l10n.t("news.swipe"))
+                    Spacer(Modifier.weight(1f))
+                    NewsPageIndicators(pageCount = articles.size, currentPage = pagerState.currentPage)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun NewsSwipeLabel(label: String) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(
+            label,
+            color = Color(0xFFE7C76A),
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Bold
+        )
+        Icon(
+            imageVector = Icons.Filled.ChevronRight,
+            contentDescription = null,
+            tint = Color(0xFFE7C76A),
+            modifier = Modifier.size(18.dp)
+        )
+    }
+}
+
+@Composable
+private fun NewsPageIndicators(
+    pageCount: Int,
+    currentPage: Int,
+    modifier: Modifier = Modifier
+) {
+    Row(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        repeat(pageCount) { index ->
+            Box(
+                modifier = Modifier
+                    .width(if (index == currentPage) 18.dp else 6.dp)
+                    .height(6.dp)
+                    .background(
+                        if (index == currentPage) Color(0xFFE7C76A) else Color.White.copy(alpha = 0.28f),
+                        CircleShape
+                    )
             )
         }
     }
+}
+
+@Composable
+private fun ChurchNewsPage(article: app.sanctuary.android.data.ChurchNewsArticle, onOpen: () -> Unit) {
+    BoxWithConstraints(modifier = Modifier.fillMaxSize().clickable(onClick = onOpen)) {
+        val fontScale = LocalDensity.current.fontScale
+        val compact = maxWidth < 300.dp || fontScale >= 1.3f
+        val imageWidth = (maxWidth * if (compact) 0.38f else 0.42f).coerceIn(92.dp, 132.dp)
+
+        Row(modifier = Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(if (compact) 9.dp else 12.dp)) {
+            Box(modifier = Modifier.width(imageWidth).fillMaxHeight()) {
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(article.imageUrl)
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = article.imageAlt,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(18.dp))
+                )
+                Text(
+                    article.imageCredit,
+                    color = Color.White,
+                    fontSize = 8.sp,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .background(Color.Black.copy(alpha = 0.68f), RoundedCornerShape(topStart = 8.dp))
+                        .padding(horizontal = 6.dp, vertical = 3.dp)
+                )
+            }
+            Column(modifier = Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    article.title,
+                    color = Color.White,
+                    fontSize = if (compact) 16.sp else 18.sp,
+                    lineHeight = if (compact) 19.sp else 21.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = if (compact) 3 else 4,
+                    overflow = TextOverflow.Ellipsis
+                )
+                if (article.summary.isNotBlank()) {
+                    Text(
+                        article.summary,
+                        color = Color(0xFFD0DFEA),
+                        fontSize = 11.sp,
+                        lineHeight = 14.sp,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                Spacer(Modifier.weight(1f))
+                val l10n = sanctuaryStrings()
+                Text(
+                    if (article.language == l10n.language.code) article.sourceName else "${article.sourceName} • ${article.language.uppercase()}",
+                    color = Color(0xFFE7C76A),
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    "${article.licenseName} • ${formatNewsDate(article.publishedAt, l10n.language)}",
+                    color = Color(0xFFE7C76A),
+                    fontSize = 10.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+    }
+}
+
+private fun localizedDailyReadingsUrl(raw: String?, language: AppLanguage): String? {
+    if (raw.isNullOrBlank()) {
+        return if (language == AppLanguage.Spanish) {
+            "https://bible.usccb.org/es/daily-bible-reading"
+        } else {
+            "https://bible.usccb.org/daily-bible-reading"
+        }
+    }
+    if (language != AppLanguage.Spanish || raw.contains("/es/")) return raw
+    return if (raw.startsWith("https://bible.usccb.org/bible/readings/")) {
+        raw.replace(
+            "https://bible.usccb.org/bible/readings/",
+            "https://bible.usccb.org/es/bible/lecturas/"
+        )
+    } else {
+        raw
+    }
+}
+
+private fun formatNewsDate(raw: String, language: AppLanguage): String {
+    val formatter = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(language.locale)
+    return runCatching { OffsetDateTime.parse(raw).toLocalDate().format(formatter) }
+        .recoverCatching { LocalDate.parse(raw.take(10)).format(formatter) }
+        .getOrDefault(raw.take(10))
 }
 
 @Composable
@@ -2464,59 +2923,80 @@ private fun BrandLogoMark(
 @Composable
 private fun HomeTopActions(
     language: AppLanguage,
+    isBlooming: Boolean,
     onShowAbout: () -> Unit,
-    onShowLanguage: () -> Unit
+    onShowLanguage: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val l10n = sanctuaryStrings()
+    val logoScale by animateFloatAsState(
+        targetValue = if (isBlooming) 0.72f else 1f,
+        animationSpec = tween(durationMillis = 760),
+        label = "toolbar-logo-scale"
+    )
     Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        TopPillButton(
-            modifier = Modifier.weight(1f),
-            title = l10n.t("home.about"),
-            icon = Icons.Filled.Info,
-            onClick = onShowAbout
+        Box(modifier = Modifier.size(40.dp), contentAlignment = Alignment.Center) {
+            Box(
+                modifier = Modifier
+                    .size(if (isBlooming) 50.dp else 40.dp)
+                    .blur(if (isBlooming) 10.dp else 6.dp)
+                    .background(Color(0xFFE7C76A).copy(alpha = if (isBlooming) 0.55f else 0.14f), CircleShape)
+            )
+            Box(modifier = Modifier.scale(logoScale)) {
+                BrandLogoMark(size = 34.dp, corner = 9.dp, glowExtra = 8.dp)
+            }
+        }
+        Text(
+            text = "Sanctuary",
+            color = Color.White,
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.weight(1f)
         )
-        TopPillButton(
-            modifier = Modifier.weight(1f),
-            title = "${l10n.t("home.language")}: ${language.displayName}",
+        CompactTopButton(
+            title = language.code.uppercase(),
             icon = Icons.Filled.Language,
+            contentDescription = "${l10n.t("home.language")}: ${language.displayName}",
             onClick = onShowLanguage
+        )
+        CompactTopButton(
+            title = null,
+            icon = Icons.Filled.Info,
+            contentDescription = l10n.t("home.about"),
+            onClick = onShowAbout
         )
     }
 }
 
 @Composable
-private fun TopPillButton(
-    modifier: Modifier = Modifier,
-    title: String,
+private fun CompactTopButton(
+    title: String?,
     icon: ImageVector,
+    contentDescription: String,
     onClick: () -> Unit
 ) {
     Card(
-        modifier = modifier,
+        modifier = Modifier.height(40.dp),
         colors = CardDefaults.cardColors(containerColor = Color(0x1222394C)),
-        shape = RoundedCornerShape(18.dp),
+        shape = CircleShape,
         onClick = onClick
     ) {
         Row(
             modifier = Modifier
                 .background(Color.White.copy(alpha = 0.08f))
-                .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(18.dp))
-                .padding(horizontal = 14.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                .border(1.dp, Color.White.copy(alpha = 0.12f), CircleShape)
+                .padding(horizontal = if (title == null) 12.dp else 11.dp, vertical = 9.dp),
+            horizontalArrangement = Arrangement.spacedBy(5.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(
-                modifier = Modifier
-                    .size(26.dp)
-                    .background(Color.White.copy(alpha = 0.08f), CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(icon, contentDescription = title, tint = Color(0xFFD0DFEA), modifier = Modifier.size(13.dp))
+            Icon(icon, contentDescription = contentDescription, tint = Color(0xFFD0DFEA), modifier = Modifier.size(15.dp))
+            title?.let {
+                Text(it, color = Color.White.copy(alpha = 0.9f), fontWeight = FontWeight.Bold, fontSize = 12.sp)
             }
-            Text(title, color = Color.White.copy(alpha = 0.9f), fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
         }
     }
 }
@@ -2854,7 +3334,7 @@ private fun HomeFeatureArtwork(
 @Composable
 private fun HomeActionArtwork(
     assetPath: String,
-    contentDescription: String,
+    contentDescription: String?,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current

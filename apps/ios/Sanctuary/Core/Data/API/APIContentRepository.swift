@@ -1,7 +1,87 @@
 import Foundation
 
+actor APIChurchNewsRepository: ChurchNewsRepository {
+    private let apiClient: SanctuaryAPIClient
+    private let cacheRoot: URL
+
+    init(apiClient: SanctuaryAPIClient) {
+        self.apiClient = apiClient
+        self.cacheRoot = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
+    }
+
+    func cachedArticles(locale: ContentLocale) async -> [ChurchNewsArticle] {
+        let cacheURL = cacheURL(for: locale)
+        guard let data = try? Data(contentsOf: cacheURL),
+              let envelope = try? JSONDecoder.sanctuaryNews.decode(NewsCacheEnvelope.self, from: data),
+              Date().timeIntervalSince(envelope.savedAt) < 7 * 24 * 60 * 60
+        else { return [] }
+        return envelope.articles
+    }
+
+    func refreshArticles(locale: ContentLocale) async throws -> [ChurchNewsArticle] {
+        let responses = try await apiClient.listChurchNews(locale: locale)
+        let articles: [ChurchNewsArticle] = responses.compactMap { response -> ChurchNewsArticle? in
+            guard let canonicalURL = URL(string: response.canonicalUrl),
+                  canonicalURL.scheme == "https",
+                  let imageURL = URL(string: response.imageUrl), imageURL.scheme == "https",
+                  let licenseURL = URL(string: response.licenseUrl), licenseURL.scheme == "https"
+            else { return nil }
+            return ChurchNewsArticle(
+                id: response.id,
+                title: response.title,
+                summary: response.summary,
+                sourceName: response.sourceName,
+                canonicalURL: canonicalURL,
+                imageURL: imageURL,
+                imageAlt: response.imageAlt,
+                imageCredit: response.imageCredit,
+                licenseName: response.licenseName,
+                licenseURL: licenseURL,
+                publishedAt: response.publishedAt,
+                language: response.language
+            )
+        }
+        let envelope = NewsCacheEnvelope(savedAt: Date(), articles: articles)
+        if !articles.isEmpty, let data = try? JSONEncoder.sanctuaryNews.encode(envelope) {
+            let cacheURL = cacheURL(for: locale)
+            try? FileManager.default.createDirectory(
+                at: cacheURL.deletingLastPathComponent(),
+                withIntermediateDirectories: true
+            )
+            try? data.write(to: cacheURL, options: Data.WritingOptions.atomic)
+        }
+        return articles
+    }
+
+    private func cacheURL(for locale: ContentLocale) -> URL {
+        cacheRoot.appendingPathComponent("church-news-v2-\(locale.rawValue).json")
+    }
+
+    private struct NewsCacheEnvelope: Codable {
+        let savedAt: Date
+        let articles: [ChurchNewsArticle]
+    }
+}
+
+private extension JSONDecoder {
+    nonisolated static var sanctuaryNews: JSONDecoder {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return decoder
+    }
+}
+
+private extension JSONEncoder {
+    nonisolated static var sanctuaryNews: JSONEncoder {
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        return encoder
+    }
+}
+
 actor APIContentRepository: ContentRepository, SaintRangeRepository {
     private let apiClient: SanctuaryAPIClient
+    private let cacheRoot: URL
     private let apiDayCalendar: Calendar = {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = .autoupdatingCurrent
@@ -10,6 +90,7 @@ actor APIContentRepository: ContentRepository, SaintRangeRepository {
 
     init(apiClient: SanctuaryAPIClient) {
         self.apiClient = apiClient
+        self.cacheRoot = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
     }
 
     func listSaints(
@@ -175,7 +256,53 @@ actor APIContentRepository: ContentRepository, SaintRangeRepository {
     }
 
     func fetchLiturgicalDay(for date: Date) async throws -> LiturgicalDay? {
-        mapLiturgicalDay(try await apiClient.fetchLiturgicalDay(date: date))
+        do {
+            let day = mapLiturgicalDay(try await apiClient.fetchLiturgicalDay(date: date))
+            if let day {
+                persistLiturgicalDay(day, for: date)
+            }
+            return day ?? cachedLiturgicalDay(for: date)
+        } catch {
+            if let cached = cachedLiturgicalDay(for: date) {
+                return cached
+            }
+            throw error
+        }
+    }
+
+    private func persistLiturgicalDay(_ day: LiturgicalDay, for date: Date) {
+        guard apiDayCalendar.isDate(day.date, inSameDayAs: date),
+              let data = try? JSONEncoder.sanctuaryNews.encode(day)
+        else { return }
+
+        let cacheURL = liturgicalDayCacheURL(for: date)
+        try? FileManager.default.createDirectory(
+            at: cacheURL.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        try? data.write(to: cacheURL, options: .atomic)
+    }
+
+    private func cachedLiturgicalDay(for date: Date) -> LiturgicalDay? {
+        let cacheURL = liturgicalDayCacheURL(for: date)
+        guard let data = try? Data(contentsOf: cacheURL),
+              let day = try? JSONDecoder.sanctuaryNews.decode(LiturgicalDay.self, from: data),
+              apiDayCalendar.isDate(day.date, inSameDayAs: date)
+        else { return nil }
+        return day
+    }
+
+    private func liturgicalDayCacheURL(for date: Date) -> URL {
+        let components = apiDayCalendar.dateComponents([.year, .month, .day], from: date)
+        let key = String(
+            format: "%04d-%02d-%02d",
+            components.year ?? 0,
+            components.month ?? 0,
+            components.day ?? 0
+        )
+        return cacheRoot
+            .appendingPathComponent("liturgical-day-v1", isDirectory: true)
+            .appendingPathComponent("\(key).json")
     }
 
     private func mapSaintSummary(
@@ -339,8 +466,28 @@ actor APIContentRepository: ContentRepository, SaintRangeRepository {
             season: season,
             rank: response.primaryRank,
             observances: response.observances,
-            readingURL: url(from: response.readingsUrl)
+            readingURL: url(from: response.readingsUrl),
+            rankType: response.rankType,
+            color: response.color ?? defaultLiturgicalColor(
+                for: season,
+                rankType: response.rankType,
+                title: response.primaryRank
+            )
         )
+    }
+
+    private func defaultLiturgicalColor(for season: LiturgicalSeason, rankType: String, title: String) -> String {
+        if title.contains("Palm Sunday") || title.contains("Good Friday") || title.contains("Pentecost") {
+            return "RED"
+        }
+        if ["SOLEMNITY", "FEAST", "MEMORIAL"].contains(rankType.uppercased()) {
+            return "WHITE"
+        }
+        switch season {
+        case .advent, .lent: return "VIOLET"
+        case .christmas, .easter: return "WHITE"
+        case .ordinary: return "GREEN"
+        }
     }
 
     private func mapPrayerSummary(_ response: APIPrayerSummaryResponse, locale: ContentLocale) -> Prayer {
