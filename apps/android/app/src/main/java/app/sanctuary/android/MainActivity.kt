@@ -2253,6 +2253,7 @@ private fun HomeHeroCard(
         }.getOrDefault(true)
     }
     var revealed by rememberSaveable { mutableStateOf(hasPlayedIntro || !animationsEnabled) }
+    var showOfficialVatican by rememberSaveable { mutableStateOf(true) }
     LaunchedEffect(hasPlayedIntro, animationsEnabled) {
         if (!revealed) {
             kotlinx.coroutines.delay(120)
@@ -2300,12 +2301,20 @@ private fun HomeHeroCard(
                     maxWidth < 400.dp -> 20.dp
                     else -> 24.dp
                 }
-                if (articles.isNotEmpty()) {
+                if (showOfficialVatican) {
+                    VaticanNewsHomeCard(
+                        language = language,
+                        height = newsPageHeight,
+                        onShowFides = { showOfficialVatican = false },
+                        onExpand = onOpenVaticanNews,
+                        modifier = Modifier.padding(newsPadding)
+                    )
+                } else if (articles.isNotEmpty()) {
                     ChurchNewsCarousel(
                         articles = articles,
                         autoAdvanceEnabled = animationsEnabled,
                         onRefresh = onRefresh,
-                        onOpenVaticanNews = onOpenVaticanNews,
+                        onOpenVaticanNews = { showOfficialVatican = true },
                         onOpenArticle = onOpenArticle,
                         pageHeight = newsPageHeight,
                         modifier = Modifier.padding(newsPadding)
@@ -2317,6 +2326,69 @@ private fun HomeHeroCard(
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun VaticanNewsHomeCard(
+    language: AppLanguage,
+    height: androidx.compose.ui.unit.Dp,
+    onShowFides: () -> Unit,
+    onExpand: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val l10n = sanctuaryStrings()
+    Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    l10n.t("news.title"),
+                    color = Color(0xFFE7C76A),
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.2.sp
+                )
+                Text(
+                    l10n.t("news.vaticanTitle"),
+                    color = Color(0xFFE7C76A),
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+            Button(
+                onClick = onShowFides,
+                colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.08f)),
+                contentPadding = PaddingValues(horizontal = 9.dp, vertical = 3.dp)
+            ) {
+                Text(
+                    l10n.t("news.fidesPhotos"),
+                    color = Color(0xFFE7C76A),
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1
+                )
+            }
+        }
+
+        VaticanNewsWidgetWebView(language = language, height = maxOf(250.dp, height))
+
+        Row(
+            modifier = Modifier.fillMaxWidth().clickable(onClick = onExpand),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                l10n.t("news.vaticanHosted"),
+                color = Color(0xFFE7C76A),
+                fontSize = 10.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.weight(1f)
+            )
+            Icon(
+                Icons.Filled.ChevronRight,
+                contentDescription = null,
+                tint = Color(0xFFE7C76A),
+                modifier = Modifier.size(18.dp)
+            )
         }
     }
 }
@@ -2543,7 +2615,20 @@ private fun ChurchNewsCarousel(
     modifier: Modifier = Modifier
 ) {
     val l10n = sanctuaryStrings()
-    val pagerState = rememberPagerState(pageCount = { articles.size })
+    val circularPaging = articles.size > 1
+    val initialPage = remember(articles.size) {
+        if (circularPaging) {
+            val midpoint = Int.MAX_VALUE / 2
+            midpoint - (midpoint % articles.size)
+        } else {
+            0
+        }
+    }
+    val pagerState = rememberPagerState(
+        initialPage = initialPage,
+        pageCount = { if (circularPaging) Int.MAX_VALUE else articles.size }
+    )
+    val actualPage = if (articles.isEmpty()) 0 else pagerState.currentPage % articles.size
 
     LaunchedEffect(autoAdvanceEnabled, articles.size) {
         if (!autoAdvanceEnabled || articles.size <= 1) return@LaunchedEffect
@@ -2551,7 +2636,7 @@ private fun ChurchNewsCarousel(
         while (true) {
             delay(10_000)
             if (!pagerState.isScrollInProgress) {
-                pagerState.animateScrollToPage((pagerState.currentPage + 1) % articles.size)
+                pagerState.animateScrollToPage(pagerState.currentPage + 1)
             }
         }
     }
@@ -2578,7 +2663,7 @@ private fun ChurchNewsCarousel(
                 )
             }
             Text(
-                "${pagerState.currentPage + 1} / ${articles.size}",
+                "${actualPage + 1} / ${articles.size}",
                 color = Color(0xFFE7C76A),
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold
@@ -2597,7 +2682,8 @@ private fun ChurchNewsCarousel(
             pageSpacing = 18.dp,
             modifier = Modifier.fillMaxWidth().height(pageHeight)
         ) { page ->
-            ChurchNewsPage(article = articles[page]) { onOpenArticle(articles[page]) }
+            val article = articles[page % articles.size]
+            ChurchNewsPage(article = article) { onOpenArticle(article) }
         }
 
         BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
@@ -2607,7 +2693,7 @@ private fun ChurchNewsCarousel(
                     NewsSwipeLabel(l10n.t("news.swipe"))
                     NewsPageIndicators(
                         pageCount = articles.size,
-                        currentPage = pagerState.currentPage,
+                        currentPage = actualPage,
                         modifier = Modifier.align(Alignment.CenterHorizontally)
                     )
                 }
@@ -2619,7 +2705,7 @@ private fun ChurchNewsCarousel(
                 ) {
                     NewsSwipeLabel(l10n.t("news.swipe"))
                     Spacer(Modifier.weight(1f))
-                    NewsPageIndicators(pageCount = articles.size, currentPage = pagerState.currentPage)
+                    NewsPageIndicators(pageCount = articles.size, currentPage = actualPage)
                 }
             }
         }
@@ -5358,7 +5444,10 @@ private fun VaticanNewsWidgetSheet(language: AppLanguage) {
 
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
-private fun VaticanNewsWidgetWebView(language: AppLanguage) {
+private fun VaticanNewsWidgetWebView(
+    language: AppLanguage,
+    height: androidx.compose.ui.unit.Dp = 620.dp
+) {
     val supportedLanguage = when (language) {
         AppLanguage.English -> "en"
         AppLanguage.Spanish -> "es"
@@ -5386,7 +5475,7 @@ private fun VaticanNewsWidgetWebView(language: AppLanguage) {
         shape = RoundedCornerShape(24.dp)
     ) {
         AndroidView(
-            modifier = Modifier.fillMaxWidth().height(620.dp),
+            modifier = Modifier.fillMaxWidth().height(height),
             factory = { context ->
                 WebView(context).apply {
                     webViewClient = object : WebViewClient() {
@@ -5408,6 +5497,15 @@ private fun VaticanNewsWidgetWebView(language: AppLanguage) {
                     isHorizontalScrollBarEnabled = false
                     overScrollMode = View.OVER_SCROLL_IF_CONTENT_SCROLLS
                     setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                    setOnTouchListener { view, event ->
+                        when (event.actionMasked) {
+                            MotionEvent.ACTION_DOWN,
+                            MotionEvent.ACTION_MOVE -> view.parent?.requestDisallowInterceptTouchEvent(true)
+                            MotionEvent.ACTION_UP,
+                            MotionEvent.ACTION_CANCEL -> view.parent?.requestDisallowInterceptTouchEvent(false)
+                        }
+                        false
+                    }
                     tag = supportedLanguage
                     loadDataWithBaseURL(
                         "https://www.vaticannews.va/",
