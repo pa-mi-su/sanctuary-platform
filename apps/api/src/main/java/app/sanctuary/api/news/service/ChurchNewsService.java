@@ -25,18 +25,6 @@ public class ChurchNewsService {
     private static final Logger LOGGER = LoggerFactory.getLogger(ChurchNewsService.class);
     private static final String FIDES_LICENSE_NAME = "CC BY 4.0";
     private static final String FIDES_LICENSE_URL = "https://creativecommons.org/licenses/by/4.0/";
-    private static final Source EWTN_ENGLISH = new Source(
-        "en", "EWTN News", "https://www.ewtnnews.com/rss", "www.ewtnnews.com",
-        Set.of("res.cloudinary.com"), "Read original", false
-    );
-    private static final Source EWTN_SPANISH = new Source(
-        "es", "ACI Prensa", "https://www.aciprensa.com/rss/news", "www.aciprensa.com",
-        Set.of("res.cloudinary.com"), "Leer original", false
-    );
-    private static final Source EWTN_POLISH = new Source(
-        "pl", "EWTN Polska", "https://ewtn.pl/feed/", "ewtn.pl",
-        Set.of("ewtn.pl"), "Czytaj u źródła", false
-    );
     private static final Source FIDES_ENGLISH = new Source(
         "en", "Agenzia Fides", "https://www.fides.org/en/news/rss", "www.fides.org",
         Set.of("www.fides.org"), FIDES_LICENSE_NAME, true
@@ -74,9 +62,8 @@ public class ChurchNewsService {
 
     @Scheduled(fixedDelayString = "${sanctuary.news.refresh-ms:600000}")
     void scheduledRefresh() {
-        refreshAndCache(EWTN_ENGLISH);
-        refreshAndCache(EWTN_SPANISH);
-        refreshAndCache(EWTN_POLISH);
+        refreshAndCache(FIDES_ENGLISH);
+        refreshAndCache(FIDES_SPANISH);
     }
 
     private List<ChurchNewsArticleDto> refresh(Source source) {
@@ -149,9 +136,8 @@ public class ChurchNewsService {
 
     private Source sourceFor(String language) {
         return switch (language) {
-            case "es" -> EWTN_SPANISH;
-            case "pl" -> EWTN_POLISH;
-            default -> EWTN_ENGLISH;
+            case "es" -> FIDES_SPANISH;
+            default -> FIDES_ENGLISH;
         };
     }
 

@@ -1,16 +1,21 @@
 # Around the Church source policy
 
-`Around the Church` is a link-preview reader. It may ingest only official
-publisher syndication feeds. Sanctuary stores no article body and does not copy
-publisher images into Sanctuary storage. A card shows the publisher-supplied
-headline, short description and feed thumbnail, identifies the publisher, and
-opens the canonical publisher page. Every article and image hostname must be
-explicitly allowlisted in the API. The mobile clients consume only the
-normalized Sanctuary API response.
+`Around the Church` has two deliberately separate delivery paths:
+
+1. The official Vatican News web component is loaded directly from
+   `https://www.vaticannews.va/widget.js` in an isolated in-app browser. Vatican
+   News remains the renderer and host of that content; Sanctuary does not parse,
+   copy, normalize, or cache it.
+2. The native photo carousel consumes only Agenzia Fides material whose article
+   pages state that site content is available under CC BY 4.0. Sanctuary stores
+   no article body and does not copy publisher images into Sanctuary storage.
+
+The two paths must not be conflated: the Vatican widget is an official embed,
+not permission to ingest Vatican RSS content.
 
 ## Delivery and personalization
 
-- The API refreshes each approved language feed every 10 minutes and retains
+- The API refreshes each approved Fides language feed every 10 minutes and retains
   the last successful result if a publisher is temporarily unavailable.
 - API responses may be cached publicly for up to 10 minutes. While the Home
   screen is active, the mobile apps request updated results every 15 minutes;
@@ -18,27 +23,20 @@ normalized Sanctuary API response.
 - The carousel advances every 10 seconds and restarts that interval after a
   manual swipe. Users who enable reduced motion do not receive automatic page
   animation on iOS.
-- Selection is based only on the language chosen in Sanctuary: English uses
-  EWTN News, Spanish uses ACI Prensa, and Polish uses EWTN Polska. The news
-  endpoint does not receive or inspect a ZIP code, GPS position, state, or
-  country. Users in different regions therefore see the same global Catholic
-  feed for the same selected language.
+- The Vatican widget receives only Sanctuary's selected language (`en`, `es`,
+  or `pl`). The Fides native carousel uses English or Spanish; Polish currently
+  falls back to the English Fides feed and labels it `EN`. Neither path receives
+  a ZIP code, GPS position, state, or country.
 
 ## Approved
 
-- **EWTN News** — primary English source. Its official RSS feed is
-  `https://www.ewtnnews.com/rss` and supplies current headlines, concise
-  descriptions, canonical article links, exact story thumbnails and photo
-  credits. Sanctuary displays those values as a linked preview and loads images
-  directly from EWTN's `res.cloudinary.com` host.
-- **ACI Prensa** — primary Spanish source. Its official RSS feed is
-  `https://www.aciprensa.com/rss/news` and supplies Spanish headlines,
-  descriptions, canonical links and exact story thumbnails hosted by EWTN.
-- **EWTN Polska** — primary Polish source. Its official RSS feed is
-  `https://ewtn.pl/feed/` and supplies Polish headlines, descriptions,
-  canonical links and story thumbnails hosted by `ewtn.pl`.
-- **Agenzia Fides** — automatic fallback only when the appropriate EWTN feed is
-  unavailable. It is the official news service of the Pontifical Mission Societies.
+- **Vatican News Widget** — official hosted experience supplied by Vatican News
+  at `https://www.vaticannews.va/widget/embed.html`. Sanctuary uses the vendor's
+  unmodified web component with mobile mode and 10-second automatic video
+  rotation. It supports English, Spanish, and Polish.
+- **Agenzia Fides** — source for Sanctuary's native photo carousel, which remains
+  independently available when the Vatican widget cannot load. It is the
+  official news service of the Pontifical Mission Societies.
   English and Spanish RSS feeds are published at
   `https://www.fides.org/en/news/rss` and
   `https://www.fides.org/es/news/rss`. Fides states on every article page that
@@ -50,10 +48,14 @@ normalized Sanctuary API response.
 
 ## Not approved
 
-- **Vatican News** — its public legal notice prohibits reproduction and
-  collection of portal content and requires written authorization for links.
-  Do not add Vatican News content or links unless Sanctuary receives written
-  authorization from the Dicastery for Communication.
+- **Vatican News RSS ingestion** — the official widget is approved for embedding;
+  it does not authorize parsing or republishing Vatican RSS text or photographs.
+- **EWTN News / CNA / ACI Prensa / EWTN Polska** — an RSS endpoint is not itself
+  a license to reproduce publisher text or photographs. Keep these sources out
+  of the native carousel until Sanctuary has written syndication permission.
+- **OSV News, National Catholic Register, and Catholic Online** — do not enable
+  them merely because a feed exists. Record explicit reuse terms or written
+  permission first.
 - **Polish Bishops' Conference (episkopat.pl)** — the RSS page states that the
   feed grants no reuse license beyond personal use. Written permission is
   required before it can be enabled.
