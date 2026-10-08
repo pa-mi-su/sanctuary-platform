@@ -301,7 +301,10 @@ actor SanctuaryAPIClient {
         let formatter = DateFormatter()
         formatter.calendar = Calendar(identifier: .gregorian)
         formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        // Calendar endpoints represent the day the user is currently living,
+        // not the UTC day. Using GMT here caused evening requests in the
+        // Americas to advance to tomorrow's liturgical observance.
+        formatter.timeZone = .autoupdatingCurrent
         formatter.dateFormat = "yyyy-MM-dd"
         self.queryDateFormatter = formatter
     }
