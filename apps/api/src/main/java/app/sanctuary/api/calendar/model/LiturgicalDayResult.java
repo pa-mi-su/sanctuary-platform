@@ -10,6 +10,7 @@ public record LiturgicalDayResult(
     String primaryRank,
     List<String> observances,
     URI readingsUrl,
-    RankType rankType
+    RankType rankType,
+    LiturgicalColor color
 ) {
 }

@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import java.time.Instant
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -11,6 +13,9 @@ class SessionRepository(
     context: Context,
     private val api: SanctuaryApiService
 ) {
+    private val newsPreferences = context.getSharedPreferences("sanctuary_news_cache_v2", Context.MODE_PRIVATE)
+    private val liturgicalPreferences = context.getSharedPreferences("sanctuary_liturgical_cache_v1", Context.MODE_PRIVATE)
+    private val gson = Gson()
     private val preferences = EncryptedSharedPreferences.create(
         context,
         "sanctuary_session",
@@ -51,6 +56,52 @@ class SessionRepository(
     }
 
     fun currentLanguage(): String = preferences.getString(languageKey, null)?.ifBlank { null } ?: "en"
+
+    fun cachedChurchNews(language: String = currentLanguage()): List<ChurchNewsArticle> {
+        val normalizedLanguage = language.lowercase().takeIf { it in setOf("en", "es", "pl") } ?: "en"
+        val savedAt = newsPreferences.getLong("saved_at_$normalizedLanguage", 0L)
+        if (System.currentTimeMillis() - savedAt > 7L * 24 * 60 * 60 * 1000) return emptyList()
+        val json = newsPreferences.getString("articles_$normalizedLanguage", null) ?: return emptyList()
+        return runCatching {
+            val type = object : TypeToken<List<ChurchNewsArticle>>() {}.type
+            gson.fromJson<List<ChurchNewsArticle>>(json, type).orEmpty()
+        }.getOrDefault(emptyList())
+    }
+
+    suspend fun refreshChurchNews(language: String = currentLanguage()): List<ChurchNewsArticle> = withContext(Dispatchers.IO) {
+        val normalizedLanguage = language.lowercase().takeIf { it in setOf("en", "es", "pl") } ?: "en"
+        val articles = runApiCall { api.listChurchNews(lang = normalizedLanguage, limit = 20) }
+            .filter {
+                isHttpsUrl(it.canonicalUrl) && isHttpsUrl(it.imageUrl) && isHttpsUrl(it.licenseUrl)
+            }
+            .map { article ->
+                ChurchNewsArticle(
+                    id = article.id,
+                    title = article.title,
+                    summary = article.summary,
+                    sourceName = article.sourceName,
+                    canonicalUrl = article.canonicalUrl,
+                    imageUrl = article.imageUrl,
+                    imageAlt = article.imageAlt,
+                    imageCredit = article.imageCredit,
+                    licenseName = article.licenseName,
+                    licenseUrl = article.licenseUrl,
+                    publishedAt = article.publishedAt,
+                    language = article.language
+                )
+            }
+        if (articles.isNotEmpty()) {
+            newsPreferences.edit()
+                .putLong("saved_at_$normalizedLanguage", System.currentTimeMillis())
+                .putString("articles_$normalizedLanguage", gson.toJson(articles))
+                .apply()
+        }
+        articles
+    }
+
+    private fun isHttpsUrl(raw: String): Boolean = runCatching {
+        java.net.URI.create(raw).scheme.equals("https", ignoreCase = true)
+    }.getOrDefault(false)
 
     suspend fun updatePreferredLanguage(language: String): UserProfile? = withContext(Dispatchers.IO) {
         persistLanguage(language)
@@ -427,17 +478,49 @@ class SessionRepository(
     }
 
     suspend fun listLiturgicalRange(start: String, end: String): List<LiturgicalDay> = withContext(Dispatchers.IO) {
-        runApiCall { api.listLiturgicalRange(start = start, end = end) }
-            .map { day ->
-                LiturgicalDay(
-                    date = day.date,
-                    season = day.season,
-                    primaryRank = day.primaryRank,
-                    observances = day.observances,
-                    readingsUrl = day.readingsUrl,
-                    rankType = day.rankType
-                )
+        try {
+            val days = runApiCall { api.listLiturgicalRange(start = start, end = end) }
+                .map { day ->
+                    LiturgicalDay(
+                        date = day.date,
+                        season = day.season,
+                        primaryRank = day.primaryRank,
+                        observances = day.observances,
+                        readingsUrl = day.readingsUrl,
+                        rankType = day.rankType,
+                        color = day.color ?: defaultLiturgicalColor(day)
+                    )
+                }
+            if (start == end && days.size == 1) {
+                liturgicalPreferences.edit()
+                    .putString("day_$start", gson.toJson(days.first()))
+                    .apply()
             }
+            if (days.isEmpty() && start == end) cachedLiturgicalDay(start)?.let(::listOf) ?: days else days
+        } catch (error: SanctuaryApiException) {
+            if (start == end) cachedLiturgicalDay(start)?.let { return@withContext listOf(it) }
+            throw error
+        }
+    }
+
+    private fun cachedLiturgicalDay(date: String): LiturgicalDay? {
+        val json = liturgicalPreferences.getString("day_$date", null) ?: return null
+        return runCatching { gson.fromJson(json, LiturgicalDay::class.java) }.getOrNull()
+            ?.takeIf { it.date == date }
+    }
+
+    private fun defaultLiturgicalColor(day: LiturgicalDayResponse): String {
+        if (
+            day.primaryRank.contains("Palm Sunday") ||
+            day.primaryRank.contains("Good Friday") ||
+            day.primaryRank.contains("Pentecost")
+        ) return "RED"
+        if (day.rankType.uppercase() in setOf("SOLEMNITY", "FEAST", "MEMORIAL")) return "WHITE"
+        return when (day.season.lowercase()) {
+            "advent", "lent" -> "VIOLET"
+            "christmas", "easter" -> "WHITE"
+            else -> "GREEN"
+        }
     }
 
     fun currentSession(): StoredSession? = loadSession()
