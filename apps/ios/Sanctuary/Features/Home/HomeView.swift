@@ -1,4 +1,5 @@
 import SwiftUI
+import WebKit
 
 struct HomeView: View {
     let environment: AppEnvironment
@@ -15,6 +16,7 @@ struct HomeView: View {
     @State private var showIntentionsSearch = false
     @State private var showPatronageSearch = false
     @State private var showDailyReadings = false
+    @State private var showVaticanNews = false
     @State private var dailyReadingsURLOverride: URL?
     @State private var todayLiturgicalDay: LiturgicalDay?
     @State private var newsArticles: [ChurchNewsArticle] = []
@@ -123,22 +125,28 @@ struct HomeView: View {
                                 }
                             }
 
-                            if !newsArticles.isEmpty {
-                                Group {
+                            Group {
+                                if !newsArticles.isEmpty {
                                     ChurchNewsCarousel(
                                         articles: newsArticles,
                                         selection: $newsPage,
                                         localization: localization,
                                         pageHeight: newsPageHeight,
+                                        openVaticanNews: { showVaticanNews = true },
                                         openArticle: { openURL($0.canonicalURL) }
                                     )
+                                } else {
+                                    VaticanNewsLaunchCard(
+                                        localization: localization,
+                                        openVaticanNews: { showVaticanNews = true }
+                                    )
                                 }
-                                .padding(.horizontal, 20 * scale)
-                                .padding(.vertical, 18 * scale)
-                                .frame(maxWidth: .infinity, minHeight: newsCardHeight, alignment: .top)
-                                .appGlassCard(cornerRadius: 30 * scale)
-                                .transition(.opacity.combined(with: .scale(scale: 0.98)))
                             }
+                            .padding(.horizontal, 20 * scale)
+                            .padding(.vertical, 18 * scale)
+                            .frame(maxWidth: .infinity, minHeight: newsCardHeight, alignment: .top)
+                            .appGlassCard(cornerRadius: 30 * scale)
+                            .transition(.opacity.combined(with: .scale(scale: 0.98)))
 
                             Spacer(minLength: 2 * scale)
                         }
@@ -195,6 +203,10 @@ struct HomeView: View {
             }
             .fullScreenCover(isPresented: $showDailyReadings) {
                 DailyReadingsView(url: dailyReadingsURL)
+            }
+            .fullScreenCover(isPresented: $showVaticanNews) {
+                VaticanNewsWidgetScreen(languageCode: localization.language.rawValue)
+                    .environmentObject(localization)
             }
             .toolbar(.hidden)
         }
@@ -491,6 +503,7 @@ private struct ChurchNewsCarousel: View {
     @Binding var selection: Int
     let localization: LocalizationManager
     let pageHeight: CGFloat
+    let openVaticanNews: () -> Void
     let openArticle: (ChurchNewsArticle) -> Void
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -501,6 +514,14 @@ private struct ChurchNewsCarousel: View {
                     .font(AppTheme.rounded(15, weight: .bold))
                     .tracking(1.4)
                 Spacer()
+                Button(action: openVaticanNews) {
+                    Text(localization.t("news.vatican"))
+                        .font(AppTheme.rounded(10, weight: .bold))
+                        .padding(.horizontal, 9)
+                        .padding(.vertical, 6)
+                        .background(Color.white.opacity(0.08), in: Capsule())
+                }
+                .buttonStyle(.plain)
                 Text("\(selection + 1) / \(articles.count)")
                     .font(AppTheme.rounded(12, weight: .bold))
             }
@@ -578,6 +599,123 @@ private struct ChurchNewsCarousel: View {
         article.language == localization.language.contentLocale.rawValue
             ? article.sourceName
             : "\(article.sourceName) • \(article.language.uppercased())"
+    }
+}
+
+private struct VaticanNewsLaunchCard: View {
+    let localization: LocalizationManager
+    let openVaticanNews: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text(localization.t("news.title"))
+                .font(AppTheme.rounded(15, weight: .bold))
+                .tracking(1.4)
+                .foregroundStyle(AppTheme.glowGold)
+            Text(localization.t("news.vaticanSubtitle"))
+                .font(AppTheme.rounded(14, weight: .medium))
+                .foregroundStyle(AppTheme.subtitleText)
+            Button(action: openVaticanNews) {
+                HStack {
+                    Text(localization.t("news.vaticanTitle"))
+                        .font(AppTheme.rounded(14, weight: .bold))
+                    Spacer()
+                    Image(systemName: "arrow.up.right")
+                }
+                .foregroundStyle(AppTheme.glowGold)
+                .padding(14)
+                .background(Color.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 16))
+            }
+            .buttonStyle(.plain)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+private struct VaticanNewsWidgetScreen: View {
+    let languageCode: String
+    @EnvironmentObject private var localization: LocalizationManager
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                AppBackdrop()
+                VaticanNewsWebView(languageCode: languageCode)
+                    .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+                    .padding(12)
+            }
+            .navigationTitle(localization.t("news.vaticanTitle"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button(localization.t("common.close")) { dismiss() }
+                }
+            }
+        }
+    }
+}
+
+private struct VaticanNewsWebView: UIViewRepresentable {
+    let languageCode: String
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    func makeUIView(context: Context) -> WKWebView {
+        let configuration = WKWebViewConfiguration()
+        configuration.websiteDataStore = .default()
+        let webView = WKWebView(frame: .zero, configuration: configuration)
+        webView.navigationDelegate = context.coordinator
+        webView.isOpaque = false
+        webView.backgroundColor = .clear
+        webView.scrollView.backgroundColor = .clear
+        webView.allowsBackForwardNavigationGestures = true
+        context.coordinator.languageCode = languageCode
+        load(into: webView)
+        return webView
+    }
+
+    func updateUIView(_ webView: WKWebView, context: Context) {
+        guard context.coordinator.languageCode != languageCode else { return }
+        context.coordinator.languageCode = languageCode
+        load(into: webView)
+    }
+
+    private func load(into webView: WKWebView) {
+        let supportedLanguage = ["en", "es", "pl"].contains(languageCode) ? languageCode : "en"
+        let html = """
+        <!doctype html>
+        <html><head>
+          <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+          <style>
+            html,body{margin:0;padding:0;background:#102738;color:white;min-height:100%;}
+            vaticannews-widget{display:block;width:100%;min-height:100vh;}
+          </style>
+        </head><body>
+          <vaticannews-widget lang="\(supportedLanguage)" fontSize="14" mobile="true"
+            carouselVideoAuto="true" carouselVideoTime="fast"></vaticannews-widget>
+          <script src="https://www.vaticannews.va/widget.js"></script>
+        </body></html>
+        """
+        webView.loadHTMLString(html, baseURL: URL(string: "https://www.vaticannews.va/"))
+    }
+
+    final class Coordinator: NSObject, WKNavigationDelegate {
+        var languageCode: String?
+
+        func webView(
+            _ webView: WKWebView,
+            decidePolicyFor navigationAction: WKNavigationAction,
+            decisionHandler: @escaping (WKNavigationActionPolicy) -> Void
+        ) {
+            guard navigationAction.navigationType == .linkActivated,
+                  let url = navigationAction.request.url else {
+                decisionHandler(.allow)
+                return
+            }
+            UIApplication.shared.open(url)
+            decisionHandler(.cancel)
+        }
     }
 }
 
