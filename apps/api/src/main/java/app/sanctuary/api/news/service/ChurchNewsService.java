@@ -9,6 +9,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.slf4j.Logger;
@@ -23,16 +24,25 @@ import app.sanctuary.api.news.dto.ChurchNewsArticleDto;
 @Service
 public class ChurchNewsService {
     private static final Logger LOGGER = LoggerFactory.getLogger(ChurchNewsService.class);
-    private static final String YOUTUBE_FEED = "https://www.youtube.com/feeds/videos.xml?channel_id=";
     private static final Source EWTN_NEWS = new Source(
-        "en", "EWTN News", "UCaJBwb7XkojUOPbz_6uzPag"
+        "en",
+        "EWTN News",
+        URI.create("https://www.ewtnnews.com/rss"),
+        Set.of("www.ewtnnews.com"),
+        Set.of("res.cloudinary.com"),
+        "Original article"
     );
     private static final Source ACI_PRENSA = new Source(
-        "es", "ACI Prensa", "UCYBvW57DuPrWwGdEe-BkMSg"
+        "es",
+        "ACI Prensa",
+        URI.create("https://www.aciprensa.com/rss/noticias.xml"),
+        Set.of("www.aciprensa.com"),
+        Set.of("res.cloudinary.com"),
+        "Artículo original"
     );
 
     private final HttpClient httpClient;
-    private final YouTubeNewsFeedParser parser;
+    private final RssArticleFeedParser parser;
     private final Map<String, List<ChurchNewsArticleDto>> cache = new ConcurrentHashMap<>();
 
     public ChurchNewsService() {
@@ -42,11 +52,11 @@ public class ChurchNewsService {
                 .followRedirects(HttpClient.Redirect.NORMAL)
                 .version(HttpClient.Version.HTTP_1_1)
                 .build(),
-            new YouTubeNewsFeedParser()
+            new RssArticleFeedParser()
         );
     }
 
-    ChurchNewsService(HttpClient httpClient, YouTubeNewsFeedParser parser) {
+    ChurchNewsService(HttpClient httpClient, RssArticleFeedParser parser) {
         this.httpClient = httpClient;
         this.parser = parser;
     }
@@ -79,19 +89,26 @@ public class ChurchNewsService {
 
     private List<ChurchNewsArticleDto> refresh(Source source, String cacheKey) {
         try {
-            HttpRequest request = HttpRequest.newBuilder(URI.create(YOUTUBE_FEED + source.channelId()))
+            HttpRequest request = HttpRequest.newBuilder(source.feedUrl())
                 .timeout(Duration.ofSeconds(12))
-                .header("Accept", "application/atom+xml, application/xml;q=0.9")
+                .header("Accept", "application/rss+xml, application/xml;q=0.9")
                 .header("User-Agent", "Sanctuary/1.0 (+https://mydailysanctuary.com)")
                 .GET()
                 .build();
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                LOGGER.warn("Official news channel {} returned HTTP {}", source.name(), response.statusCode());
+                LOGGER.warn("Official news feed {} returned HTTP {}", source.name(), response.statusCode());
                 return cache.getOrDefault(cacheKey, List.of());
             }
             List<ChurchNewsArticleDto> parsed = parser.parse(
-                response.body(), new YouTubeNewsFeedParser.SourceMetadata(source.language(), source.name())
+                response.body(),
+                new RssArticleFeedParser.SourceMetadata(
+                    source.language(),
+                    source.name(),
+                    source.articleHosts(),
+                    source.imageHosts(),
+                    source.originalArticleLabel()
+                )
             );
             Map<String, ChurchNewsArticleDto> uniqueStories = new LinkedHashMap<>();
             for (ChurchNewsArticleDto article : parsed) {
@@ -99,7 +116,7 @@ public class ChurchNewsService {
             }
             return uniqueStories.values().stream().limit(12).toList();
         } catch (Exception exception) {
-            LOGGER.warn("Could not refresh official news channel {}", source.name(), exception);
+            LOGGER.warn("Could not refresh official news feed {}", source.name(), exception);
             return cache.getOrDefault(cacheKey, List.of());
         }
     }
@@ -128,5 +145,12 @@ public class ChurchNewsService {
             .trim();
     }
 
-    private record Source(String language, String name, String channelId) {}
+    private record Source(
+        String language,
+        String name,
+        URI feedUrl,
+        Set<String> articleHosts,
+        Set<String> imageHosts,
+        String originalArticleLabel
+    ) {}
 }

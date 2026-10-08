@@ -13,7 +13,7 @@ class SessionRepository(
     context: Context,
     private val api: SanctuaryApiService
 ) {
-    private val newsPreferences = context.getSharedPreferences("sanctuary_news_cache_v3", Context.MODE_PRIVATE)
+    private val newsPreferences = context.getSharedPreferences("sanctuary_news_cache_v4", Context.MODE_PRIVATE)
     private val liturgicalPreferences = context.getSharedPreferences("sanctuary_liturgical_cache_v1", Context.MODE_PRIVATE)
     private val gson = Gson()
     private val preferences = EncryptedSharedPreferences.create(
@@ -31,6 +31,7 @@ class SessionRepository(
 
     init {
         context.deleteSharedPreferences("sanctuary_news_cache_v2")
+        context.deleteSharedPreferences("sanctuary_news_cache_v3")
     }
 
     suspend fun bootstrap(): SessionBootstrapResult = withContext(Dispatchers.IO) {
