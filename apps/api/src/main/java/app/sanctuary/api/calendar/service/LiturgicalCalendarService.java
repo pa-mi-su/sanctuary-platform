@@ -10,6 +10,7 @@ import java.util.Map;
 import org.springframework.stereotype.Service;
 
 import app.sanctuary.api.calendar.model.LiturgicalDayResult;
+import app.sanctuary.api.calendar.model.LiturgicalColor;
 import app.sanctuary.api.calendar.model.LiturgicalSeason;
 import app.sanctuary.api.calendar.model.RankType;
 import app.sanctuary.api.calendar.model.TransferredFeastKey;
@@ -47,7 +48,8 @@ public class LiturgicalCalendarService {
             entry.rank(),
             List.of(entry.rank()),
             URI.create(readingsUrl(date)),
-            entry.rankType()
+            entry.rankType(),
+            entry.color()
         );
     }
 
@@ -68,6 +70,7 @@ public class LiturgicalCalendarService {
         entry = higherPriority(entry, maybe(date, CalendarMath.baptismOfTheLord(year), "Baptism of the Lord", LiturgicalSeason.CHRISTMAS, RankType.FEAST));
         entry = higherPriority(entry, maybe(date, transferredFeastResolver.resolve(TransferredFeastKey.ST_JOSEPH, year), "Saint Joseph, Spouse of the Blessed Virgin Mary", LiturgicalSeason.LENT, RankType.SOLEMNITY));
         entry = higherPriority(entry, maybe(date, transferredFeastResolver.resolve(TransferredFeastKey.ANNUNCIATION, year), "Annunciation of the Lord", LiturgicalSeason.LENT, RankType.SOLEMNITY));
+        entry = higherPriority(entry, maybe(date, LocalDate.of(year, 10, 7), "Memorial of Our Lady of the Rosary", LiturgicalSeason.ORDINARY, RankType.MEMORIAL, LiturgicalColor.WHITE));
 
         LocalDate easter = GregorianComputus.easterSunday(year);
         LocalDate ashWednesday = easter.minusDays(46);
@@ -86,9 +89,9 @@ public class LiturgicalCalendarService {
         entry = higherPriority(entry, maybe(date, lent1.plusDays(14), "Third Sunday of Lent", LiturgicalSeason.LENT, RankType.SUNDAY));
         entry = higherPriority(entry, maybe(date, lent1.plusDays(21), "Fourth Sunday of Lent (Laetare Sunday)", LiturgicalSeason.LENT, RankType.SUNDAY));
         entry = higherPriority(entry, maybe(date, lent1.plusDays(28), "Fifth Sunday of Lent", LiturgicalSeason.LENT, RankType.SUNDAY));
-        entry = higherPriority(entry, maybe(date, palmSunday, "Palm Sunday of the Passion of the Lord", LiturgicalSeason.LENT, RankType.SUNDAY));
-        entry = higherPriority(entry, maybe(date, holyThursday, "Holy Thursday (Evening Mass of the Lord’s Supper)", LiturgicalSeason.LENT, RankType.TRIDUUM));
-        entry = higherPriority(entry, maybe(date, goodFriday, "Good Friday of the Passion of the Lord", LiturgicalSeason.LENT, RankType.TRIDUUM));
+        entry = higherPriority(entry, maybe(date, palmSunday, "Palm Sunday of the Passion of the Lord", LiturgicalSeason.LENT, RankType.SUNDAY, LiturgicalColor.RED));
+        entry = higherPriority(entry, maybe(date, holyThursday, "Holy Thursday (Evening Mass of the Lord’s Supper)", LiturgicalSeason.LENT, RankType.TRIDUUM, LiturgicalColor.WHITE));
+        entry = higherPriority(entry, maybe(date, goodFriday, "Good Friday of the Passion of the Lord", LiturgicalSeason.LENT, RankType.TRIDUUM, LiturgicalColor.RED));
         entry = higherPriority(entry, maybe(date, holySaturday, "Holy Saturday", LiturgicalSeason.LENT, RankType.TRIDUUM));
         entry = higherPriority(entry, maybe(date, easter, "Easter Sunday of the Resurrection of the Lord", LiturgicalSeason.EASTER, RankType.SOLEMNITY));
         for (int offset = 1; offset <= 6; offset++) {
@@ -97,7 +100,7 @@ public class LiturgicalCalendarService {
         entry = higherPriority(entry, maybe(date, easter.plusDays(7), "Second Sunday of Easter (Divine Mercy Sunday)", LiturgicalSeason.EASTER, RankType.SUNDAY));
         entry = higherPriority(entry, maybe(date, easter.plusDays(39), "Ascension of the Lord (Thursday)", LiturgicalSeason.EASTER, RankType.SOLEMNITY));
         entry = higherPriority(entry, maybe(date, easter.plusDays(42), "Ascension of the Lord (Transferred to Sunday)", LiturgicalSeason.EASTER, RankType.SOLEMNITY));
-        entry = higherPriority(entry, maybe(date, pentecost, "Pentecost Sunday", LiturgicalSeason.EASTER, RankType.SOLEMNITY));
+        entry = higherPriority(entry, maybe(date, pentecost, "Pentecost Sunday", LiturgicalSeason.EASTER, RankType.SOLEMNITY, LiturgicalColor.RED));
 
         LocalDate ordinaryPart1Start = CalendarMath.baptismOfTheLord(year).plusDays(1);
         LocalDate dayBeforeAsh = ashWednesday.minusDays(1);
@@ -129,7 +132,7 @@ public class LiturgicalCalendarService {
         entry = higherPriority(entry, maybe(date, easter.plusDays(69), "Immaculate Heart of Mary", LiturgicalSeason.ORDINARY, RankType.MEMORIAL));
         entry = higherPriority(entry, maybe(date, advent1, "First Sunday of Advent", LiturgicalSeason.ADVENT, RankType.SUNDAY));
         entry = higherPriority(entry, maybe(date, advent1.plusDays(7), "Second Sunday of Advent", LiturgicalSeason.ADVENT, RankType.SUNDAY));
-        entry = higherPriority(entry, maybe(date, advent1.plusDays(14), "Third Sunday of Advent (Gaudete Sunday)", LiturgicalSeason.ADVENT, RankType.SUNDAY));
+        entry = higherPriority(entry, maybe(date, advent1.plusDays(14), "Third Sunday of Advent (Gaudete Sunday)", LiturgicalSeason.ADVENT, RankType.SUNDAY, LiturgicalColor.ROSE));
         entry = higherPriority(entry, maybe(date, advent1.plusDays(21), "Fourth Sunday of Advent", LiturgicalSeason.ADVENT, RankType.SUNDAY));
         entry = higherPriority(entry, maybe(date, christTheKing, "Our Lord Jesus Christ, King of the Universe (Christ the King)", LiturgicalSeason.ORDINARY, RankType.SOLEMNITY));
         entry = higherPriority(entry, maybe(date, LocalDate.of(year, 12, 25), "The Nativity of the Lord (Christmas)", LiturgicalSeason.CHRISTMAS, RankType.SOLEMNITY));
@@ -148,11 +151,33 @@ public class LiturgicalCalendarService {
             case SATURDAY -> "Saturday";
             case SUNDAY -> "Sunday";
         };
-        return new Entry(weekday + " of " + seasonResolver.displayName(season), season, RankType.WEEKDAY);
+        return new Entry(weekday + " of " + seasonResolver.displayName(season), season, RankType.WEEKDAY, defaultColor(season, RankType.WEEKDAY));
     }
 
     private Entry maybe(LocalDate requested, LocalDate match, String rank, LiturgicalSeason season, RankType rankType) {
-        return requested.equals(match) ? new Entry(rank, season, rankType) : null;
+        return maybe(requested, match, rank, season, rankType, defaultColor(season, rankType));
+    }
+
+    private Entry maybe(
+        LocalDate requested,
+        LocalDate match,
+        String rank,
+        LiturgicalSeason season,
+        RankType rankType,
+        LiturgicalColor color
+    ) {
+        return requested.equals(match) ? new Entry(rank, season, rankType, color) : null;
+    }
+
+    private LiturgicalColor defaultColor(LiturgicalSeason season, RankType rankType) {
+        if (rankType == RankType.SOLEMNITY || rankType == RankType.FEAST || rankType == RankType.MEMORIAL) {
+            return LiturgicalColor.WHITE;
+        }
+        return switch (season) {
+            case ADVENT, LENT -> LiturgicalColor.VIOLET;
+            case CHRISTMAS, EASTER -> LiturgicalColor.WHITE;
+            case ORDINARY -> LiturgicalColor.GREEN;
+        };
     }
 
     private Entry higherPriority(Entry current, Entry candidate) {
@@ -188,6 +213,6 @@ public class LiturgicalCalendarService {
         return n + "th";
     }
 
-    private record Entry(String rank, LiturgicalSeason season, RankType rankType) {
+    private record Entry(String rank, LiturgicalSeason season, RankType rankType, LiturgicalColor color) {
     }
 }

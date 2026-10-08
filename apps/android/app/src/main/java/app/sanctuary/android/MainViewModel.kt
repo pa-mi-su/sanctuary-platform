@@ -21,6 +21,7 @@ import app.sanctuary.android.data.SessionBootstrapResult
 import app.sanctuary.android.data.SessionRepository
 import app.sanctuary.android.data.StoredSession
 import app.sanctuary.android.data.CommitmentStatus
+import app.sanctuary.android.data.ChurchNewsArticle
 import app.sanctuary.android.data.FavoriteItemType
 import app.sanctuary.android.data.UserFavorite
 import app.sanctuary.android.data.UserNovenaCommitment
@@ -31,6 +32,8 @@ import java.text.Normalizer
 import java.time.Instant
 import java.util.Locale
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -64,6 +67,13 @@ data class ContentListUiState<T>(
     val isLoading: Boolean = false,
     val query: String = "",
     val error: String? = null
+)
+
+data class ChurchNewsUiState(
+    val articles: List<ChurchNewsArticle> = emptyList(),
+    val isRefreshing: Boolean = false,
+    val error: String? = null,
+    val requestedLanguage: String? = null
 )
 
 private data class SearchDocument(
@@ -164,6 +174,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val pendingFavoriteToggles = mutableSetOf<String>()
     private val pendingNovenaStarts = mutableSetOf<String>()
     private val pendingNovenaStops = mutableSetOf<String>()
+    private var churchNewsRefreshJob: Job? = null
+    private var churchNewsRefreshLanguage: String? = null
 
     private val _session = MutableStateFlow(
         SessionUiState(
@@ -175,6 +187,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _appLanguage = MutableStateFlow(AppLanguage.fromCode(repository.currentLanguage()))
     val appLanguage: StateFlow<AppLanguage> = _appLanguage.asStateFlow()
+
+    private val _churchNews = MutableStateFlow(
+        ChurchNewsUiState(
+            articles = repository.cachedChurchNews(),
+            requestedLanguage = repository.currentLanguage()
+        )
+    )
+    val churchNews: StateFlow<ChurchNewsUiState> = _churchNews.asStateFlow()
 
     private fun l10n() = SanctuaryStrings(_appLanguage.value)
 
@@ -1133,10 +1153,50 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun loadInitialContent() {
+        refreshChurchNews()
         loadSaints()
         loadNovenas()
         loadPrayers()
         loadRosaries()
+    }
+
+    fun refreshChurchNews(language: String = _appLanguage.value.code) {
+        val normalizedLanguage = AppLanguage.fromCode(language).code
+        if (churchNewsRefreshJob?.isActive == true && churchNewsRefreshLanguage == normalizedLanguage) return
+        churchNewsRefreshJob?.cancel()
+        churchNewsRefreshLanguage = normalizedLanguage
+        _churchNews.update {
+            it.copy(
+                articles = if (it.requestedLanguage == normalizedLanguage) {
+                    it.articles
+                } else {
+                    repository.cachedChurchNews(normalizedLanguage)
+                },
+                isRefreshing = true,
+                error = null,
+                requestedLanguage = normalizedLanguage
+            )
+        }
+        churchNewsRefreshJob = viewModelScope.launch {
+            try {
+                val articles = repository.refreshChurchNews(normalizedLanguage)
+                if (churchNewsRefreshLanguage == normalizedLanguage) {
+                    _churchNews.update {
+                        it.copy(
+                            articles = articles.ifEmpty { it.articles },
+                            isRefreshing = false,
+                            error = null
+                        )
+                    }
+                }
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (failure: Throwable) {
+                if (churchNewsRefreshLanguage == normalizedLanguage) {
+                    _churchNews.update { it.copy(isRefreshing = false, error = failure.message) }
+                }
+            }
+        }
     }
 
     private fun syncReminderScheduler(profile: UserProfile?, activeCommitmentCount: Int) {

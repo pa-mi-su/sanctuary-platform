@@ -6,6 +6,49 @@ enum ContentLocale: String, Codable, CaseIterable, Sendable {
     case pl
 }
 
+struct ChurchNewsArticle: Codable, Identifiable, Hashable, Sendable {
+    let id: String
+    let title: String
+    let summary: String
+    let sourceName: String
+    let canonicalURL: URL
+    let imageURL: URL
+    let imageAlt: String
+    let imageCredit: String
+    let licenseName: String
+    let licenseURL: URL
+    let publishedAt: Date
+    let language: String
+
+    nonisolated init(
+        id: String,
+        title: String,
+        summary: String,
+        sourceName: String,
+        canonicalURL: URL,
+        imageURL: URL,
+        imageAlt: String,
+        imageCredit: String,
+        licenseName: String,
+        licenseURL: URL,
+        publishedAt: Date,
+        language: String
+    ) {
+        self.id = id
+        self.title = title
+        self.summary = summary
+        self.sourceName = sourceName
+        self.canonicalURL = canonicalURL
+        self.imageURL = imageURL
+        self.imageAlt = imageAlt
+        self.imageCredit = imageCredit
+        self.licenseName = licenseName
+        self.licenseURL = licenseURL
+        self.publishedAt = publishedAt
+        self.language = language
+    }
+}
+
 struct LocalizedText: Codable, Hashable, Sendable {
     let locale: ContentLocale
     let value: String
@@ -132,6 +175,8 @@ struct LiturgicalDay: Codable, Hashable, Sendable {
     let rank: String
     let observances: [String]
     let readingURL: URL?
+    let rankType: String
+    let color: String
 }
 
 enum FavoriteItemType: String, Codable, CaseIterable, Sendable {
