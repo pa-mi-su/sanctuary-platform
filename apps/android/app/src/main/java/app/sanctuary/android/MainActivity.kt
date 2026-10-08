@@ -947,7 +947,6 @@ private fun AuthenticatedShell(
     var showPatronageSearch by rememberSaveable { mutableStateOf(false) }
     var showPrayerSearch by rememberSaveable { mutableStateOf(false) }
     var showRosarySearch by rememberSaveable { mutableStateOf(false) }
-    var showVaticanNews by rememberSaveable { mutableStateOf(false) }
     var dailyReadingsUrl by rememberSaveable { mutableStateOf<String?>(null) }
     var todayLiturgicalDay by remember { mutableStateOf<app.sanctuary.android.data.LiturgicalDay?>(null) }
     var isLoadingDailyReadings by rememberSaveable { mutableStateOf(false) }
@@ -1177,7 +1176,6 @@ private fun AuthenticatedShell(
                                 onIntroComplete = onHomeIntroComplete,
                                 onOpenReadings = ::openDailyReadings,
                                 onRefresh = { onAction.refreshChurchNews(selectedLanguage.code) },
-                                onOpenVaticanNews = { showVaticanNews = true },
                                 onOpenArticle = { article ->
                                     runCatching {
                                         context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(article.canonicalUrl)))
@@ -1296,12 +1294,6 @@ private fun AuthenticatedShell(
                     url = url,
                     onDismiss = { dailyReadingsUrl = null }
                 )
-            }
-        }
-
-        if (showVaticanNews) {
-            SanctuaryModalSheet(onDismissRequest = { showVaticanNews = false }) {
-                VaticanNewsWidgetSheet(language = selectedLanguage)
             }
         }
 
@@ -2242,7 +2234,6 @@ private fun HomeHeroCard(
     onIntroComplete: () -> Unit,
     onOpenReadings: () -> Unit,
     onRefresh: () -> Unit,
-    onOpenVaticanNews: () -> Unit,
     onOpenArticle: (app.sanctuary.android.data.ChurchNewsArticle) -> Unit
 ) {
     val l10n = sanctuaryStrings()
@@ -2253,7 +2244,6 @@ private fun HomeHeroCard(
         }.getOrDefault(true)
     }
     var revealed by rememberSaveable { mutableStateOf(hasPlayedIntro || !animationsEnabled) }
-    var showOfficialVatican by rememberSaveable { mutableStateOf(true) }
     LaunchedEffect(hasPlayedIntro, animationsEnabled) {
         if (!revealed) {
             kotlinx.coroutines.delay(120)
@@ -2301,29 +2291,17 @@ private fun HomeHeroCard(
                     maxWidth < 400.dp -> 20.dp
                     else -> 24.dp
                 }
-                if (showOfficialVatican) {
-                    VaticanNewsHomeCard(
-                        language = language,
-                        height = newsPageHeight,
-                        onShowFides = { showOfficialVatican = false },
-                        onExpand = onOpenVaticanNews,
-                        modifier = Modifier.padding(newsPadding)
-                    )
-                } else if (articles.isNotEmpty()) {
+                if (articles.isNotEmpty()) {
                     ChurchNewsCarousel(
                         articles = articles,
                         autoAdvanceEnabled = animationsEnabled,
                         onRefresh = onRefresh,
-                        onOpenVaticanNews = { showOfficialVatican = true },
                         onOpenArticle = onOpenArticle,
                         pageHeight = newsPageHeight,
                         modifier = Modifier.padding(newsPadding)
                     )
                 } else {
-                    VaticanNewsLaunchCard(
-                        onOpenVaticanNews = onOpenVaticanNews,
-                        modifier = Modifier.padding(newsPadding)
-                    )
+                    ChurchNewsLoadingCard(modifier = Modifier.padding(newsPadding))
                 }
             }
         }
@@ -2331,73 +2309,7 @@ private fun HomeHeroCard(
 }
 
 @Composable
-private fun VaticanNewsHomeCard(
-    language: AppLanguage,
-    height: androidx.compose.ui.unit.Dp,
-    onShowFides: () -> Unit,
-    onExpand: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val l10n = sanctuaryStrings()
-    Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(
-                    l10n.t("news.title"),
-                    color = Color(0xFFE7C76A),
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 1.2.sp
-                )
-                Text(
-                    l10n.t("news.vaticanTitle"),
-                    color = Color(0xFFE7C76A),
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
-            Button(
-                onClick = onShowFides,
-                colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.08f)),
-                contentPadding = PaddingValues(horizontal = 9.dp, vertical = 3.dp)
-            ) {
-                Text(
-                    l10n.t("news.fidesPhotos"),
-                    color = Color(0xFFE7C76A),
-                    fontSize = 9.sp,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1
-                )
-            }
-        }
-
-        VaticanNewsWidgetWebView(language = language, height = maxOf(250.dp, height))
-
-        Row(
-            modifier = Modifier.fillMaxWidth().clickable(onClick = onExpand),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                l10n.t("news.vaticanHosted"),
-                color = Color(0xFFE7C76A),
-                fontSize = 10.sp,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.weight(1f)
-            )
-            Icon(
-                Icons.Filled.ChevronRight,
-                contentDescription = null,
-                tint = Color(0xFFE7C76A),
-                modifier = Modifier.size(18.dp)
-            )
-        }
-    }
-}
-
-@Composable
-private fun VaticanNewsLaunchCard(
-    onOpenVaticanNews: () -> Unit,
-    modifier: Modifier = Modifier
-) {
+private fun ChurchNewsLoadingCard(modifier: Modifier = Modifier) {
     val l10n = sanctuaryStrings()
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Text(
@@ -2406,29 +2318,12 @@ private fun VaticanNewsLaunchCard(
             fontWeight = FontWeight.Bold,
             letterSpacing = 1.2.sp
         )
-        Text(
-            l10n.t("news.vaticanSubtitle"),
-            color = Color(0xFFD0DFEA),
-            fontSize = 14.sp
-        )
-        Card(
-            onClick = onOpenVaticanNews,
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.07f)),
-            shape = RoundedCornerShape(16.dp)
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(14.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    l10n.t("news.vaticanTitle"),
-                    color = Color(0xFFE7C76A),
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.weight(1f)
-                )
-                Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = Color(0xFFE7C76A))
-            }
+            CircularProgressIndicator(color = Color(0xFFE7C76A), modifier = Modifier.size(22.dp), strokeWidth = 2.dp)
+            Text(l10n.t("news.loading"), color = Color(0xFFD0DFEA), fontSize = 13.sp)
         }
     }
 }
@@ -2609,7 +2504,6 @@ private fun ChurchNewsCarousel(
     articles: List<app.sanctuary.android.data.ChurchNewsArticle>,
     autoAdvanceEnabled: Boolean,
     onRefresh: () -> Unit,
-    onOpenVaticanNews: () -> Unit,
     onOpenArticle: (app.sanctuary.android.data.ChurchNewsArticle) -> Unit,
     pageHeight: androidx.compose.ui.unit.Dp,
     modifier: Modifier = Modifier
@@ -2649,19 +2543,6 @@ private fun ChurchNewsCarousel(
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.weight(1f)
             )
-            Button(
-                onClick = onOpenVaticanNews,
-                colors = ButtonDefaults.buttonColors(containerColor = Color.White.copy(alpha = 0.08f)),
-                contentPadding = PaddingValues(horizontal = 9.dp, vertical = 3.dp)
-            ) {
-                Text(
-                    l10n.t("news.vatican"),
-                    color = Color(0xFFE7C76A),
-                    fontSize = 9.sp,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1
-                )
-            }
             Text(
                 "${actualPage + 1} / ${articles.size}",
                 color = Color(0xFFE7C76A),
@@ -5428,107 +5309,6 @@ private fun DailyReadingsSheet(
         subtitle = l10n.t("calendar.dailyReadingsSubtitle")
     ) {
         DailyReadingsWebView(url = url)
-    }
-}
-
-@Composable
-private fun VaticanNewsWidgetSheet(language: AppLanguage) {
-    val l10n = sanctuaryStrings()
-    DetailSheetScaffold(
-        title = l10n.t("news.vaticanTitle"),
-        subtitle = l10n.t("news.vaticanSubtitle")
-    ) {
-        VaticanNewsWidgetWebView(language = language)
-    }
-}
-
-@SuppressLint("SetJavaScriptEnabled")
-@Composable
-private fun VaticanNewsWidgetWebView(
-    language: AppLanguage,
-    height: androidx.compose.ui.unit.Dp = 620.dp
-) {
-    val supportedLanguage = when (language) {
-        AppLanguage.English -> "en"
-        AppLanguage.Spanish -> "es"
-        AppLanguage.Polish -> "pl"
-    }
-    val html = remember(supportedLanguage) {
-        """
-        <!doctype html>
-        <html><head>
-          <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
-          <style>
-            html,body{margin:0;padding:0;background:#102738;color:white;min-height:100%;}
-            vaticannews-widget{display:block;width:100%;min-height:100vh;}
-          </style>
-        </head><body>
-          <vaticannews-widget lang="$supportedLanguage" fontSize="14" mobile="true"
-            carouselVideoAuto="true" carouselVideoTime="fast"></vaticannews-widget>
-          <script src="https://www.vaticannews.va/widget.js"></script>
-        </body></html>
-        """.trimIndent()
-    }
-
-    Card(
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF102738)),
-        shape = RoundedCornerShape(24.dp)
-    ) {
-        AndroidView(
-            modifier = Modifier.fillMaxWidth().height(height),
-            factory = { context ->
-                WebView(context).apply {
-                    webViewClient = object : WebViewClient() {
-                        override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
-                            if (!request.isForMainFrame || request.url.toString() == "about:blank") return false
-                            return try {
-                                context.startActivity(Intent(Intent.ACTION_VIEW, request.url))
-                                true
-                            } catch (_: ActivityNotFoundException) {
-                                true
-                            }
-                        }
-                    }
-                    webChromeClient = WebChromeClient()
-                    settings.javaScriptEnabled = true
-                    settings.domStorageEnabled = true
-                    settings.loadsImagesAutomatically = true
-                    isVerticalScrollBarEnabled = true
-                    isHorizontalScrollBarEnabled = false
-                    overScrollMode = View.OVER_SCROLL_IF_CONTENT_SCROLLS
-                    setBackgroundColor(android.graphics.Color.TRANSPARENT)
-                    setOnTouchListener { view, event ->
-                        when (event.actionMasked) {
-                            MotionEvent.ACTION_DOWN,
-                            MotionEvent.ACTION_MOVE -> view.parent?.requestDisallowInterceptTouchEvent(true)
-                            MotionEvent.ACTION_UP,
-                            MotionEvent.ACTION_CANCEL -> view.parent?.requestDisallowInterceptTouchEvent(false)
-                        }
-                        false
-                    }
-                    tag = supportedLanguage
-                    loadDataWithBaseURL(
-                        "https://www.vaticannews.va/",
-                        html,
-                        "text/html",
-                        "UTF-8",
-                        null
-                    )
-                }
-            },
-            update = { webView ->
-                if (webView.tag != supportedLanguage) {
-                    webView.tag = supportedLanguage
-                    webView.loadDataWithBaseURL(
-                        "https://www.vaticannews.va/",
-                        html,
-                        "text/html",
-                        "UTF-8",
-                        null
-                    )
-                }
-            }
-        )
     }
 }
 

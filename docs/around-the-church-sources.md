@@ -1,80 +1,67 @@
 # Around the Church source policy
 
-`Around the Church` has two deliberately separate delivery paths:
+`Around the Church` is a native carousel backed by the public Atom/Media RSS
+feeds for verified Catholic YouTube channels. Sanctuary displays only metadata
+published by the channel: title, description excerpt, thumbnail, publication
+date, channel name, and the canonical YouTube watch URL. Tapping a card leaves
+Sanctuary and opens the official video.
 
-1. The official Vatican News web component is loaded directly from
-   `https://www.vaticannews.va/widget.js` in an isolated in-app browser. Vatican
-   News remains the renderer and host of that content; Sanctuary does not parse,
-   copy, normalize, or cache it.
-2. The native photo carousel consumes only Agenzia Fides material whose article
-   pages state that site content is available under CC BY 4.0. Sanctuary stores
-   no article body and does not copy publisher images into Sanctuary storage.
+Sanctuary does not scrape article pages, copy full articles, generate or rewrite
+news, download publisher images, proxy videos, or remove YouTube attribution.
 
-The two paths must not be conflated: the Vatican widget is an official embed,
-not permission to ingest Vatican RSS content.
+## Approved channels
 
-## Delivery and personalization
+| Requested language | Channel | Channel ID | Item language |
+| --- | --- | --- | --- |
+| English | EWTN News | `UCaJBwb7XkojUOPbz_6uzPag` | English |
+| Spanish | ACI Prensa | `UCYBvW57DuPrWwGdEe-BkMSg` | Spanish |
+| Polish | EWTN News fallback | `UCaJBwb7XkojUOPbz_6uzPag` | English |
 
-- The API refreshes each approved Fides language feed every 10 minutes and retains
-  the last successful result if a publisher is temporarily unavailable.
-- API responses may be cached publicly for up to 10 minutes. While the Home
-  screen is active, the mobile apps request updated results every 15 minutes;
-  pull-to-refresh on iOS and the refresh control on Android request them sooner.
-- The carousel advances every 10 seconds and restarts that interval after a
-  manual swipe. Users who enable reduced motion do not receive automatic page
-  animation on iOS.
-- The Vatican widget receives only Sanctuary's selected language (`en`, `es`,
-  or `pl`). The Fides native carousel uses English or Spanish; Polish currently
-  falls back to the English Fides feed and labels it `EN`. Neither path receives
-  a ZIP code, GPS position, state, or country.
-- The Home screen displays the official Vatican News widget by default. Users
-  can switch to the Fides photo carousel; that carousel wraps continuously in
-  both directions instead of stopping at its final story.
-- Vatican News controls the freshness of its hosted widget. Sanctuary loads the
-  current widget whenever the Home view is created or the language changes; it
-  does not poll or cache Vatican content. Fides is refreshed by the Sanctuary API
-  every 10 minutes, requested by active mobile Home screens every 15 minutes,
-  and refreshed on demand through the native refresh controls.
+The Polish UI labels fallback stories as English. Add a Polish channel only
+after verifying its official identity, editorial quality, update frequency, and
+YouTube channel ID.
 
-## Approved
+## Refresh and failure behavior
 
-- **Vatican News Widget** — official hosted experience supplied by Vatican News
-  at `https://www.vaticannews.va/widget/embed.html`. Sanctuary uses the vendor's
-  unmodified web component with mobile mode and 10-second automatic video
-  rotation. It supports English, Spanish, and Polish.
-- **Agenzia Fides** — source for Sanctuary's native photo carousel, which remains
-  independently available when the Vatican widget cannot load. It is the
-  official news service of the Pontifical Mission Societies.
-  English and Spanish RSS feeds are published at
-  `https://www.fides.org/en/news/rss` and
-  `https://www.fides.org/es/news/rss`. Fides states on every article page that
-  the site contents are licensed under Creative Commons Attribution 4.0.
-  Sanctuary displays the canonical article photograph, title, short excerpt,
-  publication date, Fides attribution, image credit when provided, and the
-  `CC BY 4.0` license label. The API excludes an article when its page does not
-  provide an HTTPS `og:image` hosted by `www.fides.org`.
+- The API checks each channel every 15 minutes, matching YouTube's public feed
+  cache interval.
+- Responses are publicly cacheable for 15 minutes.
+- The API retains the most recent successful in-memory result when a refresh
+  fails. The mobile clients retain their last successful result for seven days.
+- English is the final fallback when a localized channel is unavailable.
+- The carousel contains at most 12 items and automatically advances every 10
+  seconds. Manual paging is circular on both mobile platforms.
 
-## Not approved
+## Validation and curation
 
-- **Vatican News RSS ingestion** — the official widget is approved for embedding;
-  it does not authorize parsing or republishing Vatican RSS text or photographs.
-- **EWTN News / CNA / ACI Prensa / EWTN Polska** — an RSS endpoint is not itself
-  a license to reproduce publisher text or photographs. Keep these sources out
-  of the native carousel until Sanctuary has written syndication permission.
-- **OSV News, National Catholic Register, and Catholic Online** — do not enable
-  them merely because a feed exists. Record explicit reuse terms or written
-  permission first.
-- **Polish Bishops' Conference (episkopat.pl)** — the RSS page states that the
-  feed grants no reuse license beyond personal use. Written permission is
-  required before it can be enabled.
-- **USCCB News** — the public news RSS feed does not state that third-party
-  photographs embedded in releases may be republished in a mobile application.
-  Do not ingest those photographs without written permission covering the app.
+The backend accepts only:
+
+- canonical HTTPS `youtube.com/watch?v=...` links whose video ID matches the
+  feed entry;
+- HTTPS YouTube thumbnail URLs whose path contains the same video ID; and
+- entries with an ISO-8601 publication timestamp.
+
+It rejects livestream placeholders, 24/7 streams, promotional trailers, full
+scheduled programs, and any entry whose canonical feed URL identifies it as a
+YouTube Short. Duplicate normalized titles are removed without changing the
+channel-provided headline. Descriptions are plain-text, length-limited excerpts
+of publisher-provided metadata; Sanctuary does not use AI to summarize or alter
+reporting.
+
+## Attribution and platform rules
+
+Every card identifies the channel and YouTube, and links to the official watch
+page. Changes must continue to comply with the YouTube API Services Terms,
+Developer Policies, and Branding Guidelines. Do not replace the canonical link
+with a copied article, cached video, or unapproved player.
 
 ## Adding a source
 
-Before code changes, record the official feed URL, canonical hostname,
-permitted metadata, thumbnail behavior, attribution requirements, supported
-languages, and written permission when required. Add parser fixtures and tests
-for the source's real feed structure. Never scrape or store full publisher
-articles. Never substitute an unrelated stock image for the exact story image.
+Before adding a channel:
+
+1. Confirm that the channel is the publisher's official channel.
+2. Record the immutable `UC...` channel ID rather than a mutable handle.
+3. Inspect the live feed for relevant, frequently updated news segments.
+4. Add parser/service tests for its actual metadata and unwanted content.
+5. Verify attribution, external playback, accessibility, caching, and both
+   mobile layouts on physical devices.
