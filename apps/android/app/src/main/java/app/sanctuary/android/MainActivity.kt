@@ -36,6 +36,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -126,6 +127,7 @@ import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.graphicsLayer
 import android.provider.Settings
@@ -1058,15 +1060,18 @@ private fun AuthenticatedShell(
         bottomBar = {
             Surface(
                 modifier = Modifier
-                    .padding(horizontal = 12.dp, vertical = 10.dp)
+                    .navigationBarsPadding()
+                    .padding(horizontal = 12.dp, vertical = 6.dp)
                     .shadow(18.dp, RoundedCornerShape(26.dp), clip = false),
                 shape = RoundedCornerShape(26.dp),
                 color = SanctuaryTabBackground,
                 border = androidx.compose.foundation.BorderStroke(1.dp, SanctuaryTabBorder.copy(alpha = 0.55f))
             ) {
                 NavigationBar(
+                    modifier = Modifier.height(68.dp),
                     containerColor = Color.Transparent,
-                    tonalElevation = 0.dp
+                    tonalElevation = 0.dp,
+                    windowInsets = WindowInsets(0, 0, 0, 0)
                 ) {
                     AppTab.entries.forEach { tab ->
                         NavigationBarItem(
@@ -1111,57 +1116,65 @@ private fun AuthenticatedShell(
             when (selectedTab) {
                 AppTab.Home -> {
                     item {
-                        BoxWithConstraints(modifier = Modifier.fillParentMaxHeight()) {
-                            val density = LocalDensity.current
-                            var toolbarHeightPx by remember { mutableStateOf(0) }
-                            val toolbarHeight = with(density) { toolbarHeightPx.toDp() }
-                            val heroMinimumHeight = (maxHeight - toolbarHeight - 16.dp).coerceAtLeast(0.dp)
+                        val density = LocalDensity.current
+                        val configuration = LocalConfiguration.current
+                        var toolbarHeightPx by remember { mutableStateOf(0) }
+                        val toolbarHeight = with(density) { toolbarHeightPx.toDp() }
+                        val viewportMinimumHeight = (
+                            configuration.screenHeightDp.dp -
+                                padding.calculateTopPadding() -
+                                padding.calculateBottomPadding() -
+                                48.dp
+                            ).coerceAtLeast(0.dp)
+                        val heroMinimumHeight = (viewportMinimumHeight - toolbarHeight - 16.dp)
+                            .coerceAtLeast(0.dp)
 
-                            Column(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalArrangement = Arrangement.spacedBy(16.dp)
-                            ) {
-                                HomeTopActions(
-                                    language = selectedLanguage,
-                                    isBlooming = !hasPlayedHomeIntro,
-                                    onShowAbout = { showAbout = true },
-                                    onShowLanguage = onShowLanguagePicker,
-                                    modifier = Modifier.onSizeChanged { toolbarHeightPx = it.height }
-                                )
-                                HomeHeroCard(
-                                    articles = churchNews.articles,
-                                    liturgicalDay = todayLiturgicalDay,
-                                    language = selectedLanguage,
-                                    quickActions = listOf(
-                                        HomeQuickAccessItem(HomeAction.Prayers) {
-                                            showPrayerSearch = true
-                                            if (prayers.items.isEmpty() && !prayers.isLoading) onReloadPrayers()
-                                        },
-                                        HomeQuickAccessItem(HomeAction.Rosary) {
-                                            showRosarySearch = true
-                                            if (rosaries.items.isEmpty() && !rosaries.isLoading) onReloadRosaries()
-                                        },
-                                        HomeQuickAccessItem(HomeAction.Intentions) {
-                                            showIntentionsSearch = true
-                                            if (intentionTerms.terms.isEmpty() && !intentionTerms.isLoading) onReloadIntentionTerms()
-                                        },
-                                        HomeQuickAccessItem(HomeAction.Patronage) {
-                                            showPatronageSearch = true
-                                            if (patronageTerms.terms.isEmpty() && !patronageTerms.isLoading) onReloadPatronageTerms()
-                                        }
-                                    ),
-                                    minimumHeight = heroMinimumHeight,
-                                    hasPlayedIntro = hasPlayedHomeIntro,
-                                    onIntroComplete = onHomeIntroComplete,
-                                    onOpenReadings = ::openDailyReadings,
-                                    onRefresh = { onAction.refreshChurchNews(selectedLanguage.code) },
-                                    onOpenArticle = { article ->
-                                        runCatching {
-                                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(article.canonicalUrl)))
-                                        }
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = viewportMinimumHeight),
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            HomeTopActions(
+                                language = selectedLanguage,
+                                isBlooming = !hasPlayedHomeIntro,
+                                onShowAbout = { showAbout = true },
+                                onShowLanguage = onShowLanguagePicker,
+                                modifier = Modifier.onSizeChanged { toolbarHeightPx = it.height }
+                            )
+                            HomeHeroCard(
+                                articles = churchNews.articles,
+                                liturgicalDay = todayLiturgicalDay,
+                                language = selectedLanguage,
+                                quickActions = listOf(
+                                    HomeQuickAccessItem(HomeAction.Prayers) {
+                                        showPrayerSearch = true
+                                        if (prayers.items.isEmpty() && !prayers.isLoading) onReloadPrayers()
+                                    },
+                                    HomeQuickAccessItem(HomeAction.Rosary) {
+                                        showRosarySearch = true
+                                        if (rosaries.items.isEmpty() && !rosaries.isLoading) onReloadRosaries()
+                                    },
+                                    HomeQuickAccessItem(HomeAction.Intentions) {
+                                        showIntentionsSearch = true
+                                        if (intentionTerms.terms.isEmpty() && !intentionTerms.isLoading) onReloadIntentionTerms()
+                                    },
+                                    HomeQuickAccessItem(HomeAction.Patronage) {
+                                        showPatronageSearch = true
+                                        if (patronageTerms.terms.isEmpty() && !patronageTerms.isLoading) onReloadPatronageTerms()
                                     }
-                                )
-                            }
+                                ),
+                                minimumHeight = heroMinimumHeight,
+                                hasPlayedIntro = hasPlayedHomeIntro,
+                                onIntroComplete = onHomeIntroComplete,
+                                onOpenReadings = ::openDailyReadings,
+                                onRefresh = { onAction.refreshChurchNews(selectedLanguage.code) },
+                                onOpenArticle = { article ->
+                                    runCatching {
+                                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(article.canonicalUrl)))
+                                    }
+                                }
+                            )
                         }
                     }
                 }
@@ -2238,10 +2251,12 @@ private fun HomeHeroCard(
         label = "home-content-alpha"
     )
     val density = LocalDensity.current
+    val fontScale = density.fontScale
     var fixedContentHeightPx by remember { mutableStateOf(0) }
     val fixedContentHeight = with(density) { fixedContentHeightPx.toDp() }
     val newsMinimumHeight = maxOf(250.dp, minimumHeight - fixedContentHeight - 16.dp)
-    val newsPageHeight = maxOf(178.dp, newsMinimumHeight - 134.dp)
+    val fontScaleAllowance = ((fontScale - 1f).coerceIn(0f, 0.6f) * 90f).dp
+    val newsPageHeight = maxOf(196.dp + fontScaleAllowance, newsMinimumHeight - 134.dp)
 
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Column(
