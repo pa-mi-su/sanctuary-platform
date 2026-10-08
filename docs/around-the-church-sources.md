@@ -27,6 +27,14 @@ not permission to ingest Vatican RSS content.
   or `pl`). The Fides native carousel uses English or Spanish; Polish currently
   falls back to the English Fides feed and labels it `EN`. Neither path receives
   a ZIP code, GPS position, state, or country.
+- The Home screen displays the official Vatican News widget by default. Users
+  can switch to the Fides photo carousel; that carousel wraps continuously in
+  both directions instead of stopping at its final story.
+- Vatican News controls the freshness of its hosted widget. Sanctuary loads the
+  current widget whenever the Home view is created or the language changes; it
+  does not poll or cache Vatican content. Fides is refreshed by the Sanctuary API
+  every 10 minutes, requested by active mobile Home screens every 15 minutes,
+  and refreshed on demand through the native refresh controls.
 
 ## Approved
 
