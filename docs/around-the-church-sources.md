@@ -1,70 +1,65 @@
 # Around the Church source policy
 
-`Around the Church` is a link-preview reader. It may ingest only official
-publisher syndication feeds. Sanctuary stores no article body and does not copy
-publisher images into Sanctuary storage. A card shows the publisher-supplied
-headline, short description and feed thumbnail, identifies the publisher, and
-opens the canonical publisher page. Every article and image hostname must be
-explicitly allowlisted in the API. The mobile clients consume only the
-normalized Sanctuary API response.
+`Around the Church` is a native article carousel backed by RSS feeds operated
+by approved Catholic news publishers. Sanctuary displays only the feed's
+headline, description excerpt, publication date, related image, image credit,
+publisher name, and canonical article URL. Tapping a card opens the complete
+article on the publisher's website.
 
-## Delivery and personalization
+Sanctuary does not scrape article pages, copy article bodies, rewrite reporting,
+download publisher images, proxy media, or replace publisher attribution.
 
-- The API refreshes each approved language feed every 10 minutes and retains
-  the last successful result if a publisher is temporarily unavailable.
-- API responses may be cached publicly for up to 10 minutes. While the Home
-  screen is active, the mobile apps request updated results every 15 minutes;
-  pull-to-refresh on iOS and the refresh control on Android request them sooner.
-- The carousel advances every 10 seconds and restarts that interval after a
-  manual swipe. Users who enable reduced motion do not receive automatic page
-  animation on iOS.
-- Selection is based only on the language chosen in Sanctuary: English uses
-  EWTN News, Spanish uses ACI Prensa, and Polish uses EWTN Polska. The news
-  endpoint does not receive or inspect a ZIP code, GPS position, state, or
-  country. Users in different regions therefore see the same global Catholic
-  feed for the same selected language.
+## Approved feeds
 
-## Approved
+| Requested language | Publisher | Official feed | Item language |
+| --- | --- | --- | --- |
+| English | EWTN News | `https://www.ewtnnews.com/rss` | English |
+| Spanish | ACI Prensa | `https://www.aciprensa.com/rss/noticias.xml` | Spanish |
+| Polish | EWTN News fallback | `https://www.ewtnnews.com/rss` | English |
 
-- **EWTN News** — primary English source. Its official RSS feed is
-  `https://www.ewtnnews.com/rss` and supplies current headlines, concise
-  descriptions, canonical article links, exact story thumbnails and photo
-  credits. Sanctuary displays those values as a linked preview and loads images
-  directly from EWTN's `res.cloudinary.com` host.
-- **ACI Prensa** — primary Spanish source. Its official RSS feed is
-  `https://www.aciprensa.com/rss/news` and supplies Spanish headlines,
-  descriptions, canonical links and exact story thumbnails hosted by EWTN.
-- **EWTN Polska** — primary Polish source. Its official RSS feed is
-  `https://ewtn.pl/feed/` and supplies Polish headlines, descriptions,
-  canonical links and story thumbnails hosted by `ewtn.pl`.
-- **Agenzia Fides** — automatic fallback only when the appropriate EWTN feed is
-  unavailable. It is the official news service of the Pontifical Mission Societies.
-  English and Spanish RSS feeds are published at
-  `https://www.fides.org/en/news/rss` and
-  `https://www.fides.org/es/news/rss`. Fides states on every article page that
-  the site contents are licensed under Creative Commons Attribution 4.0.
-  Sanctuary displays the canonical article photograph, title, short excerpt,
-  publication date, Fides attribution, image credit when provided, and the
-  `CC BY 4.0` license label. The API excludes an article when its page does not
-  provide an HTTPS `og:image` hosted by `www.fides.org`.
+The Polish UI labels fallback stories as English. Add a Polish publisher only
+after verifying its official identity, feed ownership, editorial quality,
+update frequency, image metadata, and terms.
 
-## Not approved
+## Refresh and failure behavior
 
-- **Vatican News** — its public legal notice prohibits reproduction and
-  collection of portal content and requires written authorization for links.
-  Do not add Vatican News content or links unless Sanctuary receives written
-  authorization from the Dicastery for Communication.
-- **Polish Bishops' Conference (episkopat.pl)** — the RSS page states that the
-  feed grants no reuse license beyond personal use. Written permission is
-  required before it can be enabled.
-- **USCCB News** — the public news RSS feed does not state that third-party
-  photographs embedded in releases may be republished in a mobile application.
-  Do not ingest those photographs without written permission covering the app.
+- The API checks the publisher feeds every 15 minutes, which matches the TTL
+  declared by the EWTN feed.
+- API responses are publicly cacheable for 15 minutes.
+- The API retains the most recent successful in-memory result when a refresh
+  fails. Mobile clients retain their most recent successful result for seven
+  days.
+- English is the final fallback when a localized feed is unavailable.
+- The carousel contains at most 12 articles and automatically advances every
+  10 seconds. Manual paging is circular on iOS and Android.
+
+## Validation and presentation
+
+The backend accepts an item only when it has:
+
+- an HTTPS canonical URL on the approved publisher domain;
+- an RFC 1123 publication timestamp; and
+- an HTTPS, publisher-supplied related image on the approved media domain.
+
+For EWTN News and ACI Prensa, article URLs must remain on the publisher's domain
+and images must remain on EWTN's Cloudinary account. Image captions and
+photographer credits are taken from Media RSS or the image block included in
+the feed. Items without a valid related image are omitted rather than filled
+with an unrelated or generated image.
+
+Duplicate normalized headlines are removed without changing the
+publisher-provided headline. Descriptions are converted to plain text and
+length-limited for the card; Sanctuary does not use AI to summarize or alter
+the reporting.
 
 ## Adding a source
 
-Before code changes, record the official feed URL, canonical hostname,
-permitted metadata, thumbnail behavior, attribution requirements, supported
-languages, and written permission when required. Add parser fixtures and tests
-for the source's real feed structure. Never scrape or store full publisher
-articles. Never substitute an unrelated stock image for the exact story image.
+Before adding a feed:
+
+1. Confirm that the publisher operates the feed and article domain.
+2. Confirm that the feed supplies canonical article links and related images.
+3. Add exact allowlists for the article and image hosts.
+4. Add parser tests using the source's real metadata structure.
+5. Review the publisher's feed terms and attribution requirements.
+6. Verify external article opening, accessibility, caching, and both mobile
+   layouts on physical devices.

@@ -28,7 +28,7 @@ public class ChurchNewsController {
         @RequestParam(defaultValue = "20") int limit
     ) {
         return ResponseEntity.ok()
-            .cacheControl(CacheControl.maxAge(Duration.ofMinutes(10)).cachePublic())
+            .cacheControl(CacheControl.maxAge(Duration.ofMinutes(15)).cachePublic())
             .body(service.list(lang, limit));
     }
 }

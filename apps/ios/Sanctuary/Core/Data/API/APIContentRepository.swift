@@ -7,6 +7,12 @@ actor APIChurchNewsRepository: ChurchNewsRepository {
     init(apiClient: SanctuaryAPIClient) {
         self.apiClient = apiClient
         self.cacheRoot = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
+        for locale in ContentLocale.allCases {
+            for version in ["v2", "v3"] {
+                let legacyCache = cacheRoot.appendingPathComponent("church-news-\(version)-\(locale.rawValue).json")
+                try? FileManager.default.removeItem(at: legacyCache)
+            }
+        }
     }
 
     func cachedArticles(locale: ContentLocale) async -> [ChurchNewsArticle] {
@@ -54,7 +60,7 @@ actor APIChurchNewsRepository: ChurchNewsRepository {
     }
 
     private func cacheURL(for locale: ContentLocale) -> URL {
-        cacheRoot.appendingPathComponent("church-news-v2-\(locale.rawValue).json")
+        cacheRoot.appendingPathComponent("church-news-v4-\(locale.rawValue).json")
     }
 
     private struct NewsCacheEnvelope: Codable {
