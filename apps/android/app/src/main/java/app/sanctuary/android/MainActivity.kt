@@ -2280,18 +2280,18 @@ private fun HomeHeroCard(
             HomeQuickAccessGrid(quickActions)
         }
 
-        if (articles.isNotEmpty()) {
-            Card(
-                modifier = Modifier.fillMaxWidth().heightIn(min = newsMinimumHeight),
-                colors = CardDefaults.cardColors(containerColor = Color(0xCC22394C)),
-                shape = RoundedCornerShape(28.dp)
-            ) {
-                BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-                    val newsPadding = when {
-                        maxWidth < 330.dp -> 16.dp
-                        maxWidth < 400.dp -> 20.dp
-                        else -> 24.dp
-                    }
+        Card(
+            modifier = Modifier.fillMaxWidth().heightIn(min = newsMinimumHeight),
+            colors = CardDefaults.cardColors(containerColor = Color(0xCC22394C)),
+            shape = RoundedCornerShape(28.dp)
+        ) {
+            BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                val newsPadding = when {
+                    maxWidth < 330.dp -> 16.dp
+                    maxWidth < 400.dp -> 20.dp
+                    else -> 24.dp
+                }
+                if (articles.isNotEmpty()) {
                     ChurchNewsCarousel(
                         articles = articles,
                         autoAdvanceEnabled = animationsEnabled,
@@ -2300,8 +2300,30 @@ private fun HomeHeroCard(
                         pageHeight = newsPageHeight,
                         modifier = Modifier.padding(newsPadding)
                     )
+                } else {
+                    ChurchNewsLoadingCard(modifier = Modifier.padding(newsPadding))
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun ChurchNewsLoadingCard(modifier: Modifier = Modifier) {
+    val l10n = sanctuaryStrings()
+    Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Text(
+            l10n.t("news.title"),
+            color = Color(0xFFE7C76A),
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 1.2.sp
+        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            CircularProgressIndicator(color = Color(0xFFE7C76A), modifier = Modifier.size(22.dp), strokeWidth = 2.dp)
+            Text(l10n.t("news.loading"), color = Color(0xFFD0DFEA), fontSize = 13.sp)
         }
     }
 }
@@ -2487,7 +2509,20 @@ private fun ChurchNewsCarousel(
     modifier: Modifier = Modifier
 ) {
     val l10n = sanctuaryStrings()
-    val pagerState = rememberPagerState(pageCount = { articles.size })
+    val circularPaging = articles.size > 1
+    val initialPage = remember(articles.size) {
+        if (circularPaging) {
+            val midpoint = Int.MAX_VALUE / 2
+            midpoint - (midpoint % articles.size)
+        } else {
+            0
+        }
+    }
+    val pagerState = rememberPagerState(
+        initialPage = initialPage,
+        pageCount = { if (circularPaging) Int.MAX_VALUE else articles.size }
+    )
+    val actualPage = if (articles.isEmpty()) 0 else pagerState.currentPage % articles.size
 
     LaunchedEffect(autoAdvanceEnabled, articles.size) {
         if (!autoAdvanceEnabled || articles.size <= 1) return@LaunchedEffect
@@ -2495,7 +2530,7 @@ private fun ChurchNewsCarousel(
         while (true) {
             delay(10_000)
             if (!pagerState.isScrollInProgress) {
-                pagerState.animateScrollToPage((pagerState.currentPage + 1) % articles.size)
+                pagerState.animateScrollToPage(pagerState.currentPage + 1)
             }
         }
     }
@@ -2509,7 +2544,7 @@ private fun ChurchNewsCarousel(
                 modifier = Modifier.weight(1f)
             )
             Text(
-                "${pagerState.currentPage + 1} / ${articles.size}",
+                "${actualPage + 1} / ${articles.size}",
                 color = Color(0xFFE7C76A),
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold
@@ -2528,7 +2563,8 @@ private fun ChurchNewsCarousel(
             pageSpacing = 18.dp,
             modifier = Modifier.fillMaxWidth().height(pageHeight)
         ) { page ->
-            ChurchNewsPage(article = articles[page]) { onOpenArticle(articles[page]) }
+            val article = articles[page % articles.size]
+            ChurchNewsPage(article = article) { onOpenArticle(article) }
         }
 
         BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
@@ -2538,7 +2574,7 @@ private fun ChurchNewsCarousel(
                     NewsSwipeLabel(l10n.t("news.swipe"))
                     NewsPageIndicators(
                         pageCount = articles.size,
-                        currentPage = pagerState.currentPage,
+                        currentPage = actualPage,
                         modifier = Modifier.align(Alignment.CenterHorizontally)
                     )
                 }
@@ -2550,7 +2586,7 @@ private fun ChurchNewsCarousel(
                 ) {
                     NewsSwipeLabel(l10n.t("news.swipe"))
                     Spacer(Modifier.weight(1f))
-                    NewsPageIndicators(pageCount = articles.size, currentPage = pagerState.currentPage)
+                    NewsPageIndicators(pageCount = articles.size, currentPage = actualPage)
                 }
             }
         }

@@ -123,8 +123,8 @@ struct HomeView: View {
                                 }
                             }
 
-                            if !newsArticles.isEmpty {
-                                Group {
+                            Group {
+                                if !newsArticles.isEmpty {
                                     ChurchNewsCarousel(
                                         articles: newsArticles,
                                         selection: $newsPage,
@@ -132,13 +132,15 @@ struct HomeView: View {
                                         pageHeight: newsPageHeight,
                                         openArticle: { openURL($0.canonicalURL) }
                                     )
+                                } else {
+                                    ChurchNewsLoadingCard(localization: localization)
                                 }
-                                .padding(.horizontal, 20 * scale)
-                                .padding(.vertical, 18 * scale)
-                                .frame(maxWidth: .infinity, minHeight: newsCardHeight, alignment: .top)
-                                .appGlassCard(cornerRadius: 30 * scale)
-                                .transition(.opacity.combined(with: .scale(scale: 0.98)))
                             }
+                            .padding(.horizontal, 20 * scale)
+                            .padding(.vertical, 18 * scale)
+                            .frame(maxWidth: .infinity, minHeight: newsCardHeight, alignment: .top)
+                            .appGlassCard(cornerRadius: 30 * scale)
+                            .transition(.opacity.combined(with: .scale(scale: 0.98)))
 
                             Spacer(minLength: 2 * scale)
                         }
@@ -493,6 +495,12 @@ private struct ChurchNewsCarousel: View {
     let pageHeight: CGFloat
     let openArticle: (ChurchNewsArticle) -> Void
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var displayedPage = 1
+
+    private var circularArticles: [ChurchNewsArticle] {
+        guard articles.count > 1, let first = articles.first, let last = articles.last else { return articles }
+        return [last] + articles + [first]
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -506,11 +514,11 @@ private struct ChurchNewsCarousel: View {
             }
             .foregroundStyle(AppTheme.glowGold)
 
-            TabView(selection: $selection) {
-                ForEach(Array(articles.enumerated()), id: \.element.id) { index, article in
+            TabView(selection: $displayedPage) {
+                ForEach(Array(circularArticles.enumerated()), id: \.offset) { index, article in
                     Button { openArticle(article) } label: {
                         HStack(alignment: .top, spacing: 12) {
-                            LicensedNewsImage(article: article, width: 122, height: max(166, pageHeight - 10))
+                            NewsThumbnail(article: article, width: 122, height: max(166, pageHeight - 10))
 
                             VStack(alignment: .leading, spacing: 7) {
                                 Text(article.title)
@@ -539,12 +547,15 @@ private struct ChurchNewsCarousel: View {
                     }
                     .buttonStyle(.plain)
                     .accessibilityHint(localization.t("news.openHint"))
-                    .tag(index)
+                    .tag(articles.count > 1 ? index : 0)
                 }
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
             .frame(height: pageHeight)
-            .task(id: selection) {
+            .onAppear { synchronizeDisplayedPage() }
+            .onChange(of: articles.map(\.id)) { _ in synchronizeDisplayedPage() }
+            .onChange(of: displayedPage) { newPage in handleDisplayedPageChange(newPage) }
+            .task(id: displayedPage) {
                 guard articles.count > 1, !reduceMotion else { return }
                 do {
                     try await Task.sleep(for: .seconds(10))
@@ -553,7 +564,7 @@ private struct ChurchNewsCarousel: View {
                 }
                 guard !Task.isCancelled else { return }
                 withAnimation(.easeInOut(duration: 0.42)) {
-                    selection = (selection + 1) % articles.count
+                    displayedPage += 1
                 }
             }
 
@@ -579,9 +590,58 @@ private struct ChurchNewsCarousel: View {
             ? article.sourceName
             : "\(article.sourceName) • \(article.language.uppercased())"
     }
+
+    private func synchronizeDisplayedPage() {
+        guard !articles.isEmpty else { return }
+        displayedPage = articles.count > 1 ? min(selection, articles.count - 1) + 1 : 0
+    }
+
+    private func handleDisplayedPageChange(_ newPage: Int) {
+        guard articles.count > 1 else {
+            selection = 0
+            return
+        }
+        if newPage == 0 {
+            selection = articles.count - 1
+            resetDisplayedPage(to: articles.count)
+        } else if newPage == articles.count + 1 {
+            selection = 0
+            resetDisplayedPage(to: 1)
+        } else {
+            selection = newPage - 1
+        }
+    }
+
+    private func resetDisplayedPage(to page: Int) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.32) {
+            var transaction = Transaction()
+            transaction.disablesAnimations = true
+            withTransaction(transaction) { displayedPage = page }
+        }
+    }
 }
 
-private struct LicensedNewsImage: View {
+private struct ChurchNewsLoadingCard: View {
+    let localization: LocalizationManager
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text(localization.t("news.title"))
+                .font(AppTheme.rounded(15, weight: .bold))
+                .tracking(1.4)
+                .foregroundStyle(AppTheme.glowGold)
+            HStack(spacing: 12) {
+                ProgressView().tint(AppTheme.glowGold)
+                Text(localization.t("news.loading"))
+                    .font(AppTheme.rounded(13, weight: .medium))
+                    .foregroundStyle(AppTheme.subtitleText)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+private struct NewsThumbnail: View {
     let article: ChurchNewsArticle
     let width: CGFloat
     let height: CGFloat
