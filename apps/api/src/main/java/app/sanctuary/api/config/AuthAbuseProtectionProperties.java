@@ -10,6 +10,15 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class AuthAbuseProtectionProperties {
 
     private boolean enabled = true;
+    // Empty outside configured deployments: forwarding headers are untrusted by default.
+    private Set<String> trustedProxyCidrs = Set.of();
+
+    public Set<String> getTrustedProxyCidrs() { return trustedProxyCidrs; }
+
+    public void setTrustedProxyCidrs(Set<String> cidrs) {
+        trustedProxyCidrs = cidrs == null ? Set.of() : Set.copyOf(cidrs);
+    }
+
     private Limit register = new Limit(5, Duration.ofHours(1));
     private Limit login = new Limit(20, Duration.ofMinutes(15));
     private Limit forgotPassword = new Limit(5, Duration.ofHours(1));

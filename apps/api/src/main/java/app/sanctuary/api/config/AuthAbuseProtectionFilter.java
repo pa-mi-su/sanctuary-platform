@@ -4,7 +4,9 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Instant;
+import java.net.InetAddress;
 import java.util.Map;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -18,6 +20,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.web.util.matcher.IpAddressMatcher;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.util.ContentCachingRequestWrapper;
 
@@ -26,6 +29,7 @@ public class AuthAbuseProtectionFilter extends OncePerRequestFilter {
     private static final Logger log = LoggerFactory.getLogger(AuthAbuseProtectionFilter.class);
     private static final AuthEndpoint REGISTER = new AuthEndpoint("/auth/register", "register");
     private static final AuthEndpoint LOGIN = new AuthEndpoint("/auth/login", "login");
+    private static final AuthEndpoint NEWS_LOGIN = new AuthEndpoint("/auth/news/login", "news-login");
     private static final AuthEndpoint FORGOT_PASSWORD = new AuthEndpoint("/auth/forgot-password", "forgot-password");
     private static final AuthEndpoint RESEND_CONFIRMATION = new AuthEndpoint("/auth/resend-confirmation", "resend-confirmation");
 
@@ -33,6 +37,8 @@ public class AuthAbuseProtectionFilter extends OncePerRequestFilter {
     private final ObjectMapper objectMapper;
     private final Clock clock;
     private final Map<String, WindowCounter> attempts = new ConcurrentHashMap<>();
+    private final Map<String, WindowCounter> newsAttempts = new ConcurrentHashMap<>();
+    private final List<IpAddressMatcher> trustedProxies;
 
     public AuthAbuseProtectionFilter(AuthAbuseProtectionProperties properties, ObjectMapper objectMapper) {
         this(properties, objectMapper, Clock.systemUTC());
@@ -42,6 +48,7 @@ public class AuthAbuseProtectionFilter extends OncePerRequestFilter {
         this.properties = properties;
         this.objectMapper = objectMapper;
         this.clock = clock;
+        this.trustedProxies = properties.getTrustedProxyCidrs().stream().map(IpAddressMatcher::new).toList();
     }
 
     @Override
@@ -59,7 +66,7 @@ public class AuthAbuseProtectionFilter extends OncePerRequestFilter {
         String ipAddress = clientIp(wrappedRequest);
         String rateKey = endpoint.name() + ":" + ipAddress;
 
-        if (!allow(rateKey, limitFor(endpoint))) {
+        if (!allow(endpoint == NEWS_LOGIN ? newsAttempts : attempts, rateKey, limitFor(endpoint))) {
             log.warn("Auth rate limit exceeded endpoint={} ip={} userAgent={}", endpoint.name(), ipAddress, safeHeader(wrappedRequest, "User-Agent"));
             response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
             response.setContentType("application/json");
@@ -93,8 +100,11 @@ public class AuthAbuseProtectionFilter extends OncePerRequestFilter {
         if (REGISTER.path().equals(path)) {
             return Optional.of(REGISTER);
         }
-        if (LOGIN.path().equals(path) || "/auth/news/login".equals(path) || "/auth/news/verify".equals(path)) {
+        if (LOGIN.path().equals(path)) {
             return Optional.of(LOGIN);
+        }
+        if (NEWS_LOGIN.path().equals(path) || "/auth/news/verify".equals(path)) {
+            return Optional.of(NEWS_LOGIN);
         }
         if (FORGOT_PASSWORD.path().equals(path)) {
             return Optional.of(FORGOT_PASSWORD);
@@ -109,7 +119,7 @@ public class AuthAbuseProtectionFilter extends OncePerRequestFilter {
         if (endpoint == REGISTER) {
             return properties.register();
         }
-        if (endpoint == LOGIN) {
+        if (endpoint == LOGIN || endpoint == NEWS_LOGIN) {
             return properties.login();
         }
         if (endpoint == RESEND_CONFIRMATION) {
@@ -118,7 +128,7 @@ public class AuthAbuseProtectionFilter extends OncePerRequestFilter {
         return properties.forgotPassword();
     }
 
-    private synchronized boolean allow(String key, AuthAbuseProtectionProperties.Limit limit) {
+    private synchronized boolean allow(Map<String, WindowCounter> attempts, String key, AuthAbuseProtectionProperties.Limit limit) {
         if (limit.maxAttempts() <= 0) {
             return false;
         }
@@ -137,9 +147,26 @@ public class AuthAbuseProtectionFilter extends OncePerRequestFilter {
     }
 
     private String clientIp(HttpServletRequest request) {
-        // The socket peer is authoritative. Do not accept caller-controlled forwarding headers.
-        // Edge rate limiting must handle individual clients behind a load balancer.
-        return request.getRemoteAddr();
+        String peer = request.getRemoteAddr();
+        if (trustedProxies.stream().noneMatch(proxy -> proxy.matches(peer))) return peer;
+        // Sanctuary's ALB appends the observed client IP. Ignore every caller-supplied prefix.
+        String forwarded = request.getHeader("X-Forwarded-For");
+        if (forwarded == null || forwarded.length() > 4096) return peer;
+        String address = forwarded.substring(forwarded.lastIndexOf(',') + 1).trim();
+        // Literal addresses only: never resolve attacker-controlled DNS names.
+        if (address.isEmpty() || !address.matches("[0-9a-fA-F:.]+")) return peer;
+        if (!address.contains(":")) {
+            String[] octets = address.split("\\.", -1);
+            if (octets.length != 4) return peer;
+            for (String octet : octets) {
+                if (!octet.matches("0|[1-9][0-9]{0,2}") || Integer.parseInt(octet) > 255) return peer;
+            }
+        }
+        try {
+            return InetAddress.getByName(address).getHostAddress();
+        } catch (java.net.UnknownHostException exception) {
+            return peer;
+        }
     }
 
     private String safeHeader(HttpServletRequest request, String name) {

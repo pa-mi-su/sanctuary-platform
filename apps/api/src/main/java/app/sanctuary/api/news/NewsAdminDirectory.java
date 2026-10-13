@@ -11,7 +11,7 @@ public class NewsAdminDirectory {
     private final CognitoIdentityProviderClient cognito;
     private final AuthProperties auth;
 
-    public NewsAdminDirectory(CognitoIdentityProviderClient cognito, AuthProperties auth) {
+    public NewsAdminDirectory(@org.springframework.beans.factory.annotation.Qualifier("newsCognitoClient") CognitoIdentityProviderClient cognito, AuthProperties auth) {
         this.cognito = cognito;
         this.auth = auth;
     }

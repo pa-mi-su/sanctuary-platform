@@ -18,7 +18,7 @@ Implementation: codex/sanctuary-news-fresh-start, prepared for a DEV pull reques
 
 | Check | Result |
 | --- | --- |
-| API suite, PostgreSQL enabled | 85 total: 84 passed, 1 skipped, 0 failures/errors |
+| API suite, PostgreSQL enabled | 95 total: 94 passed, 1 skipped, 0 failures/errors |
 | Frontend | 31 passed across 8 files |
 | Production web build | Passed; CSP applied; no inline executable scripts/event handlers |
 | npm audit | 0 reported vulnerabilities |
@@ -48,3 +48,7 @@ HTTP lifecycle tests use real Spring filters/controllers, PostgreSQL transaction
 The owner chose the existing database setup and manual backups. No maintenance-window approval is pending. DEV and production RDS retention were verified as zero, with no pending RDS modifications or AWS Backup plans in us-east-1. No backup scheduling, storage-encryption change, or database cutover is included in the DEV PR. The two existing manual safety snapshots may remain.
 
 The [production security runbook](production-security-runbook.md) records the prepared roles/settings and the remaining administrator/deployed acceptance steps.
+
+## Mobile compatibility follow-up
+
+The [mobile compatibility audit](mobile-compatibility-audit-2026-10-13.md) identified and fixed ALB-wide rate-limit collisions, shared administrator/consumer login buckets, and administrator SDK timeouts affecting the consumer client. Added actual native-controller/security-chain tests with RSA-signed tokens and SDK wiring/configuration tests. Consumer endpoint DTOs/services/tables and native source/version/workflows remain unchanged. AWS inspection was read-only; this follow-up adds no cloud resources.

@@ -19,6 +19,16 @@ sanctuary:
       - http://127.0.0.1:4200
       - https://dev.mydailysanctuary.com
   auth:
+    abuse:
+      # Existing sanctuary-api-alb subnets. API port 8080 accepts only the ALB security group.
+      # Keep aligned with ALB subnet changes; forwarding mode must remain append, ports disabled.
+      trusted-proxy-cidrs:
+        - 172.30.0.0/24
+        - 172.30.1.0/24
+        - 172.30.2.0/24
+        - 172.30.3.0/24
+        - 172.30.4.0/24
+        - 172.30.5.0/24
     enabled: ${SANCTUARY_AUTH_ENABLED:false}
     audience: ${SANCTUARY_COGNITO_CLIENT_ID:}
     user-pool-id: ${SANCTUARY_COGNITO_USER_POOL_ID:}

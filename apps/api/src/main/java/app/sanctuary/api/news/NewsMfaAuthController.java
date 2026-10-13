@@ -27,7 +27,7 @@ public class NewsMfaAuthController {
     public record Login(@NotBlank @Email @Size(max=254) String email,@NotBlank @Size(max=256) String password){@Override public String toString(){return "Login[redacted]";}}
     public record Code(@NotBlank @Size(max=100) String challengeId,@Pattern(regexp="[0-9]{6}") @NotNull String code){@Override public String toString(){return "Code[redacted]";}}
     public record Result(String state,String challengeId,String secret,String message){}
-    public NewsMfaAuthController(CognitoIdentityProviderClient cognito,AuthProperties auth,ObjectProvider<JwtDecoder> decoder,NewsMfaSessions sessions,WebAuthCookieService cookies,NewsAuthStateStore pending){this.cognito=cognito;this.auth=auth;this.decoder=decoder;this.sessions=sessions;this.cookies=cookies;this.pending=pending;}
+    public NewsMfaAuthController(@org.springframework.beans.factory.annotation.Qualifier("newsCognitoClient") CognitoIdentityProviderClient cognito,AuthProperties auth,ObjectProvider<JwtDecoder> decoder,NewsMfaSessions sessions,WebAuthCookieService cookies,NewsAuthStateStore pending){this.cognito=cognito;this.auth=auth;this.decoder=decoder;this.sessions=sessions;this.cookies=cookies;this.pending=pending;}
     @PostMapping("/auth/news/login")
     public ResponseEntity<Result> login(@Valid @RequestBody Login input,@RequestHeader(value="X-Sanctuary-News-Admin",defaultValue="") String header){
         check(header);if(!pending.allowLogin(input.email()))throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,"Too many attempts. Wait before signing in again.");

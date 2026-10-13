@@ -19,4 +19,10 @@ class AuthAbuseProtectionConfigTest {
             assertThat(context).hasSingleBean(AuthAbuseProtectionFilter.class);
         });
     }
+    @Test
+    void bindsExplicitTrustedProxyRanges() {
+        contextRunner.withPropertyValues("sanctuary.auth.abuse.trusted-proxy-cidrs[0]=172.30.0.0/24")
+            .run(context -> assertThat(context.getBean(AuthAbuseProtectionProperties.class).getTrustedProxyCidrs())
+                .containsExactly("172.30.0.0/24"));
+    }
 }
