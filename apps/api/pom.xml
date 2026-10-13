@@ -7,7 +7,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.5.6</version>
+        <version>3.5.16</version>
         <relativePath/>
     </parent>
 
@@ -19,7 +19,15 @@
 
     <properties>
         <java.version>21</java.version>
-        <aws.sdk.version>2.30.31</aws.sdk.version>
+        <aws.sdk.version>2.55.15</aws.sdk.version>
+        <!-- Security patches newer than the 3.5 BOM; rescan before removing overrides. -->
+        <jackson-bom.version>2.21.7</jackson-bom.version>
+        <log4j2.version>2.26.1</log4j2.version>
+        <tomcat.version>10.1.61</tomcat.version>
+        <postgresql.version>42.7.12</postgresql.version>
+        <httpclient5.version>5.6.5</httpclient5.version>
+        <httpcore5.version>5.4.4</httpcore5.version>
+        <netty.version>4.1.139.Final</netty.version>
     </properties>
 
     <dependencies>

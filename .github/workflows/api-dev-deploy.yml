@@ -7,6 +7,8 @@ on:
     paths:
       - "apps/api/**"
       - "!apps/api/**/*.md"
+      - "scripts/security/**"
+      - "docs/security/api-advisory-exceptions.json"
       - ".github/workflows/api-dev-deploy.yml"
   push:
     branches:
@@ -14,6 +16,8 @@ on:
     paths:
       - "apps/api/**"
       - "!apps/api/**/*.md"
+      - "scripts/security/**"
+      - "docs/security/api-advisory-exceptions.json"
   workflow_dispatch:
 
 permissions:
@@ -28,6 +32,20 @@ jobs:
   build:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: local-cms-test
+          POSTGRES_DB: news_cms_test
+        ports:
+          - 15439:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
 
     steps:
       - name: Checkout repository
@@ -41,12 +59,33 @@ jobs:
           cache: maven
 
       - name: Run API tests
+        env:
+          NEWS_TEST_DB: jdbc:postgresql://127.0.0.1:15439/news_cms_test
         run: mvn -q test
         working-directory: apps/api
+
+      - name: Scan API dependencies for security advisories
+        run: |
+          mvn -q -f apps/api/pom.xml dependency:tree -DoutputType=json -DoutputFile=target/dependency-tree.json
+          python3 scripts/security/scan-api-dependencies.py apps/api/target/dependency-tree.json --report apps/api/target/security-advisories.json
 
   deploy:
     if: (github.event_name == 'push' && github.ref == 'refs/heads/dev') || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: local-cms-test
+          POSTGRES_DB: news_cms_test
+        ports:
+          - 15439:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     environment: dev
     env:
       AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
@@ -57,6 +96,9 @@ jobs:
       SANCTUARY_DB_URL: ${{ vars.API_DEV_DB_URL || 'jdbc:postgresql://sanctuary-dev-db.cwh6808ko1sb.us-east-1.rds.amazonaws.com:5432/sanctuary' }}
       SANCTUARY_DB_USERNAME: ${{ vars.API_DEV_DB_USERNAME || 'sanctuary' }}
       API_DEV_DB_SECRET_ARN: ${{ vars.API_DEV_DB_SECRET_ARN || 'arn:aws:secretsmanager:us-east-1:160885294528:secret:rds!db-b1c8d5a7-86da-4f49-a850-f928a84fad13-wwsw4C' }}
+      API_NEWS_CHALLENGE_SECRET_ARN: ${{ vars.API_DEV_NEWS_CHALLENGE_SECRET_ARN }}
+      API_TASK_ROLE_ARN: ${{ vars.API_DEV_TASK_ROLE_ARN }}
+      API_EXECUTION_ROLE_ARN: ${{ vars.API_DEV_EXECUTION_ROLE_ARN }}
       SANCTUARY_AUTH_ENABLED: ${{ vars.API_DEV_AUTH_ENABLED || 'true' }}
       SANCTUARY_COGNITO_ISSUER_URI: ${{ vars.API_DEV_COGNITO_ISSUER_URI || 'https://cognito-idp.us-east-1.amazonaws.com/us-east-1_oCrXzjKbV' }}
       SANCTUARY_COGNITO_CLIENT_ID: ${{ vars.API_DEV_COGNITO_CLIENT_ID || '2ukk5f1esf1gmgi9aadvvbjjgs' }}
@@ -75,8 +117,15 @@ jobs:
           cache: maven
 
       - name: Run API tests
+        env:
+          NEWS_TEST_DB: jdbc:postgresql://127.0.0.1:15439/news_cms_test
         run: mvn -q test
         working-directory: apps/api
+
+      - name: Scan API dependencies for security advisories
+        run: |
+          mvn -q -f apps/api/pom.xml dependency:tree -DoutputType=json -DoutputFile=target/dependency-tree.json
+          python3 scripts/security/scan-api-dependencies.py apps/api/target/dependency-tree.json --report apps/api/target/security-advisories.json
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v5
@@ -97,12 +146,23 @@ jobs:
           echo "SANCTUARY_COGNITO_ISSUER_URI=$(echo -n "${SANCTUARY_COGNITO_ISSUER_URI}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
           echo "SANCTUARY_COGNITO_CLIENT_ID=$(echo -n "${SANCTUARY_COGNITO_CLIENT_ID}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
           echo "SANCTUARY_COGNITO_USER_POOL_ID=$(echo -n "${SANCTUARY_COGNITO_USER_POOL_ID}" | tr -d '\r\n[:space:]')" >> "$GITHUB_ENV"
+          python3 scripts/security/secure-rds-url.py >> "$GITHUB_ENV"
 
       - name: Validate dev DB secret source
         run: |
           if [[ "${API_DEV_DB_SECRET_ARN}" != arn:aws:secretsmanager:*:secret:rds\!* ]]; then
             echo "API_DEV_DB_SECRET_ARN must be the RDS-managed Secrets Manager secret ARN."
             echo "Do not use raw GitHub secrets or SSM parameters for dev DB credentials."
+            exit 1
+          fi
+
+          if [[ "${API_TASK_ROLE_ARN}" != arn:aws:iam::*:role/* || "${API_EXECUTION_ROLE_ARN}" != arn:aws:iam::*:role/* || "${API_TASK_ROLE_ARN}" == "${API_EXECUTION_ROLE_ARN}" ]]; then
+            echo "::error::Configure separate API task and execution role ARNs before deployment."
+            exit 1
+          fi
+
+          if [[ "${API_NEWS_CHALLENGE_SECRET_ARN}" != arn:aws:secretsmanager:*:secret:* ]]; then
+            echo "::error::Configure the environment's API news challenge secret ARN before deployment."
             exit 1
           fi
 
@@ -146,6 +206,7 @@ jobs:
             -e SANCTUARY_DB_URL="${SANCTUARY_DB_URL}" \
             -e SANCTUARY_DB_USERNAME="${SANCTUARY_DB_USERNAME}" \
             -e SANCTUARY_DB_PASSWORD=smoke-test \
+            -e SANCTUARY_NEWS_CHALLENGE_KEY="$(openssl rand -base64 32)" \
             -e SANCTUARY_AUTH_ENABLED="${SANCTUARY_AUTH_ENABLED}" \
             -e SANCTUARY_COGNITO_ISSUER_URI="${SANCTUARY_COGNITO_ISSUER_URI}" \
             -e SANCTUARY_COGNITO_CLIENT_ID="${SANCTUARY_COGNITO_CLIENT_ID}" \
@@ -209,12 +270,15 @@ jobs:
 
           jq \
             --arg image "${EXPECTED_API_IMAGE}" \
+            --arg task_role "${API_TASK_ROLE_ARN}" \
+            --arg execution_role "${API_EXECUTION_ROLE_ARN}" \
             --arg db_url "${SANCTUARY_DB_URL}" \
             --arg db_username "${SANCTUARY_DB_USERNAME}" \
             --arg auth_enabled "${SANCTUARY_AUTH_ENABLED}" \
             --arg cognito_issuer "${SANCTUARY_COGNITO_ISSUER_URI}" \
             --arg cognito_client_id "${SANCTUARY_COGNITO_CLIENT_ID}" \
             --arg cognito_user_pool_id "${SANCTUARY_COGNITO_USER_POOL_ID}" \
+            --arg news_challenge_secret "${API_NEWS_CHALLENGE_SECRET_ARN}" \
             --arg db_secret "${API_DEV_DB_SECRET_ARN}:password::" \
             'del(
               .taskDefinitionArn,
@@ -225,6 +289,8 @@ jobs:
               .registeredAt,
               .registeredBy
             )
+            | .taskRoleArn = $task_role
+            | .executionRoleArn = $execution_role
             | .containerDefinitions |= map(
               if .name == "Main" then
                 .image = $image
@@ -239,7 +305,8 @@ jobs:
                   {"name": "SANCTUARY_COGNITO_USER_POOL_ID", "value": $cognito_user_pool_id}
                 ]
                 | .secrets = [
-                  {"name": "SANCTUARY_DB_PASSWORD", "valueFrom": $db_secret}
+                  {"name": "SANCTUARY_DB_PASSWORD", "valueFrom": $db_secret},
+                  {"name": "SANCTUARY_NEWS_CHALLENGE_KEY", "valueFrom": $news_challenge_secret}
                 ]
               else
                 .

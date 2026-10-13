@@ -46,6 +46,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Run web tests
+        run: npm test --workspace web -- --watch=false
+
       - name: Stamp web build info
         run: |
           version="$(node -p "require('./apps/web/package.json').version")"
@@ -70,6 +73,8 @@ jobs:
     runs-on: ubuntu-latest
     environment: dev
     env:
+      WEB_DEPLOY_ENVIRONMENT: dev
+      WEB_SECURITY_HEADERS_POLICY_ID: ${{ vars.WEB_DEV_SECURITY_HEADERS_POLICY_ID }}
       AWS_REGION: ${{ vars.AWS_REGION }}
       WEB_S3_BUCKET: ${{ vars.WEB_DEV_S3_BUCKET }}
       WEB_CLOUDFRONT_DISTRIBUTION_ID: ${{ vars.WEB_DEV_CLOUDFRONT_DISTRIBUTION_ID }}
@@ -86,6 +91,9 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Run web tests
+        run: npm test --workspace web -- --watch=false
 
       - name: Stamp web build info
         run: |
@@ -133,6 +141,9 @@ jobs:
             echo "Refusing to invalidate the prod CloudFront distribution from the dev workflow." >&2
             exit 1
           fi
+
+      - name: Apply environment web security headers
+        run: bash scripts/security/apply-web-security-headers.sh
 
       - name: Sync web build to S3
         run: aws s3 sync apps/web/dist/web/browser "s3://${WEB_S3_BUCKET}" --delete

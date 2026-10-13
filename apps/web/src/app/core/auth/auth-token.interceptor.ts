@@ -16,7 +16,7 @@ export const authCookieInterceptor: HttpInterceptorFn = (request, next) => {
     withCredentials: true,
   });
 
-  if (isAuthEndpoint(request.url, apiBaseUrl)) {
+  if (isAuthEndpoint(request.url, apiBaseUrl) || request.url.slice(apiBaseUrl.length).startsWith('/admin/')) {
     return next(credentialedRequest);
   }
 

@@ -1,4 +1,4 @@
-<div class="page-bg"></div>
+<div class="page-bg" [class.news-background]="facade.currentTab() === 'news'"></div>
 
 @if (facade.currentTab() !== 'auth' && (facade.saintDetail() || facade.prayerDetail() || facade.novenaDetail())) {
   <app-content-detail-modal
@@ -66,8 +66,9 @@
   </section>
 }
 
-<div class="app-shell">
+<div class="app-shell" [class.news-shell]="facade.currentTab() === 'news'">
   <main class="phone-frame">
+    @if (facade.currentTab() !== 'news' && facade.currentTab() !== 'news-admin') {
     <app-header
       [currentTab]="facade.currentTab()"
       [isEnglish]="facade.isEnglish()"
@@ -77,6 +78,23 @@
       (selectLanguage)="facade.setLanguage($event)"
       (logout)="facade.logout()"
     />
+    }
+
+    @if (facade.currentTab() === 'news-admin') {
+      @defer (when facade.currentTab() === 'news-admin') {
+        <app-news-admin-page />
+      } @placeholder {
+        <p role="status">Loading the private newsroom…</p>
+      }
+    }
+
+    @if (facade.currentTab() === 'news') {
+      @defer (when facade.currentTab() === 'news') {
+        <app-news-page />
+      } @placeholder {
+        <p role="status">Loading Sanctuary News…</p>
+      }
+    }
 
     @if (facade.currentTab() === 'home') {
       <app-home-page
@@ -292,6 +310,8 @@
       />
     }
 
-    <app-footer [currentLanguage]="facade.language()" />
+    @if (facade.currentTab() !== 'news' && facade.currentTab() !== 'news-admin') {
+      <app-footer [currentLanguage]="facade.language()" />
+    }
   </main>
 </div>

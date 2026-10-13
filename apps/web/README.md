@@ -2,7 +2,7 @@
 
 `apps/web` is Sanctuary's Angular 21 browser client. It is a responsive, signal-driven single-page shell over the shared Spring Boot API; `app.routes.ts` intentionally contains no Angular feature routes.
 
-Current app version: `1.0.15`.
+Current app version: `1.0.16`.
 
 ## Runtime behavior
 
