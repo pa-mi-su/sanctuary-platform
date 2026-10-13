@@ -1,4 +1,6 @@
 import { Component, inject } from '@angular/core';
+import { NewsAdminPageComponent } from './pages/news-admin-page.component';
+import { NewsPageComponent } from './pages/news-page.component';
 import { HomePageComponent } from './pages/home-page.component';
 import { AppHeaderComponent } from './pages/app-header.component';
 import { AppFooterComponent } from './pages/app-footer.component';
@@ -19,6 +21,8 @@ import { AppShellFacade } from './core/state/app-shell.facade';
   standalone: true,
   imports: [
     HomePageComponent,
+    NewsPageComponent,
+    NewsAdminPageComponent,
     AppHeaderComponent,
     AppFooterComponent,
     SaintsPageComponent,

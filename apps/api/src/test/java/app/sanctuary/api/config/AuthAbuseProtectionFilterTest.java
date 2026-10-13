@@ -15,7 +15,7 @@ class AuthAbuseProtectionFilterTest {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Test
-    void limitsAuthRequestsByForwardedIp() throws Exception {
+    void forgedForwardedHeadersCannotBypassRateLimit() throws Exception {
         AuthAbuseProtectionProperties properties = new AuthAbuseProtectionProperties();
         properties.setRegister(new AuthAbuseProtectionProperties.Limit(1, Duration.ofHours(1)));
         AuthAbuseProtectionFilter filter = new AuthAbuseProtectionFilter(properties, objectMapper);
@@ -24,7 +24,11 @@ class AuthAbuseProtectionFilterTest {
         filter.doFilter(registerRequest(), firstResponse, new MockFilterChain());
 
         MockHttpServletResponse secondResponse = new MockHttpServletResponse();
-        filter.doFilter(registerRequest(), secondResponse, new MockFilterChain());
+        MockHttpServletRequest forged = registerRequest();
+        forged.removeHeader("X-Forwarded-For");
+        forged.addHeader("X-Forwarded-For", "198.51.100.99");
+        forged.addHeader("X-Real-IP", "198.51.100.100");
+        filter.doFilter(forged, secondResponse, new MockFilterChain());
 
         assertThat(firstResponse.getStatus()).isEqualTo(200);
         assertThat(secondResponse.getStatus()).isEqualTo(429);

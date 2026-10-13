@@ -1,6 +1,6 @@
 import { Component, input, output } from '@angular/core';
 
-type AppTab = 'home' | 'novenas' | 'intentions' | 'patronage' | 'liturgical' | 'saints' | 'prayers' | 'rosaries' | 'about' | 'auth' | 'me';
+type AppTab = 'news-admin' | 'news' | 'home' | 'novenas' | 'intentions' | 'patronage' | 'liturgical' | 'saints' | 'prayers' | 'rosaries' | 'about' | 'auth' | 'me';
 type AppLanguage = 'en' | 'es' | 'pl';
 
 @Component({
@@ -13,6 +13,10 @@ type AppLanguage = 'en' | 'es' | 'pl';
         <button class="tab" [class.active]="currentTab() === 'home'" type="button" (click)="navigate.emit('home')">
           <span class="tab-icon">⌂</span>
           <span>{{ t('Home', 'Inicio', 'Start') }}</span>
+        </button>
+        <button class="tab" [class.active]="currentTab() === 'news'" type="button" (click)="navigate.emit('news')">
+          <span class="tab-icon" aria-hidden="true">▤</span>
+          <span>{{ t('News', 'Noticias', 'Wiadomości') }}</span>
         </button>
         <button class="tab" [class.active]="currentTab() === 'novenas'" type="button" (click)="navigate.emit('novenas')">
           <span class="tab-icon">☰</span>

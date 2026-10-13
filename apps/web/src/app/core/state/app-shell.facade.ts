@@ -23,7 +23,7 @@ import {
 } from '../api/sanctuary-api.service';
 import { SanctuaryAuthService } from '../auth/sanctuary-auth.service';
 
-export type AppTab = 'home' | 'novenas' | 'intentions' | 'patronage' | 'liturgical' | 'saints' | 'prayers' | 'rosaries' | 'about' | 'auth' | 'me';
+export type AppTab = 'news-admin' | 'news' | 'home' | 'novenas' | 'intentions' | 'patronage' | 'liturgical' | 'saints' | 'prayers' | 'rosaries' | 'about' | 'auth' | 'me';
 export type CalendarView = 'day' | 'week' | 'month';
 export type SeasonKey = 'ADVENT' | 'CHRISTMAS' | 'LENT' | 'EASTER' | 'ORDINARY';
 export type CalendarCell = { date: string | null; dayNumber: number | null; label: string; seasonKey?: SeasonKey | null };
@@ -613,6 +613,15 @@ export class AppShellFacade {
       this.clearSelectedTerm();
       this.termLoadFailed.set(false);
     }
+    if (typeof window !== 'undefined') {
+      if (tab === 'news-admin' && window.location.pathname !== '/admin/news') {
+        window.history.pushState({}, '', '/admin/news');
+      } else if (tab === 'news' && window.location.pathname !== '/news') {
+        window.history.pushState({}, '', '/news');
+      } else if (tab !== 'news' && /^\/news\/?$/.test(window.location.pathname)) {
+        window.history.pushState({}, '', '/');
+      }
+    }
     this.currentTab.set(tab);
     if (tab === 'me' && this.isAuthenticated()) {
       this.refreshUserCollections();
@@ -1098,6 +1107,20 @@ export class AppShellFacade {
 
   private openSharedContentFromPath(pathname: string, updateHistory: boolean): void {
     const [kind, slug] = pathname.split('/').filter(Boolean);
+    if (kind === 'admin' && (!slug || slug === 'news')) {
+      this.setTab('news-admin');
+      return;
+    }
+    if (kind === 'news' && !slug) {
+      this.selectedSaintSlug.set(null);
+      this.selectedPrayerSlug.set(null);
+      this.selectedNovenaSlug.set(null);
+      this.selectedNovenaId.set(null);
+      this.activeLegalDocument.set(null);
+      this.setTab('news');
+      return;
+    }
+    if (!kind && this.currentTab() === 'news') this.setTab('home');
     if (kind === 'privacy' || kind === 'support') {
       this.selectedSaintSlug.set(null);
       this.selectedPrayerSlug.set(null);

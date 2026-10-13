@@ -54,7 +54,7 @@ public class AuthAbuseProtectionFilter extends OncePerRequestFilter {
         throws ServletException, IOException {
         ContentCachingRequestWrapper wrappedRequest = request instanceof ContentCachingRequestWrapper cached
             ? cached
-            : new ContentCachingRequestWrapper(request);
+            : new ContentCachingRequestWrapper(request, 4096);
         AuthEndpoint endpoint = endpointFor(wrappedRequest).orElseThrow();
         String ipAddress = clientIp(wrappedRequest);
         String rateKey = endpoint.name() + ":" + ipAddress;
@@ -93,7 +93,7 @@ public class AuthAbuseProtectionFilter extends OncePerRequestFilter {
         if (REGISTER.path().equals(path)) {
             return Optional.of(REGISTER);
         }
-        if (LOGIN.path().equals(path)) {
+        if (LOGIN.path().equals(path) || "/auth/news/login".equals(path) || "/auth/news/verify".equals(path)) {
             return Optional.of(LOGIN);
         }
         if (FORGOT_PASSWORD.path().equals(path)) {
@@ -118,12 +118,15 @@ public class AuthAbuseProtectionFilter extends OncePerRequestFilter {
         return properties.forgotPassword();
     }
 
-    private boolean allow(String key, AuthAbuseProtectionProperties.Limit limit) {
+    private synchronized boolean allow(String key, AuthAbuseProtectionProperties.Limit limit) {
         if (limit.maxAttempts() <= 0) {
             return false;
         }
 
         Instant now = clock.instant();
+        attempts.entrySet().removeIf(entry -> !now.isBefore(entry.getValue().expiresAt()));
+        // Bound attacker-controlled key storage; fail closed when capacity is exhausted.
+        if (!attempts.containsKey(key) && attempts.size() >= 10000) return false;
         WindowCounter counter = attempts.compute(key, (ignored, current) -> {
             if (current == null || !now.isBefore(current.expiresAt())) {
                 return new WindowCounter(1, now.plus(limit.window()));
@@ -134,16 +137,8 @@ public class AuthAbuseProtectionFilter extends OncePerRequestFilter {
     }
 
     private String clientIp(HttpServletRequest request) {
-        String forwardedFor = request.getHeader("X-Forwarded-For");
-        if (forwardedFor != null && !forwardedFor.isBlank()) {
-            return forwardedFor.split(",")[0].trim();
-        }
-
-        String realIp = request.getHeader("X-Real-IP");
-        if (realIp != null && !realIp.isBlank()) {
-            return realIp.trim();
-        }
-
+        // The socket peer is authoritative. Do not accept caller-controlled forwarding headers.
+        // Edge rate limiting must handle individual clients behind a load balancer.
         return request.getRemoteAddr();
     }
 
@@ -152,7 +147,7 @@ public class AuthAbuseProtectionFilter extends OncePerRequestFilter {
         if (value == null || value.isBlank()) {
             return "-";
         }
-        return value.replaceAll("[\\r\\n\\t]", " ").trim();
+        return value.substring(0, Math.min(value.length(), 256)).replaceAll("[\\r\\n\\t]", " ").trim();
     }
 
     private AuthRequestSummary summarize(ContentCachingRequestWrapper request) {

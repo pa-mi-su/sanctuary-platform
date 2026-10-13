@@ -36,8 +36,19 @@ public class WebAuthCookieService {
         }
     }
 
+    public void setNewsSessionCookies(HttpServletResponse response, String token, String proof, int expiresIn) {
+        addCookie(response, ID_COOKIE, token, "/admin", Duration.ofSeconds(expiresIn), false);
+        addCookie(response, "sanctuary_news_mfa", proof, "/admin", Duration.ofSeconds(expiresIn), false);
+    }
+
+    public void clearNewsSessionCookies(HttpServletResponse response) {
+        addCookie(response, ID_COOKIE, "", "/admin", Duration.ZERO, false);
+        addCookie(response, "sanctuary_news_mfa", "", "/admin", Duration.ZERO, false);
+    }
+
     public void clearSessionCookies(HttpServletResponse response) {
         addCookie(response, ID_COOKIE, "", "/me", Duration.ZERO);
+        clearNewsSessionCookies(response);
         addCookie(response, REFRESH_COOKIE, "", "/auth/web/refresh", Duration.ZERO);
     }
 
@@ -60,6 +71,10 @@ public class WebAuthCookieService {
     }
 
     private void addCookie(HttpServletResponse response, String name, String value, String path, Duration maxAge) {
+        addCookie(response, name, value, path, maxAge, true);
+    }
+
+    private void addCookie(HttpServletResponse response, String name, String value, String path, Duration maxAge, boolean allowDomain) {
         AuthProperties.Cookie cookieProperties = authProperties.cookie();
         ResponseCookie.ResponseCookieBuilder builder = ResponseCookie.from(name, value)
             .httpOnly(true)
@@ -68,7 +83,7 @@ public class WebAuthCookieService {
             .path(path)
             .maxAge(maxAge);
 
-        if (cookieProperties.domain() != null && !cookieProperties.domain().isBlank()) {
+        if (allowDomain && cookieProperties.domain() != null && !cookieProperties.domain().isBlank()) {
             builder.domain(cookieProperties.domain());
         }
 

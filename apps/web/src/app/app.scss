@@ -140,3 +140,11 @@
     padding: 44px 36px 48px;
   }
 }
+
+.page-bg.news-background {
+  background:
+    radial-gradient(circle at 76% 12%, rgba(76,182,216,.24), transparent 35%),
+    radial-gradient(circle at 24% 24%, rgba(229,198,106,.12), transparent 30%),
+    linear-gradient(180deg, #102f3f 0%, #1d5369 52%, #0b2432 100%);
+}
+.app-shell.news-shell { padding: 0; background: transparent; }

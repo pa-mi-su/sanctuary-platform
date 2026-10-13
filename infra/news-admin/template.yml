@@ -1,0 +1,121 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Environment-scoped Sanctuary API roles and encrypted news MFA challenge key. Does not update ECS or RDS.
+Parameters:
+  EnvironmentName:
+    Type: String
+    AllowedValues: [dev, prod]
+  UserPoolId:
+    Type: String
+    AllowedPattern: 'us-east-1_[A-Za-z0-9]+'
+  DatabaseSecretArn:
+    Type: String
+    AllowedPattern: 'arn:aws:secretsmanager:us-east-1:[0-9]{12}:secret:.+'
+Resources:
+  WebSecurityHeaders:
+    Type: AWS::CloudFront::ResponseHeadersPolicy
+    Properties:
+      ResponseHeadersPolicyConfig:
+        Name: !Sub 'sanctuary-${EnvironmentName}-web-security'
+        Comment: Sanctuary web CSP, framing protection, and HTTPS headers
+        SecurityHeadersConfig:
+          ContentSecurityPolicy:
+            Override: true
+            ContentSecurityPolicy: >-
+              default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self';
+              style-src 'self' 'unsafe-inline'; img-src 'self' data: https:;
+              font-src 'self' data:; connect-src 'self' https://api.mydailysanctuary.com
+              https://dev-api.mydailysanctuary.com https://cognito-idp.us-east-1.amazonaws.com;
+              form-action 'self' https://*.auth.us-east-1.amazoncognito.com;
+              upgrade-insecure-requests; frame-ancestors 'none'
+          ContentTypeOptions:
+            Override: true
+          FrameOptions:
+            FrameOption: DENY
+            Override: true
+          ReferrerPolicy:
+            ReferrerPolicy: strict-origin-when-cross-origin
+            Override: true
+          StrictTransportSecurity:
+            AccessControlMaxAgeSec: 31536000
+            IncludeSubdomains: false
+            Preload: false
+            Override: true
+  ChallengeKey:
+    Type: AWS::SecretsManager::Secret
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Name: !Sub '/sanctuary/${EnvironmentName}/news/challenge-key'
+      Description: AES-256 key for short-lived encrypted administrator MFA challenges
+      GenerateSecretString:
+        PasswordLength: 64
+        ExcludePunctuation: true
+        ExcludeCharacters: GHIJKLMNOPQRSTUVWXYZghijklmnopqrstuvwxyz
+        RequireEachIncludedType: false
+  ApiTaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub 'sanctuary-api-${EnvironmentName}-task'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+              ArnLike:
+                aws:SourceArn: !Sub 'arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:*'
+      Policies:
+        - PolicyName: environment-cognito
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - cognito-idp:AdminGetUser
+                  - cognito-idp:AdminListGroupsForUser
+                  # Existing consumer account deletion/sign-out behavior.
+                  - cognito-idp:AdminDeleteUser
+                  - cognito-idp:AdminUserGlobalSignOut
+                  - cognito-idp:ListUsers
+                Resource: !Sub 'arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${UserPoolId}'
+  ApiExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub 'sanctuary-api-${EnvironmentName}-execution'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+              ArnLike:
+                aws:SourceArn: !Sub 'arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:*'
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+      Policies:
+        - PolicyName: environment-secret-injection
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: secretsmanager:GetSecretValue
+                Resource:
+                  - !Ref DatabaseSecretArn
+                  - !Ref ChallengeKey
+Outputs:
+  WebSecurityHeadersPolicyId:
+    Value: !Ref WebSecurityHeaders
+  ChallengeSecretArn:
+    Value: !Ref ChallengeKey
+  TaskRoleArn:
+    Value: !GetAtt ApiTaskRole.Arn
+  ExecutionRoleArn:
+    Value: !GetAtt ApiExecutionRole.Arn

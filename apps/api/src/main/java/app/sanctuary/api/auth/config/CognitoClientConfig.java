@@ -14,6 +14,9 @@ public class CognitoClientConfig {
     CognitoIdentityProviderClient cognitoIdentityProviderClient(AuthProperties authProperties) {
         return CognitoIdentityProviderClient.builder()
             .region(resolveRegion(authProperties.userPoolId()))
+            .overrideConfiguration(configuration -> configuration
+                .apiCallTimeout(java.time.Duration.ofSeconds(10))
+                .apiCallAttemptTimeout(java.time.Duration.ofSeconds(4)))
             .build();
     }
 

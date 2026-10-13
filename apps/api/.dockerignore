@@ -1,2 +1,7 @@
-target
+target/
 .DS_Store
+.env
+.env.*
+*.log
+.git/
+src/test/
