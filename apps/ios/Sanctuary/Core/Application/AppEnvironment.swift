@@ -5,7 +5,6 @@ struct AppEnvironment {
     let apiClient: SanctuaryAPIClient
     let contentRepository: any ContentRepository
     let searchRepository: any SearchRepository
-    let churchNewsRepository: any ChurchNewsRepository
 
     func makeUserProgressRepository(sessionStore: AccountSessionStore) -> any UserProgressRepository {
         RemoteUserProgressRepository(apiClient: apiClient, sessionStore: sessionStore)
@@ -16,14 +15,12 @@ struct AppEnvironment {
         let apiClient = SanctuaryAPIClient(baseURL: platformConfiguration.apiBaseURL, session: apiSession())
         let contentRepository = APIContentRepository(apiClient: apiClient)
         let searchRepository = LocalSearchRepository(contentRepository: contentRepository)
-        let churchNewsRepository = APIChurchNewsRepository(apiClient: apiClient)
 
         return AppEnvironment(
             platformConfiguration: platformConfiguration,
             apiClient: apiClient,
             contentRepository: contentRepository,
-            searchRepository: searchRepository,
-            churchNewsRepository: churchNewsRepository
+            searchRepository: searchRepository
         )
     }
 

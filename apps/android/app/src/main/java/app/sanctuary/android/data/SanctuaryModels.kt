@@ -7,36 +7,6 @@ data class AuthRegisterRequest(
     val password: String
 )
 
-data class ChurchNewsArticleResponse(
-    val id: String,
-    val title: String,
-    val summary: String,
-    val sourceName: String,
-    val canonicalUrl: String,
-    val imageUrl: String,
-    val imageAlt: String,
-    val imageCredit: String,
-    val licenseName: String,
-    val licenseUrl: String,
-    val publishedAt: String,
-    val language: String
-)
-
-data class ChurchNewsArticle(
-    val id: String,
-    val title: String,
-    val summary: String,
-    val sourceName: String,
-    val canonicalUrl: String,
-    val imageUrl: String,
-    val imageAlt: String,
-    val imageCredit: String,
-    val licenseName: String,
-    val licenseUrl: String,
-    val publishedAt: String,
-    val language: String
-)
-
 data class AuthLoginRequest(
     val email: String,
     val password: String
@@ -259,8 +229,7 @@ data class LiturgicalDayResponse(
     val primaryRank: String,
     val observances: List<String>,
     val readingsUrl: String?,
-    val rankType: String,
-    val color: String? = null
+    val rankType: String
 )
 
 data class ApiErrorEnvelope(
@@ -442,6 +411,5 @@ data class LiturgicalDay(
     val primaryRank: String,
     val observances: List<String>,
     val readingsUrl: String?,
-    val rankType: String,
-    val color: String
+    val rankType: String
 )
