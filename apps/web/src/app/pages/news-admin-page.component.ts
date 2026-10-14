@@ -220,8 +220,9 @@ import { NewsApiService, NewsArticle, newNewsArticle } from '../core/api/news-ap
               <fieldset class="placement-panel">
                 <legend>Where should this article appear?</legend>
                 <p>
-                  These positions control the Latest homepage. Category tabs filter and arrange
-                  their stories automatically.
+                  These positions apply to Latest and the article’s category tab. Category tabs
+                  filter stories without changing their positions. A sidebar story stays compact
+                  even when its category has no main story.
                 </p>
                 <div class="layout-guide" aria-label="Homepage layout guide">
                   <div class="guide-main">
@@ -234,7 +235,7 @@ import { NewsApiService, NewsArticle, newNewsArticle } from '../core/api/news-ap
                   <div class="guide-more">More stories · Below the main section</div>
                 </div>
                 <label
-                  >Homepage position<select
+                  >Display position<select
                     name="placement"
                     [(ngModel)]="article.placement"
                     [disabled]="article.status === 'SCHEDULED'"
@@ -256,8 +257,9 @@ import { NewsApiService, NewsArticle, newNewsArticle } from '../core/api/news-ap
                 </p>
                 @if (article.placement !== 'MORE' && article.status !== 'SCHEDULED') {
                   <p>
-                    There is one published article per featured position. Publishing here moves the
-                    previous article in this position to More stories.
+                    There is one published article per featured position across the whole
+                    publication, not one per category. Publishing here moves the previous article in
+                    this position to More stories.
                   </p>
                 }
               </fieldset>
@@ -296,7 +298,7 @@ import { NewsApiService, NewsArticle, newNewsArticle } from '../core/api/news-ap
                       <p>Your article will go live {{ receipt.publishAt | date: 'medium' }}.</p>
                     }
                     <p>
-                      Homepage position: <strong>{{ placementLabel(receipt.placement) }}</strong
+                      Display position: <strong>{{ placementLabel(receipt.placement) }}</strong
                       >{{ receipt.status === 'DRAFT' ? ' (when published)' : '' }}
                     </p>
                     <small>Saved {{ receipt.updatedAt | date: 'shortTime' }}</small>

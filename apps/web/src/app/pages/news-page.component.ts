@@ -55,7 +55,7 @@ const photo = (id: string, width = 1000) =>
       </nav>
       @if (selectedStory(); as story) {
         <article class="story-detail">
-          <button class="back-link" type="button" (click)="selectedStory.set(null)">
+          <button class="back-link" type="button" (click)="closeStory()">
             ← Back to headlines
           </button>
           <p class="kicker">
@@ -307,8 +307,7 @@ export class NewsPageComponent {
   );
   readonly homepage = computed(() => {
     const stories = this.visibleStories();
-    if (this.isMock || this.selectedCategory() !== 'Latest')
-      return { lead: stories[0], side: stories.slice(1, 3), more: stories.slice(3) };
+    if (this.isMock) return { lead: stories[0], side: stories.slice(1, 3), more: stories.slice(3) };
     const lead = stories.find((story) => story.article?.placement === 'LEAD');
     const side = ['SIDEBAR_1', 'SIDEBAR_2']
       .map((slot) => stories.find((story) => story.article?.placement === slot))
@@ -316,8 +315,17 @@ export class NewsPageComponent {
     const featured = new Set([lead?.id, ...side.map((story) => story.id)]);
     return { lead, side, more: stories.filter((story) => !featured.has(story.id)) };
   });
+  closeStory(): void {
+    this.selectedStory.set(null);
+    // Returning to a section must not reopen an old article when the page is refreshed.
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('article');
+      window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+    }
+  }
   selectCategory(category: string): void {
     this.selectedCategory.set(category);
-    this.selectedStory.set(null);
+    this.closeStory();
   }
 }

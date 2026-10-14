@@ -604,7 +604,15 @@ h3 {
 }
 
 .front-page.no-lead {
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
+  // A sidebar stays a compact card even when this category has no main story.
+  width: min(100%, 420px);
+  margin-left: auto;
+}
+@media (max-width: 600px) {
+  .front-page.no-lead {
+    margin-right: auto;
+  }
 }
 .front-page:empty {
   display: none;
