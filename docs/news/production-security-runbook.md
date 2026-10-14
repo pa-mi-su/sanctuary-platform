@@ -49,7 +49,9 @@ Map stack outputs to existing GitHub environment variables:
 | API_DEV_TASK_ROLE_ARN / API_PROD_TASK_ROLE_ARN | TaskRoleArn |
 | API_DEV_EXECUTION_ROLE_ARN / API_PROD_EXECUTION_ROLE_ARN | ExecutionRoleArn |
 
-Map WebSecurityHeadersPolicyId to WEB_DEV_SECURITY_HEADERS_POLICY_ID / WEB_PROD_SECURITY_HEADERS_POLICY_ID. The guarded web deployment script checks the environment policy name and target domain before changing response-header policy references. It preserves other distribution configuration and uses the current ETag. The web deploy role needs cloudfront:GetDistributionConfig and cloudfront:UpdateDistribution on the exact distribution, plus cloudfront:GetResponseHeadersPolicy on its exact policy. Attaching the prepared policy adds frame-ancestors, DENY framing, HSTS, and the CSP; no distribution was changed during this work.
+The DEV and production web workflows select AWS managed SecurityHeadersPolicy `67f7725c-6f97-4210-82d7-5512b31e9d03`, which is supported on the Free plan. Prepared custom policies and their older GitHub variables remain unused; no plan upgrade is needed. The guarded deployment script validates the target domain, rejects distributions mixing DEV and production aliases, preserves other distribution configuration, and uses the current ETag. It requires cloudfront:GetDistributionConfig and cloudfront:UpdateDistribution on the intended distribution. The fixed managed policy needs no custom-policy read. Explicit future custom-policy use still validates its environment-specific name and requires cloudfront:GetResponseHeadersPolicy.
+
+Managed headers provide HSTS, nosniff, strict-origin-when-cross-origin and X-Frame-Options SAMEORIGIN. HTML meta CSP continues to restrict scripts and connections. SAMEORIGIN blocks cross-origin framing; it is not the previously proposed DENY/frame-ancestors none policy, and meta CSP cannot enforce frame-ancestors. DEV's managed policy has deployed successfully. Production policy attachment remains part of the later authorized MAIN release; this configuration change does not deploy it.
 
 The deployment role needs iam:PassRole only for these new exact role ARNs, with iam:PassedToService=ecs-tasks.amazonaws.com. Do not expand the application task role to read secrets, ECR, or deployment resources. If the RDS secret uses a customer-managed KMS key, add narrowly scoped kms:Decrypt to the execution role for that key, constrained to Secrets Manager.
 
@@ -75,7 +77,7 @@ The public local API returns 200 and both existing articles; anonymous /admin/ne
 
 ## Remaining release acceptance
 
-After the approved cloud preparation and DEV deployment, verify the actual task role, Secrets Manager injection, verified RDS TLS, Cognito challenge continuation, cookie/CORS headers, live role revocation, and owner publishing flow. Publish only after production administrator enrollment and deployed acceptance of the security controls above. The prepared CloudFront policy and deployment step must be applied and verified; meta CSP alone cannot enforce frame-ancestors. Firebase/app-management remains separate future work.
+After the approved cloud preparation and DEV deployment, verify the actual task role, Secrets Manager injection, verified RDS TLS, Cognito challenge continuation, cookie/CORS headers, live role revocation, and owner publishing flow. Publish only after production administrator enrollment and deployed acceptance of the security controls above. Verify the managed CloudFront security headers and the HTML meta CSP after deployment; framing protection is SAMEORIGIN rather than a frame-ancestors directive. Firebase/app-management remains separate future work.
 
 ## Shared mobile API compatibility
 
