@@ -75,6 +75,8 @@ class NativeApiCompatibilityTest {
     }
     @BeforeEach void setup() {
         context = new AnnotationConfigWebApplicationContext();
+        // Deployment jobs export SANCTUARY_AUTH_*; fixtures must never discover a real Cognito issuer.
+        context.setEnvironment(new org.springframework.mock.env.MockEnvironment());
         context.setServletContext(new MockServletContext()); context.register(Config.class); context.refresh();
         mvc = MockMvcBuilders.webAppContextSetup(context)
             .addFilters(new NewsRequestLimitsFilter(), context.getBean("springSecurityFilterChain", Filter.class)).build();

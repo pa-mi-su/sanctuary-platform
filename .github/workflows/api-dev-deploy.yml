@@ -61,6 +61,8 @@ jobs:
       - name: Run API tests
         env:
           NEWS_TEST_DB: jdbc:postgresql://127.0.0.1:15439/news_cms_test
+          # Reproduce deployment-job auth settings in PR validation too.
+          SANCTUARY_AUTH_ENABLED: "true"
         run: mvn -q test
         working-directory: apps/api
 
@@ -119,6 +121,8 @@ jobs:
       - name: Run API tests
         env:
           NEWS_TEST_DB: jdbc:postgresql://127.0.0.1:15439/news_cms_test
+          # Reproduce deployment-job auth settings in PR validation too.
+          SANCTUARY_AUTH_ENABLED: "true"
         run: mvn -q test
         working-directory: apps/api
 
