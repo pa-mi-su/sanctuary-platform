@@ -41,7 +41,7 @@ type AppLanguage = 'en' | 'es' | 'pl';
             <span class="tab-label">{{ t('Me', 'Yo', 'Ja') }}</span>
           } @else {
             <span class="tab-label tab-label--desktop">
-              {{ t('Login / Register', 'Entrar / Registro', 'Login / Rejestracja') }}
+              {{ t('Sign in', 'Entrar', 'Zaloguj się') }}
             </span>
             <span class="tab-label tab-label--mobile">
               {{ t('Login', 'Entrar', 'Login') }}

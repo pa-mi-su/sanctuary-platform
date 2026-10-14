@@ -52,6 +52,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Test direct app-route publishing
+        run: python3 apps/web/scripts/test_publish_app_routes.py
+
       - name: Test security-header deployment guards
         run: python3 scripts/security/test_web_security_headers.py
 
@@ -102,6 +105,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Test direct app-route publishing
+        run: python3 apps/web/scripts/test_publish_app_routes.py
+
       - name: Test security-header deployment guards
         run: python3 scripts/security/test_web_security_headers.py
 
@@ -141,6 +147,9 @@ jobs:
 
       - name: Sync web build to S3
         run: aws s3 sync apps/web/dist/web/browser "s3://${WEB_S3_BUCKET}" --delete
+
+      - name: Publish direct app routes as HTML
+        run: bash apps/web/scripts/publish-app-routes.sh
 
       - name: Mark app link association files as JSON
         run: |
