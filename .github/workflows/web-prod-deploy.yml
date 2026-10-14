@@ -12,6 +12,8 @@ on:
       - "package-lock.json"
       - "package.json"
       - ".github/workflows/web-prod-deploy.yml"
+      - "scripts/security/apply-web-security-headers.sh"
+      - "scripts/security/test_web_security_headers.py"
   push:
     branches:
       - main
@@ -20,6 +22,8 @@ on:
       - "!apps/web/**/*.md"
       - "package-lock.json"
       - "package.json"
+      - "scripts/security/apply-web-security-headers.sh"
+      - "scripts/security/test_web_security_headers.py"
   workflow_dispatch:
 
 permissions:
@@ -47,6 +51,9 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Test security-header deployment guards
+        run: python3 scripts/security/test_web_security_headers.py
 
       - name: Run web tests
         run: npm test --workspace web -- --watch=false
@@ -76,7 +83,8 @@ jobs:
     environment: prod
     env:
       WEB_DEPLOY_ENVIRONMENT: prod
-      WEB_SECURITY_HEADERS_POLICY_ID: ${{ vars.WEB_PROD_SECURITY_HEADERS_POLICY_ID }}
+      # Same managed policy validated in DEV; supported without a pricing-plan upgrade.
+      WEB_SECURITY_HEADERS_POLICY_ID: 67f7725c-6f97-4210-82d7-5512b31e9d03
       AWS_REGION: ${{ vars.AWS_REGION }}
       WEB_S3_BUCKET: ${{ vars.WEB_PROD_S3_BUCKET }}
       WEB_CLOUDFRONT_DISTRIBUTION_ID: ${{ vars.WEB_PROD_CLOUDFRONT_DISTRIBUTION_ID }}
@@ -93,6 +101,9 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Test security-header deployment guards
+        run: python3 scripts/security/test_web_security_headers.py
 
       - name: Run web tests
         run: npm test --workspace web -- --watch=false

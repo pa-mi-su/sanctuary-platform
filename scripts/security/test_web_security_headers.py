@@ -12,10 +12,10 @@ MANAGED = '67f7725c-6f97-4210-82d7-5512b31e9d03'
 
 
 class SecurityHeadersDeploymentTest(unittest.TestCase):
-    def run_script(self, *, environment='dev', policy=MANAGED, alias=None, current_policy=None, policy_name=None):
+    def run_script(self, *, environment='dev', policy=MANAGED, alias=None, current_policy=None, policy_name=None, aliases=None):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            config = {'Aliases': {'Quantity': 1, 'Items': [alias or f'{environment}.mydailysanctuary.com']},
+            config = {'Aliases': {'Quantity': 1, 'Items': aliases or [alias or f'{environment}.mydailysanctuary.com']},
                       'Comment': 'preserve this', 'Enabled': True,
                       'DefaultCacheBehavior': {'TargetOriginId': 'existing-origin'},
                       'CacheBehaviors': {'Quantity': 1, 'Items': [{'PathPattern': '/assets/*', 'TargetOriginId': 'existing-origin'}]}}
@@ -58,8 +58,32 @@ elif args[:3]!=['cloudfront','wait','distribution-deployed']: sys.exit(99)
         self.assertFalse(any(call[1] == 'get-response-headers-policy' for call in calls))
         self.assertTrue(any(call[1] == 'update-distribution' for call in calls))
 
-    def test_managed_policy_cannot_target_production(self):
-        result, calls, updated, _ = self.run_script(environment='prod', alias='mydailysanctuary.com')
+    def test_managed_production_policy_is_supported_without_plan_changes(self):
+        result, calls, updated, original = self.run_script(environment='prod', alias='mydailysanctuary.com')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(updated['DefaultCacheBehavior']['ResponseHeadersPolicyId'], MANAGED)
+        self.assertEqual(updated['CacheBehaviors']['Items'][0]['ResponseHeadersPolicyId'], MANAGED)
+        # Only response policy references change; no pricing or origin settings are added/removed.
+        updated['DefaultCacheBehavior'].pop('ResponseHeadersPolicyId')
+        updated['CacheBehaviors']['Items'][0].pop('ResponseHeadersPolicyId')
+        self.assertEqual(updated, original)
+        self.assertFalse(any(call[1] == 'get-response-headers-policy' for call in calls))
+
+    def test_production_cannot_target_dev_distribution(self):
+        result, _, updated, _ = self.run_script(environment='prod', alias='dev.mydailysanctuary.com')
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIsNone(updated)
+
+    def test_mixed_environment_aliases_fail_before_mutation(self):
+        for environment in ('dev', 'prod'):
+            with self.subTest(environment=environment):
+                result, _, updated, _ = self.run_script(environment=environment,
+                    aliases=['mydailysanctuary.com', 'dev.mydailysanctuary.com'])
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIsNone(updated)
+
+    def test_unknown_environment_is_rejected(self):
+        result, calls, updated, _ = self.run_script(environment='main')
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual(calls, [])
         self.assertIsNone(updated)
