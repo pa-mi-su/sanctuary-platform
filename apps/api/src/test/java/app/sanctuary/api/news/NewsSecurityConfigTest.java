@@ -40,10 +40,11 @@ class NewsSecurityConfigTest {
     private void check(boolean enabled, java.util.function.Consumer<MockMvc> assertions) {
         try(var context=new AnnotationConfigWebApplicationContext()) {
             context.setServletContext(new MockServletContext());
-            context.getEnvironment().getSystemProperties().put("test.auth",Boolean.toString(enabled));
+            context.setEnvironment(new org.springframework.mock.env.MockEnvironment()
+                .withProperty("test.auth",Boolean.toString(enabled)));
             context.register(Config.class);context.refresh();
             assertions.accept(MockMvcBuilders.webAppContextSetup(context).addFilters(context.getBean("springSecurityFilterChain",Filter.class)).build());
-        } finally { System.clearProperty("test.auth"); }
+        }
     }
     @Test void anonymousAndInvalidTokensCannotRead() {check(true,mvc->{try {
         mvc.perform(get("/admin/news")).andExpect(status().isUnauthorized());
