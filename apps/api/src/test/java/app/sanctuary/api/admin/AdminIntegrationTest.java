@@ -154,6 +154,22 @@ class AdminIntegrationTest {
         verify(cognito, never()).associateSoftwareToken(any(AssociateSoftwareTokenRequest.class));
         assertEquals(0, db.queryForObject("SELECT count(*) FROM admin_sessions", Integer.class));
     }
+    @Test void invitationPasswordSetupCannotIssueAnAdminSession() {
+        var cognito = mock(CognitoIdentityProviderClient.class); var service = auth(cognito);
+        when(cognito.initiateAuth(any(InitiateAuthRequest.class))).thenReturn(InitiateAuthResponse.builder()
+            .challengeName(ChallengeNameType.NEW_PASSWORD_REQUIRED).session("temporary-session").build());
+        var challenge = service.login(AdminProperties.OWNER_EMAIL, "temporary-password", "127.0.0.1");
+        assertEquals("password", challenge.get("mode"));
+        assertThrows(AuthFlowException.class, () -> service.verify(challenge.get("challenge"), "123456"));
+        when(cognito.respondToAuthChallenge(any(RespondToAuthChallengeRequest.class))).thenReturn(RespondToAuthChallengeResponse.builder()
+            .authenticationResult(AuthenticationResultType.builder().accessToken("new-access").build()).build());
+        when(cognito.getUser(any(GetUserRequest.class))).thenReturn(user("owner-sub"));
+        when(cognito.associateSoftwareToken(any(AssociateSoftwareTokenRequest.class))).thenReturn(AssociateSoftwareTokenResponse.builder().secretCode("synthetic-setup").build());
+        var next = service.password(challenge.get("challenge"), "SyntheticPassword123!");
+        assertEquals("enroll", next.get("mode"));
+        assertEquals(0, db.queryForObject("SELECT count(*) FROM admin_sessions", Integer.class));
+        assertThrows(AuthFlowException.class, () -> service.password(challenge.get("challenge"), "SyntheticPassword123!"));
+    }
     private AdminAuthService auth(CognitoIdentityProviderClient cognito) {
         return new AdminAuthService(db, cognito, new AuthProperties(true, "", "pool", "public-client"), properties, new AdminCrypto(properties), json);
     }

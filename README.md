@@ -199,7 +199,7 @@ The full contract and validation limits are documented in [apps/api/README.md](a
 
 ## PostgreSQL model
 
-Flyway migrations `V1` through `V17` are authoritative and create/evolve these groups:
+Flyway migrations `V1` through `V21` are authoritative and create/evolve these groups:
 
 - platform metadata
 - saints, localized fields, tags, legacy patronage strings, and sources

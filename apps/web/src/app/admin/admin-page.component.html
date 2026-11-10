@@ -13,6 +13,15 @@
             <label>Password<input type="password" name="password" [(ngModel)]="password" autocomplete="current-password" required maxlength="256" /></label>
             <button class="primary" [disabled]="busy()">{{ busy() ? 'Signing in…' : 'Continue' }}</button>
           </form>
+        } @else if (mode === 'password') {
+          <h2>Choose your admin password</h2>
+          <p>Use at least 14 characters with uppercase, lowercase, a number, and a symbol. You will set up your authenticator next.</p>
+          <form (ngSubmit)="setPassword()">
+            <label>New password<input type="password" name="newPassword" [(ngModel)]="newPassword" autocomplete="new-password" required minlength="14" maxlength="256" /></label>
+            <label>Confirm password<input type="password" name="confirmPassword" [(ngModel)]="confirmPassword" autocomplete="new-password" required minlength="14" maxlength="256" /></label>
+            <button class="primary" [disabled]="busy()">Save password and continue</button>
+          </form>
+          <button (click)="restart()" [disabled]="busy()">Start over</button>
         } @else {
           <h2>{{ secret ? 'Set up your authenticator' : 'Verify your authenticator' }}</h2>
           @if (secret) { <p>In your authenticator app, add a time-based account named Sanctuary Admin and enter this setup key. Keep it private and store your authenticator backup securely.</p><code class="secret">{{ secret }}</code> }

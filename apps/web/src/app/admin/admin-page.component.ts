@@ -20,6 +20,7 @@ export class AdminPageComponent implements OnDestroy {
   readonly busy = signal(false);
   readonly message = signal('');
   readonly error = signal(false);
+  mode = ''; newPassword = ''; confirmPassword = '';
   email = ''; password = ''; code = ''; challenge = ''; secret = '';
   section = 'content'; entity = 'prayers'; query = ''; page = 0; hasMore = false;
   rows: Row[] = []; fields: Field[] = []; values: Row | null = null; version = ''; editingId = '';
@@ -64,9 +65,17 @@ export class AdminPageComponent implements OnDestroy {
   async login() {
     await this.run(async () => {
       const result = await this.api('POST', '/login', { email: this.email, password: this.password });
-      this.password = ''; this.challenge = result.challenge; this.secret = result.secret;
+      this.password = ''; this.challenge = result.challenge; this.secret = result.secret; this.mode = result.mode;
     });
     this.password = '';
+  }
+  async setPassword() {
+    if (this.newPassword !== this.confirmPassword) { this.error.set(true); this.message.set('The passwords must match.'); return; }
+    await this.run(async () => {
+      const result = await this.api('POST', '/password', { challenge: this.challenge, password: this.newPassword });
+      this.challenge = result.challenge; this.secret = result.secret; this.mode = result.mode;
+    });
+    this.newPassword = ''; this.confirmPassword = '';
   }
   async verify() {
     await this.run(async () => {
@@ -84,12 +93,13 @@ export class AdminPageComponent implements OnDestroy {
     }
   }
   private clear() {
+    this.mode = ''; this.newPassword = ''; this.confirmPassword = '';
     this.generation++; this.token = ''; this.signedIn.set(false); this.password = ''; this.code = ''; this.email = '';
     this.challenge = ''; this.secret = ''; this.rows = []; this.newDays = []; this.dayFields = []; this.links = {}; this.options = {}; this.tags = ''; this.values = null; this.fields = []; this.user = null;
     this.summary = {}; this.auditSnapshot = null; this.reason = ''; this.confirmPublish = false;
     this.query = ''; this.registrationHistory = []; this.registrationCursor = ''; this.registrationNext = '';
   }
-  restart() { this.challenge = ''; this.secret = ''; this.code = ''; }
+  restart() { this.mode = ''; this.newPassword = ''; this.confirmPassword = ''; this.challenge = ''; this.secret = ''; this.code = ''; }
   async navigate(section: string) {
     if (!this.discard()) return;
     await this.run(async () => {

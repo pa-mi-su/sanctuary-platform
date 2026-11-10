@@ -40,6 +40,10 @@ public class AdminAuthService {
             var result = cognito.initiateAuth(InitiateAuthRequest.builder().clientId(properties.clientId())
                 .authFlow(AuthFlowType.USER_PASSWORD_AUTH)
                 .authParameters(Map.of("USERNAME", AdminProperties.OWNER_EMAIL, "PASSWORD", password)).build());
+            return continueAuthentication(result);
+        } catch (CognitoIdentityProviderException exception) { throw denied(); }
+    }
+    private Map<String, String> continueAuthentication(InitiateAuthResponse result) {
             if (result.challengeName() == ChallengeNameType.SOFTWARE_TOKEN_MFA) {
                 return saveChallenge(new Challenge("verify", result.challengeParameters()
                     .getOrDefault("USER_ID_FOR_SRP", AdminProperties.OWNER_EMAIL), result.session(), ""), "");
@@ -52,6 +56,9 @@ public class AdminAuthService {
                 var setup = cognito.associateSoftwareToken(AssociateSoftwareTokenRequest.builder().accessToken(access).build());
                 return saveChallenge(new Challenge("enroll", user.username(), "", access), setup.secretCode());
             }
+            if (result.challengeName() == ChallengeNameType.NEW_PASSWORD_REQUIRED) {
+                return saveChallenge(new Challenge("password", result.challengeParameters().getOrDefault("USER_ID_FOR_SRP", AdminProperties.OWNER_EMAIL), result.session(), ""), "");
+            }
             // For a pool requiring MFA, Cognito provides a setup session without tokens.
             if (result.challengeName() == ChallengeNameType.MFA_SETUP) {
                 var setup = cognito.associateSoftwareToken(AssociateSoftwareTokenRequest.builder().session(result.session()).build());
@@ -59,7 +66,22 @@ public class AdminAuthService {
                     .getOrDefault("USER_ID_FOR_SRP", AdminProperties.OWNER_EMAIL), setup.session(), ""), setup.secretCode());
             }
             throw new AuthFlowException(HttpStatus.UNAUTHORIZED, "Complete any required account setup through account support first.");
-        } catch (CognitoIdentityProviderException exception) { throw denied(); }
+    }
+    public Map<String, String> password(String token, String password) {
+        requireConfigured();
+        List<String> states = db.query("UPDATE admin_challenges SET attempts = attempts + 1 WHERE token_hash = ? AND expires_at > now() AND attempts < 5 RETURNING encrypted_state",
+            (rs, row) -> rs.getString(1), AdminCrypto.hash(token));
+        if (states.isEmpty()) throw denied();
+        try {
+            Challenge challenge = json.readValue(crypto.open(states.getFirst()), Challenge.class);
+            if (!challenge.mode().equals("password")) throw denied();
+            var result = cognito.respondToAuthChallenge(RespondToAuthChallengeRequest.builder().clientId(properties.clientId())
+                .challengeName(ChallengeNameType.NEW_PASSWORD_REQUIRED).session(challenge.providerSession())
+                .challengeResponses(Map.of("USERNAME", challenge.username(), "NEW_PASSWORD", password)).build());
+            if (db.update("DELETE FROM admin_challenges WHERE token_hash = ?", AdminCrypto.hash(token)) != 1) throw denied();
+            return continueAuthentication(InitiateAuthResponse.builder().challengeName(result.challengeName())
+                .challengeParameters(result.challengeParameters()).session(result.session()).authenticationResult(result.authenticationResult()).build());
+        } catch (CognitoIdentityProviderException | java.io.IOException | IllegalArgumentException exception) { throw denied(); }
     }
     private Map<String, String> saveChallenge(Challenge challenge, String secret) {
         try {
@@ -79,6 +101,7 @@ public class AdminAuthService {
         if (states.isEmpty()) throw denied();
         try {
             Challenge challenge = json.readValue(crypto.open(states.getFirst()), Challenge.class);
+            if (!List.of("enroll", "setup", "verify").contains(challenge.mode())) throw denied();
             String access;
             if (challenge.mode().equals("enroll")) {
                 checkedOwner(challenge.accessToken());

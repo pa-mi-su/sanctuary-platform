@@ -20,7 +20,7 @@ final class AdminSessionFilter extends OncePerRequestFilter {
             }
             auth.requireConfigured();
             String path = request.getServletPath().isEmpty() ? request.getRequestURI() : request.getServletPath();
-            boolean login = "POST".equals(request.getMethod()) && (path.equals("/admin-api/login") || path.equals("/admin-api/verify"));
+            boolean login = "POST".equals(request.getMethod()) && (path.equals("/admin-api/login") || path.equals("/admin-api/verify") || path.equals("/admin-api/password"));
             if (!login) auth.authenticate(request.getHeader("Authorization"));
             chain.doFilter(request, response);
         } catch (AuthFlowException exception) {

@@ -24,7 +24,7 @@ class WorkflowPathIsolationTest < Minitest::Test
   end
 
   def test_admin_changes_do_not_trigger_native_builds
-    files = %w[apps/web/src/app/admin/admin-page.component.ts apps/api/src/main/java/app/sanctuary/api/admin/AdminController.java apps/api/src/main/resources/db/migration/V16__content_admin.sql package-lock.json .github/workflows/web-prod-deploy.yml .github/workflows/api-prod-deploy.yml]
+    files = %w[apps/web/src/app/admin/admin-page.component.ts apps/api/src/main/java/app/sanctuary/api/admin/AdminController.java apps/api/src/main/resources/db/migration/V20__content_admin.sql package-lock.json .github/workflows/web-prod-deploy.yml .github/workflows/api-prod-deploy.yml]
     %w[ios-pipeline.yml android-pipeline.yml].each do |name|
       %w[push pull_request].each do |event|
         files.each { |file| refute triggers?(name, event, file), "#{name}: #{file} must not select #{event}" }

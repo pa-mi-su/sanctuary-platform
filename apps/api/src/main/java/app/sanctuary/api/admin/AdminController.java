@@ -21,6 +21,8 @@ public class AdminController {
     @PostMapping("/login") public Object login(@Valid @RequestBody Login body, HttpServletRequest request) {
         return auth.login(body.email(), body.password(), request.getRemoteAddr());
     }
+    public record Password(@NotBlank @Size(max=100) String challenge, @NotBlank @Size(min=14,max=256) String password) {}
+    @PostMapping("/password") public Object password(@Valid @RequestBody Password body) { return auth.password(body.challenge(), body.password()); }
     @PostMapping("/verify") public Object verify(@Valid @RequestBody Verify body) { return auth.verify(body.challenge(), body.code()); }
     @PostMapping("/logout") public Object logout(@RequestHeader(value="Authorization", required=false) String token) { auth.logout(token); return Map.of("message", "Signed out"); }
     @GetMapping("/session") public Object session(@RequestHeader(value="Authorization", required=false) String token) { auth.authenticate(token); return Map.of("email", AdminProperties.OWNER_EMAIL); }
