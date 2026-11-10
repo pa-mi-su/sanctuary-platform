@@ -36,6 +36,7 @@ public class AdminController {
     @GetMapping("/content/{entity}") public Object list(@RequestHeader(value="Authorization", required=false) String token, @PathVariable String entity, @RequestParam(defaultValue="") String q, @RequestParam(defaultValue="0") int page) {
         auth.authenticate(token); bounds(q, page); return content.list(entity, q, page);
     }
+    @GetMapping("/novenas/{id}/days") public Object novenaDays(@RequestHeader(value="Authorization", required=false) String token, @PathVariable String id) { auth.authenticate(token); return content.novenaDays(id); }
     @GetMapping("/schema/{entity}") public Object schema(@RequestHeader(value="Authorization", required=false) String token, @PathVariable String entity) { auth.authenticate(token); return content.fields(entity); }
     @GetMapping("/relations/{entity}") public Object relations(@RequestHeader(value="Authorization", required=false) String token, @PathVariable String entity) { auth.authenticate(token); content.table(entity); return content.relationOptions(entity); }
     @GetMapping("/content/{entity}/{id}") public Object detail(@RequestHeader(value="Authorization", required=false) String token, @PathVariable String entity, @PathVariable String id) { auth.authenticate(token); return content.detail(entity, id); }
