@@ -35,7 +35,9 @@ const contentTypes = [
 const indexPath = path.join(OUTPUT_DIR, 'index.html');
 const indexHtml = await readFile(indexPath, 'utf8');
 
-let generatedCount = 0;
+const adminHtml = indexHtml.replace('<title>Sanctuary</title>', '<title>Sanctuary Admin</title><meta name="robots" content="noindex,nofollow" /><meta name="referrer" content="no-referrer" />');
+await writeFile(path.join(OUTPUT_DIR, 'admin'), adminHtml);
+let generatedCount = 1;
 
 const privacyUrl = `${SITE_ORIGIN}/privacy`;
 const privacyHtml = renderPreviewHtml(indexHtml, {

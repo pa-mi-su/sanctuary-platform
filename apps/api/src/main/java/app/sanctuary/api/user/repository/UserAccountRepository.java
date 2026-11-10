@@ -39,6 +39,7 @@ public class UserAccountRepository {
                     display_name = EXCLUDED.display_name,
                     avatar_url = COALESCE(EXCLUDED.avatar_url, users.avatar_url),
                     last_sign_in_at = NOW(),
+                    last_seen_at = NOW(),
                     updated_at = NOW()
                 RETURNING
                     id,

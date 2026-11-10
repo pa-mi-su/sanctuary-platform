@@ -1,4 +1,5 @@
-import { Component, inject } from '@angular/core';
+import { RouterOutlet } from '@angular/router';
+import { Component, Injector, inject } from '@angular/core';
 import { HomePageComponent } from './pages/home-page.component';
 import { AppHeaderComponent } from './pages/app-header.component';
 import { AppFooterComponent } from './pages/app-footer.component';
@@ -18,6 +19,7 @@ import { AppShellFacade } from './core/state/app-shell.facade';
   selector: 'app-root',
   standalone: true,
   imports: [
+    RouterOutlet,
     HomePageComponent,
     AppHeaderComponent,
     AppFooterComponent,
@@ -36,5 +38,7 @@ import { AppShellFacade } from './core/state/app-shell.facade';
   styleUrl: './app.scss',
 })
 export class App {
-  protected readonly facade = inject(AppShellFacade);
+  protected readonly isAdmin = typeof window !== 'undefined' && /^\/admin\/?$/.test(window.location.pathname);
+  private readonly injector = inject(Injector);
+  protected get facade(): AppShellFacade { return this.injector.get(AppShellFacade); }
 }
