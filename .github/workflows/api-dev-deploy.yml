@@ -22,7 +22,8 @@ permissions:
   id-token: write
 
 concurrency:
-  group: api-dev-pipeline-${{ github.ref }}
+  # PR refs can resolve to the base branch after merge; keep their checks separate.
+  group: api-dev-pipeline-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -87,6 +88,8 @@ jobs:
       SANCTUARY_DB_URL: ${{ vars.API_DEV_DB_URL || 'jdbc:postgresql://sanctuary-dev-db.cwh6808ko1sb.us-east-1.rds.amazonaws.com:5432/sanctuary' }}
       SANCTUARY_DB_USERNAME: ${{ vars.API_DEV_DB_USERNAME || 'sanctuary' }}
       API_DEV_DB_SECRET_ARN: ${{ vars.API_DEV_DB_SECRET_ARN || 'arn:aws:secretsmanager:us-east-1:160885294528:secret:rds!db-b1c8d5a7-86da-4f49-a850-f928a84fad13-wwsw4C' }}
+      API_EXECUTION_ROLE_ARN: ${{ vars.API_DEV_EXECUTION_ROLE_ARN }}
+      API_TASK_ROLE_ARN: ${{ vars.API_DEV_TASK_ROLE_ARN }}
       SANCTUARY_ADMIN_ENABLED: ${{ vars.API_DEV_ADMIN_ENABLED || 'false' }}
       SANCTUARY_ADMIN_OWNER_SUB: ${{ vars.API_DEV_ADMIN_OWNER_SUB }}
       SANCTUARY_ADMIN_CLIENT_ID: ${{ vars.API_DEV_ADMIN_CLIENT_ID }}
@@ -124,9 +127,10 @@ jobs:
         shell: bash
         run: |
           if [[ "${SANCTUARY_ADMIN_ENABLED}" == "true" ]]; then
+            [[ "${API_EXECUTION_ROLE_ARN}" == arn:aws:iam::*:role/* ]] && [[ "${API_TASK_ROLE_ARN}" == arn:aws:iam::*:role/* ]] && \
             test -n "${SANCTUARY_ADMIN_OWNER_SUB}" && test -n "${SANCTUARY_ADMIN_CLIENT_ID}" && \
               [[ "${ADMIN_KEY_SECRET_ARN}" == arn:aws:secretsmanager:*:secret:* ]] || {
-                echo "::error::Enabled admin requires a pinned owner subject, dedicated client ID, and encryption secret ARN."
+                echo "::error::Enabled admin requires dedicated execution/task role ARNs, a pinned owner, client ID, and encryption secret ARN."
                 exit 1
               }
           fi
@@ -258,6 +262,8 @@ jobs:
             --arg image "${EXPECTED_API_IMAGE}" \
             --arg db_url "${SANCTUARY_DB_URL}" \
             --arg db_username "${SANCTUARY_DB_USERNAME}" \
+            --arg execution_role "${API_EXECUTION_ROLE_ARN}" \
+            --arg task_role "${API_TASK_ROLE_ARN}" \
             --arg admin_enabled "${SANCTUARY_ADMIN_ENABLED}" \
             --arg admin_sub "${SANCTUARY_ADMIN_OWNER_SUB}" \
             --arg admin_client "${SANCTUARY_ADMIN_CLIENT_ID}" \
@@ -276,6 +282,8 @@ jobs:
               .registeredAt,
               .registeredBy
             )
+            | (if $execution_role != "" then .executionRoleArn = $execution_role else . end)
+            | (if $task_role != "" then .taskRoleArn = $task_role else . end)
             | .containerDefinitions |= map(
               if .name == "Main" then
                 .image = $image

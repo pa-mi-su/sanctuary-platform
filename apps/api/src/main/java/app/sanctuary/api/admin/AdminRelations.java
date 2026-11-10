@@ -14,12 +14,19 @@ public class AdminRelations {
         String singular = switch (entity) { case "saints" -> "saint"; case "novenas" -> "novena"; case "prayers" -> "prayer"; default -> ""; };
         if (!singular.isBlank()) result.put("tags", new Relation(singular + "_tags", singular + "_id", "tag", ""));
         if (entity.equals("saints") || entity.equals("novenas")) result.put("intentions", new Relation(singular + "_intention_links", singular + "_id", "intention_id", "content_intentions"));
-        if (entity.equals("saints")) result.put("patronages", new Relation("saint_patronage_links", "saint_id", "patronage_id", "content_patronages"));
+        if (entity.equals("saints") || entity.equals("novenas")) result.put("patronages", new Relation(singular + "_patronage_links", singular + "_id", "patronage_id", "content_patronages"));
         return result;
     }
     public Map<String, List<String>> read(String entity, String id) {
         Map<String, List<String>> result = new TreeMap<>();
         definitions(entity).forEach((key, spec) -> result.put(key, db.query("SELECT " + spec.value() + "::text FROM " + spec.table() + " WHERE " + spec.owner() + " = ? ORDER BY " + spec.value(), (rs, row) -> rs.getString(1), id)));
+        return result;
+    }
+    public Map<String, Object> selected(String entity, String id) {
+        Map<String, Object> result = new TreeMap<>();
+        definitions(entity).forEach((key, spec) -> {
+            if (!spec.catalogue().isBlank()) result.put(key, db.queryForList("SELECT c.id::text AS id, c.label_en AS title FROM " + spec.table() + " l JOIN " + spec.catalogue() + " c ON c.id = l." + spec.value() + " WHERE l." + spec.owner() + " = ? ORDER BY c.label_en", id));
+        });
         return result;
     }
     public Map<String, Object> options(String entity) {
@@ -30,8 +37,9 @@ public class AdminRelations {
     public void save(String entity, String id, Map<String, List<String>> links) {
         if (links == null) return;
         var definitions = definitions(entity);
-        if (!definitions.keySet().equals(links.keySet())) throw AdminContentService.bad("Invalid content relationships.");
+        if (!definitions.keySet().containsAll(links.keySet())) throw AdminContentService.bad("Invalid content relationships.");
         definitions.forEach((key, spec) -> {
+            if (!links.containsKey(key)) return; // Preserve newly added relation types for older clients.
             List<String> values = links.get(key);
             if (values == null || values.size() > 200 || new HashSet<>(values).size() != values.size()) throw AdminContentService.bad("Invalid or duplicate relationships.");
             for (String value : values) if (value == null || value.isBlank() || value.length() > 200 || (!spec.catalogue().isBlank() && !value.matches("[0-9]+"))) throw AdminContentService.bad("Invalid relationship value.");

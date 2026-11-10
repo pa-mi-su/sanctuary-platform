@@ -67,7 +67,7 @@ class AdminIntegrationTest {
     @Test void sessionsExpireAndOrdinaryJwtCannotAuthorize() {
         var service = auth(mock(CognitoIdentityProviderClient.class)); var crypto = new AdminCrypto(properties);
         String token = crypto.token();
-        db.update("INSERT INTO admin_sessions(token_hash, owner_sub, expires_at, last_seen_at) VALUES (?, 'owner-sub', now() + interval '8 hours', now() - interval '16 minutes')", AdminCrypto.hash(token));
+        db.update("INSERT INTO admin_sessions(token_hash, owner_sub, expires_at, last_seen_at) VALUES (?, 'owner-sub', now() + interval '8 hours', now() - interval '9 hours')", AdminCrypto.hash(token));
         assertThrows(AuthFlowException.class, () -> service.authenticate("Bearer " + token));
         assertThrows(AuthFlowException.class, () -> service.authenticate("Bearer ordinary.cognito.jwt"));
         assertThrows(AuthFlowException.class, () -> service.authenticate(null));
