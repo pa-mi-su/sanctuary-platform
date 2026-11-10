@@ -1,0 +1,106 @@
+<div class="admin-shell">
+  <header><a href="/" class="brand">✦ Sanctuary</a><span>Administration</span>
+    @if (signedIn()) { <button (click)="logout()">Sign out</button> }
+  </header>
+  <main>
+    @if (message()) { <p class="notice" [class.error]="error()" role="status">{{ message() }}</p> }
+    @if (!signedIn()) {
+      <section class="login panel">
+        <p class="eyebrow">PRIVATE ACCESS</p><h1>Welcome back.</h1><p>Sign in to manage Sanctuary content and view account activity.</p>
+        @if (!challenge) {
+          <form (ngSubmit)="login()">
+            <label>Email<input type="email" name="email" [(ngModel)]="email" autocomplete="username" required maxlength="254" /></label>
+            <label>Password<input type="password" name="password" [(ngModel)]="password" autocomplete="current-password" required maxlength="256" /></label>
+            <button class="primary" [disabled]="busy()">{{ busy() ? 'Signing in…' : 'Continue' }}</button>
+          </form>
+        } @else {
+          <h2>{{ secret ? 'Set up your authenticator' : 'Verify your authenticator' }}</h2>
+          @if (secret) { <p>In your authenticator app, add a time-based account named Sanctuary Admin and enter this setup key. Keep it private and store your authenticator backup securely.</p><code class="secret">{{ secret }}</code> }
+          <form (ngSubmit)="verify()"><label>Six-digit code<input name="code" [(ngModel)]="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" required /></label><button class="primary" [disabled]="busy()">Verify and open admin</button></form>
+          <button (click)="restart()" [disabled]="busy()">Start over</button>
+        }
+      </section>
+    } @else {
+      <div class="layout">
+        <nav aria-label="Admin sections">
+          <button [class.selected]="section === 'content'" (click)="navigate('content')" [disabled]="busy()">Content library</button>
+          <button [class.selected]="section === 'users'" (click)="navigate('users')" [disabled]="busy()">Users & activity</button>
+          <button [class.selected]="section === 'registrations'" (click)="navigate('registrations')" [disabled]="busy()">All registrations</button>
+          <button [class.selected]="section === 'audit'" (click)="navigate('audit')" [disabled]="busy()">Publishing history</button>
+          <p class="muted">Owner access · MFA verified<br />Sessions end after 15 idle minutes.</p>
+        </nav>
+        <section class="workspace" [attr.aria-busy]="busy()">
+          @if (section === 'content') {
+            <p class="eyebrow">CONTENT LIBRARY</p><h1>A little care for every word.</h1>
+            @if (!values) {
+              <div class="toolbar"><label>Collection<select [(ngModel)]="entity" (change)="chooseCollection()" [disabled]="busy()">@for (collection of collections; track collection[0]) { <option [value]="collection[0]">{{ collection[1] }}</option> }</select></label><button class="primary" (click)="create()" [disabled]="busy()">Add content</button></div>
+              <form class="search" (ngSubmit)="search()"><input name="query" [(ngModel)]="query" placeholder="Search title or ID" maxlength="200" aria-label="Search content" /><button [disabled]="busy()">Search</button></form>
+              @for (row of rows; track row['id']) { <button class="record" (click)="edit(row)" [disabled]="busy()"><strong>{{ row['title'] || '(Untitled)' }}</strong><span>{{ row['novena_id'] || row['id'] }} {{ row['day_number'] ? ' · Day ' + row['day_number'] : '' }}</span><span>Edit →</span></button> }
+            } @else {
+              <button (click)="navigate('content')" [disabled]="busy()">← Back to library</button>
+              <h2>{{ creating ? 'Add content' : 'Edit content' }}</h2>
+              <p class="muted">All three language versions are editable below. Existing IDs and share links remain stable. Images use HTTPS URLs.</p>
+              @if (entity === 'novenas' && creating) { <p class="notice">Complete all nine days below. The novena and its days publish together.</p> }
+              <form (ngSubmit)="publish()" class="editor panel">
+                @for (field of fields; track field.name) {
+                  @if (!(creating && field.generated)) {
+                    <label>{{ label(field.name) }} {{ essential(field.name) ? '*' : '' }}
+                      @if (longField(field.name)) { <textarea [(ngModel)]="values[field.name]" [name]="field.name" [required]="essential(field.name)" rows="5" maxlength="100000"></textarea> }
+                      @else { <input [(ngModel)]="values[field.name]" [name]="field.name" [type]="field.type === 'text' ? 'text' : 'number'" [required]="essential(field.name)" [readOnly]="readonlyField(field)" /> }
+                    </label>
+                  }
+                }
+                @if (creating && entity === 'novenas') {
+                  @for (day of newDays; track $index; let dayIndex = $index) {
+                    <fieldset><legend>Day {{ dayIndex + 1 }}</legend>
+                      @for (field of dayFields; track field.name) {
+                        <label>{{ label(field.name) }} {{ field.name === 'prayer_en' ? '*' : '' }}
+                          <textarea [(ngModel)]="day[field.name]" [name]="'day' + dayIndex + field.name" [required]="field.name === 'prayer_en'" rows="3" maxlength="100000"></textarea>
+                        </label>
+                      }
+                    </fieldset>
+                  }
+                }
+                @if ('tags' in links) { <label>Tags (separated by commas)<input name="tags" [(ngModel)]="tags" /></label> }
+                @for (key of ['intentions', 'patronages']; track key) {
+                  @if (options[key]) { <fieldset><legend>{{ label(key) }}</legend><div class="choices">@for (option of options[key]; track option['id']) { <label class="check"><input type="checkbox" [name]="key + option['id']" [checked]="links[key]?.includes(option['id'])" (change)="toggleLink(key, option['id'], $any($event.target).checked)" />{{ option['title'] }}</label> }</div></fieldset> }
+                }
+                <label>Reason for this change *<textarea name="reason" [(ngModel)]="reason" required minlength="3" maxlength="1000" rows="2" placeholder="Describe what changed and why"></textarea></label>
+                <label class="check"><input type="checkbox" name="confirm" [(ngModel)]="confirmPublish" required />I reviewed this content and want to publish it to Sanctuary.</label>
+                <button class="primary" [disabled]="busy() || !confirmPublish || reason.trim().length < 3">{{ busy() ? 'Publishing…' : 'Publish content' }}</button>
+              </form>
+            }
+          } @else if (section === 'users') {
+            <p class="eyebrow">USERS & ACTIVITY</p><h1>Understand your community.</h1>
+            <div class="stats">@for (stat of stats(); track stat[0]) { <div class="panel"><strong>{{ stat[1] ?? '—' }}</strong><span>{{ stat[0] }}</span></div> }</div>
+            <p class="muted">Active means an authenticated app request recorded within the period. Login counts and activity history begin with this release. This does not indicate who is online now. Profile creation may be later than registration.</p>
+            @if (!user) {
+              <form class="search" (ngSubmit)="search()"><input name="q" [(ngModel)]="query" maxlength="200" placeholder="Search email or name" aria-label="Search users" /><label class="check"><input type="checkbox" name="active" [(ngModel)]="activeOnly" />Active in 7 days</label><button [disabled]="busy()">Search</button></form>
+              @for (row of rows; track row['id']) { <button class="record" (click)="openUser(row['id'])" [disabled]="busy()"><strong>{{ row['email'] || row['display_name'] || 'Unnamed account' }}</strong><span>{{ row['saved'] }} saved · {{ row['active_novenas'] }} active · {{ row['completed_novenas'] }} completed</span><span>Last seen: {{ (row['last_seen_at'] | date:'medium') || 'Not recorded' }}</span></button> }
+            } @else {
+              <button (click)="user = null" [disabled]="busy()">← Back to users</button>
+              <h2>{{ user['profile']['email'] || user['profile']['display_name'] }}</h2>
+              <dl class="panel">@for (entry of ['display_name', 'first_name', 'last_name', 'preferred_language', 'created_at', 'last_login_at', 'last_seen_at', 'login_count']; track entry) { <dt>{{ label(entry) }}</dt><dd>{{ user['profile'][entry] ?? 'Not recorded' }}</dd> }</dl>
+              <h3>Saved content</h3>@for (favorite of user['favorites']; track $index) { <div class="record"><strong>{{ favorite['title'] }}</strong><span>{{ favorite['item_type'] }} · Saved {{ favorite['created_at'] | date:'medium' }}</span></div> } @empty { <p>No saved content on this page.</p> }
+              <h3>Novena progress</h3>@for (novena of user['novenas']; track $index) { <div class="record"><strong>{{ novena['title'] }}</strong><span>{{ novena['status'] }} · Current day {{ novena['current_day'] }} · Completed days {{ novena['completed_days'] }}</span><span>Started {{ novena['started_at'] | date:'medium' }} · Updated {{ novena['updated_at'] | date:'medium' }}</span></div> } @empty { <p>No novenas on this page.</p> }
+              <h3>Recorded activity</h3>@for (event of user['events']; track $index) { <div class="record"><strong>{{ label(event['activity_type']) }}</strong><span>{{ event['resource_type'] }} {{ event['resource_id'] }} · {{ event['occurred_at'] | date:'medium' }}</span><span>{{ event['metadata'] }}</span></div> } @empty { <p>No recorded events on this page.</p> }
+              <div class="pagination"><button [disabled]="busy() || userPage === 0" (click)="openUser(userId, userPage - 1)">Previous</button><span>Detail page {{ userPage + 1 }}</span><button [disabled]="busy() || !user['hasMore']" (click)="openUser(userId, userPage + 1)">Next</button></div>
+            }
+          } @else if (section === 'registrations') {
+            <p class="eyebrow">ACCOUNT DIRECTORY</p><h1>Every registration.</h1><p class="muted">Read directly from Cognito, including unconfirmed accounts and people who have not opened an app profile. Registration status and activity are separate.</p>
+            @for (row of rows; track $index) { <div class="record"><strong>{{ row['email'] || row['name'] || 'Unnamed account' }}</strong><span>{{ row['status'] }} · {{ row['enabled'] ? 'Enabled' : 'Disabled' }} · Registered {{ row['registeredAt'] | date:'medium' }}</span>@if (row['profileId']) { <button (click)="section = 'users'; openUser(row['profileId'])" [disabled]="busy()">View saved content & activity</button> } @else { <span>No app profile yet</span> }</div> }
+            <div class="pagination"><button [disabled]="busy() || !registrationHistory.length" (click)="registrationsPage(false)">Previous</button><button [disabled]="busy() || !registrationNext" (click)="registrationsPage(true)">Next</button></div>
+          } @else {
+            <p class="eyebrow">PUBLISHING HISTORY</p><h1>Every change, recorded.</h1>
+            @if (auditSnapshot) { <button (click)="auditSnapshot = null">← Back to history</button><h2>Before</h2><pre>{{ auditSnapshot['before_value'] || 'New content' }}</pre><h2>After</h2><pre>{{ auditSnapshot['after_value'] }}</pre> }
+            @else { @for (row of rows; track row['id']) { <button class="record" (click)="openAudit(row['id'])" [disabled]="busy()"><strong>{{ row['entity'] }} · {{ row['record_id'] }}</strong><span>{{ row['reason'] }}</span><span>{{ row['created_at'] | date:'medium' }}</span></button> } }
+          }
+          @if (!values && !user && section !== 'registrations' && !auditSnapshot) {
+            @if (rows.length === 0 && !busy()) { <p class="panel">No results found.</p> }
+            <div class="pagination"><button [disabled]="busy() || page === 0" (click)="turnPage(-1)">Previous</button><span>Page {{ page + 1 }}</span><button [disabled]="busy() || !hasMore" (click)="turnPage(1)">Next</button></div>
+          }
+        </section>
+      </div>
+    }
+  </main>
+</div>

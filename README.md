@@ -45,6 +45,12 @@ The clients expose the same core product, with platform-native presentation:
 - optional native daily/novena reminders on iOS and Android
 - verified/universal links for `https://mydailysanctuary.com/{saints|novenas|prayers}/{slug}`
 
+## Owner administration
+
+The Angular `/admin` panel manages prayers, saints, complete nine-day novenas, localized intention/patronage terms, tags, and content associations. It also provides a read-only registration directory, saved-content and novena-progress inspection, recorded login/activity metrics, and publishing history. Access requires a separately configured, subject-pinned owner account and authenticator MFA; it is disabled by default.
+
+See [content admin setup, security boundaries, and rollout](docs/admin/content-admin.md). Web/API validation now includes admin tests and native workflow-isolation checks. Angular/admin changes do not select iOS or Android workflows.
+
 ## Architecture and request flows
 
 ### Public content
@@ -193,7 +199,7 @@ The full contract and validation limits are documented in [apps/api/README.md](a
 
 ## PostgreSQL model
 
-Flyway migrations `V1` through `V15` are authoritative and create/evolve these groups:
+Flyway migrations `V1` through `V17` are authoritative and create/evolve these groups:
 
 - platform metadata
 - saints, localized fields, tags, legacy patronage strings, and sources
