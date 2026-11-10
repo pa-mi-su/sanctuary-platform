@@ -1,3 +1,6 @@
+@if (isAdmin) {
+  <router-outlet />
+} @else {
 <div class="page-bg"></div>
 
 @if (facade.currentTab() !== 'auth' && (facade.saintDetail() || facade.prayerDetail() || facade.novenaDetail())) {
@@ -295,3 +298,5 @@
     <app-footer [currentLanguage]="facade.language()" />
   </main>
 </div>
+
+}

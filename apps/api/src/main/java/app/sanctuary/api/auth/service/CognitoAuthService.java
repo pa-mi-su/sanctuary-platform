@@ -59,6 +59,19 @@ public class CognitoAuthService {
         this.abuseProperties = abuseProperties;
     }
 
+    private app.sanctuary.api.admin.UserLoginRecorder loginRecorder;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    void setLoginRecorder(app.sanctuary.api.admin.UserLoginRecorder recorder) { this.loginRecorder = recorder; }
+
+    private void recordLogin(String idToken) {
+        if (loginRecorder == null) return;
+        try { loginRecorder.record(idToken); }
+        catch (RuntimeException exception) {
+            org.slf4j.LoggerFactory.getLogger(CognitoAuthService.class).warn("Unable to record successful login activity");
+        }
+    }
+
     public AuthRegistrationResponse register(AuthRegisterRequest request) {
         validateConfigured();
 
@@ -204,6 +217,8 @@ public class CognitoAuthService {
             if (authenticationResult == null || authenticationResult.accessToken() == null || authenticationResult.idToken() == null) {
                 throw new AuthFlowException(HttpStatus.BAD_GATEWAY, "Sanctuary could not complete sign in.");
             }
+
+            recordLogin(authenticationResult.idToken());
 
             return new AuthSessionResponse(
                 authenticationResult.accessToken(),

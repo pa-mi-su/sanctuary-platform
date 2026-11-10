@@ -9,6 +9,7 @@ on:
       - "!apps/web/**/*.md"
       - "package-lock.json"
       - "package.json"
+      - ".github/scripts/test-workflow-path-isolation.rb"
       - ".github/workflows/web-dev-deploy.yml"
   push:
     branches:
@@ -37,6 +38,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v5
 
+      - name: Check web/API/native path isolation
+        run: ruby .github/scripts/test-workflow-path-isolation.rb
+
       - name: Setup Node.js
         uses: actions/setup-node@v5
         with:
@@ -45,6 +49,9 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Run web tests
+        run: npm test --workspace web -- --watch=false
 
       - name: Stamp web build info
         run: |
@@ -86,6 +93,9 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Run web tests
+        run: npm test --workspace web -- --watch=false
 
       - name: Stamp web build info
         run: |
@@ -154,6 +164,13 @@ jobs:
               --content-type "text/html; charset=utf-8" \
               --metadata-directive REPLACE
           done
+
+      - name: Publish admin entry as HTML
+        run: |
+          aws s3 cp apps/web/dist/web/browser/admin "s3://${WEB_S3_BUCKET}/admin" \
+            --content-type "text/html; charset=utf-8" \
+            --cache-control "no-store" \
+            --metadata-directive REPLACE
 
       - name: Invalidate CloudFront cache
         run: aws cloudfront create-invalidation --distribution-id "${WEB_CLOUDFRONT_DISTRIBUTION_ID}" --paths "/*"
