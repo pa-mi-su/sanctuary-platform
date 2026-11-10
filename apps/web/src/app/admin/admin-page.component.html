@@ -1,115 +1,1012 @@
-<div class="admin-shell">
-  <header><a href="/" class="brand">✦ Sanctuary</a><span>Administration</span>
-    @if (signedIn()) { <button (click)="logout()">Sign out</button> }
+<div class="admin-shell" [inert]="!!dialog">
+  <header class="topbar">
+    <a href="/" class="brand"
+      ><img src="/brand-logo.png" alt="" /><span>Sanctuary<small>Administration</small></span></a
+    >
+    @if (signedIn()) {
+      <div class="session-label"><span class="status-dot"></span>Owner · MFA verified</div>
+      <button type="button" class="subtle" (click)="logout()">Sign out</button>
+    }
   </header>
   <main>
-    @if (message()) { <p class="notice" [class.error]="error()" role="status">{{ message() }}</p> }
-    @if (!signedIn()) {
+    @if (message()) {
+      <div class="notice" [class.error]="error()" [attr.role]="error() ? 'alert' : 'status'">
+        <span>{{ message() }}</span
+        ><button type="button" aria-label="Dismiss message" (click)="message.set('')">×</button>
+      </div>
+    }
+    @if (checkingSession()) {
       <section class="login panel">
-        <p class="eyebrow">PRIVATE ACCESS</p><h1>Welcome back.</h1><p>Sign in to manage Sanctuary content and view account activity.</p>
+        <p class="eyebrow">SANCTUARY ADMIN</p>
+        <h1>One quiet moment.</h1>
+        <p>Checking your session…</p>
+      </section>
+    } @else if (!signedIn()) {
+      <section class="login panel">
+        <div class="login-brand"><img src="/brand-logo.png" alt="Sanctuary" /></div>
+        <p class="eyebrow">YOUR SANCTUARY, THOUGHTFULLY CARED FOR</p>
+        <h1>Welcome back.</h1>
+        <p class="intro">A place to care for the words, prayers, and people of Sanctuary.</p>
         @if (!challenge) {
-          <form (ngSubmit)="login()">
-            <label>Email<input type="email" name="email" [(ngModel)]="email" autocomplete="username" required maxlength="254" /></label>
-            <label>Password<input type="password" name="password" [(ngModel)]="password" autocomplete="current-password" required maxlength="256" /></label>
-            <button class="primary" [disabled]="busy()">{{ busy() ? 'Signing in…' : 'Continue' }}</button>
+          <form #loginForm="ngForm" (ngSubmit)="login()">
+            <admin-input
+              label="Email"
+              inputId="admin-email"
+              type="email"
+              name="email"
+              [(ngModel)]="email"
+              autocomplete="username"
+              [required]="true"
+              [maxlength]="254"
+              [disabled]="busy()"
+            />
+            <admin-input
+              label="Password"
+              inputId="admin-password"
+              type="password"
+              name="password"
+              [(ngModel)]="password"
+              autocomplete="current-password"
+              [required]="true"
+              [maxlength]="256"
+              [disabled]="busy()"
+            />
+            <button class="primary full" [disabled]="busy() || loginForm.invalid">
+              {{ busy() ? 'Signing in…' : 'Continue securely →' }}
+            </button>
           </form>
+          <p class="fineprint">Owner access only. Authenticator verification is required.</p>
         } @else if (mode === 'password') {
-          <h2>Choose your admin password</h2>
-          <p>Use at least 14 characters with uppercase, lowercase, a number, and a symbol. You will set up your authenticator next.</p>
-          <form (ngSubmit)="setPassword()">
-            <label>New password<input type="password" name="newPassword" [(ngModel)]="newPassword" autocomplete="new-password" required minlength="14" maxlength="256" /></label>
-            <label>Confirm password<input type="password" name="confirmPassword" [(ngModel)]="confirmPassword" autocomplete="new-password" required minlength="14" maxlength="256" /></label>
-            <button class="primary" [disabled]="busy()">Save password and continue</button>
+          <h2>Make this account yours.</h2>
+          <p>Choose your password, then connect your authenticator.</p>
+          <form #passwordForm="ngForm" (ngSubmit)="setPassword()">
+            <admin-input
+              label="New password"
+              inputId="new-password"
+              type="password"
+              name="newPassword"
+              [(ngModel)]="newPassword"
+              autocomplete="new-password"
+              [required]="true"
+              [minlength]="14"
+              [maxlength]="256"
+              description="password-requirements"
+              [disabled]="busy()"
+            />
+            <ul id="password-requirements" class="requirements" aria-label="Password requirements">
+              @for (check of passwordChecks(); track check.label) {
+                <li [class.met]="check.met">
+                  <span aria-hidden="true">{{ check.met ? '✓' : '○' }}</span
+                  >{{ check.label
+                  }}<span class="sr-only">{{ check.met ? ' met' : ' not met' }}</span>
+                </li>
+              }
+            </ul>
+            <admin-input
+              label="Confirm password"
+              inputId="confirm-password"
+              type="password"
+              name="confirmPassword"
+              [(ngModel)]="confirmPassword"
+              autocomplete="new-password"
+              [required]="true"
+              [maxlength]="256"
+              description="password-match"
+              [disabled]="busy()"
+            />
+            @if (confirmPassword) {
+              <p
+                id="password-match"
+                class="match"
+                [class.met]="newPassword === confirmPassword"
+                aria-live="polite"
+              >
+                {{
+                  newPassword === confirmPassword
+                    ? '✓ Passwords match'
+                    : 'Passwords do not match yet'
+                }}
+              </p>
+            }
+            <button
+              class="primary full"
+              [disabled]="busy() || passwordForm.invalid || !passwordReady()"
+            >
+              Save password & continue →
+            </button>
           </form>
-          <button (click)="restart()" [disabled]="busy()">Start over</button>
+          <button class="text-button" (click)="restart()" [disabled]="busy()">
+            ← Back to sign in
+          </button>
         } @else {
-          <h2>{{ secret ? 'Set up your authenticator' : 'Verify your authenticator' }}</h2>
-          @if (secret) { <p>In your authenticator app, add a time-based account named Sanctuary Admin and enter this setup key. Keep it private and store your authenticator backup securely.</p><code class="secret">{{ secret }}</code> }
-          <form (ngSubmit)="verify()"><label>Six-digit code<input name="code" [(ngModel)]="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" required /></label><button class="primary" [disabled]="busy()">Verify and open admin</button></form>
-          <button (click)="restart()" [disabled]="busy()">Start over</button>
+          <h2>{{ secret ? 'Connect your authenticator.' : 'Your last step.' }}</h2>
+          @if (secret) {
+            <p>Scan this QR code with your authenticator app, then enter its six-digit code.</p>
+            @if (qrCode()) {
+              <div class="qr">
+                <img
+                  [src]="qrCode()"
+                  alt="Authenticator setup QR code. Scan with your authenticator app."
+                  width="240"
+                  height="240"
+                />
+              </div>
+            } @else {
+              <p class="fineprint">
+                {{
+                  qrError()
+                    ? 'QR rendering is unavailable. Use the manual setup key below.'
+                    : 'Preparing your QR code…'
+                }}
+              </p>
+            }
+            <details class="manual-key" [open]="qrError()">
+              <summary>Enter a setup key manually</summary>
+              <p>Choose a time-based account named <strong>Sanctuary Admin</strong>.</p>
+              <code class="secret">{{ secret }}</code>
+              <p class="fineprint">
+                Keep this key private and save your authenticator’s recovery method.
+              </p>
+            </details>
+          } @else {
+            <p>Enter the current code from your authenticator app.</p>
+          }
+          <form #codeForm="ngForm" (ngSubmit)="verify()">
+            <admin-input
+              label="Six-digit code"
+              inputId="mfa-code"
+              inputmode="numeric"
+              name="code"
+              [(ngModel)]="code"
+              autocomplete="one-time-code"
+              [required]="true"
+              [minlength]="6"
+              [maxlength]="6"
+              [disabled]="busy()"
+            />
+            <button
+              class="primary full"
+              [disabled]="busy() || codeForm.invalid || !code.match('^[0-9]{6}$')"
+            >
+              Verify & open admin →
+            </button>
+          </form>
+          <button class="text-button" (click)="restart()" [disabled]="busy()">← Start over</button>
         }
       </section>
     } @else {
       <div class="layout">
-        <nav aria-label="Admin sections">
-          <button [class.selected]="section === 'content'" (click)="navigate('content')" [disabled]="busy()">Content library</button>
-          <button [class.selected]="section === 'users'" (click)="navigate('users')" [disabled]="busy()">Users & activity</button>
-          <button [class.selected]="section === 'registrations'" (click)="navigate('registrations')" [disabled]="busy()">All registrations</button>
-          <button [class.selected]="section === 'audit'" (click)="navigate('audit')" [disabled]="busy()">Publishing history</button>
-          <p class="muted">Owner access · MFA verified<br />Sessions end after 15 idle minutes.</p>
+        <nav class="sidebar" aria-label="Admin sections">
+          <p class="eyebrow">WORKSPACE</p>
+          <button
+            [class.selected]="section === 'content'"
+            (click)="navigate('content')"
+            [disabled]="busy()"
+          >
+            <span aria-hidden="true">▤</span>Content library
+          </button>
+          <button
+            [class.selected]="section === 'users'"
+            (click)="navigate('users')"
+            [disabled]="busy()"
+          >
+            <span aria-hidden="true">♧</span>Users
+          </button>
+          <button
+            [class.selected]="section === 'audit'"
+            (click)="navigate('audit')"
+            [disabled]="busy()"
+          >
+            <span aria-hidden="true">◷</span>Publishing history
+          </button>
+          <div class="sidebar-note">
+            <span class="status-dot"></span>Secure workspace
+            <p>8-hour idle timeout<br />24-hour session maximum</p>
+          </div>
         </nav>
         <section class="workspace" [attr.aria-busy]="busy()">
           @if (section === 'content') {
-            <p class="eyebrow">CONTENT LIBRARY</p><h1>A little care for every word.</h1>
             @if (!values) {
-              <div class="toolbar"><label>Collection<select [(ngModel)]="entity" (change)="chooseCollection()" [disabled]="busy()">@for (collection of collections; track collection[0]) { <option [value]="collection[0]">{{ collection[1] }}</option> }</select></label><button class="primary" (click)="create()" [disabled]="busy()">Add content</button></div>
-              <form class="search" (ngSubmit)="search()"><input name="query" [(ngModel)]="query" placeholder="Search title or ID" maxlength="200" aria-label="Search content" /><button [disabled]="busy()">Search</button></form>
-              @for (row of rows; track row['id']) { <button class="record" (click)="edit(row)" [disabled]="busy()"><strong>{{ row['title'] || '(Untitled)' }}</strong><span>{{ row['novena_id'] || row['id'] }} {{ row['day_number'] ? ' · Day ' + row['day_number'] : '' }}</span><span>Edit →</span></button> }
-            } @else {
-              <button (click)="navigate('content')" [disabled]="busy()">← Back to library</button>
-              <h2>{{ creating ? 'Add content' : 'Edit content' }}</h2>
-              <p class="muted">All three language versions are editable below. Existing IDs and share links remain stable. Images use HTTPS URLs.</p>
-              @if (entity === 'novenas' && creating) { <p class="notice">Complete all nine days below. The novena and its days publish together.</p> }
-              <form (ngSubmit)="publish()" class="editor panel">
-                @for (field of fields; track field.name) {
-                  @if (!(creating && field.generated)) {
-                    <label>{{ label(field.name) }} {{ essential(field.name) ? '*' : '' }}
-                      @if (longField(field.name)) { <textarea [(ngModel)]="values[field.name]" [name]="field.name" [required]="essential(field.name)" rows="5" maxlength="100000"></textarea> }
-                      @else { <input [(ngModel)]="values[field.name]" [name]="field.name" [type]="field.type === 'text' ? 'text' : 'number'" [required]="essential(field.name)" [readOnly]="readonlyField(field)" /> }
-                    </label>
-                  }
-                }
-                @if (creating && entity === 'novenas') {
-                  @for (day of newDays; track $index; let dayIndex = $index) {
-                    <fieldset><legend>Day {{ dayIndex + 1 }}</legend>
-                      @for (field of dayFields; track field.name) {
-                        <label>{{ label(field.name) }} {{ field.name === 'prayer_en' ? '*' : '' }}
-                          <textarea [(ngModel)]="day[field.name]" [name]="'day' + dayIndex + field.name" [required]="field.name === 'prayer_en'" rows="3" maxlength="100000"></textarea>
-                        </label>
+              <div class="page-heading">
+                <div>
+                  <p class="eyebrow">CONTENT LIBRARY</p>
+                  <h1>Care for what inspires.</h1>
+                  <p>Thoughtful words. Familiar faces. A little sanctuary every day.</p>
+                </div>
+                <button class="primary" (click)="create()" [disabled]="busy() || !fields.length">
+                  ＋ Add
+                  {{
+                    entity === 'novena-days'
+                      ? 'novena day'
+                      : entity === 'intentions'
+                        ? 'intention'
+                        : entity === 'patronages'
+                          ? 'patronage'
+                          : 'content'
+                  }}
+                </button>
+              </div>
+              <div class="library-controls panel">
+                <label
+                  >Collection<select
+                    aria-label="Collection"
+                    [ngModel]="entity"
+                    (ngModelChange)="chooseCollection($event)"
+                    [disabled]="busy()"
+                  >
+                    @for (collection of collections; track collection[0]) {
+                      <option [value]="collection[0]">{{ collection[1] }}</option>
+                    }
+                  </select></label
+                >
+                <form class="search" (ngSubmit)="search()">
+                  <admin-input
+                    label="Find content"
+                    inputId="content-search"
+                    name="query"
+                    [(ngModel)]="query"
+                    placeholder="Search by name or ID"
+                    [maxlength]="200"
+                  /><button [disabled]="busy()">Search</button>
+                </form>
+              </div>
+              <div class="section-title">
+                <h2>{{ collectionTitle() }}</h2>
+                <span class="muted">Page {{ page + 1 }}</span>
+              </div>
+              <div class="content-grid">
+                @for (row of rows; track row['id']) {
+                  <button class="content-card" (click)="edit(row)" [disabled]="busy()">
+                    @if (hasImage() || entity === 'novena-days') {
+                      <span class="thumbnail">
+                        @if (imageVisible(row['image_url'])) {
+                          <img
+                            [src]="row['image_url']"
+                            alt=""
+                            loading="lazy"
+                            (error)="imageFailed(row['image_url'])"
+                          />
+                        } @else {
+                          <span aria-hidden="true">✦</span>
+                        }
+                      </span>
+                    } @else {
+                      <span class="term-icon" aria-hidden="true">◇</span>
+                    }
+                    <span class="card-copy"
+                      ><strong>{{ row['title'] || 'Untitled' }}</strong>
+                      @if (row['parent_title']) {
+                        <span>{{ row['parent_title'] }}</span>
                       }
-                    </fieldset>
+                      <small>{{ rowMeta(row) }}</small></span
+                    ><span class="card-arrow" aria-hidden="true">↗</span>
+                  </button>
+                } @empty {
+                  <div class="empty panel">
+                    <span aria-hidden="true">✧</span>
+                    <h3>{{ busy() ? 'Gathering your content…' : 'No content found' }}</h3>
+                    <p>Try another name or add something new.</p>
+                  </div>
+                }
+              </div>
+            } @else {
+              <div class="editor-heading">
+                <button class="text-button" (click)="navigate('content')" [disabled]="busy()">
+                  ← Back to library</button
+                ><span class="badge" [class.changed]="isDirty()">{{
+                  isDirty() ? 'Unpublished changes' : 'All changes saved'
+                }}</span>
+              </div>
+              <div class="page-heading">
+                <div>
+                  <p class="eyebrow">{{ collectionTitle() }} / {{ creating ? 'NEW' : 'EDIT' }}</p>
+                  <h1>{{ editorTitle() }}</h1>
+                </div>
+                @if (entity === 'novenas' && !creating) {
+                  <button (click)="openNovenaDays()" [disabled]="busy()">Edit novena days →</button>
+                }
+              </div>
+              <form #contentForm="ngForm" (ngSubmit)="reviewPublish()" class="editor">
+                @if (hasImage()) {
+                  <section class="panel image-editor">
+                    <div class="image-preview">
+                      @if (imageVisible(values['image_url'])) {
+                        <img
+                          [src]="values['image_url']"
+                          [alt]="editorTitle()"
+                          (error)="imageFailed(values['image_url'])"
+                        />
+                      } @else {
+                        <span aria-hidden="true">✦</span><small>No image</small>
+                      }
+                    </div>
+                    <div>
+                      <p class="eyebrow">CONTENT IMAGE</p>
+                      <h2>
+                        {{ values['image_url'] ? 'A familiar face.' : 'Give this story a face.' }}
+                      </h2>
+                      <p>
+                        Upload a JPEG or PNG up to 5 MB. Large images are resized to fit within 4096
+                        × 4096 pixels. Publishing saves the image change to this item.
+                      </p>
+                      <div class="button-row">
+                        <label class="upload-button" [class.disabled]="busy()"
+                          >↑
+                          {{
+                            uploading()
+                              ? 'Uploading…'
+                              : values['image_url']
+                                ? 'Replace image'
+                                : 'Upload image'
+                          }}<input
+                            type="file"
+                            accept="image/jpeg,image/png"
+                            (change)="uploadImage($event)"
+                            [disabled]="busy()"
+                        /></label>
+                        @if (values['image_url']) {
+                          <button
+                            type="button"
+                            class="subtle"
+                            (click)="values['image_url'] = null"
+                            [disabled]="busy()"
+                          >
+                            Remove image
+                          </button>
+                        }
+                      </div>
+                      <details>
+                        <summary>Use an image URL instead</summary>
+                        <admin-input
+                          label="Image URL"
+                          inputId="image-url"
+                          name="image_url"
+                          [(ngModel)]="values['image_url']"
+                          placeholder="https://…"
+                        />
+                      </details>
+                    </div>
+                  </section>
+                }
+                @if (generalFields().length) {
+                  <section class="panel">
+                    <h2>Details</h2>
+                    <div class="field-grid">
+                      @for (field of generalFields(); track field.name) {
+                        @if (field.type === 'text') {
+                          <admin-input
+                            [label]="label(field.name)"
+                            [inputId]="'field-' + field.name"
+                            [name]="field.name"
+                            [(ngModel)]="values[field.name]"
+                            [required]="essential(field.name)"
+                            [readonly]="readonlyField(field)"
+                          />
+                        } @else {
+                          <label
+                            >{{ label(field.name) }} {{ essential(field.name) ? '*' : ''
+                            }}<span class="textarea-wrap"
+                              ><input
+                                type="number"
+                                [(ngModel)]="values[field.name]"
+                                [name]="field.name"
+                                [attr.aria-label]="label(field.name)"
+                                [required]="essential(field.name)"
+                                [readOnly]="readonlyField(field)"
+                              />
+                              @if (values[field.name] != null && !readonlyField(field)) {
+                                <button
+                                  type="button"
+                                  class="field-clear"
+                                  [attr.aria-label]="'Clear ' + label(field.name)"
+                                  (click)="values[field.name] = null"
+                                >
+                                  ×
+                                </button>
+                              }
+                            </span></label
+                          >
+                        }
+                      }
+                    </div>
+                  </section>
+                }
+                <section class="panel">
+                  <div class="section-title">
+                    <h2>Words that matter</h2>
+                    <div class="language-tabs" role="group" aria-label="Content language">
+                      @for (lang of languages; track lang[0]) {
+                        <button
+                          type="button"
+                          [class.selected]="language === lang[0]"
+                          [attr.aria-pressed]="language === lang[0]"
+                          (click)="language = lang[0]"
+                        >
+                          {{ lang[1] }}
+                        </button>
+                      }
+                    </div>
+                  </div>
+                  <p class="muted">
+                    Edit each language independently. Switching languages keeps your changes.
+                  </p>
+                  <div class="localized-fields">
+                    @for (field of localizedFields(); track field.name) {
+                      @if (longField(field.name)) {
+                        <label
+                          >{{ label(field.name)
+                          }}<span class="textarea-wrap">
+                            <textarea
+                              [(ngModel)]="values[field.name]"
+                              [name]="field.name"
+                              [attr.aria-label]="label(field.name)"
+                              rows="6"
+                              maxlength="100000"
+                            ></textarea>
+                            @if (values[field.name]) {
+                              <button
+                                type="button"
+                                class="field-clear"
+                                [attr.aria-label]="'Clear ' + label(field.name)"
+                                (click)="values[field.name] = ''"
+                              >
+                                ×
+                              </button>
+                            }
+                          </span></label
+                        >
+                      } @else {
+                        <admin-input
+                          [label]="label(field.name)"
+                          [inputId]="'field-' + field.name"
+                          [name]="field.name"
+                          [(ngModel)]="values[field.name]"
+                          [required]="essential(field.name)"
+                        />
+                      }
+                    }
+                  </div>
+                  @if (creating && entity === 'novenas') {
+                    <h3>Nine days of prayer</h3>
+                    <p class="muted">
+                      All nine days publish together. An English prayer is required for every day.
+                    </p>
+                    @for (day of newDays; track $index; let dayIndex = $index) {
+                      <details class="novena-day" [open]="dayIndex === 0">
+                        <summary>Day {{ dayIndex + 1 }}</summary>
+                        @for (field of dayLanguageFields(); track field.name) {
+                          <label
+                            >{{ label(field.name) }} {{ field.name === 'prayer_en' ? '*' : ''
+                            }}<span class="textarea-wrap">
+                              <textarea
+                                [(ngModel)]="day[field.name]"
+                                [name]="'day' + dayIndex + field.name"
+                                [required]="field.name === 'prayer_en'"
+                                rows="3"
+                                maxlength="100000"
+                              ></textarea>
+                              @if (day[field.name]) {
+                                <button
+                                  type="button"
+                                  class="field-clear"
+                                  [attr.aria-label]="
+                                    'Clear day ' + (dayIndex + 1) + ' ' + label(field.name)
+                                  "
+                                  (click)="day[field.name] = ''"
+                                >
+                                  ×
+                                </button>
+                              }
+                            </span></label
+                          >
+                        }
+                      </details>
+                    }
                   }
+                </section>
+                @if ('tags' in links) {
+                  <section class="panel">
+                    <h2>Discovery</h2>
+                    <admin-input
+                      label="Tags"
+                      inputId="content-tags"
+                      name="tags"
+                      [(ngModel)]="tags"
+                      placeholder="Separate tags with commas"
+                    />
+                    <p class="fineprint">Tags help describe and organize this content.</p>
+                  </section>
                 }
-                @if ('tags' in links) { <label>Tags (separated by commas)<input name="tags" [(ngModel)]="tags" /></label> }
-                @for (key of ['intentions', 'patronages']; track key) {
-                  @if (options[key]) { <fieldset><legend>{{ label(key) }}</legend><div class="choices">@for (option of options[key]; track option['id']) { <label class="check"><input type="checkbox" [name]="key + option['id']" [checked]="links[key]?.includes(option['id'])" (change)="toggleLink(key, option['id'], $any($event.target).checked)" />{{ option['title'] }}</label> }</div></fieldset> }
+                @for (kind of relationKinds(); track kind) {
+                  <section class="panel relation-panel">
+                    <div class="section-title">
+                      <div>
+                        <h2>{{ label(kind) }}</h2>
+                        <p class="muted">
+                          Only this item’s selections are shown. Shared names can be reused
+                          elsewhere.
+                        </p>
+                      </div>
+                      <button type="button" (click)="openPicker(kind)" [disabled]="busy()">
+                        ＋ Add {{ kind === 'intentions' ? 'intention' : 'patronage' }}
+                      </button>
+                    </div>
+                    <div class="chips">
+                      @for (term of selectedTerms(kind); track term['id']) {
+                        <span class="chip"
+                          ><button
+                            type="button"
+                            class="chip-title"
+                            [attr.aria-label]="'Edit shared term ' + term['title']"
+                            (click)="editSelectedTerm(kind, term)"
+                          >
+                            {{ term['title'] }}</button
+                          ><button
+                            type="button"
+                            class="chip-remove"
+                            [attr.aria-label]="'Unlink ' + term['title'] + ' from this item'"
+                            (click)="unlink(kind, term['id'])"
+                          >
+                            ×
+                          </button></span
+                        >
+                      } @empty {
+                        <span class="muted">No {{ kind }} linked yet.</span>
+                      }
+                    </div>
+                  </section>
                 }
-                <label>Reason for this change *<textarea name="reason" [(ngModel)]="reason" required minlength="3" maxlength="1000" rows="2" placeholder="Describe what changed and why"></textarea></label>
-                <label class="check"><input type="checkbox" name="confirm" [(ngModel)]="confirmPublish" required />I reviewed this content and want to publish it to Sanctuary.</label>
-                <button class="primary" [disabled]="busy() || !confirmPublish || reason.trim().length < 3">{{ busy() ? 'Publishing…' : 'Publish content' }}</button>
+                <details class="panel identifiers">
+                  <summary>Identifiers & share link</summary>
+                  <p class="fineprint">
+                    Existing identifiers stay fixed. New content receives identifiers automatically
+                    when reviewed.
+                  </p>
+                  @for (field of fields; track field.name) {
+                    @if (['id', 'slug'].includes(field.name) && !(creating && field.generated)) {
+                      <admin-input
+                        [label]="label(field.name)"
+                        [inputId]="'identifier-' + field.name"
+                        [name]="field.name"
+                        [(ngModel)]="values[field.name]"
+                        [readonly]="!creating"
+                      />
+                    }
+                  }
+                </details>
+                <div class="save-bar">
+                  <span>{{
+                    isDirty()
+                      ? 'Changes are saved to the app when you publish.'
+                      : 'No unpublished changes.'
+                  }}</span
+                  ><button class="primary" [disabled]="busy() || !isDirty() || contentForm.invalid">
+                    Review & publish →
+                  </button>
+                </div>
               </form>
             }
           } @else if (section === 'users') {
-            <p class="eyebrow">USERS & ACTIVITY</p><h1>Understand your community.</h1>
-            <div class="stats">@for (stat of stats(); track stat[0]) { <div class="panel"><strong>{{ stat[1] ?? '—' }}</strong><span>{{ stat[0] }}</span></div> }</div>
-            <p class="muted">Active means an authenticated app request recorded within the period. Login counts and activity history begin with this release. This does not indicate who is online now. Profile creation may be later than registration.</p>
+            <div class="page-heading">
+              <div>
+                <p class="eyebrow">YOUR COMMUNITY</p>
+                <h1>Every person. One place.</h1>
+                <p>Registrations, saved prayers, and journeys in faith—all together.</p>
+              </div>
+              <button (click)="refreshUsers()" [disabled]="busy()">↻ Refresh directory</button>
+            </div>
+            <div class="stats">
+              @for (stat of stats(); track stat[0]) {
+                <div class="stat panel">
+                  <strong>{{ stat[1] ?? '—' }}</strong
+                  ><span>{{ stat[0] }}</span>
+                </div>
+              }
+            </div>
             @if (!user) {
-              <form class="search" (ngSubmit)="search()"><input name="q" [(ngModel)]="query" maxlength="200" placeholder="Search email or name" aria-label="Search users" /><label class="check"><input type="checkbox" name="active" [(ngModel)]="activeOnly" />Active in 7 days</label><button [disabled]="busy()">Search</button></form>
-              @for (row of rows; track row['id']) { <button class="record" (click)="openUser(row['id'])" [disabled]="busy()"><strong>{{ row['email'] || row['display_name'] || 'Unnamed account' }}</strong><span>{{ row['saved'] }} saved · {{ row['active_novenas'] }} active · {{ row['completed_novenas'] }} completed</span><span>Last seen: {{ (row['last_seen_at'] | date:'medium') || 'Not recorded' }}</span></button> }
+              <form class="user-controls panel" (ngSubmit)="search()">
+                <admin-input
+                  label="Find a person"
+                  inputId="user-search"
+                  name="query"
+                  [(ngModel)]="query"
+                  placeholder="Search email or name"
+                  [maxlength]="200"
+                /><label
+                  >Account status<select
+                    aria-label="Account status"
+                    name="status"
+                    [(ngModel)]="statusFilter"
+                  >
+                    <option value="all">All statuses</option>
+                    <option value="confirmed">Confirmed</option>
+                    <option value="unconfirmed">Unconfirmed</option>
+                    <option value="disabled">Disabled</option>
+                    <option value="profile-only">Profile only</option>
+                  </select></label
+                ><label
+                  >Activity<select
+                    aria-label="Activity filter"
+                    name="activity"
+                    [(ngModel)]="activityFilter"
+                  >
+                    <option value="all">Everyone</option>
+                    <option value="active">Active in 7 days</option>
+                    <option value="never">No recorded activity</option>
+                    <option value="saved">Has saved content</option>
+                    <option value="completed">Completed a novena</option>
+                  </select></label
+                ><button [disabled]="busy()">Search</button>
+              </form>
+              <p class="fineprint">
+                Directory synced {{ (syncedAt | date: 'medium') || 'not yet' }}. Active means a
+                recorded authenticated request, not online presence. Login history begins with the
+                admin release.
+              </p>
+              <div class="user-list">
+                @for (row of rows; track row['id']) {
+                  <article class="person-card panel">
+                    <div class="avatar" aria-hidden="true">
+                      {{ (row['display_name'] || row['email'] || '?').charAt(0).toUpperCase() }}
+                    </div>
+                    <div class="person-copy">
+                      <h3>{{ row['display_name'] || 'Unnamed account' }}</h3>
+                      <p>{{ row['email'] || 'No email supplied' }}</p>
+                      <div class="badges">
+                        <span class="badge">{{ statusLabel(row['status']) }}</span
+                        ><span class="badge" [class.good]="row['email_verified']">{{
+                          row['email_verified'] == null
+                            ? 'Verification unknown'
+                            : row['email_verified']
+                              ? 'Email verified'
+                              : 'Email unverified'
+                        }}</span>
+                        @if (row['enabled'] === false) {
+                          <span class="badge changed">Disabled</span>
+                        }
+                      </div>
+                      <p class="fineprint">
+                        Registered
+                        {{ (row['registered_at'] | date: 'mediumDate') || 'Not recorded' }} · Last
+                        seen {{ (row['last_seen_at'] | date: 'medium') || 'No activity recorded' }}
+                      </p>
+                      <div class="person-counts">
+                        <span>{{ row['saved'] }} saved</span
+                        ><span>{{ row['active_novenas'] }} active novenas</span
+                        ><span>{{ row['completed_novenas'] }} completed</span
+                        ><span>{{ row['login_count'] }} recorded logins</span>
+                      </div>
+                    </div>
+                    @if (row['profile_id']) {
+                      <button (click)="openUser(row['profile_id'])" [disabled]="busy()">
+                        View activity →
+                      </button>
+                    } @else {
+                      <p class="fineprint no-profile">
+                        No app activity yet<br />Registered account included
+                      </p>
+                    }
+                  </article>
+                } @empty {
+                  <div class="empty panel">
+                    <h3>{{ busy() ? 'Gathering your community…' : 'No people found' }}</h3>
+                    <p>Try another name or adjust the filters.</p>
+                  </div>
+                }
+              </div>
             } @else {
-              <button (click)="user = null" [disabled]="busy()">← Back to users</button>
-              <h2>{{ user['profile']['email'] || user['profile']['display_name'] }}</h2>
-              <dl class="panel">@for (entry of ['display_name', 'first_name', 'last_name', 'preferred_language', 'created_at', 'last_login_at', 'last_seen_at', 'login_count']; track entry) { <dt>{{ label(entry) }}</dt><dd>{{ user['profile'][entry] ?? 'Not recorded' }}</dd> }</dl>
-              <h3>Saved content</h3>@for (favorite of user['favorites']; track $index) { <div class="record"><strong>{{ favorite['title'] }}</strong><span>{{ favorite['item_type'] }} · Saved {{ favorite['created_at'] | date:'medium' }}</span></div> } @empty { <p>No saved content on this page.</p> }
-              <h3>Novena progress</h3>@for (novena of user['novenas']; track $index) { <div class="record"><strong>{{ novena['title'] }}</strong><span>{{ novena['status'] }} · Current day {{ novena['current_day'] }} · Completed days {{ novena['completed_days'] }}</span><span>Started {{ novena['started_at'] | date:'medium' }} · Updated {{ novena['updated_at'] | date:'medium' }}</span></div> } @empty { <p>No novenas on this page.</p> }
-              <h3>Recorded activity</h3>@for (event of user['events']; track $index) { <div class="record"><strong>{{ label(event['activity_type']) }}</strong><span>{{ event['resource_type'] }} {{ event['resource_id'] }} · {{ event['occurred_at'] | date:'medium' }}</span><span>{{ event['metadata'] }}</span></div> } @empty { <p>No recorded events on this page.</p> }
-              <div class="pagination"><button [disabled]="busy() || userPage === 0" (click)="openUser(userId, userPage - 1)">Previous</button><span>Detail page {{ userPage + 1 }}</span><button [disabled]="busy() || !user['hasMore']" (click)="openUser(userId, userPage + 1)">Next</button></div>
+              <button class="text-button" (click)="user = null" [disabled]="busy()">
+                ← Back to users
+              </button>
+              <h2>{{ user['profile']['display_name'] || user['profile']['email'] }}</h2>
+              <dl class="panel profile-details">
+                @for (
+                  entry of [
+                    'email',
+                    'first_name',
+                    'last_name',
+                    'preferred_language',
+                    'created_at',
+                    'last_login_at',
+                    'last_seen_at',
+                    'login_count',
+                  ];
+                  track entry
+                ) {
+                  <div>
+                    <dt>{{ entry === 'created_at' ? 'App profile created' : label(entry) }}</dt>
+                    <dd>{{ user['profile'][entry] ?? 'Not recorded' }}</dd>
+                  </div>
+                }
+              </dl>
+              <h3>Saved content</h3>
+              @for (favorite of user['favorites']; track $index) {
+                <div class="record panel">
+                  <strong>{{ favorite['title'] }}</strong
+                  ><span
+                    >{{ favorite['item_type'] }} · Saved
+                    {{ favorite['created_at'] | date: 'medium' }}</span
+                  >
+                </div>
+              } @empty {
+                <p class="muted">No saved content on this page.</p>
+              }
+              <h3>Novena progress</h3>
+              @for (novena of user['novenas']; track $index) {
+                <div class="record panel">
+                  <strong>{{ novena['title'] }}</strong
+                  ><span class="badge">{{ statusLabel(novena['status']) }}</span
+                  ><span
+                    >Day {{ novena['current_day'] }} · Completed days
+                    {{ novena['completed_days'] }}</span
+                  ><span
+                    >Started {{ novena['started_at'] | date: 'medium' }} · Updated
+                    {{ novena['updated_at'] | date: 'medium' }}</span
+                  >
+                </div>
+              } @empty {
+                <p class="muted">No novenas on this page.</p>
+              }
+              <h3>Recorded activity</h3>
+              @for (event of user['events']; track $index) {
+                <div class="record panel">
+                  <strong>{{ label(event['activity_type']) }}</strong
+                  ><span
+                    >{{ event['resource_type'] }} {{ event['resource_id'] }} ·
+                    {{ event['occurred_at'] | date: 'medium' }}</span
+                  ><span>{{ event['metadata'] }}</span>
+                </div>
+              } @empty {
+                <p class="muted">No recorded events on this page.</p>
+              }
+              <div class="pagination">
+                <button
+                  [disabled]="busy() || userPage === 0"
+                  (click)="openUser(userId, userPage - 1)"
+                >
+                  ← Previous</button
+                ><span>Detail page {{ userPage + 1 }}</span
+                ><button
+                  [disabled]="busy() || !user['hasMore']"
+                  (click)="openUser(userId, userPage + 1)"
+                >
+                  Next →
+                </button>
+              </div>
             }
-          } @else if (section === 'registrations') {
-            <p class="eyebrow">ACCOUNT DIRECTORY</p><h1>Every registration.</h1><p class="muted">Read directly from Cognito, including unconfirmed accounts and people who have not opened an app profile. Registration status and activity are separate.</p>
-            @for (row of rows; track $index) { <div class="record"><strong>{{ row['email'] || row['name'] || 'Unnamed account' }}</strong><span>{{ row['status'] }} · {{ row['enabled'] ? 'Enabled' : 'Disabled' }} · Registered {{ row['registeredAt'] | date:'medium' }}</span>@if (row['profileId']) { <button (click)="section = 'users'; openUser(row['profileId'])" [disabled]="busy()">View saved content & activity</button> } @else { <span>No app profile yet</span> }</div> }
-            <div class="pagination"><button [disabled]="busy() || !registrationHistory.length" (click)="registrationsPage(false)">Previous</button><button [disabled]="busy() || !registrationNext" (click)="registrationsPage(true)">Next</button></div>
           } @else {
-            <p class="eyebrow">PUBLISHING HISTORY</p><h1>Every change, recorded.</h1>
-            @if (auditSnapshot) { <button (click)="auditSnapshot = null">← Back to history</button><h2>Before</h2><pre>{{ auditSnapshot['before_value'] || 'New content' }}</pre><h2>After</h2><pre>{{ auditSnapshot['after_value'] }}</pre> }
-            @else { @for (row of rows; track row['id']) { <button class="record" (click)="openAudit(row['id'])" [disabled]="busy()"><strong>{{ row['entity'] }} · {{ row['record_id'] }}</strong><span>{{ row['reason'] }}</span><span>{{ row['created_at'] | date:'medium' }}</span></button> } }
+            <div class="page-heading">
+              <div>
+                <p class="eyebrow">PUBLISHING HISTORY</p>
+                <h1>Every change, remembered.</h1>
+                <p>A clear record of the care you put into Sanctuary.</p>
+              </div>
+            </div>
+            @if (auditSnapshot) {
+              <button class="text-button" (click)="auditSnapshot = null">← Back to history</button>
+              <h2>Before</h2>
+              <pre>{{ auditSnapshot['before_value'] || 'New content' }}</pre>
+              <h2>After</h2>
+              <pre>{{ auditSnapshot['after_value'] }}</pre>
+            } @else {
+              @for (row of rows; track row['id']) {
+                <button
+                  class="history-card panel"
+                  (click)="openAudit(row['id'])"
+                  [disabled]="busy()"
+                >
+                  <span class="history-icon" aria-hidden="true">✓</span
+                  ><span
+                    ><strong>{{ label(row['entity']) }} · {{ row['record_id'] }}</strong
+                    ><span>{{ row['reason'] }}</span
+                    ><small>{{ row['created_at'] | date: 'medium' }}</small></span
+                  ><span aria-hidden="true">↗</span>
+                </button>
+              } @empty {
+                <div class="empty panel">
+                  <h3>No publishing history yet</h3>
+                  <p>Your published changes will appear here.</p>
+                </div>
+              }
+            }
           }
-          @if (!values && !user && section !== 'registrations' && !auditSnapshot) {
-            @if (rows.length === 0 && !busy()) { <p class="panel">No results found.</p> }
-            <div class="pagination"><button [disabled]="busy() || page === 0" (click)="turnPage(-1)">Previous</button><span>Page {{ page + 1 }}</span><button [disabled]="busy() || !hasMore" (click)="turnPage(1)">Next</button></div>
+          @if (!values && !user && !auditSnapshot) {
+            <div class="pagination">
+              <button [disabled]="busy() || page === 0" (click)="turnPage(-1)">← Previous</button
+              ><span>Page {{ page + 1 }}</span
+              ><button [disabled]="busy() || !hasMore" (click)="turnPage(1)">Next →</button>
+            </div>
           }
         </section>
       </div>
     }
   </main>
+  <footer>Sanctuary · A little peace. A little prayer. Every day.</footer>
 </div>
+@if (dialog) {
+  <div class="dialog-backdrop" (click)="!busy() && closeDialog()"></div>
+  <section
+    #dialogPanel
+    class="admin-dialog"
+    [class.wide]="dialog === 'terms'"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="dialog-title"
+    tabindex="-1"
+  >
+    <button
+      class="dialog-close"
+      aria-label="Close dialog"
+      (click)="closeDialog()"
+      [disabled]="busy()"
+    >
+      ×
+    </button>
+    @if (dialogError) {
+      <p class="notice error" role="alert">{{ dialogError }}</p>
+    }
+    @if (dialog === 'discard') {
+      <div class="dialog-symbol" aria-hidden="true">✧</div>
+      <p class="eyebrow">UNPUBLISHED CHANGES</p>
+      <h2 id="dialog-title">Keep your work?</h2>
+      <p>
+        You’ve made changes to this item. Leave without publishing, or return to the editor to keep
+        working.
+      </p>
+      <div class="dialog-actions">
+        <button class="subtle" (click)="decideDiscard(true)">Discard changes</button
+        ><button class="primary" (click)="decideDiscard(false)">Keep editing</button>
+      </div>
+    } @else if (dialog === 'publish') {
+      <p class="eyebrow">READY TO SHARE</p>
+      <h2 id="dialog-title">Publish {{ editorTitle() }}?</h2>
+      <p>
+        This updates the content available in Sanctuary. Changes are recorded in publishing history.
+      </p>
+      <form #publishForm="ngForm" (ngSubmit)="publish()">
+        <label
+          >What changed? *<textarea
+            name="reason"
+            [(ngModel)]="reason"
+            required
+            minlength="3"
+            maxlength="1000"
+            rows="3"
+            placeholder="For example: corrected the biography and replaced the portrait"
+          ></textarea></label
+        ><label class="check"
+          ><input type="checkbox" name="confirm" [(ngModel)]="confirmPublish" required />I reviewed
+          this content and am ready to publish.</label
+        >
+        <div class="dialog-actions">
+          <button type="button" (click)="closeDialog()" [disabled]="busy()">Keep editing</button
+          ><button class="primary" [disabled]="busy() || publishForm.invalid || !confirmPublish">
+            {{ busy() ? 'Publishing…' : 'Publish content' }}
+          </button>
+        </div>
+      </form>
+    } @else if (dialog === 'terms') {
+      <p class="eyebrow">SHARED {{ pickerKind.toUpperCase() }}</p>
+      <h2 id="dialog-title">
+        {{
+          termStage === 'edit'
+            ? termEditingId
+              ? 'Edit shared name'
+              : 'Create a new ' + (pickerKind === 'intentions' ? 'intention' : 'patronage')
+            : 'Find the right ' + (pickerKind === 'intentions' ? 'intention' : 'patronage')
+        }}
+      </h2>
+      @if (termStage === 'choose') {
+        <p>
+          Select an existing name, or create one here. Unlinking a name from this item never deletes
+          the shared record.
+        </p>
+        <form class="search" (ngSubmit)="searchTerms()">
+          <admin-input
+            label="Search existing names"
+            inputId="term-search"
+            name="termSearch"
+            [(ngModel)]="pickerQuery"
+            (changed)="scheduleTermSearch()"
+            placeholder="Type a name to filter"
+            [maxlength]="200"
+          /><button [disabled]="busy()">Search</button>
+        </form>
+        <div class="section-title">
+          <span class="muted">{{ pickerSelection.length }} selected</span
+          ><button class="subtle" (click)="createTerm()" [disabled]="busy()">＋ Create new</button>
+        </div>
+        <div class="term-results">
+          @for (term of pickerRows; track term['id']) {
+            <div class="term-option">
+              <label class="check"
+                ><input
+                  type="checkbox"
+                  [checked]="pickerSelection.includes(term['id'])"
+                  (change)="togglePicker(term['id'], $any($event.target).checked)"
+                  [disabled]="busy()"
+                /><strong>{{ term['title'] }}</strong></label
+              ><button
+                class="text-button"
+                [attr.aria-label]="'Edit shared name ' + term['title']"
+                (click)="editTerm(term)"
+                [disabled]="busy()"
+              >
+                Edit shared name
+              </button>
+            </div>
+          } @empty {
+            <p class="empty">
+              {{ busy() ? 'Searching…' : 'No matching names. You can create a new one.' }}
+            </p>
+          }
+          @if (pickerMore) {
+            <button class="full" (click)="searchTerms(pickerPage + 1)" [disabled]="busy()">
+              Show more results
+            </button>
+          }
+        </div>
+        <div class="dialog-actions">
+          <button (click)="closeDialog()" [disabled]="busy()">Cancel</button
+          ><button class="primary" (click)="applyTerms()" [disabled]="busy()">
+            Apply selection ({{ pickerSelection.length }})
+          </button>
+        </div>
+      } @else {
+        <p>
+          {{
+            termEditingId
+              ? 'Changing this name updates it everywhere it is used. To remove it only from this item, unlink it instead.'
+              : 'This creates one reusable name in the shared library. It will be selected here, ready to link when you publish this item.'
+          }}
+        </p>
+        <form #termForm="ngForm" (ngSubmit)="saveTerm()">
+          <admin-input
+            label="English name"
+            inputId="term-en"
+            name="label_en"
+            [(ngModel)]="termDraft['label_en']"
+            [required]="true"
+            [maxlength]="200"
+          />
+          <admin-input
+            label="Spanish name"
+            inputId="term-es"
+            name="label_es"
+            [(ngModel)]="termDraft['label_es']"
+            [maxlength]="200"
+          />
+          <admin-input
+            label="Polish name"
+            inputId="term-pl"
+            name="label_pl"
+            [(ngModel)]="termDraft['label_pl']"
+            [maxlength]="200"
+          />
+          <label
+            >Reason for this change *<textarea
+              name="termReason"
+              [(ngModel)]="termReason"
+              required
+              minlength="3"
+              maxlength="1000"
+              rows="2"
+              placeholder="Describe the new name or correction"
+            ></textarea>
+          </label>
+          <div class="dialog-actions">
+            <button
+              type="button"
+              (click)="termStage = 'choose'; dialogError = ''"
+              [disabled]="busy()"
+            >
+              ← Existing names</button
+            ><button class="primary" [disabled]="busy() || termForm.invalid">
+              {{ termEditingId ? 'Save shared name' : 'Create & select' }}
+            </button>
+          </div>
+        </form>
+      }
+    }
+  </section>
+}
