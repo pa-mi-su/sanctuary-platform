@@ -10,6 +10,7 @@ on:
     paths:
       - "apps/api/**"
       - "!apps/api/**/*.md"
+      - ".github/scripts/test-workflow-path-isolation.rb"
       - ".github/workflows/api-prod-deploy.yml"
   push:
     branches:
@@ -31,10 +32,25 @@ jobs:
   build:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: sanctuary_admin_test
+          POSTGRES_USER: sanctuary_test
+          POSTGRES_PASSWORD: sanctuary_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U sanctuary_test -d sanctuary_admin_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
+
+      - name: Check web/API/native path isolation
+        run: ruby .github/scripts/test-workflow-path-isolation.rb
 
       - name: Setup Java 21
         uses: actions/setup-java@v5
@@ -44,12 +60,26 @@ jobs:
           cache: maven
 
       - name: Run API tests
+        env:
+          ADMIN_TEST_DB_URL: jdbc:postgresql://127.0.0.1:5432/sanctuary_admin_test
         run: mvn -q test
         working-directory: apps/api
 
   deploy:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: sanctuary_admin_test
+          POSTGRES_USER: sanctuary_test
+          POSTGRES_PASSWORD: sanctuary_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U sanctuary_test -d sanctuary_admin_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
     environment: prod
     env:
       AWS_REGION: ${{ vars.AWS_REGION }}
@@ -59,6 +89,10 @@ jobs:
       SANCTUARY_DB_URL: ${{ vars.API_PROD_DB_URL }}
       SANCTUARY_DB_USERNAME: ${{ vars.API_PROD_DB_USERNAME }}
       API_PROD_DB_SECRET_ARN: ${{ vars.API_PROD_DB_SECRET_ARN || 'arn:aws:secretsmanager:us-east-1:160885294528:secret:rds!db-6969fe1c-0964-444f-b4f3-4fc2182887b5-xYENSU' }}
+      SANCTUARY_ADMIN_ENABLED: ${{ vars.API_PROD_ADMIN_ENABLED || 'false' }}
+      SANCTUARY_ADMIN_OWNER_SUB: ${{ vars.API_PROD_ADMIN_OWNER_SUB }}
+      SANCTUARY_ADMIN_CLIENT_ID: ${{ vars.API_PROD_ADMIN_CLIENT_ID }}
+      ADMIN_KEY_SECRET_ARN: ${{ vars.API_PROD_ADMIN_KEY_SECRET_ARN }}
       SANCTUARY_AUTH_ENABLED: ${{ vars.API_PROD_AUTH_ENABLED || 'true' }}
       SANCTUARY_COGNITO_ISSUER_URI: ${{ vars.API_PROD_COGNITO_ISSUER_URI || 'https://cognito-idp.us-east-1.amazonaws.com/us-east-1_syYJKg0NY' }}
       SANCTUARY_COGNITO_CLIENT_ID: ${{ vars.API_PROD_COGNITO_CLIENT_ID || '7e3anthnuctm8p9nqck6kesjm9' }}
@@ -80,6 +114,8 @@ jobs:
           cache: maven
 
       - name: Run API tests
+        env:
+          ADMIN_TEST_DB_URL: jdbc:postgresql://127.0.0.1:5432/sanctuary_admin_test
         run: mvn -q test
         working-directory: apps/api
 
@@ -88,6 +124,17 @@ jobs:
         with:
           role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
+
+      - name: Validate admin deployment configuration
+        shell: bash
+        run: |
+          if [[ "${SANCTUARY_ADMIN_ENABLED}" == "true" ]]; then
+            test -n "${SANCTUARY_ADMIN_OWNER_SUB}" && test -n "${SANCTUARY_ADMIN_CLIENT_ID}" && \
+              [[ "${ADMIN_KEY_SECRET_ARN}" == arn:aws:secretsmanager:*:secret:* ]] || {
+                echo "::error::Enabled admin requires a pinned owner subject, dedicated client ID, and encryption secret ARN."
+                exit 1
+              }
+          fi
 
       - name: Normalize deploy variables
         run: |
@@ -217,6 +264,10 @@ jobs:
             --arg image "${EXPECTED_API_IMAGE}" \
             --arg db_url "${SANCTUARY_DB_URL}" \
             --arg db_username "${SANCTUARY_DB_USERNAME}" \
+            --arg admin_enabled "${SANCTUARY_ADMIN_ENABLED}" \
+            --arg admin_sub "${SANCTUARY_ADMIN_OWNER_SUB}" \
+            --arg admin_client "${SANCTUARY_ADMIN_CLIENT_ID}" \
+            --arg admin_key_secret "${ADMIN_KEY_SECRET_ARN}" \
             --arg auth_enabled "${SANCTUARY_AUTH_ENABLED}" \
             --arg cognito_issuer "${SANCTUARY_COGNITO_ISSUER_URI}" \
             --arg cognito_client_id "${SANCTUARY_COGNITO_CLIENT_ID}" \
@@ -241,6 +292,9 @@ jobs:
                   {"name": "SANCTUARY_API_PORT", "value": "8080"},
                   {"name": "SANCTUARY_DB_URL", "value": $db_url},
                   {"name": "SANCTUARY_DB_USERNAME", "value": $db_username},
+                  {"name": "SANCTUARY_ADMIN_ENABLED", "value": $admin_enabled},
+                  {"name": "SANCTUARY_ADMIN_OWNER_SUB", "value": $admin_sub},
+                  {"name": "SANCTUARY_ADMIN_CLIENT_ID", "value": $admin_client},
                   {"name": "SANCTUARY_AUTH_ENABLED", "value": $auth_enabled},
                   {"name": "SANCTUARY_COGNITO_ISSUER_URI", "value": $cognito_issuer},
                   {"name": "SANCTUARY_COGNITO_CLIENT_ID", "value": $cognito_client_id},
@@ -248,9 +302,9 @@ jobs:
                   {"name": "SANCTUARY_AUTH_COOKIE_DOMAIN", "value": $cookie_domain},
                   {"name": "SANCTUARY_AUTH_COOKIE_SAME_SITE", "value": $cookie_same_site}
                 ]
-                | .secrets = [
+                | .secrets = ([
                   {"name": "SANCTUARY_DB_PASSWORD", "valueFrom": $db_secret}
-                ]
+                ] + (if $admin_enabled == "true" then [{"name": "SANCTUARY_ADMIN_ENCRYPTION_KEY", "valueFrom": $admin_key_secret}] else [] end))
               else
                 .
               end
