@@ -14,11 +14,11 @@ public class AdminSecurityConfig {
     // Independent of the public application's optional JWT authentication switch.
     // Controllers validate opaque server sessions, never ordinary Cognito bearer tokens.
     @Bean @Order(1)
-    SecurityFilterChain adminSecurity(HttpSecurity http, AdminAuthService auth, com.fasterxml.jackson.databind.ObjectMapper json) throws Exception {
+    SecurityFilterChain adminSecurity(HttpSecurity http, AdminAuthService auth, com.fasterxml.jackson.databind.ObjectMapper json, AdminSessionCookies cookies) throws Exception {
         return http.securityMatcher("/admin-api/**")
-            .csrf(csrf -> csrf.disable()) // No ambient credentials: explicit in-memory bearer + custom header.
+            .csrf(csrf -> csrf.disable()) // Custom header and exact-origin CORS protect cookie-backed requests from CSRF.
             .cors(Customizer.withDefaults())
-            .addFilterBefore(new AdminSessionFilter(auth, json), org.springframework.security.web.access.intercept.AuthorizationFilter.class)
+            .addFilterBefore(new AdminSessionFilter(auth, json, cookies), org.springframework.security.web.access.intercept.AuthorizationFilter.class)
             .authorizeHttpRequests(requests -> requests.anyRequest().permitAll())
             .headers(headers -> headers.cacheControl(Customizer.withDefaults()))
             .build();

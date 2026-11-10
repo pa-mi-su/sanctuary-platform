@@ -1,5 +1,7 @@
 # Sanctuary content and account administration
 
+For the current usability upgrade, media uploads, unified directory, and cookie/session behavior, see [Admin usability upgrade](admin-usability.md). The implementation and rollout notes below describe the original release and its history.
+
 Implementation branch: `codex/content-admin`, based on `main` at `5cf491f`.
 
 The Angular application serves `/admin`. The static build emits a dedicated extensionless `admin` HTML object and the web deploy workflows upload it with an HTML content type and `no-store`. The Angular admin code is lazy-loaded. All private operations use `/admin-api/**` on the existing Spring API. There is no mobile admin UI or native source change.
