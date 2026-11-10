@@ -22,7 +22,8 @@ permissions:
   id-token: write
 
 concurrency:
-  group: api-dev-pipeline-${{ github.ref }}
+  # PR refs can resolve to the base branch after merge; keep their checks separate.
+  group: api-dev-pipeline-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:

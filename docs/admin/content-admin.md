@@ -87,3 +87,8 @@ Provisioned the isolated `sanctuary-dev-content-admin` pool/client, enabled soft
 DEV's previous image contains news migrations V16–V19 absent from current main. Those exact migration files are preserved from deployed commit `b8b5d346e91e2bbc6ec561a43a0794e65fe5648b`; content-admin migrations now use V20/V21. This preserves schema history without reintroducing the experimental news app. The panel now handles `NEW_PASSWORD_REQUIRED` before MFA enrollment, and neither password setup nor the invitation challenge can issue an admin session.
 
 Production provisioning was rejected by automatic approval review as outside the stated DEV scope. No production identity, IAM, secret, or GitHub configuration changes were made. Production activation requires explicit approval after DEV verification.
+
+
+## Production pipeline concurrency correction — November 10, 2026
+
+Delayed promotion-PR validation runs cancelled the first production push runs because their effective refs shared the deployment concurrency key. All four web/API workflows now use the PR number when present and the branch ref otherwise. PR checks cannot cancel deployments, while newer deployments on the same branch retain their existing cancellation behavior. No native workflow is changed. The cancelled release must be rerun after the delayed checks complete. Production region, bucket, and distribution variables were also normalized to their verified values.

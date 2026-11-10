@@ -65,4 +65,12 @@ class WorkflowPathIsolationTest < Minitest::Test
     end
   end
 
+  def test_delayed_pr_checks_cannot_cancel_deployments
+    %w[api-dev-deploy.yml api-prod-deploy.yml web-dev-deploy.yml web-prod-deploy.yml].each do |name|
+      group = workflow(name).fetch('concurrency').fetch('group')
+      # A merged PR may report refs/heads/main; its number must still distinguish it.
+      assert_includes group, 'github.event.pull_request.number || github.ref', name
+    end
+  end
+
 end
