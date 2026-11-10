@@ -92,3 +92,6 @@ Production provisioning was rejected by automatic approval review as outside the
 ## Production pipeline concurrency correction — November 10, 2026
 
 Delayed promotion-PR validation runs cancelled the first production push runs because their effective refs shared the deployment concurrency key. All four web/API workflows now use the PR number when present and the branch ref otherwise. PR checks cannot cancel deployments, while newer deployments on the same branch retain their existing cancellation behavior. No native workflow is changed. The cancelled release must be rerun after the delayed checks complete. Production region, bucket, and distribution variables were also normalized to their verified values.
+
+
+Production's pre-admin task definition used the shared `ecsTaskExecutionRole`, despite dedicated Sanctuary roles already being provisioned. The deployment renderer now explicitly selects the configured dedicated execution/task roles and refuses enabled-admin deployment without them. Their existing policies cover the database-secret injection and public-account Cognito operations; new admin permissions remain narrowly scoped. Admin environment bindings/defaults are explicit in application configuration. The API rollout using the old renderer was stopped before updating the service.

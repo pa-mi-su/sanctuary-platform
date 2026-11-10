@@ -54,7 +54,10 @@ class WorkflowPathIsolationTest < Minitest::Test
         input = { 'taskDefinitionArn' => 'old', 'containerDefinitions' => [{ 'name' => 'Main', 'environment' => [], 'secrets' => [] }] }
         output, error, status = Open3.capture3('jq', *args, program, stdin_data: JSON.generate(input))
         assert status.success?, error
-        container = JSON.parse(output).fetch('containerDefinitions').first
+        rendered = JSON.parse(output)
+        assert_equal 'fixture-execution_role', rendered['executionRoleArn']
+        assert_equal 'fixture-task_role', rendered['taskRoleArn']
+        container = rendered.fetch('containerDefinitions').first
         environment = container.fetch('environment').to_h { |entry| [entry['name'], entry['value']] }
         assert_equal enabled, environment['SANCTUARY_ADMIN_ENABLED']
         assert_equal 'fixture-admin_sub', environment['SANCTUARY_ADMIN_OWNER_SUB']

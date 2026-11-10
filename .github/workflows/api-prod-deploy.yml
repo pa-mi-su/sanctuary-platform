@@ -90,6 +90,8 @@ jobs:
       SANCTUARY_DB_URL: ${{ vars.API_PROD_DB_URL }}
       SANCTUARY_DB_USERNAME: ${{ vars.API_PROD_DB_USERNAME }}
       API_PROD_DB_SECRET_ARN: ${{ vars.API_PROD_DB_SECRET_ARN || 'arn:aws:secretsmanager:us-east-1:160885294528:secret:rds!db-6969fe1c-0964-444f-b4f3-4fc2182887b5-xYENSU' }}
+      API_EXECUTION_ROLE_ARN: ${{ vars.API_PROD_EXECUTION_ROLE_ARN }}
+      API_TASK_ROLE_ARN: ${{ vars.API_PROD_TASK_ROLE_ARN }}
       SANCTUARY_ADMIN_ENABLED: ${{ vars.API_PROD_ADMIN_ENABLED || 'false' }}
       SANCTUARY_ADMIN_OWNER_SUB: ${{ vars.API_PROD_ADMIN_OWNER_SUB }}
       SANCTUARY_ADMIN_CLIENT_ID: ${{ vars.API_PROD_ADMIN_CLIENT_ID }}
@@ -130,9 +132,10 @@ jobs:
         shell: bash
         run: |
           if [[ "${SANCTUARY_ADMIN_ENABLED}" == "true" ]]; then
+            [[ "${API_EXECUTION_ROLE_ARN}" == arn:aws:iam::*:role/* ]] && [[ "${API_TASK_ROLE_ARN}" == arn:aws:iam::*:role/* ]] && \
             test -n "${SANCTUARY_ADMIN_OWNER_SUB}" && test -n "${SANCTUARY_ADMIN_CLIENT_ID}" && \
               [[ "${ADMIN_KEY_SECRET_ARN}" == arn:aws:secretsmanager:*:secret:* ]] || {
-                echo "::error::Enabled admin requires a pinned owner subject, dedicated client ID, and encryption secret ARN."
+                echo "::error::Enabled admin requires dedicated execution/task role ARNs, a pinned owner, client ID, and encryption secret ARN."
                 exit 1
               }
           fi
@@ -265,6 +268,8 @@ jobs:
             --arg image "${EXPECTED_API_IMAGE}" \
             --arg db_url "${SANCTUARY_DB_URL}" \
             --arg db_username "${SANCTUARY_DB_USERNAME}" \
+            --arg execution_role "${API_EXECUTION_ROLE_ARN}" \
+            --arg task_role "${API_TASK_ROLE_ARN}" \
             --arg admin_enabled "${SANCTUARY_ADMIN_ENABLED}" \
             --arg admin_sub "${SANCTUARY_ADMIN_OWNER_SUB}" \
             --arg admin_client "${SANCTUARY_ADMIN_CLIENT_ID}" \
@@ -285,6 +290,8 @@ jobs:
               .registeredAt,
               .registeredBy
             )
+            | (if $execution_role != "" then .executionRoleArn = $execution_role else . end)
+            | (if $task_role != "" then .taskRoleArn = $task_role else . end)
             | .containerDefinitions |= map(
               if .name == "Main" then
                 .image = $image
