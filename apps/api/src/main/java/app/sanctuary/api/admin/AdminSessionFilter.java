@@ -11,19 +11,32 @@ import app.sanctuary.api.auth.service.AuthFlowException;
 final class AdminSessionFilter extends OncePerRequestFilter {
     private final AdminAuthService auth;
     private final ObjectMapper json;
-    AdminSessionFilter(AdminAuthService auth, ObjectMapper json) { this.auth = auth; this.json = json; }
+    private final AdminSessionCookies cookies;
+    AdminSessionFilter(AdminAuthService auth, ObjectMapper json) { this(auth, json, new AdminSessionCookies(true)); }
+    AdminSessionFilter(AdminAuthService auth, ObjectMapper json, AdminSessionCookies cookies) { this.auth = auth; this.json = json; this.cookies = cookies; }
     @Override protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain) throws ServletException, IOException {
         response.setHeader("Cache-Control", "no-store");
         try {
             if (!"1".equals(request.getHeader("X-Sanctuary-Admin"))) {
-                response.sendError(403); return;
+                response.setStatus(403); return;
             }
             auth.requireConfigured();
             String path = request.getServletPath().isEmpty() ? request.getRequestURI() : request.getServletPath();
             boolean login = "POST".equals(request.getMethod()) && (path.equals("/admin-api/login") || path.equals("/admin-api/verify") || path.equals("/admin-api/password"));
-            if (!login) auth.authenticate(request.getHeader("Authorization"));
-            chain.doFilter(request, response);
+            String authorization = AdminSessionCookies.authorization(request);
+            if (!login) auth.authenticate(authorization);
+            HttpServletRequest wrapped = new HttpServletRequestWrapper(request) {
+                @Override public String getHeader(String name) {
+                    return "Authorization".equalsIgnoreCase(name) ? authorization : super.getHeader(name);
+                }
+                @Override public java.util.Enumeration<String> getHeaders(String name) {
+                    if ("Authorization".equalsIgnoreCase(name)) return java.util.Collections.enumeration(authorization == null ? java.util.List.of() : java.util.List.of(authorization));
+                    return super.getHeaders(name);
+                }
+            };
+            chain.doFilter(wrapped, response);
         } catch (AuthFlowException exception) {
+            if (exception.status().value() == 401) response.addHeader("Set-Cookie", cookies.clear());
             response.setStatus(exception.status().value()); response.setContentType("application/json");
             json.writeValue(response.getWriter(), java.util.Map.of("message", exception.getMessage()));
         }

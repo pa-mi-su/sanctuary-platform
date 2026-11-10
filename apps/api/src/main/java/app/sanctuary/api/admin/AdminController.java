@@ -15,7 +15,8 @@ public class AdminController {
     private final AdminAuthService auth;
     private final AdminContentService content;
     private final AdminUsersService users;
-    public AdminController(AdminAuthService auth, AdminContentService content, AdminUsersService users) { this.auth = auth; this.content = content; this.users = users; }
+    private final AdminSessionCookies cookies;
+    public AdminController(AdminAuthService auth, AdminContentService content, AdminUsersService users, AdminSessionCookies cookies) { this.auth = auth; this.content = content; this.users = users; this.cookies = cookies; }
     public record Login(@NotBlank @Size(max=254) String email, @NotBlank @Size(max=256) String password) {}
     public record Verify(@NotBlank @Size(max=100) String challenge, @Pattern(regexp="[0-9]{6}") @NotNull String code) {}
     @PostMapping("/login") public Object login(@Valid @RequestBody Login body, HttpServletRequest request) {
@@ -23,9 +24,15 @@ public class AdminController {
     }
     public record Password(@NotBlank @Size(max=100) String challenge, @NotBlank @Size(min=14,max=256) String password) {}
     @PostMapping("/password") public Object password(@Valid @RequestBody Password body) { return auth.password(body.challenge(), body.password()); }
-    @PostMapping("/verify") public Object verify(@Valid @RequestBody Verify body) { return auth.verify(body.challenge(), body.code()); }
-    @PostMapping("/logout") public Object logout(@RequestHeader(value="Authorization", required=false) String token) { auth.logout(token); return Map.of("message", "Signed out"); }
-    @GetMapping("/session") public Object session(@RequestHeader(value="Authorization", required=false) String token) { auth.authenticate(token); return Map.of("email", AdminProperties.OWNER_EMAIL); }
+    @PostMapping("/verify") public Object verify(@Valid @RequestBody Verify body, @RequestHeader(value="X-Sanctuary-Admin-Client", defaultValue="") String client, jakarta.servlet.http.HttpServletResponse response) {
+        var result = auth.verify(body.challenge(), body.code());
+        // Keep the existing bearer response for already-loaded clients during a rolling release.
+        if (!"cookie-v2".equals(client)) return result;
+        response.addHeader("Set-Cookie", cookies.issue(result.get("token")));
+        return auth.sessionInfo("Bearer " + result.get("token"));
+    }
+    @PostMapping("/logout") public Object logout(@RequestHeader(value="Authorization", required=false) String token, jakarta.servlet.http.HttpServletResponse response) { auth.logout(token); response.addHeader("Set-Cookie", cookies.clear()); return Map.of("message", "Signed out"); }
+    @GetMapping("/session") public Object session(@RequestHeader(value="Authorization", required=false) String token) { return auth.sessionInfo(token); }
     @GetMapping("/content/{entity}") public Object list(@RequestHeader(value="Authorization", required=false) String token, @PathVariable String entity, @RequestParam(defaultValue="") String q, @RequestParam(defaultValue="0") int page) {
         auth.authenticate(token); bounds(q, page); return content.list(entity, q, page);
     }
@@ -34,6 +41,8 @@ public class AdminController {
     @GetMapping("/content/{entity}/{id}") public Object detail(@RequestHeader(value="Authorization", required=false) String token, @PathVariable String entity, @PathVariable String id) { auth.authenticate(token); return content.detail(entity, id); }
     @PostMapping("/content/{entity}") public Object create(@RequestHeader(value="Authorization", required=false) String token, @PathVariable String entity, @RequestBody AdminContentService.Save body) { return content.save(auth.authenticate(token), entity, "", body, true); }
     @PutMapping("/content/{entity}/{id}") public Object save(@RequestHeader(value="Authorization", required=false) String token, @PathVariable String entity, @PathVariable String id, @RequestBody AdminContentService.Save body) { return content.save(auth.authenticate(token), entity, id, body, false); }
+    public record Term(@NotNull Map<String, String> labels, @NotBlank @Size(min=3,max=1000) String reason) {}
+    @PostMapping("/terms/{kind}") public Object term(@RequestHeader(value="Authorization", required=false) String token, @PathVariable String kind, @Valid @RequestBody Term body) { return content.createTerm(auth.authenticate(token), kind, body.labels(), body.reason()); }
     @GetMapping("/audit") public Object audit(@RequestHeader(value="Authorization", required=false) String token, @RequestParam(defaultValue="0") int page) { auth.authenticate(token); bounds("", page); return content.audit(page); }
     @GetMapping("/audit/{id}") public Object auditDetail(@RequestHeader(value="Authorization", required=false) String token, @PathVariable long id) { auth.authenticate(token); return content.auditDetail(id); }
     @GetMapping("/users/summary") public Object summary(@RequestHeader(value="Authorization", required=false) String token) { auth.authenticate(token); return users.summary(); }

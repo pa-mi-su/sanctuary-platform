@@ -130,8 +130,8 @@ public class AdminAuthService {
             // Consume once before issuing any session, including concurrent verification requests.
             if (db.update("DELETE FROM admin_challenges WHERE token_hash = ?", AdminCrypto.hash(token)) != 1) throw denied();
             String session = crypto.token();
-            db.update("DELETE FROM admin_sessions WHERE expires_at < now() OR last_seen_at < now() - interval '15 minutes'");
-            db.update("INSERT INTO admin_sessions(token_hash, owner_sub, expires_at) VALUES (?, ?, now() + interval '8 hours')",
+            db.update("DELETE FROM admin_sessions WHERE expires_at < now() OR last_seen_at < now() - interval '8 hours'");
+            db.update("INSERT INTO admin_sessions(token_hash, owner_sub, expires_at) VALUES (?, ?, now() + interval '24 hours')",
                 AdminCrypto.hash(session), properties.ownerSub());
             return Map.of("token", session, "email", AdminProperties.OWNER_EMAIL);
         } catch (CognitoIdentityProviderException | java.io.IOException | IllegalArgumentException exception) { throw denied(); }
@@ -147,10 +147,15 @@ public class AdminAuthService {
     public String authenticate(String authorization) {
         requireConfigured();
         String token = bearer(authorization);
-        List<String> subjects = db.query("UPDATE admin_sessions SET last_seen_at = now() WHERE token_hash = ? AND owner_sub = ? AND expires_at > now() AND last_seen_at > now() - interval '15 minutes' RETURNING owner_sub",
+        List<String> subjects = db.query("UPDATE admin_sessions SET last_seen_at = now() WHERE token_hash = ? AND owner_sub = ? AND expires_at > now() AND last_seen_at > now() - interval '8 hours' RETURNING owner_sub",
             (rs, row) -> rs.getString(1), AdminCrypto.hash(token), properties.ownerSub());
         if (subjects.isEmpty()) throw denied();
         return subjects.getFirst();
+    }
+    public Map<String, Object> sessionInfo(String authorization) {
+        authenticate(authorization);
+        String expires = db.queryForObject("SELECT expires_at FROM admin_sessions WHERE token_hash = ?", java.time.OffsetDateTime.class, AdminCrypto.hash(bearer(authorization))).toInstant().toString();
+        return Map.of("email", AdminProperties.OWNER_EMAIL, "expiresAt", expires, "idleHours", 8, "maximumHours", 24);
     }
     public void logout(String authorization) {
         db.update("DELETE FROM admin_sessions WHERE token_hash = ?", AdminCrypto.hash(bearer(authorization)));
