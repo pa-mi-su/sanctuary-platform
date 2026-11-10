@@ -38,8 +38,24 @@ public class AdminContentService {
         String table = table(entity);
         String label = switch (entity) { case "saints" -> "name_en"; case "intentions", "patronages" -> "label_en"; default -> "title_en"; };
         String match = "%" + query.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%";
-        var rows = db.queryForList("SELECT id::text AS id, " + label + " AS title" + (entity.equals("novena-days") ? ", novena_id, day_number" : "")
-            + " FROM " + table + " WHERE " + label + " ILIKE ? OR id::text ILIKE ? ORDER BY " + label + ", id LIMIT 21 OFFSET ?", match, match, page * 20);
+        String extra = switch (entity) {
+            case "saints" -> ", image_url, feast_month, feast_day";
+            case "prayers" -> ", image_url, category";
+            case "novenas" -> ", image_url, duration_days";
+            case "novena-days" -> ", novena_id, day_number, (SELECT title_en FROM novenas WHERE id = novena_days.novena_id) AS parent_title, (SELECT image_url FROM novenas WHERE id = novena_days.novena_id) AS image_url";
+            default -> "";
+        };
+        String conditions = label + " ILIKE ? OR id::text ILIKE ?";
+        List<Object> parameters = new ArrayList<>(List.of(match, match));
+        if (entity.equals("novena-days")) { conditions += " OR novena_id ILIKE ?"; parameters.add(match); }
+        if (entity.equals("intentions") || entity.equals("patronages")) {
+            String singular = entity.equals("intentions") ? "intention" : "patronage";
+            extra += ", (SELECT count(*) FROM saint_" + singular + "_links WHERE " + singular + "_id = " + table + ".id) AS saint_count";
+            extra += ", (SELECT count(*) FROM novena_" + singular + "_links WHERE " + singular + "_id = " + table + ".id) AS novena_count";
+            conditions += " OR label_es ILIKE ? OR label_pl ILIKE ?"; parameters.add(match); parameters.add(match);
+        }
+        parameters.add(page * 20);
+        var rows = db.queryForList("SELECT id::text AS id, " + label + " AS title" + extra + " FROM " + table + " WHERE " + conditions + " ORDER BY " + label + ", id LIMIT 21 OFFSET ?", parameters.toArray());
         return Map.of("items", rows.stream().limit(20).toList(), "hasMore", rows.size() > 20);
     }
     public Map<String, Object> detail(String entity, String id) {
@@ -49,7 +65,7 @@ public class AdminContentService {
         var links = relations.read(entity, id);
         String version = AdminCrypto.hash(serialize(Map.of("values", row, "links", links)));
         row.remove("created_at"); row.remove("updated_at");
-        return Map.of("values", row, "version", version, "links", links);
+        return Map.of("values", row, "version", version, "links", links, "related", relations.selected(entity, id));
     }
     @Transactional
     public Map<String, Object> save(String actor, String entity, String id, Save request, boolean create) {
@@ -58,6 +74,14 @@ public class AdminContentService {
             throw bad("Enter a change reason between 3 and 1,000 characters.");
         if (create && entity.equals("novenas") && (request.days() == null || request.days().size() != 9 || request.days().stream().anyMatch(Objects::isNull))) throw bad("A new novena requires all nine days before publishing.");
         if (request.days() != null && !(create && entity.equals("novenas"))) throw bad("Day bundles are only accepted when creating a novena.");
+        if (entity.equals("intentions") || entity.equals("patronages")) {
+            Object raw = request.values().get("label_en");
+            if (!(raw instanceof String label) || label.isBlank()) throw bad("An English name is required.");
+            String normalized = label.strip().replaceAll("\\s+", " ").toLowerCase(Locale.ROOT);
+            db.queryForObject("SELECT pg_advisory_xact_lock(hashtextextended(?, 0))", Object.class, entity + ":" + normalized);
+            Integer duplicates = db.queryForObject("SELECT count(*) FROM " + table + " WHERE lower(regexp_replace(btrim(label_en), '\\s+', ' ', 'g')) = ? AND id::text <> ?", Integer.class, normalized, create ? "" : id);
+            if (duplicates != null && duplicates > 0) throw new AuthFlowException(HttpStatus.CONFLICT, "A shared term with this name already exists. Search for it and select it instead.");
+        }
         List<Field> schema = fields(entity);
         Map<String, Field> allowed = new LinkedHashMap<>(); schema.forEach(field -> allowed.put(field.name(), field));
         if (!allowed.keySet().containsAll(request.values().keySet())) throw bad("Unknown content field.");
@@ -118,6 +142,18 @@ public class AdminContentService {
         db.update("INSERT INTO admin_content_audit(actor_sub, entity, record_id, reason, before_value, after_value) VALUES (?, ?, ?, ?, ?::jsonb, ?::jsonb)",
             actor, entity, savedId, request.reason().strip(), before == null ? null : serialize(Map.of("values", before, "links", beforeLinks)), serialize(Map.of("values", after.get("values"), "links", after.get("links"))));
         return after;
+    }
+    @Transactional
+    public Map<String, Object> createTerm(String actor, String kind, Map<String, String> labels, String reason) {
+        if (!Set.of("intentions", "patronages").contains(kind)) throw bad("Unknown term type.");
+        String name = labels.getOrDefault("label_en", "").strip();
+        String slug = java.text.Normalizer.normalize(name, java.text.Normalizer.Form.NFD).replaceAll("\\p{M}", "")
+            .toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]+", "-").replaceAll("^-|-$", "");
+        if (slug.isBlank()) slug = "term";
+        Map<String, Object> values = new LinkedHashMap<>();
+        values.put("slug", slug.substring(0, Math.min(slug.length(), 100)) + "-" + UUID.randomUUID().toString().substring(0, 8));
+        values.put("label_en", name); values.put("label_es", labels.getOrDefault("label_es", "")); values.put("label_pl", labels.getOrDefault("label_pl", ""));
+        return save(actor, kind, "", new Save(values, "", reason, Map.of()), true);
     }
     public Map<String, Object> audit(int page) {
         var rows = db.queryForList("SELECT id, entity, record_id, reason, actor_sub, created_at FROM admin_content_audit ORDER BY id DESC LIMIT 21 OFFSET ?", page * 20);

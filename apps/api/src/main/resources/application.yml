@@ -1,6 +1,10 @@
 spring:
   application:
     name: sanctuary-api
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 6MB
   datasource:
     driver-class-name: org.postgresql.Driver
   flyway:
@@ -14,6 +18,11 @@ management:
         include: health,info
 
 sanctuary:
+  admin:
+    enabled: ${SANCTUARY_ADMIN_ENABLED:false}
+    owner-sub: ${SANCTUARY_ADMIN_OWNER_SUB:}
+    client-id: ${SANCTUARY_ADMIN_CLIENT_ID:}
+    encryption-key: ${SANCTUARY_ADMIN_ENCRYPTION_KEY:}
   auth:
     enabled: false
     audience: ""
