@@ -87,3 +87,14 @@ Provisioned the isolated `sanctuary-dev-content-admin` pool/client, enabled soft
 DEV's previous image contains news migrations V16–V19 absent from current main. Those exact migration files are preserved from deployed commit `b8b5d346e91e2bbc6ec561a43a0794e65fe5648b`; content-admin migrations now use V20/V21. This preserves schema history without reintroducing the experimental news app. The panel now handles `NEW_PASSWORD_REQUIRED` before MFA enrollment, and neither password setup nor the invitation challenge can issue an admin session.
 
 Production provisioning was rejected by automatic approval review as outside the stated DEV scope. No production identity, IAM, secret, or GitHub configuration changes were made. Production activation requires explicit approval after DEV verification.
+
+
+## Production pipeline concurrency correction — November 10, 2026
+
+Delayed promotion-PR validation runs cancelled the first production push runs because their effective refs shared the deployment concurrency key. All four web/API workflows now use the PR number when present and the branch ref otherwise. PR checks cannot cancel deployments, while newer deployments on the same branch retain their existing cancellation behavior. No native workflow is changed. The cancelled release must be rerun after the delayed checks complete. Production region, bucket, and distribution variables were also normalized to their verified values.
+
+
+Production's pre-admin task definition used the shared `ecsTaskExecutionRole`, despite dedicated Sanctuary roles already being provisioned. The deployment renderer now explicitly selects the configured dedicated execution/task roles and refuses enabled-admin deployment without them. Their existing policies cover the database-secret injection and public-account Cognito operations; new admin permissions remain narrowly scoped. Admin environment bindings/defaults are explicit in application configuration. The API rollout using the old renderer was stopped before updating the service.
+
+
+Live verification also caught a stale cached homepage referencing an old JavaScript bundle deleted by `s3 sync --delete`. Web deployments now retain previous bundles, exclude `index.html` from the initial asset sync, and publish that entry page last with `no-cache` before invalidation. This keeps cached pages and existing sessions usable while a new release uploads. Old-bundle retention is intentional; lifecycle cleanup can be designed separately. The current production cache was refreshed once the new assets were fully uploaded.

@@ -26,7 +26,8 @@ permissions:
   id-token: write
 
 concurrency:
-  group: web-dev-pipeline-${{ github.ref }}
+  # PR refs can resolve to the base branch after merge; keep their checks separate.
+  group: web-dev-pipeline-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -145,7 +146,7 @@ jobs:
           fi
 
       - name: Sync web build to S3
-        run: aws s3 sync apps/web/dist/web/browser "s3://${WEB_S3_BUCKET}" --delete
+        run: aws s3 sync apps/web/dist/web/browser "s3://${WEB_S3_BUCKET}" --exclude "index.html"
 
       - name: Mark app link association files as JSON
         run: |
@@ -170,6 +171,13 @@ jobs:
           aws s3 cp apps/web/dist/web/browser/admin "s3://${WEB_S3_BUCKET}/admin" \
             --content-type "text/html; charset=utf-8" \
             --cache-control "no-store" \
+            --metadata-directive REPLACE
+
+      - name: Publish entry page after assets
+        run: |
+          aws s3 cp apps/web/dist/web/browser/index.html "s3://${WEB_S3_BUCKET}/index.html" \
+            --content-type "text/html; charset=utf-8" \
+            --cache-control "no-cache" \
             --metadata-directive REPLACE
 
       - name: Invalidate CloudFront cache

@@ -54,7 +54,10 @@ class WorkflowPathIsolationTest < Minitest::Test
         input = { 'taskDefinitionArn' => 'old', 'containerDefinitions' => [{ 'name' => 'Main', 'environment' => [], 'secrets' => [] }] }
         output, error, status = Open3.capture3('jq', *args, program, stdin_data: JSON.generate(input))
         assert status.success?, error
-        container = JSON.parse(output).fetch('containerDefinitions').first
+        rendered = JSON.parse(output)
+        assert_equal 'fixture-execution_role', rendered['executionRoleArn']
+        assert_equal 'fixture-task_role', rendered['taskRoleArn']
+        container = rendered.fetch('containerDefinitions').first
         environment = container.fetch('environment').to_h { |entry| [entry['name'], entry['value']] }
         assert_equal enabled, environment['SANCTUARY_ADMIN_ENABLED']
         assert_equal 'fixture-admin_sub', environment['SANCTUARY_ADMIN_OWNER_SUB']
@@ -62,6 +65,26 @@ class WorkflowPathIsolationTest < Minitest::Test
         secret = container.fetch('secrets').find { |entry| entry['name'] == 'SANCTUARY_ADMIN_ENCRYPTION_KEY' }
         enabled == 'true' ? assert_equal('fixture-admin_key_secret', secret['valueFrom']) : assert_nil(secret)
       end
+    end
+  end
+
+  def test_delayed_pr_checks_cannot_cancel_deployments
+    %w[api-dev-deploy.yml api-prod-deploy.yml web-dev-deploy.yml web-prod-deploy.yml].each do |name|
+      group = workflow(name).fetch('concurrency').fetch('group')
+      # A merged PR may report refs/heads/main; its number must still distinguish it.
+      assert_includes group, 'github.event.pull_request.number || github.ref', name
+    end
+  end
+
+  def test_web_entry_page_publishes_after_assets_without_deleting_old_bundles
+    %w[web-dev-deploy.yml web-prod-deploy.yml].each do |name|
+      steps = workflow(name).fetch('jobs').fetch('deploy').fetch('steps')
+      sync = steps.find { |step| step['name'] == 'Sync web build to S3' }.fetch('run')
+      refute_includes sync, '--delete'
+      assert_includes sync, '--exclude "index.html"'
+      names = steps.map { |step| step['name'] }
+      assert_operator names.index('Publish entry page after assets'), :>, names.index('Publish admin entry as HTML')
+      assert_operator names.index('Publish entry page after assets'), :<, names.index('Invalidate CloudFront cache')
     end
   end
 
