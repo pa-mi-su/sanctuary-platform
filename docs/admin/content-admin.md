@@ -95,3 +95,6 @@ Delayed promotion-PR validation runs cancelled the first production push runs be
 
 
 Production's pre-admin task definition used the shared `ecsTaskExecutionRole`, despite dedicated Sanctuary roles already being provisioned. The deployment renderer now explicitly selects the configured dedicated execution/task roles and refuses enabled-admin deployment without them. Their existing policies cover the database-secret injection and public-account Cognito operations; new admin permissions remain narrowly scoped. Admin environment bindings/defaults are explicit in application configuration. The API rollout using the old renderer was stopped before updating the service.
+
+
+Live verification also caught a stale cached homepage referencing an old JavaScript bundle deleted by `s3 sync --delete`. Web deployments now retain previous bundles, exclude `index.html` from the initial asset sync, and publish that entry page last with `no-cache` before invalidation. This keeps cached pages and existing sessions usable while a new release uploads. Old-bundle retention is intentional; lifecycle cleanup can be designed separately. The current production cache was refreshed once the new assets were fully uploaded.

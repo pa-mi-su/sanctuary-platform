@@ -76,4 +76,16 @@ class WorkflowPathIsolationTest < Minitest::Test
     end
   end
 
+  def test_web_entry_page_publishes_after_assets_without_deleting_old_bundles
+    %w[web-dev-deploy.yml web-prod-deploy.yml].each do |name|
+      steps = workflow(name).fetch('jobs').fetch('deploy').fetch('steps')
+      sync = steps.find { |step| step['name'] == 'Sync web build to S3' }.fetch('run')
+      refute_includes sync, '--delete'
+      assert_includes sync, '--exclude "index.html"'
+      names = steps.map { |step| step['name'] }
+      assert_operator names.index('Publish entry page after assets'), :>, names.index('Publish admin entry as HTML')
+      assert_operator names.index('Publish entry page after assets'), :<, names.index('Invalidate CloudFront cache')
+    end
+  end
+
 end
