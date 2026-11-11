@@ -224,6 +224,59 @@ describe('Admin workspace behavior', () => {
     expect(component.code).toBe('');
     expect(component.qrCode()).toBe('');
   });
+  it('keeps days inside their parent and preserves dirty edits on cancelled navigation', async () => {
+    expect(component.collections.some(([id]) => id === 'novena-days')).toBe(false);
+    component.entity = 'novenas';
+    const parent = {
+      values: { id: 'joseph', title_en: 'St Joseph Novena', duration_days: 30 },
+      version: 'v1',
+      links: {},
+    };
+    const opening = component.edit({ id: 'joseph' });
+    await Promise.resolve();
+    http.expectOne(base + '/content/novenas/joseph').flush(parent);
+    await Promise.resolve();
+    await Promise.resolve();
+    http
+      .expectOne(base + '/novenas/joseph/days')
+      .flush({ items: [{ id: '30', day_number: 30, title: '' }] });
+    await opening;
+    expect(component.dayTitle(component.novenaDays[0])).toBe('Day 30');
+    const editing = component.editNovenaDay(component.novenaDays[0]);
+    await Promise.resolve();
+    http
+      .expectOne(base + '/content/novena-days/30')
+      .flush({
+        values: {
+          id: 30,
+          novena_id: 'joseph',
+          day_number: 30,
+          title_en: '',
+          prayer_en: 'Original',
+        },
+        version: 'd1',
+        links: {},
+      });
+    http.expectOne(base + '/schema/novena-days').flush([]);
+    await editing;
+    expect(component.editorTitle()).toBe('Day 30');
+    expect(component.parentNovena?.['id']).toBe('joseph');
+    component.values!['prayer_en'] = 'Changed';
+    const cancelled = component.backToNovena();
+    component.decideDiscard(false);
+    await cancelled;
+    expect(component.values!['prayer_en']).toBe('Changed');
+    component.values!['prayer_en'] = 'Original';
+    const returning = component.backToNovena();
+    await Promise.resolve();
+    http.expectOne(base + '/content/novenas/joseph').flush(parent);
+    http.expectOne(base + '/schema/novenas').flush([]);
+    http.expectOne(base + '/novenas/joseph/days').flush({ items: [] });
+    await returning;
+    expect(component.entity).toBe('novenas');
+    expect(component.editorTitle()).toBe('St Joseph Novena');
+    expect(component.parentNovena).toBeNull();
+  });
   it('encodes reserved characters in authenticator labels', () => {
     const uri = new URL(authenticatorUri('SYNTHETIC', 'owner+test@example.test'));
     expect(uri.searchParams.get('secret')).toBe('SYNTHETIC');

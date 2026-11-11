@@ -24,9 +24,11 @@ def detail(kind,id):
   values['name_'+lang]='Saint of Hope'; values['title_'+lang]='A prayer for today'; values['biography_'+lang]='A synthetic biography for local visual testing. No real content or user data is modified.';values['summary_'+lang]='A life of faith and quiet kindness.';values['body_'+lang]='A synthetic prayer for visual testing.';values['label_'+lang]='Peace'
  values={key:value for key,value in values.items() if key in dict(fields[kind])}
  if kind=='saints':values.update(name='Saint of Hope',feast_month=11,feast_day=10)
- if kind=='novenas':values['duration_days']=9
+ if kind=='novenas':values.update(duration_days=30,title_en='TEST PREVIEW — 30-day novena')
  if kind=='prayers':values.update(category='prayer',source_title='Synthetic fixture',source_type='local')
- if kind=='novena-days':values.update(novena_id='novena-hope',day_number=1)
+ if kind=='novena-days':
+  values.update(novena_id='novenas-0',day_number=int(id))
+  for lang in ['en','es','pl']:values['title_'+lang]=''
  links={'tags':['hope','daily']}
  if kind in ['saints','novenas']:links['intentions']=['7']
  if kind in ['saints','novenas']:links['patronages']=['1']
@@ -57,13 +59,14 @@ class Handler(BaseHTTPRequestHandler):
   if path.startswith('/admin-api/users/'):
    self.output({'profile':{'email':'anna@example.test','display_name':'Anna Example','first_name':'Anna','last_name':'Example','preferred_language':'en','created_at':NOW,'last_login_at':NOW,'last_seen_at':NOW,'login_count':12},'favorites':[{'title':'Prayer of Hope','item_type':'prayer','created_at':NOW}],'novenas':[{'title':'Nine Days of Hope','status':'active','current_day':3,'completed_days':'[1,2]','started_at':NOW,'updated_at':NOW}],'events':[{'activity_type':'login','resource_type':'account','occurred_at':NOW,'metadata':'{}'}],'hasMore':False});return
   if path=='/admin-api/audit':self.output({'items':[{'id':1,'entity':'saints','record_id':'saint-hope','reason':'Synthetic preview history','created_at':NOW}],'hasMore':False});return
+  if re.match(r'/admin-api/novenas/[^/]+/days$',path):self.output({'items':[{'id':str(day),'day_number':day,'title':''}for day in range(1,31)]});return
   match=re.match(r'/admin-api/content/([^/]+)(?:/(.+))?$',path)
   if match:
    kind,id=match.groups()
    if id:self.output(detail(kind,id));return
    if kind in terms:
     query=q.get('q',[''])[0].lower();self.output({'items':[row for row in terms[kind] if query in row['title'].lower()],'hasMore':False});return
-   names=['Saint of Hope','A Life of Kindness','A Quiet Courage','A Prayerful Heart'] if kind=='saints' else ['Nine Days of Hope','A Journey of Trust','A Quiet Beginning'] if kind=='novenas' else ['Prayer of Hope','Morning Offering','A Moment of Gratitude','Prayer for Peace']
+   names=['Saint of Hope','A Life of Kindness','A Quiet Courage','A Prayerful Heart'] if kind=='saints' else ['TEST PREVIEW — 30-day novena'] if kind=='novenas' else ['Prayer of Hope','Morning Offering','A Moment of Gratitude','Prayer for Peace']
    self.output({'items':[{'id':kind+'-'+str(i),'title':name,'image_url':'http://127.0.0.1:8080/fixture/'+('saints' if kind=='saints' else 'novenas' if kind=='novenas' else 'prayers')+'.svg'}for i,name in enumerate(names)],'hasMore':False});return
   self.output({},404)
  def do_POST(self):
