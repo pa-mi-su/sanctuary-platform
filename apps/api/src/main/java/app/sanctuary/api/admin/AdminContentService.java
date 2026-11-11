@@ -58,6 +58,10 @@ public class AdminContentService {
         var rows = db.queryForList("SELECT id::text AS id, " + label + " AS title" + extra + " FROM " + table + " WHERE " + conditions + " ORDER BY " + label + ", id LIMIT 21 OFFSET ?", parameters.toArray());
         return Map.of("items", rows.stream().limit(20).toList(), "hasMore", rows.size() > 20);
     }
+    public Map<String, Object> novenaDays(String id) {
+        detail("novenas", id); // Reject missing parents rather than returning an ambiguous empty list.
+        return Map.of("items", db.queryForList("SELECT id::text AS id, day_number, title_en AS title FROM novena_days WHERE novena_id = ? ORDER BY day_number, id", id));
+    }
     public Map<String, Object> detail(String entity, String id) {
         var rows = db.queryForList("SELECT * FROM " + table(entity) + " WHERE id::text = ?", id);
         if (rows.isEmpty()) throw new AuthFlowException(HttpStatus.NOT_FOUND, "Content not found.");
@@ -103,10 +107,12 @@ public class AdminContentService {
             }
             values.put(field.name(), value);
         }
-        if (entity.equals("novenas") && !Objects.equals(values.get("duration_days"), 9L)) throw bad("Sanctuary novenas must contain nine days.");
+        if (create && entity.equals("novenas") && !Objects.equals(values.get("duration_days"), 9L)) throw bad("Sanctuary novenas must contain nine days.");
         if (entity.equals("novena-days")) {
             long day = ((Number) values.get("day_number")).longValue();
-            if (day < 1 || day > 9) throw bad("Novena days must be between 1 and 9.");
+            var duration = db.queryForList("SELECT duration_days FROM novenas WHERE id = ?", values.get("novena_id"));
+            if (duration.isEmpty()) throw bad("Choose an existing novena.");
+            if (day < 1 || day > ((Number) duration.getFirst().get("duration_days")).longValue()) throw bad("The day number must fit within this novena’s duration.");
         }
         if (entity.equals("saints")) {
             try { java.time.LocalDate.of(2000, ((Number) values.get("feast_month")).intValue(), ((Number) values.get("feast_day")).intValue()); }
@@ -122,6 +128,7 @@ public class AdminContentService {
             if (locked.isEmpty()) throw new AuthFlowException(HttpStatus.NOT_FOUND, "Content not found.");
             before = locked.getFirst();
             if (!AdminCrypto.hash(serialize(Map.of("values", before, "links", relations.read(entity, id)))).equals(request.version())) throw new AuthFlowException(HttpStatus.CONFLICT, "This content changed. Reload before editing again.");
+            if (entity.equals("novenas") && !Objects.equals(((Number) before.get("duration_days")).longValue(), values.get("duration_days"))) throw bad("An existing novena’s duration cannot be changed.");
             if (values.containsKey("slug") && !Objects.equals(before.get("slug"), values.get("slug"))) throw bad("Existing share-link slugs cannot be changed.");
             if (entity.equals("novena-days") && (!Objects.equals(before.get("novena_id"), values.get("novena_id")) || !Objects.equals(((Number) before.get("day_number")).longValue(), values.get("day_number")))) throw bad("An existing novena day cannot be moved or renumbered.");
             String assignments = String.join(",", values.keySet().stream().map(key -> key + " = ?").toList());

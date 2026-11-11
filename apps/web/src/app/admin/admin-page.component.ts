@@ -68,6 +68,8 @@ export class AdminPageComponent implements OnInit, OnDestroy {
   language = 'en';
   dayFields: Field[] = [];
   newDays: Row[] = [];
+  novenaDays: Row[] = [];
+  parentNovena: Row | null = null;
   links: Record<string, string[]> = {};
   terms: Record<string, Record<string, Row>> = {};
   tags = '';
@@ -112,10 +114,10 @@ export class AdminPageComponent implements OnInit, OnDestroy {
     ['prayers', 'Prayers & rosary'],
     ['saints', 'Saints'],
     ['novenas', 'Novenas'],
-    ['novena-days', 'Novena days'],
     ['intentions', 'Intentions'],
     ['patronages', 'Patronages'],
   ];
+  @ViewChild('editorHeading') editorHeading?: ElementRef<HTMLElement>;
   @ViewChild('dialogPanel') set dialogElement(value: ElementRef<HTMLElement> | undefined) {
     if (value)
       setTimeout(() => {
@@ -383,6 +385,8 @@ export class AdminPageComponent implements OnInit, OnDestroy {
     this.fields = [];
     this.values = null;
     this.newDays = [];
+    this.novenaDays = [];
+    this.parentNovena = null;
     this.links = {};
     this.terms = {};
     this.tags = '';
@@ -492,6 +496,9 @@ export class AdminPageComponent implements OnInit, OnDestroy {
   async navigate(section: string) {
     if (!(await this.discard())) return;
     await this.run(async () => {
+      if (this.entity === 'novena-days') this.entity = 'novenas';
+      this.parentNovena = null;
+      this.novenaDays = [];
       this.section = section;
       this.rows = [];
       this.page = 0;
@@ -589,14 +596,24 @@ export class AdminPageComponent implements OnInit, OnDestroy {
     this.newDays = [];
     this.language = 'en';
     this.capture();
+    setTimeout(() => {
+      const heading = this.editorHeading?.nativeElement;
+      if (heading?.isConnected) {
+        heading.focus({ preventScroll: true });
+        heading.scrollIntoView({ block: 'start' });
+      }
+    });
   }
   async edit(row: Row) {
     if (!(await this.discard())) return;
-    await this.run(async () =>
-      this.acceptContent(
-        await this.api('GET', `/content/${this.entity}/${encodeURIComponent(row['id'])}`),
-      ),
-    );
+    await this.run(async () => {
+      const id = encodeURIComponent(row['id']);
+      const result = await this.api('GET', `/content/${this.entity}/${id}`);
+      const days =
+        this.entity === 'novenas' ? await this.api('GET', `/novenas/${id}/days`) : { items: [] };
+      this.acceptContent(result);
+      this.novenaDays = days.items;
+    });
   }
   async create() {
     if (!this.fields.length) return;
@@ -830,13 +847,40 @@ export class AdminPageComponent implements OnInit, OnDestroy {
   hasImage() {
     return ['saints', 'prayers', 'novenas'].includes(this.entity);
   }
-  async openNovenaDays() {
+  dayTitle(row: Row) {
+    const day = 'Day ' + row['day_number'];
+    const title = row['title']?.trim();
+    return title && title.toLowerCase() !== day.toLowerCase() ? day + ' · ' + title : day;
+  }
+  async editNovenaDay(row: Row) {
     if (!(await this.discard())) return;
-    const id = this.editingId;
-    this.values = null;
-    this.entity = 'novena-days';
-    this.query = id;
-    await this.search();
+    await this.run(async () => {
+      const parent = { id: this.editingId, title: this.editorTitle() };
+      const [result, fields] = await Promise.all([
+        this.api('GET', `/content/novena-days/${encodeURIComponent(row['id'])}`),
+        this.api<Field[]>('GET', '/schema/novena-days'),
+      ]);
+      this.parentNovena = parent;
+      this.entity = 'novena-days';
+      this.fields = fields;
+      this.acceptContent(result);
+    });
+  }
+  async backToNovena() {
+    if (!this.parentNovena || !(await this.discard())) return;
+    const id = encodeURIComponent(this.parentNovena['id']);
+    await this.run(async () => {
+      const [result, fields, days] = await Promise.all([
+        this.api('GET', `/content/novenas/${id}`),
+        this.api<Field[]>('GET', '/schema/novenas'),
+        this.api('GET', `/novenas/${id}/days`),
+      ]);
+      this.entity = 'novenas';
+      this.fields = fields;
+      this.acceptContent(result);
+      this.novenaDays = days.items;
+      this.parentNovena = null;
+    });
   }
   async openUser(id: string, page = 0) {
     await this.run(async () => {
@@ -861,16 +905,26 @@ export class AdminPageComponent implements OnInit, OnDestroy {
     ];
   }
   rowMeta(row: Row) {
-    if (['intentions', 'patronages'].includes(this.entity)) return `${row['saint_count'] ?? 0} saints · ${row['novena_count'] ?? 0} novenas`;
-    if (this.entity === 'saints' && row['feast_month'] && row['feast_day']) return 'Feast · ' + new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric', timeZone: 'UTC' }).format(new Date(Date.UTC(2000, row['feast_month'] - 1, row['feast_day'])));
+    if (['intentions', 'patronages'].includes(this.entity))
+      return `${row['saint_count'] ?? 0} saints · ${row['novena_count'] ?? 0} novenas`;
+    if (this.entity === 'saints' && row['feast_month'] && row['feast_day'])
+      return (
+        'Feast · ' +
+        new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric', timeZone: 'UTC' }).format(
+          new Date(Date.UTC(2000, row['feast_month'] - 1, row['feast_day'])),
+        )
+      );
     if (this.entity === 'novenas') return `${row['duration_days'] || 9}-day novena`;
     if (this.entity === 'prayers') return this.statusLabel(row['category'] || 'Prayer');
     return 'Day ' + (row['day_number'] || '—');
   }
   collectionTitle() {
+    if (this.entity === 'novena-days') return 'Novena day';
     return this.collections.find((collection) => collection[0] === this.entity)?.[1] || 'Content';
   }
   editorTitle() {
+    if (this.entity === 'novena-days' && this.values)
+      return this.dayTitle({ ...this.values, title: this.values['title_en'] });
     return (
       this.values?.['name_en'] ||
       this.values?.['title_en'] ||
@@ -881,7 +935,9 @@ export class AdminPageComponent implements OnInit, OnDestroy {
   generalFields() {
     return this.fields.filter(
       (field) =>
-        !/_(en|es|pl)$/.test(field.name) && !['id', 'slug', 'image_url'].includes(field.name),
+        !/_(en|es|pl)$/.test(field.name) &&
+        !['id', 'slug', 'image_url'].includes(field.name) &&
+        !(this.entity === 'novena-days' && field.name === 'novena_id'),
     );
   }
   localizedFields() {
