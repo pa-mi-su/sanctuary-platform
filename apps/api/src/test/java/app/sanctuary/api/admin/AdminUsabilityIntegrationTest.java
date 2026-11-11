@@ -33,6 +33,30 @@ class AdminUsabilityIntegrationTest {
         db.execute("TRUNCATE admin_sessions, admin_content_audit, admin_content_images, admin_user_directory");
         db.update("UPDATE admin_directory_state SET last_synced_at = NULL WHERE singleton");
     }
+    @Test void novenaDaysAreParentScopedOrderedAndSupportLongExistingNovenas() {
+        var content = new AdminContentService(db, json);
+        String id = "long-" + UUID.randomUUID();
+        transaction.execute(status -> {
+            db.update("INSERT INTO novenas(id,slug,title_en,title_es,title_pl,description_en,description_es,description_pl,duration_days) VALUES (?,?,'Long novena','','','','','',30)", id, id);
+            for (int day = 30; day > 0; day--) db.update("INSERT INTO novena_days(novena_id,day_number,title_en,title_es,title_pl,scripture_en,scripture_es,scripture_pl,prayer_en,prayer_es,prayer_pl,reflection_en,reflection_es,reflection_pl,body_en,body_es,body_pl) VALUES (?,?,'','','','','','','Prayer','','','','','','','','')", id, day);
+            @SuppressWarnings("unchecked") var days = (List<Map<String, Object>>) content.novenaDays(id).get("items");
+            assertEquals(30, days.size());
+            for (int i = 0; i < 30; i++) assertEquals(i + 1, days.get(i).get("day_number"));
+            String dayId = days.get(29).get("id").toString();
+            var detail = content.detail("novena-days", dayId);
+            @SuppressWarnings("unchecked") var values = new LinkedHashMap<>((Map<String, Object>) detail.get("values"));
+            values.put("prayer_en", "Updated day thirty");
+            content.save("owner", "novena-days", dayId, new AdminContentService.Save(values, detail.get("version").toString(), "Update existing final day", Map.of()), false);
+            assertEquals("Updated day thirty", db.queryForObject("SELECT prayer_en FROM novena_days WHERE id::text=?", String.class, dayId));
+            var parent = content.detail("novenas", id);
+            @SuppressWarnings("unchecked") var parentValues = new LinkedHashMap<>((Map<String, Object>) parent.get("values"));
+            parentValues.put("description_en", "Corrected description");
+            content.save("owner", "novenas", id, new AdminContentService.Save(parentValues, parent.get("version").toString(), "Correct existing description", Map.of()), false);
+            assertEquals(30, db.queryForObject("SELECT duration_days FROM novenas WHERE id=?", Integer.class, id));
+            assertThrows(AuthFlowException.class, () -> content.novenaDays(id + "-other"));
+            status.setRollbackOnly(); return null;
+        });
+    }
     @Test void sharedTermCanBeCreatedRenamedAndUnlinkedWithoutDeletingItElsewhere() {
         var content = new AdminContentService(db, json); var relations = new AdminRelations(db);
         String label = "Teachers " + UUID.randomUUID();
