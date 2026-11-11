@@ -291,8 +291,15 @@
               </div>
             } @else {
               <div class="editor-heading">
-                <button class="text-button" (click)="navigate('content')" [disabled]="busy()">
-                  ← Back to library</button
+                <button
+                  class="text-button"
+                  (click)="parentNovena ? backToNovena() : navigate('content')"
+                  [disabled]="busy()"
+                >
+                  ←
+                  {{
+                    parentNovena ? 'Back to ' + parentNovena['title'] : 'Back to library'
+                  }}</button
                 ><span class="badge" [class.changed]="isDirty()">{{
                   isDirty() ? 'Unpublished changes' : 'All changes saved'
                 }}</span>
@@ -300,12 +307,36 @@
               <div class="page-heading">
                 <div>
                   <p class="eyebrow">{{ collectionTitle() }} / {{ creating ? 'NEW' : 'EDIT' }}</p>
-                  <h1>{{ editorTitle() }}</h1>
+                  <h1 #editorHeading tabindex="-1">{{ editorTitle() }}</h1>
                 </div>
-                @if (entity === 'novenas' && !creating) {
-                  <button (click)="openNovenaDays()" [disabled]="busy()">Edit novena days →</button>
-                }
               </div>
+              @if (entity === 'novenas' && !creating) {
+                <details class="panel novena-day-list">
+                  <summary>Daily prayers · {{ novenaDays.length }} days</summary>
+                  <p>Edit the prayers and reflections for this novena. Days are listed in order.</p>
+                  <div class="content-grid">
+                    @for (day of novenaDays; track day['id']) {
+                      <button
+                        type="button"
+                        class="content-card"
+                        (click)="editNovenaDay(day)"
+                        [disabled]="busy()"
+                      >
+                        <span class="card-copy"
+                          ><strong>{{ dayTitle(day) }}</strong
+                          ><small>Edit prayer & reflection</small></span
+                        >
+                        <span class="card-arrow" aria-hidden="true">↗</span>
+                      </button>
+                    } @empty {
+                      <p>No daily prayers have been added to this novena.</p>
+                    }
+                  </div>
+                </details>
+              }
+              @if (parentNovena) {
+                <p class="muted">{{ parentNovena['title'] }} · {{ editorTitle() }}</p>
+              }
               <form #contentForm="ngForm" (ngSubmit)="reviewPublish()" class="editor">
                 @if (hasImage()) {
                   <section class="panel image-editor">
