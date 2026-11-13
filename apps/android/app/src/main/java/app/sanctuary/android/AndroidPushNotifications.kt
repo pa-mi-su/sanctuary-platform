@@ -24,7 +24,7 @@ object AndroidPushNotifications {
     private fun preferences(context: Context) = context.getSharedPreferences("sanctuary_push", Context.MODE_PRIVATE)
     fun enabled(context: Context) = preferences(context).getBoolean("announcements", false)
     fun setEnabled(context: Context, enabled: Boolean) { preferences(context).edit().putBoolean("announcements", enabled).apply() }
-    fun installation(context: Context): String {
+    @Synchronized fun installation(context: Context): String {
         val prefs = preferences(context)
         return prefs.getString("installation", null) ?: UUID.randomUUID().toString().also { prefs.edit().putString("installation", it).apply() }
     }
@@ -35,11 +35,29 @@ object AndroidPushNotifications {
         val manager = context.getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(NotificationChannel("sanctuary-announcements", "Sanctuary announcements", NotificationManager.IMPORTANCE_DEFAULT))
     }
+    @Synchronized private fun secret(context: Context): String {
+        val store = androidx.security.crypto.EncryptedSharedPreferences.create(context,"sanctuary_push_credentials",
+            androidx.security.crypto.MasterKey.Builder(context).setKeyScheme(androidx.security.crypto.MasterKey.KeyScheme.AES256_GCM).build(),
+            androidx.security.crypto.EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            androidx.security.crypto.EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM)
+        return store.getString("secret",null) ?: (UUID.randomUUID().toString().replace("-","")+UUID.randomUUID().toString().replace("-","")).also { store.edit().putString("secret",it).commit() }
+    }
+    @Synchronized private fun nextRevision(context: Context): Long {
+        val store=preferences(context);val revision=store.getLong("revision",0)+1
+        store.edit().putLong("revision",revision).commit();return revision
+    }
     suspend fun sync(context: Context, repository: SessionRepository) {
-        if (repository.currentSession() == null) return
+        val revision=nextRevision(context)
+        if (!enabled(context) && !preferences(context).getBoolean("registered",false)) return
         channel(context)
         val token = FirebaseMessaging.getInstance().token.await()
-        repository.registerPushDevice(PushDeviceRequest(installation(context),token,"android",BuildConfig.VERSION_NAME,enabled(context) && allowed(context)))
+        repository.registerPushDevice(PushDeviceRequest(installation(context),token,"android",BuildConfig.VERSION_NAME,enabled(context) && allowed(context),secret(context),revision))
+        preferences(context).edit().putBoolean("registered",true).apply()
+    }
+    fun forget(context: Context) {
+        setEnabled(context,false)
+        preferences(context).edit().putBoolean("registered",false).apply()
+        FirebaseMessaging.getInstance().deleteToken()
     }
     fun show(context: Context, message: RemoteMessage) {
         if (!enabled(context) || !allowed(context)) return

@@ -441,16 +441,13 @@ class SessionRepository(
             }
     }
 
-    suspend fun registerPushDevice(request: PushDeviceRequest) { authenticatedCall { it.registerPushDevice(request) } }
+    suspend fun registerPushDevice(request: PushDeviceRequest) {
+        if(loadSession()==null) SanctuaryApiFactory.create { null }.registerAnonymousPushDevice(request)
+        else authenticatedCall { it.registerPushDevice(request) }
+    }
     suspend fun unregisterPushDevice(installationId: String) { authenticatedCall { it.unregisterPushDevice(installationId) } }
 
     fun currentSession(): StoredSession? = loadSession()
-
-    fun preparePushLogout(installationId: String): suspend () -> Unit {
-        val previous = loadSession()
-        clearSession()
-        return { if (previous != null) runApiCall { authenticatedApi(previous).unregisterPushDevice(installationId) } }
-    }
 
     fun logout() {
         clearSession()
@@ -464,6 +461,7 @@ class SessionRepository(
                 throw exception
             }
         }
+        app.sanctuary.android.AndroidPushNotifications.forget(appContext)
         clearSession()
     }
 
@@ -507,8 +505,6 @@ class SessionRepository(
     }
 
     private fun clearSession() {
-        app.sanctuary.android.AndroidPushNotifications.setEnabled(appContext, false)
-        runCatching { com.google.firebase.messaging.FirebaseMessaging.getInstance().deleteToken() }
         preferences.edit().remove(sessionKey).apply()
     }
 

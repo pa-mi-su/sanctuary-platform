@@ -57,11 +57,14 @@ import { AdminInputComponent } from './admin-input.component';
             >Audience<select name="audience" [(ngModel)]="audience" (ngModelChange)="invalidate()">
               <option value="test">Send test to my device</option>
               <option value="all">All opted-in devices</option>
+              <option value="members">Signed-in users</option>
+              <option value="guests">Signed-out devices (including unregistered people)</option>
               <option value="ios">iOS devices</option>
               <option value="android">Android devices</option>
             </select></label
           >
         </div>
+        <small>Signed-in status reflects the device's last successful sync, not online presence. Signed-out includes people who never created an account.</small>
         @if (kind !== 'home') {
           <div class="columns">
             <admin-input
@@ -151,13 +154,7 @@ import { AdminInputComponent } from './admin-input.component';
           <h2 id="push-review">Review before sending</h2>
           <p>
             <strong>{{ preview.count }} devices</strong> ·
-            {{
-              audience === 'test'
-                ? 'Owner test only'
-                : audience === 'all'
-                  ? 'All opted-in devices'
-                  : audience
-            }}
+            {{ audienceLabel(audience) }}
           </p>
           <p>Destination: {{ preview.destination }}</p>
           <p>Device counts include people using more than one device.</p>
@@ -188,7 +185,8 @@ import { AdminInputComponent } from './admin-input.component';
           <strong>{{ row.title }}</strong>
           <p>{{ row.body }}</p>
           <small
-            >{{ row.created_at | date: 'medium' }} · {{ row.audience }} · {{ row.actor_sub }}</small
+            >{{ row.created_at | date: 'medium' }} · {{ audienceLabel(row.audience) }} ·
+            {{ row.actor_sub }}</small
           >
           <p>
             {{ row.recipients }} recipients · {{ row.accepted }} accepted · {{ row.failed }} failed
@@ -234,6 +232,20 @@ export class AdminMessagesComponent implements OnInit {
     return (
       (!!this.title.trim() || !!this.body.trim()) &&
       JSON.stringify(this.draft()) !== this.sentSnapshot
+    );
+  }
+  audienceLabel(value: string) {
+    return (
+      (
+        {
+          all: 'All opted-in devices',
+          members: 'Signed-in users',
+          guests: 'Signed-out devices (including unregistered people)',
+          test: 'Owner test only',
+          ios: 'iOS devices',
+          android: 'Android devices',
+        } as Record<string, string>
+      )[value] || value
     );
   }
   ngOnInit() {

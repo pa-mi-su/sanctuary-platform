@@ -9,6 +9,8 @@ import UserNotifications
 final class PushNotifications: ObservableObject {
     static let shared = PushNotifications()
     @Published var destination: URL?
+    @Published var registrationStatus = ""
+    private let credentialStore = KeychainStore(service: "sanctuary.push." + (Bundle.main.bundleIdentifier ?? "app"))
     @Published var enabled = UserDefaults.standard.bool(forKey: "sanctuary.announcements")
     static let tokenChanged = Notification.Name("sanctuary.pushTokenChanged")
     private let defaults = UserDefaults.standard
@@ -18,9 +20,16 @@ final class PushNotifications: ObservableObject {
         defaults.set(id, forKey: "sanctuary.installation")
         return id
     }
+    private func installationSecret() throws -> String {
+        if let data = try credentialStore.load(account: "installation-secret"), let secret = String(data: data, encoding: .utf8) { return secret }
+        let secret = UUID().uuidString.replacingOccurrences(of: "-", with: "") + UUID().uuidString.replacingOccurrences(of: "-", with: "")
+        try credentialStore.save(Data(secret.utf8), for: "installation-secret")
+        return secret
+    }
     func resetConsent() {
         enabled = false
         defaults.set(false, forKey: "sanctuary.announcements")
+        defaults.set(false, forKey: "sanctuary.pushRegistered")
         if FirebaseApp.app() != nil { Messaging.messaging().deleteToken { _ in } }
     }
     func setEnabled(_ value: Bool) async {
@@ -32,21 +41,30 @@ final class PushNotifications: ObservableObject {
         enabled = allowed
         defaults.set(allowed, forKey: "sanctuary.announcements")
     }
-    func sync(api: SanctuaryAPIClient, token: String) async {
-        guard FirebaseApp.app() != nil else { return }
+    func sync(api: SanctuaryAPIClient, token: String?) async {
+        let revision = defaults.integer(forKey: "sanctuary.pushRevision") + 1
+        defaults.set(revision, forKey: "sanctuary.pushRevision")
+        if !enabled && !defaults.bool(forKey: "sanctuary.pushRegistered") { registrationStatus = "Announcements are off."; return }
+        guard FirebaseApp.app() != nil else { registrationStatus = "Notification configuration is unavailable."; return }
         let settings = await UNUserNotificationCenter.current().notificationSettings()
         let authorized = settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional
         if enabled && authorized && Messaging.messaging().apnsToken == nil { UIApplication.shared.registerForRemoteNotifications() }
         // APNs registration is asynchronous; its delegate triggers another sync once ready.
-        guard Messaging.messaging().apnsToken != nil,
-              let fcm = try? await Messaging.messaging().token() else { return }
+        guard Messaging.messaging().apnsToken != nil else {
+            registrationStatus = enabled ? "Waiting for Apple notification registration…" : "Announcements are off."
+            return
+        }
         let consent = enabled && authorized
-        try? await api.registerPushDevice(request: .init(installationId: installationID, token: fcm, platform: "ios", appVersion: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown", enabled: consent), token: token)
+        do {
+            let fcm = try await Messaging.messaging().token()
+            try await api.registerPushDevice(request: .init(installationId: installationID, token: fcm, platform: "ios", appVersion: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown", enabled: consent, installationSecret: try installationSecret(), revision: revision), token: token)
+            defaults.set(true, forKey: "sanctuary.pushRegistered")
+            registrationStatus = consent ? "Announcements enabled" + (token == nil ? " · no account required" : "") : "Announcements are off."
+        } catch { registrationStatus = "Could not sync notifications. Try again with an internet connection." }
     }
     func signOut(api: SanctuaryAPIClient, token: String?) async {
-        await setEnabled(false)
-        if let token { try? await api.unregisterPushDevice(installationId: installationID, token: token) }
-        if FirebaseApp.app() != nil { try? await Messaging.messaging().deleteToken() }
+        // Detach identity while preserving this installation's separate announcement consent.
+        await sync(api: api, token: nil)
     }
     static func configure() {
         guard FirebaseApp.app() == nil else { return }
@@ -71,6 +89,9 @@ final class SanctuaryAppDelegate: NSObject, UIApplicationDelegate, MessagingDele
     func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
         Messaging.messaging().apnsToken = deviceToken
         NotificationCenter.default.post(name: PushNotifications.tokenChanged, object: nil)
+    }
+    func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
+        Task { @MainActor in PushNotifications.shared.registrationStatus = "Apple notification registration failed. Check notification settings and try refreshing." }
     }
     func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
         NotificationCenter.default.post(name: PushNotifications.tokenChanged, object: nil)

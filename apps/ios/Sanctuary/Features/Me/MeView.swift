@@ -22,14 +22,16 @@ struct MeView: View {
 
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 14) {
-                    if accountStore.isAuthenticated {
-                        accountHeader
                         VStack(alignment: .leading, spacing: 10) {
                             Toggle(localization.t("announcements.title"), isOn: Binding(get: { push.enabled }, set: { value in
                                 Task { await push.setEnabled(value); await accountStore.syncPushDevice() }
                             }))
                             Text(localization.t("announcements.body")).font(.footnote)
+                            Text(push.registrationStatus).font(.caption)
+                            Button("Refresh notification registration") { Task { await accountStore.syncPushDevice() } }
                         }.padding().background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18))
+                    if accountStore.isAuthenticated {
+                        accountHeader
                         reminderPreferencesCard
                         inProgressCard
                         favoriteNovenasCard

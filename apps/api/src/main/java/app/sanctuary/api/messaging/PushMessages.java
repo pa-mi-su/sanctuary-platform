@@ -19,7 +19,7 @@ public class PushMessages {
     static AuthFlowException bad(String text) { return new AuthFlowException(HttpStatus.BAD_REQUEST,text); }
     String destination(Draft d) {
         if (d == null || d.title()==null || d.title().isBlank() || d.title().length()>100 || d.body()==null || d.body().isBlank() || d.body().length()>500) throw bad("Enter a title up to 100 characters and a message up to 500 characters.");
-        if (!Set.of("all","ios","android","test").contains(Objects.toString(d.audience(),""))) throw bad("Choose an audience.");
+        if (!Set.of("all","ios","android","test","guests","members").contains(Objects.toString(d.audience(),""))) throw bad("Choose an audience.");
         if ("home".equals(d.kind())) return "https://mydailysanctuary.com/";
         if (!Set.of("prayers","saints","novenas").contains(Objects.toString(d.kind(),""))) throw bad("Choose a content destination.");
         var rows=db.queryForList("SELECT slug FROM "+d.kind()+" WHERE id=?",d.contentId());
@@ -30,6 +30,8 @@ public class PushMessages {
         String filter=switch(d.audience()) {
             case "test" -> "p.id::text=? AND EXISTS(SELECT 1 FROM users u JOIN admin_user_directory a USING(cognito_sub) WHERE u.id=p.user_id AND lower(a.email)='pmsulikowski@icloud.com' AND a.email_verified AND a.enabled)";
             case "ios","android" -> "p.platform=?";
+            case "guests" -> "p.user_id IS NULL AND ?='guests'";
+            case "members" -> "p.user_id IS NOT NULL AND ?='members'";
             default -> "?='all'";
         };
         Object argument="test".equals(d.audience())?Objects.toString(d.testDevice(),""):d.audience();
