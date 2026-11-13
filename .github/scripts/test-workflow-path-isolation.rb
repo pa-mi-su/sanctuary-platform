@@ -87,6 +87,27 @@ class WorkflowPathIsolationTest < Minitest::Test
     end
   end
 
+  def test_api_tests_never_inherit_live_push_enablement
+    %w[api-dev-deploy.yml api-prod-deploy.yml].each do |name|
+      workflow(name).fetch('jobs').each_value do |job|
+        job.fetch('steps').select { |step| step['name'] == 'Run API tests' }.each do |step|
+          assert_equal 'false', step.fetch('env').fetch('SANCTUARY_PUSH_ENABLED'), name
+        end
+      end
+    end
+  end
+
+  def test_ios_archives_do_not_force_app_profiles_onto_packages
+    source = File.read(File.join(__dir__, '..', 'workflows', 'ios-pipeline.yml'))
+    archives = source.split('          xcodebuild ').drop(1).select { |command| command.include?("\n            archive\n") }.map { |command| command.split("\n            archive").first }
+    assert_equal 3, archives.size
+    archives.each do |command|
+      refute_match(/PROVISIONING_PROFILE_SPECIFIER=|CODE_SIGN_STYLE=|CODE_SIGN_IDENTITY=|DEVELOPMENT_TEAM=/, command)
+    end
+    project = File.read(File.join(__dir__, '..', '..', 'apps', 'ios', 'Sanctuary.xcodeproj', 'project.pbxproj'))
+    %w[Dev UAT Prod].each { |stage| assert_includes project, 'PROVISIONING_PROFILE_SPECIFIER = "Sanctuary ' + stage + ' App Store";' }
+  end
+
   def test_delayed_pr_checks_cannot_cancel_deployments
     %w[api-dev-deploy.yml api-prod-deploy.yml web-dev-deploy.yml web-prod-deploy.yml].each do |name|
       group = workflow(name).fetch('concurrency').fetch('group')

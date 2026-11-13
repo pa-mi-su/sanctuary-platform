@@ -60,6 +60,7 @@ jobs:
       - name: Run API tests
         env:
           ADMIN_TEST_DB_URL: jdbc:postgresql://127.0.0.1:5432/sanctuary_admin_test
+          SANCTUARY_PUSH_ENABLED: 'false'
         run: mvn -q test
         working-directory: apps/api
 
@@ -116,6 +117,7 @@ jobs:
       - name: Run API tests
         env:
           ADMIN_TEST_DB_URL: jdbc:postgresql://127.0.0.1:5432/sanctuary_admin_test
+          SANCTUARY_PUSH_ENABLED: 'false'
         run: mvn -q test
         working-directory: apps/api
 

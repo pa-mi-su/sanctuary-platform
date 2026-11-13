@@ -11,7 +11,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@SpringBootTest(properties={"sanctuary.auth.enabled=false", "sanctuary.admin.enabled=false"})
+@SpringBootTest(properties={"sanctuary.auth.enabled=false", "sanctuary.admin.enabled=false", "sanctuary.push.enabled=false"})
 @AutoConfigureMockMvc
 @EnabledIfEnvironmentVariable(named="ADMIN_TEST_DB_URL", matches="jdbc:postgresql://(localhost|127\\.0\\.0\\.1):[0-9]+/.*")
 class AdminSecurityIntegrationTest {
