@@ -53,6 +53,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.NotificationsOff
+import androidx.compose.material.icons.filled.OpenInNew
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CalendarMonth
@@ -583,18 +586,15 @@ private fun AccountAccessScreen(
 
     val isBusy = session.status == SessionStatus.Loading
     val l10n = sanctuaryStrings()
-    val introTitle = if (embedded) l10n.t("auth.account") else l10n.t("auth.androidTitle")
+    val introTitle = if (embedded) l10n.t("auth.chooseWay") else l10n.t("auth.androidTitle")
     val introBody = if (embedded) {
-        l10n.t("auth.accountBody")
+        l10n.t("auth.chooseWayBody")
     } else {
         l10n.t("auth.androidIntro")
     }
 
     if (embedded) {
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
+        MeAccountCard {
             AccountAccessContent(
                 step = step,
                 introTitle = introTitle,
@@ -629,7 +629,7 @@ private fun AccountAccessScreen(
                 onResetPasswordConfirmationChange = { resetPasswordConfirmation = it },
                 onStepChange = { step = it },
                 onAction = onAction,
-                showAccountEyebrow = false
+                showAccountEyebrow = true
             )
         }
     } else {
@@ -738,8 +738,8 @@ private fun AccountAccessContent(
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         if (showAccountEyebrow) {
             Text(
-                text = l10n.t("auth.account"),
-                color = Color(0xFF7AC8EA),
+                text = l10n.t("auth.sanctuaryAccount"),
+                color = Color(0xFF8EDBE5),
                 style = MaterialTheme.typography.labelLarge
             )
         }
@@ -760,7 +760,7 @@ private fun AccountAccessContent(
         )
 
         Text(
-            text = introBody,
+            text = if (step == AuthStep.Landing) introBody else l10n.t("auth.accountBody"),
             color = Color(0xFFD0DFEA),
             lineHeight = 22.sp
         )
@@ -1065,8 +1065,8 @@ private fun AuthenticatedShell(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
-            contentPadding = PaddingValues(24.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            contentPadding = PaddingValues(if (selectedTab == AppTab.Me) 16.dp else 24.dp),
+            verticalArrangement = Arrangement.spacedBy(if (selectedTab == AppTab.Me) 14.dp else 16.dp)
         ) {
             when (selectedTab) {
                 AppTab.Home -> {
@@ -1557,16 +1557,17 @@ private fun ChoiceCard(
 ) {
     val l10n = sanctuaryStrings()
     Card(
-        modifier = Modifier.sanctuaryCardShadow(),
-        colors = CardDefaults.cardColors(containerColor = SanctuaryCardElevated),
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF193341)),
         shape = RoundedCornerShape(24.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF49616F)),
         onClick = onClick,
         enabled = enabled
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
-            Text(eyebrow, color = Color(0xFF7AC8EA), style = MaterialTheme.typography.labelLarge)
+            Text(eyebrow.uppercase(), color = Color(0xFF7AC8EA), style = MaterialTheme.typography.labelLarge)
             Spacer(modifier = Modifier.height(8.dp))
-            Text(title, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+            Text(title, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 24.sp)
             Spacer(modifier = Modifier.height(8.dp))
             Text(body, color = Color(0xFFD0DFEA), lineHeight = 22.sp)
         }
@@ -2105,17 +2106,28 @@ private fun MeSectionCard(
     content: @Composable ColumnScope.() -> Unit
 ) {
     Card(
-        modifier = Modifier.sanctuaryCardShadow(),
-        colors = CardDefaults.cardColors(containerColor = SanctuaryCardElevated),
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF173340)),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF49616F)),
         shape = RoundedCornerShape(24.dp)
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Text(title, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+        Column(modifier = Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Text(title, color = Color.White, fontSize = 24.sp, lineHeight = 29.sp, fontWeight = FontWeight.Bold)
+            Box(Modifier.fillMaxWidth().height(1.dp).background(Color(0xFF3B5562)))
             content()
         }
+    }
+}
+
+@Composable
+private fun MeAccountCard(content: @Composable () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF173340)),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF49616F)),
+        shape = RoundedCornerShape(24.dp)
+    ) {
+        Box(Modifier.fillMaxWidth().padding(20.dp)) { content() }
     }
 }
 
@@ -5395,19 +5407,32 @@ private fun AnnouncementPreference(reminders: @Composable () -> Unit = {}) {
             }
         })
         reminders()
-        TextButton(onClick = {
-            val intent = if (Build.VERSION.SDK_INT >= 26) Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS)
-                .putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, context.packageName)
-            else Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + context.packageName))
-            context.startActivity(intent)
-        }) { Text(l10n.t("notifications.settings"), color = Color(0xFFBAD9E4)) }
         var expanded by remember { mutableStateOf(false) }
-        TextButton(onClick = { expanded = !expanded }) {
-            Text((if (expanded) "▾ " else "▸ ") + l10n.t("notifications.details"), color = Color(0xFFBAD9E4))
+        Row(
+            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable(role = androidx.compose.ui.semantics.Role.Button) { expanded = !expanded }.padding(vertical = 12.dp, horizontal = 2.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(l10n.t("notifications.details"), color = Color(0xFFC3D6DE), fontSize = 14.sp, modifier = Modifier.weight(1f))
+            Icon(if (expanded) Icons.Filled.ExpandMore else Icons.Filled.ChevronRight, contentDescription = null, tint = Color(0xFFC3D6DE))
         }
         if (expanded) {
-            if (status.isNotBlank()) Text(status, color = Color(0xFFD0DFEA), fontSize = 13.sp)
-            TextButton(onClick = { sync() }) { Text(l10n.t("notifications.refresh")) }
+            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Color(0xFF213F4B)).padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                if (status.isNotBlank()) Text(status, color = Color(0xFFD0DFEA), fontSize = 13.sp)
+                TextButton(onClick = { sync() }) { Text(l10n.t("notifications.refresh"), color = Color(0xFF9ADFEB)) }
+            }
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable(role = androidx.compose.ui.semantics.Role.Button) {
+                val intent = if (Build.VERSION.SDK_INT >= 26) Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                    .putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, context.packageName)
+                else Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + context.packageName))
+                context.startActivity(intent)
+            }.padding(vertical = 12.dp, horizontal = 2.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Icon(Icons.Filled.OpenInNew, contentDescription = null, tint = Color(0xFFC3D6DE), modifier = Modifier.size(18.dp))
+            Text(l10n.t("notifications.settings"), color = Color(0xFFC3D6DE), fontSize = 14.sp)
         }
     }
 }
@@ -5486,7 +5511,10 @@ private fun ScheduledRemindersCard() {
     var confirmingClear by remember { mutableStateOf(false) }
     MeSectionCard(title = l10n.t("reminders.manage.title")) {
         Text(l10n.t("reminders.manage.body"), color = Color(0xFFBAD9E4), fontSize = 13.sp)
-        if (reminders.isEmpty()) Text(l10n.t("reminders.manage.empty"), color = Color(0xFFBAD9E4), modifier = Modifier.padding(vertical = 12.dp))
+        if (reminders.isEmpty()) Row(modifier = Modifier.padding(vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Top) {
+            Icon(Icons.Filled.NotificationsOff, contentDescription = null, tint = Color(0xFFBAD9E4), modifier = Modifier.size(20.dp))
+            Text(l10n.t("reminders.manage.empty"), color = Color(0xFFBAD9E4), fontSize = 14.sp, lineHeight = 20.sp)
+        }
         reminders.forEach { reminder ->
             Row(modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Color(0xFF243D4D)).padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
