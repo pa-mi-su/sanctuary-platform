@@ -96,3 +96,17 @@ A read-only DEV audit found distinct Android installation IDs and tokens, not re
 Versions are 1.0.20. No database, Firebase or IAM changes. Simulator verification confirmed the signed-out account prompt and hidden reminder management. Signed-in continuation and physical notification delivery remain release checks. No real push was sent.
 
 Final validation: 87 API tests (zero failures/errors, one existing skip), 32 web tests, 16 Android tests, web production build, iOS DEV simulator build and Android DEV/UAT/production compilation passed.
+
+
+### Validation-only registration audit
+
+Use `scripts/admin/audit-push-registrations.py dev --classpath /path/to/api-classpath --java /path/to/java21` for read-only Firebase validation. Generate the classpath with Maven `dependency:build-classpath` against apps/api/pom.xml. The helper uses the Firebase Admin SDK's explicit dry-run flag; it does not deliver a notification. Add `--apply` to set `valid=false` only for a token Firebase explicitly reports UNREGISTERED. The update matches the original token fingerprint and synchronization time, so it cannot retire a registration refreshed during the audit. It retains consent and delivery history. Use the named environment explicitly; the tool verifies the AWS account, RDS availability, TLS certificate and Firebase project.
+
+Results labeled FCM_VALIDATED mean Firebase accepted validation, not a verified human or unique physical phone. APNS_NOT_VERIFIED means no claim is made about Apple delivery validity. Transient/authentication/payload errors never trigger retirement. The tool does not print tokens, credentials or provider error messages. Private credentials are captured in memory and passed through stdin, not process arguments or reports.
+
+The initial November 13 DEV audit found five Android registrations passing FCM validation and one iOS registration not verifiable through this method. No UNREGISTERED results were returned, so zero records were confirmed stale or retired. Identifying the owner's phone needs a fresh owner-initiated registration sync; existing records cannot be labeled Play test devices retroactively from available metadata. Future Test Lab registrations are excluded by the 1.0.20 Android guard. Recipient browsing remains removed.
+
+
+After the owner refreshed the Android app and confirmed being the only Android DEV tester, the fresh sync identified the current phone. Six other Android registrations (four previously enabled, two already opted out) were excluded by setting enabled/valid false and revoking their old installation credentials. This prevents an old client from silently reactivating those same rows. Notification history and the current Android/iOS registrations were retained. The verified post-cleanup audience was one Android plus one iOS installation. Protected rollback metadata was saved outside the repository; no raw push tokens are in the report. This was a DEV-only cleanup of owner-confirmed unwanted registrations, not a claim that Firebase marked them expired. Production was untouched.
+
+The audit tool's four policy tests verify that validated/ambiguous tokens are never retired, read-only mode never mutates, UNREGISTERED retirement checks token/version freshness, and a concurrent refresh is not reported as retired. Run `python3 scripts/admin/test-audit-push-registrations.py`.

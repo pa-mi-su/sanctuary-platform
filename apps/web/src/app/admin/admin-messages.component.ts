@@ -195,7 +195,7 @@ import { AdminInputComponent } from './admin-input.component';
             {{ row.actor_sub }}</small
           >
           <p>
-            {{ row.recipients }} recipients · {{ row.accepted }} accepted · {{ row.failed }} failed
+            {{ row.recipients }} recipients · {{ row.accepted }} accepted by Firebase · {{ row.failed }} failed
             · {{ row.pending }} pending · {{ row.skipped }} skipped · {{ row.unknown }} uncertain
           </p>
         </article>
