@@ -1,4 +1,5 @@
 import SwiftUI
+import UserNotifications
 
 struct MeView: View {
     let environment: AppEnvironment
@@ -25,6 +26,7 @@ struct MeView: View {
                     if accountStore.isAuthenticated {
                         accountHeader
                         reminderPreferencesCard
+                        ScheduledRemindersCard()
                         inProgressCard
                         favoriteNovenasCard
                         favoriteSaintsCard
@@ -32,6 +34,7 @@ struct MeView: View {
                         deleteAccountCard
                     } else {
                         reminderPreferencesCard
+                        ScheduledRemindersCard()
                         AccountAccessView()
                     }
                 }
@@ -803,5 +806,63 @@ private struct NotificationSwitchStyle: ToggleStyle {
         }
         .buttonStyle(.plain)
         .accessibilityValue(configuration.isOn ? Text("On") : Text("Off"))
+    }
+}
+
+
+private struct ScheduledRemindersCard: View {
+    @EnvironmentObject private var localization: LocalizationManager
+    @State private var reminders: [UNNotificationRequest] = []
+    @State private var confirmingClear = false
+    var body: some View {
+        MeCard(title: localization.t("reminders.manage.title")) {
+            VStack(alignment: .leading, spacing: 14) {
+                Text(localization.t("reminders.manage.body"))
+                    .font(AppTheme.rounded(13, weight: .medium)).foregroundStyle(AppTheme.subtitleText)
+                if reminders.isEmpty {
+                    Label(localization.t("reminders.manage.empty"), systemImage: "bell.slash")
+                        .font(AppTheme.rounded(14, weight: .medium)).foregroundStyle(AppTheme.subtitleText)
+                        .padding(.vertical, 12)
+                } else {
+                    ForEach(reminders, id: \.identifier) { request in
+                        HStack(spacing: 12) {
+                            VStack(alignment: .leading, spacing: 5) {
+                                Text(request.content.title).font(AppTheme.rounded(16, weight: .semibold)).foregroundStyle(.white)
+                                if let date = (request.trigger as? UNCalendarNotificationTrigger)?.nextTriggerDate() {
+                                    Text(localization.t("reminders.manage.daily") + " · " + date.formatted(date: .omitted, time: .shortened))
+                                        .font(AppTheme.rounded(13, weight: .medium)).foregroundStyle(AppTheme.subtitleText)
+                                }
+                            }
+                            Spacer(minLength: 0)
+                            Button(role: .destructive) { remove([request.identifier]) } label: {
+                                Image(systemName: "trash").font(.system(size: 18, weight: .semibold))
+                                    .frame(width: 44, height: 44).foregroundStyle(Color(red: 1, green: 0.65, blue: 0.65))
+                                    .background(Color.red.opacity(0.12), in: RoundedRectangle(cornerRadius: 12))
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel(localization.t("itemReminder.remove") + ": " + request.content.title)
+                        }
+                        .padding(12).background(AppTheme.cardBackgroundSoft, in: RoundedRectangle(cornerRadius: 16))
+                    }
+                    ReminderActionButton(title: localization.t("reminders.manage.clear"), symbol: "trash", destructive: true) { confirmingClear = true }
+                }
+            }
+        }
+        .task { await reload() }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in Task { await reload() } }
+        .confirmationDialog(localization.t("reminders.manage.confirm"), isPresented: $confirmingClear, titleVisibility: .visible) {
+            Button(localization.t("reminders.manage.clear"), role: .destructive) { remove(reminders.map(\.identifier)) }
+        } message: { Text(localization.t("reminders.manage.body")) }
+    }
+    @MainActor private func reload() async {
+        reminders = await UNUserNotificationCenter.current().pendingNotificationRequests()
+            .filter { $0.identifier.hasPrefix("sanctuary.item.") }
+            .sorted { $0.content.title.localizedCaseInsensitiveCompare($1.content.title) == .orderedAscending }
+    }
+    private func remove(_ ids: [String]) {
+        let center = UNUserNotificationCenter.current()
+        center.removePendingNotificationRequests(withIdentifiers: ids)
+        center.removeDeliveredNotifications(withIdentifiers: ids)
+        reminders.removeAll { ids.contains($0.identifier) }
     }
 }
