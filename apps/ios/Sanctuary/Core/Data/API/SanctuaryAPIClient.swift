@@ -262,6 +262,15 @@ private struct APIErrorEnvelope: Decodable {
     let message: String
 }
 
+struct APIPushDeviceRequest: Encodable, Sendable {
+    let installationId: String
+    let token: String
+    let platform: String
+    let appVersion: String
+    let enabled: Bool
+}
+struct APIPushRegistered: Decodable, Sendable { let registered: Bool }
+
 actor SanctuaryAPIClient {
     private let baseURL: URL
     private let session: URLSession
@@ -342,6 +351,12 @@ actor SanctuaryAPIClient {
         try await performRequest(path: "/me/preferences", method: "PUT", body: request, token: token)
     }
 
+    func registerPushDevice(request: APIPushDeviceRequest, token: String) async throws {
+        let _: APIPushRegistered = try await performRequest(path: "/me/push-devices", method: "PUT", body: request, token: token)
+    }
+    func unregisterPushDevice(installationId: String, token: String) async throws {
+        try await performVoidRequest(path: "/me/push-devices/" + installationId, method: "DELETE", body: Optional<String>.none, token: token)
+    }
     func favorites(token: String) async throws -> [APIUserFavoriteResponse] {
         try await performRequest(path: "/me/favorites", method: "GET", body: Optional<String>.none, token: token)
     }

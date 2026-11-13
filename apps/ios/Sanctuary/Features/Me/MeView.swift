@@ -2,6 +2,7 @@ import SwiftUI
 
 struct MeView: View {
     let environment: AppEnvironment
+    @ObservedObject private var push = PushNotifications.shared
     @EnvironmentObject private var localization: LocalizationManager
     @EnvironmentObject private var accountStore: AccountSessionStore
     @EnvironmentObject private var progressStore: UserProgressStore
@@ -23,6 +24,12 @@ struct MeView: View {
                 VStack(alignment: .leading, spacing: 14) {
                     if accountStore.isAuthenticated {
                         accountHeader
+                        VStack(alignment: .leading, spacing: 10) {
+                            Toggle(localization.t("announcements.title"), isOn: Binding(get: { push.enabled }, set: { value in
+                                Task { await push.setEnabled(value); await accountStore.syncPushDevice() }
+                            }))
+                            Text(localization.t("announcements.body")).font(.footnote)
+                        }.padding().background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18))
                         reminderPreferencesCard
                         inProgressCard
                         favoriteNovenasCard

@@ -11,6 +11,7 @@ class SessionRepository(
     context: Context,
     private val api: SanctuaryApiService
 ) {
+    private val appContext = context.applicationContext
     private val preferences = EncryptedSharedPreferences.create(
         context,
         "sanctuary_session",
@@ -440,7 +441,16 @@ class SessionRepository(
             }
     }
 
+    suspend fun registerPushDevice(request: PushDeviceRequest) { authenticatedCall { it.registerPushDevice(request) } }
+    suspend fun unregisterPushDevice(installationId: String) { authenticatedCall { it.unregisterPushDevice(installationId) } }
+
     fun currentSession(): StoredSession? = loadSession()
+
+    fun preparePushLogout(installationId: String): suspend () -> Unit {
+        val previous = loadSession()
+        clearSession()
+        return { if (previous != null) runApiCall { authenticatedApi(previous).unregisterPushDevice(installationId) } }
+    }
 
     fun logout() {
         clearSession()
@@ -497,6 +507,8 @@ class SessionRepository(
     }
 
     private fun clearSession() {
+        app.sanctuary.android.AndroidPushNotifications.setEnabled(appContext, false)
+        runCatching { com.google.firebase.messaging.FirebaseMessaging.getInstance().deleteToken() }
         preferences.edit().remove(sessionKey).apply()
     }
 

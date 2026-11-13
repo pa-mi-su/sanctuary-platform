@@ -94,6 +94,8 @@ jobs:
       SANCTUARY_ADMIN_OWNER_SUB: ${{ vars.API_DEV_ADMIN_OWNER_SUB }}
       SANCTUARY_ADMIN_CLIENT_ID: ${{ vars.API_DEV_ADMIN_CLIENT_ID }}
       ADMIN_KEY_SECRET_ARN: ${{ vars.API_DEV_ADMIN_KEY_SECRET_ARN }}
+      SANCTUARY_PUSH_ENABLED: ${{ vars.API_DEV_FIREBASE_NOTIFICATIONS_ENABLED || 'false' }}
+      FIREBASE_SECRET_ARN: ${{ vars.API_DEV_FIREBASE_SERVICE_ACCOUNT_SECRET_ARN }}
       SANCTUARY_AUTH_ENABLED: ${{ vars.API_DEV_AUTH_ENABLED || 'true' }}
       SANCTUARY_COGNITO_ISSUER_URI: ${{ vars.API_DEV_COGNITO_ISSUER_URI || 'https://cognito-idp.us-east-1.amazonaws.com/us-east-1_oCrXzjKbV' }}
       SANCTUARY_COGNITO_CLIENT_ID: ${{ vars.API_DEV_COGNITO_CLIENT_ID || '2ukk5f1esf1gmgi9aadvvbjjgs' }}
@@ -258,6 +260,13 @@ jobs:
             --region "${AWS_REGION}" \
             --query taskDefinition > task-definition.json
 
+          if [[ "${SANCTUARY_PUSH_ENABLED}" != "true" && "${SANCTUARY_PUSH_ENABLED}" != "false" ]]; then
+            echo "API push enabled must be true or false."; exit 1
+          fi
+          if [[ "${SANCTUARY_PUSH_ENABLED}" == "true" && "${FIREBASE_SECRET_ARN}" != arn:aws:secretsmanager:*:secret:* ]]; then
+            echo "Enabled push requires the existing Firebase service account secret ARN."; exit 1
+          fi
+
           jq \
             --arg image "${EXPECTED_API_IMAGE}" \
             --arg db_url "${SANCTUARY_DB_URL}" \
@@ -268,6 +277,8 @@ jobs:
             --arg admin_sub "${SANCTUARY_ADMIN_OWNER_SUB}" \
             --arg admin_client "${SANCTUARY_ADMIN_CLIENT_ID}" \
             --arg admin_key_secret "${ADMIN_KEY_SECRET_ARN}" \
+            --arg push_enabled "${SANCTUARY_PUSH_ENABLED}" \
+            --arg firebase_secret "${FIREBASE_SECRET_ARN}" \
             --arg auth_enabled "${SANCTUARY_AUTH_ENABLED}" \
             --arg cognito_issuer "${SANCTUARY_COGNITO_ISSUER_URI}" \
             --arg cognito_client_id "${SANCTUARY_COGNITO_CLIENT_ID}" \
@@ -293,6 +304,7 @@ jobs:
                   {"name": "SANCTUARY_DB_URL", "value": $db_url},
                   {"name": "SANCTUARY_DB_USERNAME", "value": $db_username},
                   {"name": "SANCTUARY_ADMIN_ENABLED", "value": $admin_enabled},
+                  {"name": "SANCTUARY_PUSH_ENABLED", "value": $push_enabled},
                   {"name": "SANCTUARY_ADMIN_OWNER_SUB", "value": $admin_sub},
                   {"name": "SANCTUARY_ADMIN_CLIENT_ID", "value": $admin_client},
                   {"name": "SANCTUARY_AUTH_ENABLED", "value": $auth_enabled},
@@ -302,7 +314,7 @@ jobs:
                 ]
                 | .secrets = ([
                   {"name": "SANCTUARY_DB_PASSWORD", "valueFrom": $db_secret}
-                ] + (if $admin_enabled == "true" then [{"name": "SANCTUARY_ADMIN_ENCRYPTION_KEY", "valueFrom": $admin_key_secret}] else [] end))
+                ] + (if $admin_enabled == "true" then [{"name": "SANCTUARY_ADMIN_ENCRYPTION_KEY", "valueFrom": $admin_key_secret}] else [] end) + (if $push_enabled == "true" then [{"name": "SANCTUARY_FIREBASE_SERVICE_ACCOUNT_JSON", "valueFrom": $firebase_secret}] else [] end))
               else
                 .
               end

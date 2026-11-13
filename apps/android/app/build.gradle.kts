@@ -1,4 +1,5 @@
 plugins {
+    id("com.google.gms.google-services")
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
@@ -63,7 +64,7 @@ android {
         minSdk = 26
         targetSdk = 36
         versionCode = ciVersionCode
-        versionName = "1.0.15"
+        versionName = "1.0.16"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -167,6 +168,9 @@ androidComponents {
 }
 
 dependencies {
+    implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
+    implementation("com.google.firebase:firebase-messaging")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.9.0")
     val composeBom = platform("androidx.compose:compose-bom:2024.10.01")
 
     implementation(composeBom)

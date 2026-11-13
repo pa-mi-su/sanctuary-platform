@@ -58,6 +58,7 @@ class Handler(BaseHTTPRequestHandler):
    self.output({'items':people,'hasMore':False,'syncedAt':NOW,'summary':{'registrations':2,'verified':1,'active_7d':1,'active_30d':1,'active_novenas':1,'completed_novenas':2}});return
   if path.startswith('/admin-api/users/'):
    self.output({'profile':{'email':'anna@example.test','display_name':'Anna Example','first_name':'Anna','last_name':'Example','preferred_language':'en','created_at':NOW,'last_login_at':NOW,'last_seen_at':NOW,'login_count':12},'favorites':[{'title':'Prayer of Hope','item_type':'prayer','created_at':NOW}],'novenas':[{'title':'Nine Days of Hope','status':'active','current_day':3,'completed_days':'[1,2]','started_at':NOW,'updated_at':NOW}],'events':[{'activity_type':'login','resource_type':'account','occurred_at':NOW,'metadata':'{}'}],'hasMore':False});return
+  if path=='/admin-api/messages':self.output({'items':[],'hasMore':False,'testDevices':[],'enabled':False});return
   if path=='/admin-api/audit':self.output({'items':[{'id':1,'entity':'saints','record_id':'saint-hope','reason':'Synthetic preview history','created_at':NOW}],'hasMore':False});return
   if re.match(r'/admin-api/novenas/[^/]+/days$',path):self.output({'items':[{'id':str(day),'day_number':day,'title':''}for day in range(1,31)]});return
   match=re.match(r'/admin-api/content/([^/]+)(?:/(.+))?$',path)
@@ -73,6 +74,7 @@ class Handler(BaseHTTPRequestHandler):
   path=urllib.parse.urlparse(self.path).path
   raw=self.rfile.read(int(self.headers.get('Content-Length',0)))
   body=json.loads(raw or b'{}') if 'application/json' in self.headers.get('Content-Type','') else {}
+  if path=='/admin-api/messages/preview':self.output({'count':0,'recipientVersion':'local-preview-only','destination':'https://mydailysanctuary.com/','enabled':False});return
   if path.endswith('/login'):self.output({'challenge':'synthetic-challenge','mode':'password','secret':''});return
   if path.endswith('/password'):self.output({'challenge':'synthetic-challenge','mode':'enroll','secret':'JBSWY3DPEHPK3PXP'});return
   if path.endswith('/verify'):state['signed']=True;self.output(session());return

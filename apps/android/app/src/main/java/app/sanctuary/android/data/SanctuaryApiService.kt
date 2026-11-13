@@ -40,6 +40,12 @@ interface SanctuaryApiService {
     @POST("auth/reset-password")
     suspend fun resetPassword(@Body request: AuthResetPasswordRequest): AuthSessionResponse
 
+    @PUT("me/push-devices")
+    suspend fun registerPushDevice(@Body request: PushDeviceRequest)
+
+    @DELETE("me/push-devices/{installationId}")
+    suspend fun unregisterPushDevice(@Path("installationId") installationId: String)
+
     @GET("me")
     suspend fun me(): UserProfileResponse
 
@@ -238,3 +244,5 @@ suspend fun <T> runApiCall(block: suspend () -> T): T {
         throw SanctuaryApiException(exception.message ?: "Sanctuary could not complete that request right now.")
     }
 }
+
+data class PushDeviceRequest(val installationId: String,val token: String,val platform: String,val appVersion: String,val enabled: Boolean)

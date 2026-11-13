@@ -18,6 +18,9 @@ management:
         include: health,info
 
 sanctuary:
+  push:
+    enabled: ${SANCTUARY_PUSH_ENABLED:false}
+    credentials: ${SANCTUARY_FIREBASE_SERVICE_ACCOUNT_JSON:}
   admin:
     enabled: ${SANCTUARY_ADMIN_ENABLED:false}
     owner-sub: ${SANCTUARY_ADMIN_OWNER_SUB:}

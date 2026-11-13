@@ -213,6 +213,11 @@ class MainActivity : ComponentActivity() {
         handleSharedContentIntent(intent)
     }
 
+    override fun onResume() {
+        super.onResume()
+        viewModel.syncPushDevice()
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
@@ -220,13 +225,14 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handleSharedContentIntent(intent: Intent?) {
-        val uri = intent?.data ?: return
+        val uri = intent?.data ?: intent?.getStringExtra("destination")?.let(Uri::parse) ?: return
         val host = uri.host?.lowercase()
         if (uri.scheme != "https" || (host != "mydailysanctuary.com" && host != "www.mydailysanctuary.com")) {
             return
         }
 
         val segments = uri.pathSegments
+        if (segments.isEmpty()) { viewModel.openHome(); return }
         if (segments.size < 2) {
             return
         }
@@ -392,6 +398,8 @@ private fun SanctuaryApp(viewModel: MainViewModel) {
     val prayerDetail by viewModel.prayerDetail.collectAsState()
     val novenaProgress by viewModel.novenaProgress.collectAsState()
     var selectedTab by rememberSaveable { mutableStateOf(AppTab.Home) }
+    val homeNavigation by viewModel.homeNavigation.collectAsState()
+    LaunchedEffect(homeNavigation) { if (homeNavigation > 0) selectedTab = AppTab.Home }
     var showLanguagePicker by rememberSaveable { mutableStateOf(false) }
 
     CompositionLocalProvider(LocalSanctuaryStrings provides SanctuaryStrings(appLanguage)) {
@@ -1921,6 +1929,8 @@ private fun MeScreen(
                 }
             }
         }
+
+        AnnouncementPreference()
 
         MeSectionCard(title = l10n.t("me.reminders")) {
             ReminderToggleRow(
@@ -5326,5 +5336,31 @@ private fun headerTitle(mode: CalendarMode, anchor: LocalDate, language: AppLang
         CalendarMode.Day -> anchor.format(DateTimeFormatter.ofPattern("MMMM d, yyyy", language.locale))
         CalendarMode.Week -> "${anchor.format(DateTimeFormatter.ofPattern("MMMM d", language.locale))} - ${anchor.plusDays(6).format(DateTimeFormatter.ofPattern("MMMM d, yyyy", language.locale))}"
         CalendarMode.Month -> YearMonth.from(anchor).format(DateTimeFormatter.ofPattern("MMMM yyyy", language.locale))
+    }
+}
+
+@Composable
+private fun AnnouncementPreference() {
+    val l10n = sanctuaryStrings()
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var enabled by remember { mutableStateOf(AndroidPushNotifications.enabled(context)) }
+    fun sync() {
+        scope.launch { runCatching { AndroidPushNotifications.sync(context, app.sanctuary.android.data.SessionRepository(context, app.sanctuary.android.data.SanctuaryApiFactory.create { null })) } }
+    }
+    val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        enabled = granted
+        AndroidPushNotifications.setEnabled(context, granted)
+        sync()
+    }
+    MeSectionCard(title = l10n.t("announcements.title")) {
+        ReminderToggleRow(title = l10n.t("announcements.title"), subtitle = l10n.t("announcements.body"), checked = enabled, enabled = true, onCheckedChange = { value ->
+            if (value && Build.VERSION.SDK_INT >= 33 && !AndroidPushNotifications.allowed(context)) permission.launch(Manifest.permission.POST_NOTIFICATIONS)
+            else {
+                enabled = value
+                AndroidPushNotifications.setEnabled(context,value)
+                sync()
+            }
+        })
     }
 }
