@@ -82,3 +82,35 @@ Me now includes a Scheduled reminders card for all manually scheduled prayer/nov
 iOS Save is a full-width green action with a check icon; Delete is a separate red action with a trash icon. Android labels the time-picker confirmation Save reminder and distinguishes Change time from red Delete. The Android overview observes preference changes so deleting or creating schedules does not leave a stale list; iOS refreshes its OS notification list on appearance/foreground and reloads detail state when opening the reminder sheet.
 
 Validation: iOS DEV simulator build, Android DEV/UAT/production compilation and all 14 Android unit tests passed. Simulator checks covered creation with the new Save button, the populated overview, clear-all confirmation, and the resulting empty state while announcement consent stayed unchanged. Local simulator screenshot: previews/reminder-management-ios.png. Physical Android UI testing remains a release check. Both mobile versions are 1.0.19; no API/database/Firebase/IAM changes are needed.
+
+## Account-only reminders and environment links — 1.0.20
+
+Reminder creation/editing requires sign-in and reuses the existing Save/Favorite account prompt on both mobile platforms. Scheduled reminder management appears only when authenticated. Android resumes the reminder action after sign-in without favoriting the content. Firebase announcements remain available to opted-in guests; existing local schedules are not silently deleted.
+
+DEV notification destinations now use https://dev.mydailysanctuary.com through the DEV Spring profile. Production retains https://mydailysanctuary.com. DEV mobile handlers recognize DEV links; production handlers reject them. Install 1.0.20 before testing DEV tap navigation because older builds accept only canonical production notification links.
+
+Recipient browsing has been removed from review and history at the owner's request. Review shows an installation count; history shows aggregate results. No per-device browsing, retirement controls, detail endpoints, new device-model collection or schema migration is included. Registered installations are not guaranteed to represent unique physical phones.
+
+A read-only DEV audit found distinct Android installation IDs and tokens, not repeated query results. Existing data does not identify physical devices. No live records were guessed at, merged or deleted. Android now skips announcement registration when firebase.test.lab is true (https://firebase.google.com/docs/test-lab/troubleshooting?platform=android) and synchronously persists installation IDs. These changes prevent automated Play test registrations going forward and improve persistence; they do not retroactively classify older rows.
+
+Versions are 1.0.20. No database, Firebase or IAM changes. Simulator verification confirmed the signed-out account prompt and hidden reminder management. Signed-in continuation and physical notification delivery remain release checks. No real push was sent.
+
+Final validation: 87 API tests (zero failures/errors, one existing skip), 32 web tests, 16 Android tests, web production build, iOS DEV simulator build and Android DEV/UAT/production compilation passed.
+
+
+### Validation-only registration audit
+
+Use `scripts/admin/audit-push-registrations.py dev --classpath /path/to/api-classpath --java /path/to/java21` for read-only Firebase validation. Generate the classpath with Maven `dependency:build-classpath` against apps/api/pom.xml. The helper uses the Firebase Admin SDK's explicit dry-run flag; it does not deliver a notification. Add `--apply` to set `valid=false` only for a token Firebase explicitly reports UNREGISTERED. The update matches the original token fingerprint and synchronization time, so it cannot retire a registration refreshed during the audit. It retains consent and delivery history. Use the named environment explicitly; the tool verifies the AWS account, RDS availability, TLS certificate and Firebase project.
+
+Results labeled FCM_VALIDATED mean Firebase accepted validation, not a verified human or unique physical phone. APNS_NOT_VERIFIED means no claim is made about Apple delivery validity. Transient/authentication/payload errors never trigger retirement. The tool does not print tokens, credentials or provider error messages. Private credentials are captured in memory and passed through stdin, not process arguments or reports.
+
+The initial November 13 DEV audit found five Android registrations passing FCM validation and one iOS registration not verifiable through this method. No UNREGISTERED results were returned, so zero records were confirmed stale or retired. Identifying the owner's phone needs a fresh owner-initiated registration sync; existing records cannot be labeled Play test devices retroactively from available metadata. Future Test Lab registrations are excluded by the 1.0.20 Android guard. Recipient browsing remains removed.
+
+
+After the owner refreshed the Android app and confirmed being the only Android DEV tester, the fresh sync identified the current phone. Six other Android registrations (four previously enabled, two already opted out) were excluded by setting enabled/valid false and revoking their old installation credentials. This prevents an old client from silently reactivating those same rows. Notification history and the current Android/iOS registrations were retained. The verified post-cleanup audience was one Android plus one iOS installation. Protected rollback metadata was saved outside the repository; no raw push tokens are in the report. This was a DEV-only cleanup of owner-confirmed unwanted registrations, not a claim that Firebase marked them expired. Production was untouched.
+
+The audit tool's four policy tests verify that validated/ambiguous tokens are never retired, read-only mode never mutates, UNREGISTERED retirement checks token/version freshness, and a concurrent refresh is not reported as retired. Run `python3 scripts/admin/test-audit-push-registrations.py`.
+
+### Android Me visual parity
+
+Android Me now uses opaque rounded panels with explicit borders, full-width cards, title dividers, and the iPhone's outer spacing. The embedded account section has a bordered outer panel, Sanctuary account eyebrow, Choose your way in heading and bordered Login/Register choices. Notifications show the disclosure row before the external device-settings link, with proper chevron/external-link icons and inset diagnostics. Signed-in scheduled reminders use a matching panel and bell-off empty-state icon. The account-only reminder restriction is unchanged. English, Spanish and Polish account copy are provided. Android builds/unit tests passed; final physical-phone visual verification remains required because the local emulator window was unavailable to the UI inspection tool.

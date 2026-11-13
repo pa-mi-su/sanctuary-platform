@@ -110,36 +110,3 @@ article {
   border: 1px solid #e5c476;
   border-radius: 12px;
 }
-
-.recipient-list {
-  margin: 1rem 0;
-  padding: 1rem;
-  border: 1px solid #87b2bf66;
-  border-radius: 16px;
-  summary {
-    cursor: pointer;
-    font-weight: 700;
-    padding: 0.5rem 0;
-  }
-  input {
-    width: 100%;
-    margin-top: 0.5rem;
-  }
-  ul {
-    list-style: none;
-    padding: 0;
-    max-height: 24rem;
-    overflow: auto;
-  }
-  li {
-    display: grid;
-    gap: 0.35rem;
-    padding: 1rem 0;
-    border-bottom: 1px solid #87b2bf44;
-    overflow-wrap: anywhere;
-  }
-  span {
-    font-size: 0.875rem;
-    color: #c2dce4;
-  }
-}

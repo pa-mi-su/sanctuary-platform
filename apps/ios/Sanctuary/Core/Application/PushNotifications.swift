@@ -102,7 +102,7 @@ final class SanctuaryAppDelegate: NSObject, UIApplicationDelegate, MessagingDele
     }
     func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
         if let destination = response.notification.request.content.userInfo["destination"] as? String,
-           let url = URL(string: destination), url.scheme == "https", url.host == "mydailysanctuary.com" {
+           let url = URL(string: destination), url.scheme == "https", (url.host == "mydailysanctuary.com" || (PlatformEnvironment.current() == .dev && url.host == "dev.mydailysanctuary.com")) {
             Task { @MainActor in PushNotifications.shared.destination = url }
         }
         completionHandler()

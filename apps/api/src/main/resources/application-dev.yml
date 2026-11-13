@@ -13,6 +13,8 @@ server:
   port: ${SANCTUARY_API_PORT:8080}
 
 sanctuary:
+  push:
+    site-url: https://dev.mydailysanctuary.com
   web:
     allowed-origins:
       - http://localhost:4200

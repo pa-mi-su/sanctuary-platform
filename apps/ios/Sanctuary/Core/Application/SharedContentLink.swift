@@ -32,7 +32,7 @@ struct SharedContentLink: Identifiable, Equatable {
 
     static func parse(_ url: URL) -> SharedContentLink? {
         let host = url.host?.lowercased()
-        guard host == "mydailysanctuary.com" || host == "www.mydailysanctuary.com" else {
+        guard url.scheme == "https", host == "mydailysanctuary.com" || host == "www.mydailysanctuary.com" || (PlatformEnvironment.current() == .dev && host == "dev.mydailysanctuary.com") else {
             return nil
         }
 

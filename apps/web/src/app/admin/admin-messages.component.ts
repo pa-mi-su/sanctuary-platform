@@ -156,52 +156,14 @@ import { AdminInputComponent } from './admin-input.component';
         <section class="review" aria-labelledby="push-review">
           <h2 id="push-review">Review before sending</h2>
           <p>
-            <strong>{{ preview.count }} devices</strong> ·
+            <strong>{{ preview.count }} app installations</strong> ·
             {{ audienceLabel(audience) }}
           </p>
           <p>Destination: {{ preview.destination }}</p>
-          <p>Device counts include people using more than one device.</p>
-          <details class="recipient-list">
-            <summary>See all {{ preview.count }} recipient devices</summary>
-            <p>
-              Device IDs identify installations, not phone models. Signed-out devices have no
-              account identity.
-            </p>
-            <label
-              >Find a recipient
-              <input
-                type="search"
-                [(ngModel)]="recipientSearch"
-                placeholder="Search account, platform, version or device ID"
-              />
-            </label>
-            <p role="status">{{ filteredRecipients().length }} of {{ preview.count }} devices</p>
-            <ul>
-              @for (device of filteredRecipients(); track device.id) {
-                <li>
-                  <strong
-                    >{{ device.platform === 'ios' ? 'iOS' : 'Android' }} ·
-                    {{
-                      device.display_name ||
-                        device.email ||
-                        (device.signedIn ? 'Signed-in account' : 'Signed-out device')
-                    }}</strong
-                  >
-                  @if (device.email) {
-                    <span>{{ device.email }}</span>
-                  }
-                  <span
-                    >{{ device.signedIn ? 'Signed in' : 'Guest / signed out' }} · App
-                    {{ device.app_version }}</span
-                  >
-                  <span>Device {{ device.id }}</span>
-                  <span>Last sync {{ device.updated_at | date: 'medium' }}</span>
-                </li>
-              } @empty {
-                <li>No matching devices.</li>
-              }
-            </ul>
-          </details>
+          <p>
+            This counts app installations, not unique phones. Reinstalls and automated tests can
+            leave older registrations.
+          </p>
           <label class="check"
             ><input type="checkbox" [(ngModel)]="confirmed" /> I reviewed the message, destination,
             and audience.</label
@@ -233,7 +195,7 @@ import { AdminInputComponent } from './admin-input.component';
             {{ row.actor_sub }}</small
           >
           <p>
-            {{ row.recipients }} recipients · {{ row.accepted }} accepted · {{ row.failed }} failed
+            {{ row.recipients }} recipients · {{ row.accepted }} accepted by Firebase · {{ row.failed }} failed
             · {{ row.pending }} pending · {{ row.skipped }} skipped · {{ row.unknown }} uncertain
           </p>
         </article>
@@ -269,23 +231,6 @@ export class AdminMessagesComponent implements OnInit {
   contentPage = 0;
   contentMore = false;
   preview: any = null;
-  recipientSearch = '';
-  filteredRecipients() {
-    const query = this.recipientSearch.trim().toLowerCase();
-    return (this.preview?.devices || []).filter((device: any) =>
-      [
-        device.id,
-        device.platform,
-        device.app_version,
-        device.email,
-        device.display_name,
-        device.signedIn ? 'signed in' : 'guest signed out',
-      ]
-        .join(' ')
-        .toLowerCase()
-        .includes(query),
-    );
-  }
   confirmed = false;
   requestId = '';
   sentSnapshot = '';
@@ -388,7 +333,6 @@ export class AdminMessagesComponent implements OnInit {
       const preview = await this.api('POST', '/messages/preview', draft);
       if (JSON.stringify(this.draft()) !== snapshot) return;
       this.preview = preview;
-      this.recipientSearch = '';
       this.confirmed = false;
       this.requestId ||= crypto.randomUUID();
     });

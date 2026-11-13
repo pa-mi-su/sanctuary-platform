@@ -26,7 +26,7 @@ object AndroidPushNotifications {
     fun setEnabled(context: Context, enabled: Boolean) { preferences(context).edit().putBoolean("announcements", enabled).apply() }
     @Synchronized fun installation(context: Context): String {
         val prefs = preferences(context)
-        return prefs.getString("installation", null) ?: UUID.randomUUID().toString().also { prefs.edit().putString("installation", it).apply() }
+        return prefs.getString("installation", null) ?: UUID.randomUUID().toString().also { check(prefs.edit().putString("installation", it).commit()) }
     }
     fun allowed(context: Context): Boolean =
         (Build.VERSION.SDK_INT < 33 || ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) &&
@@ -47,6 +47,8 @@ object AndroidPushNotifications {
         store.edit().putLong("revision",revision).commit();return revision
     }
     suspend fun sync(context: Context, repository: SessionRepository) {
+        // Play pre-launch crawlers must not become real announcement subscribers.
+        if (android.provider.Settings.System.getString(context.contentResolver, "firebase.test.lab") == "true") return
         val revision=nextRevision(context)
         if (!enabled(context) && !preferences(context).getBoolean("registered",false)) return
         channel(context)
@@ -63,7 +65,7 @@ object AndroidPushNotifications {
         if (!enabled(context) || !allowed(context)) return
         val destination = message.data["destination"] ?: "https://mydailysanctuary.com/"
         val uri = Uri.parse(destination)
-        if (uri.scheme != "https" || uri.host != "mydailysanctuary.com") return
+        if (!isSanctuaryNotificationLink(destination, BuildConfig.ENVIRONMENT)) return
         channel(context)
         val id = (message.data["messageId"] ?: message.messageId ?: UUID.randomUUID().toString()).hashCode()
         val intent = Intent(context, MainActivity::class.java).setAction(Intent.ACTION_VIEW).setData(uri).addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
@@ -85,3 +87,10 @@ class SanctuaryFirebaseMessagingService: FirebaseMessagingService() {
     override fun onMessageReceived(message: RemoteMessage) { AndroidPushNotifications.show(applicationContext,message) }
     override fun onDestroy() { scope.cancel();super.onDestroy() }
 }
+
+
+internal fun isSanctuaryNotificationLink(value: String, environment: String): Boolean = runCatching {
+    val uri = java.net.URI(value)
+    uri.scheme == "https" && (uri.host == "mydailysanctuary.com" || uri.host == "www.mydailysanctuary.com" ||
+        (environment == "dev" && uri.host == "dev.mydailysanctuary.com"))
+}.getOrDefault(false)

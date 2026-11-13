@@ -32,16 +32,24 @@ class PushMessagingIntegrationTest {
         assertEquals("accepted",db.queryForObject("SELECT state FROM push_deliveries",String.class));
         assertFalse(new ObjectMapper().valueToTree(messages.overview(0)).toString().contains("synthetic-token"));
     }
-    @Test void previewIdentifiesRecipientsWithoutExposingDeliveryCredentials() {
-        UUID id=device("ios",true);device("android",false);
+    @Test void devDestinationsStayOnDevAndProductionStaysOnProduction() {
+        var dev=new PushMessages(db,gateway,"https://dev.mydailysanctuary.com");
+        assertEquals("https://dev.mydailysanctuary.com/",((Map<?,?>)dev.preview(draft("all"))).get("destination"));
+        String prayerId="push-link-"+UUID.randomUUID();
+        db.update("INSERT INTO prayers(id,slug,category,title_en,title_es,title_pl,body_en,body_es,body_pl,alternate_title_en,alternate_title_es,alternate_title_pl,note_en,note_es,note_pl,source_title,source_type)VALUES(?,?,'test','','','','','','','','','','','','','','')",prayerId,prayerId);
+        var prayer=Map.of("id",prayerId,"slug",prayerId);
+        var draft=new PushMessages.Draft("Prayer","Message","prayers",prayer.get("id").toString(),"all",null);
+        assertEquals("https://dev.mydailysanctuary.com/prayers/"+prayer.get("slug"),((Map<?,?>)dev.preview(draft)).get("destination"));
+        assertEquals("https://mydailysanctuary.com/prayers/"+prayer.get("slug"),preview(draft).get("destination"));
+        assertThrows(IllegalArgumentException.class,()->new PushMessages(db,gateway,"https://untrusted.example"));
+        db.update("DELETE FROM prayers WHERE id=?",prayerId);
+    }
+    @Test void previewReturnsOnlyCountsAndNoDeviceDetails() {
+        device("ios",true);
         var result=preview(draft("all"));
-        var json=new ObjectMapper().valueToTree(result);
-        assertEquals(1,json.get("devices").size());
-        assertEquals(id.toString(),json.at("/devices/0/id").asText());
-        assertEquals("push@example.test",json.at("/devices/0/email").asText());
-        assertTrue(json.at("/devices/0/signedIn").asBoolean());
-        assertFalse(json.toString().contains("synthetic-token"));
-        assertFalse(json.toString().contains("installation_secret"));
+        assertEquals(Set.of("count","recipientVersion","destination","enabled"),result.keySet());
+        assertEquals(1,result.get("count"));
+        assertFalse(new ObjectMapper().valueToTree(result).toString().contains("synthetic-token"));
     }
     @Test void changedAudienceRejectsSendAndOptOutAfterQueueSkips(){
         UUID device=device("ios",true);var draft=draft("ios");var preview=preview(draft);
