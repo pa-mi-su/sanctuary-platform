@@ -32,6 +32,17 @@ class PushMessagingIntegrationTest {
         assertEquals("accepted",db.queryForObject("SELECT state FROM push_deliveries",String.class));
         assertFalse(new ObjectMapper().valueToTree(messages.overview(0)).toString().contains("synthetic-token"));
     }
+    @Test void previewIdentifiesRecipientsWithoutExposingDeliveryCredentials() {
+        UUID id=device("ios",true);device("android",false);
+        var result=preview(draft("all"));
+        var json=new ObjectMapper().valueToTree(result);
+        assertEquals(1,json.get("devices").size());
+        assertEquals(id.toString(),json.at("/devices/0/id").asText());
+        assertEquals("push@example.test",json.at("/devices/0/email").asText());
+        assertTrue(json.at("/devices/0/signedIn").asBoolean());
+        assertFalse(json.toString().contains("synthetic-token"));
+        assertFalse(json.toString().contains("installation_secret"));
+    }
     @Test void changedAudienceRejectsSendAndOptOutAfterQueueSkips(){
         UUID device=device("ios",true);var draft=draft("ios");var preview=preview(draft);
         db.update("UPDATE push_devices SET enabled=false WHERE id=?",device);

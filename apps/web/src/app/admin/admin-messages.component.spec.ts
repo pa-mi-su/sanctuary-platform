@@ -18,6 +18,28 @@ describe('Admin messaging', () => {
     http = TestBed.inject(HttpTestingController);
   });
   afterEach(() => http.verify());
+  it('filters reviewed recipients by account, platform and guest status without changing the audience', () => {
+    component.preview = {
+      count: 2,
+      devices: [
+        {
+          id: 'ios-device',
+          platform: 'ios',
+          email: 'owner@example.test',
+          app_version: '1.0.18',
+          signedIn: true,
+        },
+        { id: 'guest-device', platform: 'android', app_version: '1.0.18', signedIn: false },
+      ],
+    };
+    component.recipientSearch = 'OWNER@';
+    expect(component.filteredRecipients().map((d: any) => d.id)).toEqual(['ios-device']);
+    component.recipientSearch = 'guest';
+    expect(component.filteredRecipients().map((d: any) => d.id)).toEqual(['guest-device']);
+    component.recipientSearch = 'missing';
+    expect(component.filteredRecipients()).toEqual([]);
+    expect(component.preview.count).toBe(2);
+  });
   it('defaults to owner test only and invalidates review after editing', async () => {
     expect(component.audience).toBe('test');
     component.title = 'Prayer';

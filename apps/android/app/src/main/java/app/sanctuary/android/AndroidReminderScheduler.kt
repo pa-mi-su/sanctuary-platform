@@ -77,6 +77,66 @@ class AndroidReminderScheduler(
         )
     }
 
+    fun itemTime(destination: String): Pair<Int, Int>? {
+        val raw = preferences.getString("item:$destination", null) ?: return null
+        val row = org.json.JSONObject(raw)
+        return row.getInt("hour") to row.getInt("minute")
+    }
+
+    fun setItem(destination: String, title: String, hour: Int, minute: Int) {
+        require(destination.startsWith("https://mydailysanctuary.com/prayers/") || destination.startsWith("https://mydailysanctuary.com/novenas/"))
+        check(areNotificationsAllowed()) { "Enable Sanctuary notifications in device settings first." }
+        val key = "item:$destination"
+        check(preferences.contains(key) || preferences.all.keys.count { it.startsWith("item:") } < 50) { "Remove an existing reminder before adding another." }
+        val row = org.json.JSONObject().put("title", title).put("hour", hour).put("minute", minute)
+        check(preferences.edit().putString(key, row.toString()).commit())
+        scheduleItem(destination, title, hour, minute)
+    }
+
+    fun removeItem(destination: String) {
+        preferences.edit().remove("item:$destination").commit()
+        alarmManager.cancel(itemIntent(destination, ""))
+        (context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).cancel(destination, 4402)
+    }
+
+    fun resyncItems() {
+        preferences.all.filterKeys { it.startsWith("item:") }.forEach { (key, raw) ->
+            runCatching {
+                val row = org.json.JSONObject(raw as String)
+                scheduleItem(key.removePrefix("item:"), row.getString("title"), row.getInt("hour"), row.getInt("minute"))
+            }
+        }
+    }
+
+    private fun itemIntent(destination: String, title: String): PendingIntent {
+        val intent = Intent(context, ReminderNotificationReceiver::class.java).apply {
+            action = ACTION_SHOW_REMINDER
+            data = android.net.Uri.parse(destination)
+            putExtra(EXTRA_TITLE, title)
+            putExtra("itemDestination", destination)
+        }
+        return PendingIntent.getBroadcast(context, 4402, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+    }
+
+    private fun scheduleItem(destination: String, title: String, hour: Int, minute: Int) {
+        val next = nextItemReminderTime(ZonedDateTime.now(), hour, minute)
+        alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, next.toInstant().toEpochMilli(), itemIntent(destination, title))
+    }
+
+    fun showItem(destination: String, title: String) {
+        if (itemTime(destination) == null || !areNotificationsAllowed()) return
+        createNotificationChannel()
+        val open = Intent(context, MainActivity::class.java).apply {
+            data = android.net.Uri.parse(destination)
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val content = PendingIntent.getActivity(context, 4402, open, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(R.mipmap.ic_launcher_round).setContentTitle(title)
+            .setContentText("Take a moment to pray in Sanctuary.").setAutoCancel(true).setContentIntent(content).build()
+        try { NotificationManagerCompat.from(context).notify(destination, 4402, notification) } catch (_: SecurityException) {}
+    }
+
     fun cancelAll() {
         alarmManager.cancel(pendingIntentFor(KIND_MORNING, "", ""))
         alarmManager.cancel(pendingIntentFor(KIND_EVENING, "", ""))
@@ -188,6 +248,12 @@ class AndroidReminderScheduler(
 class ReminderNotificationReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val scheduler = AndroidReminderScheduler(context)
+        val destination = intent.getStringExtra("itemDestination")
+        if (destination != null) {
+            scheduler.showItem(destination, intent.getStringExtra(AndroidReminderScheduler.EXTRA_TITLE).orEmpty())
+            scheduler.resyncItems()
+            return
+        }
         val title = intent.getStringExtra(AndroidReminderScheduler.EXTRA_TITLE).orEmpty()
         val body = intent.getStringExtra(AndroidReminderScheduler.EXTRA_BODY).orEmpty()
         scheduler.showReminderNotification(title, body)
@@ -199,9 +265,18 @@ class ReminderBootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (
             intent.action == Intent.ACTION_BOOT_COMPLETED ||
-            intent.action == Intent.ACTION_MY_PACKAGE_REPLACED
+            intent.action == Intent.ACTION_MY_PACKAGE_REPLACED || intent.action == Intent.ACTION_TIMEZONE_CHANGED || intent.action == Intent.ACTION_TIME_CHANGED
         ) {
             AndroidReminderScheduler(context).resyncFromStoredPreferences()
+            AndroidReminderScheduler(context).resyncItems()
         }
     }
+}
+
+
+internal fun nextItemReminderTime(now: ZonedDateTime, hour: Int, minute: Int): ZonedDateTime {
+    require(hour in 0..23 && minute in 0..59)
+    var next = now.withHour(hour).withMinute(minute).withSecond(0).withNano(0)
+    if (!next.isAfter(now)) next = next.plusDays(1)
+    return next
 }

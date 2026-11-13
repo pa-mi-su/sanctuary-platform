@@ -72,6 +72,7 @@ import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -110,6 +111,8 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
@@ -216,6 +219,7 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         viewModel.syncPushDevice()
+        AndroidReminderScheduler(this).resyncItems()
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -1190,7 +1194,6 @@ private fun AuthenticatedShell(
                 }
 
                 AppTab.Me -> {
-                    item { AnnouncementPreference() }
                     if (session.status == SessionStatus.Authenticated) {
                         item {
                             MeScreen(
@@ -1207,6 +1210,7 @@ private fun AuthenticatedShell(
                     } else if (session.status == SessionStatus.Loading && session.session != null) {
                         item { LoadingCard() }
                     } else {
+                        item { MeSectionCard(title = sanctuaryStrings().t("notifications.title")) { AnnouncementPreference() } }
                         item {
                             AccountAccessScreen(
                                 session = session,
@@ -1931,7 +1935,8 @@ private fun MeScreen(
             }
         }
 
-        MeSectionCard(title = l10n.t("me.reminders")) {
+        MeSectionCard(title = l10n.t("notifications.title")) {
+            AnnouncementPreference {
             ReminderToggleRow(
                 title = l10n.t("reminder.novenas"),
                 subtitle = l10n.t("reminder.novenasBody"),
@@ -1950,6 +1955,7 @@ private fun MeScreen(
                     requestReminderUpdate(novenaReminderToggle, checked)
                 }
             )
+            }
         }
 
         MeSectionCard(title = l10n.t("me.inProgress")) {
@@ -2117,7 +2123,8 @@ private fun ReminderToggleRow(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(18.dp))
-            .background(if (checked) Color(0x245CAED4) else Color(0xFF2A4153))
+            .background(if (checked) Color(0xFF244F59) else Color(0xFF243D4D))
+            .border(1.dp, if (checked) Color(0xFF6EBAAF) else Color(0xFF587383), RoundedCornerShape(18.dp))
             .padding(14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -2126,16 +2133,17 @@ private fun ReminderToggleRow(
             Text(subtitle, color = Color(0xFFD0DFEA), lineHeight = 18.sp, fontSize = 13.sp)
         }
         Switch(
+            modifier = Modifier.semantics { contentDescription = title },
             checked = checked,
             onCheckedChange = onCheckedChange,
             enabled = enabled,
             colors = SwitchDefaults.colors(
                 checkedThumbColor = Color.White,
-                checkedTrackColor = Color(0xFF8EDBFF),
-                checkedBorderColor = Color(0xFF8EDBFF),
+                checkedTrackColor = Color(0xFF279A83),
+                checkedBorderColor = Color(0xFF75D6BE),
                 uncheckedThumbColor = Color.White,
-                uncheckedTrackColor = Color.White.copy(alpha = 0.16f),
-                uncheckedBorderColor = Color.White.copy(alpha = 0.10f),
+                uncheckedTrackColor = Color(0xFF526775),
+                uncheckedBorderColor = Color(0xFF8EA4B2),
                 disabledCheckedThumbColor = Color.White.copy(alpha = 0.9f),
                 disabledCheckedTrackColor = Color(0xFF8EDBFF).copy(alpha = 0.55f),
                 disabledUncheckedThumbColor = Color.White.copy(alpha = 0.75f),
@@ -3698,6 +3706,7 @@ private fun NovenaDetailSheet(
         ) {
             Text(if (isFavorite) l10n.t("detail.favorite.saved") else l10n.t("detail.favorite.add"))
         }
+        ContentReminderControl(destination = sharedContentUrl(SharedContentKind.Novena, detail.slug), title = detail.title)
         Button(
             onClick = {
                 shareContent(
@@ -3910,6 +3919,7 @@ private fun PrayerDetailSheet(
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(if (isFavorite) l10n.t("detail.favorite.saved") else l10n.t("detail.favorite.add"))
             }
+            ContentReminderControl(destination = sharedContentUrl(SharedContentKind.Prayer, detail.slug), title = detail.title)
             Button(
                 onClick = {
                     shareContent(
@@ -5339,7 +5349,7 @@ private fun headerTitle(mode: CalendarMode, anchor: LocalDate, language: AppLang
 }
 
 @Composable
-private fun AnnouncementPreference() {
+private fun AnnouncementPreference(reminders: @Composable () -> Unit = {}) {
     val l10n = sanctuaryStrings()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -5357,9 +5367,7 @@ private fun AnnouncementPreference() {
         AndroidPushNotifications.setEnabled(context, granted)
         sync()
     }
-    MeSectionCard(title = l10n.t("announcements.title")) {
-        Text(status, color = Color(0xFFD0DFEA))
-        Button(onClick = { sync() }) { Text("Refresh notification registration") }
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         ReminderToggleRow(title = l10n.t("announcements.title"), subtitle = l10n.t("announcements.body"), checked = enabled, enabled = true, onCheckedChange = { value ->
             if (value && Build.VERSION.SDK_INT >= 33 && !AndroidPushNotifications.allowed(context)) permission.launch(Manifest.permission.POST_NOTIFICATIONS)
             else {
@@ -5368,5 +5376,63 @@ private fun AnnouncementPreference() {
                 sync()
             }
         })
+        reminders()
+        TextButton(onClick = {
+            val intent = if (Build.VERSION.SDK_INT >= 26) Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                .putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, context.packageName)
+            else Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + context.packageName))
+            context.startActivity(intent)
+        }) { Text(l10n.t("notifications.settings"), color = Color(0xFFBAD9E4)) }
+        var expanded by remember { mutableStateOf(false) }
+        TextButton(onClick = { expanded = !expanded }) {
+            Text((if (expanded) "▾ " else "▸ ") + l10n.t("notifications.details"), color = Color(0xFFBAD9E4))
+        }
+        if (expanded) {
+            if (status.isNotBlank()) Text(status, color = Color(0xFFD0DFEA), fontSize = 13.sp)
+            TextButton(onClick = { sync() }) { Text(l10n.t("notifications.refresh")) }
+        }
     }
+}
+
+
+@Composable
+private fun ContentReminderControl(destination: String, title: String) {
+    val context = LocalContext.current
+    val l10n = sanctuaryStrings()
+    val scheduler = remember(context) { AndroidReminderScheduler(context) }
+    var time by remember(destination) { mutableStateOf(scheduler.itemTime(destination)) }
+    var problem by remember { mutableStateOf<String?>(null) }
+    var showOptions by remember { mutableStateOf(false) }
+    fun chooseTime() {
+        val current = time ?: (8 to 0)
+        android.app.TimePickerDialog(context, { _, hour, minute ->
+            runCatching { scheduler.setItem(destination, title, hour, minute) }
+                .onSuccess { time = hour to minute; problem = null }
+                .onFailure { problem = l10n.t("itemReminder.error") }
+        }, current.first, current.second, android.text.format.DateFormat.is24HourFormat(context)).apply {
+            setTitle(l10n.t("itemReminder.title"))
+        }.show()
+    }
+    val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) chooseTime() else problem = l10n.t("itemReminder.permission")
+    }
+    OutlinedButton(onClick = {
+        if (time != null) showOptions = true
+        else if (!AndroidPushNotifications.allowed(context)) {
+            if (Build.VERSION.SDK_INT >= 33) permission.launch(Manifest.permission.POST_NOTIFICATIONS)
+            else problem = l10n.t("itemReminder.permission")
+        } else chooseTime()
+    }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp)) {
+        Text(l10n.t(if (time == null) "itemReminder.add" else "itemReminder.edit"), color = Color.White)
+    }
+    if (showOptions) AlertDialog(
+        onDismissRequest = { showOptions = false },
+        title = { Text(l10n.t("itemReminder.title")) },
+        text = { Text(title + "\n" + l10n.t("itemReminder.body") + "\n" + time?.let { "%02d:%02d".format(it.first, it.second) }.orEmpty()) },
+        confirmButton = { TextButton(onClick = { showOptions = false; chooseTime() }) { Text(l10n.t("itemReminder.edit")) } },
+        dismissButton = { TextButton(onClick = { scheduler.removeItem(destination); time = null; showOptions = false }) { Text(l10n.t("itemReminder.remove")) } }
+    )
+    if (problem != null) AlertDialog(onDismissRequest = { problem = null },
+        title = { Text(l10n.t("itemReminder.title")) }, text = { Text(problem.orEmpty()) },
+        confirmButton = { TextButton(onClick = { problem = null }) { Text("OK") } })
 }
