@@ -81,6 +81,7 @@ struct AppShellView: View {
             // Let first frame and taps land before background state refresh.
             try? await Task.sleep(nanoseconds: 700_000_000)
             await accountStore.bootstrap()
+            await accountStore.syncPushDevice()
         }
         .task(id: accountStore.profile?.userID) {
             await progressStore.setAuthenticatedUser(id: accountStore.profile?.userID)

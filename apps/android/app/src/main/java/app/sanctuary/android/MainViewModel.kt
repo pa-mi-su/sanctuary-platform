@@ -254,6 +254,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 )
                 loadInitialContent()
                 _novenaProgress.value = NovenaProgressUiState()
+                syncPushDevice()
             }
         }
     }
@@ -437,17 +438,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun openHome() { closeSaintDetail(); closeNovenaDetail(); closePrayerDetail(); _homeNavigation.value += 1 }
 
     fun syncPushDevice() {
-        if (_session.value.status != SessionStatus.Authenticated) return
         viewModelScope.launch { runCatching { AndroidPushNotifications.sync(getApplication(), repository) } }
     }
 
     fun logout() {
-        AndroidPushNotifications.setEnabled(getApplication(), false)
-        val revoke = repository.preparePushLogout(AndroidPushNotifications.installation(getApplication()))
-        viewModelScope.launch {
-            withTimeoutOrNull(5000) { runCatching { revoke() } }
-            runCatching { com.google.firebase.messaging.FirebaseMessaging.getInstance().deleteToken() }
-        }
+        repository.logout()
+        syncPushDevice()
         reminderScheduler.cancelAll()
         _session.value = SessionUiState(status = SessionStatus.SignedOut, isSavingReminderPreferences = false)
         _novenaProgress.value = NovenaProgressUiState()

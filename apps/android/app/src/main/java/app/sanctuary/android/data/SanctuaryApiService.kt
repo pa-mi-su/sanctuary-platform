@@ -40,6 +40,9 @@ interface SanctuaryApiService {
     @POST("auth/reset-password")
     suspend fun resetPassword(@Body request: AuthResetPasswordRequest): AuthSessionResponse
 
+    @PUT("push/installations")
+    suspend fun registerAnonymousPushDevice(@Body request: PushDeviceRequest)
+
     @PUT("me/push-devices")
     suspend fun registerPushDevice(@Body request: PushDeviceRequest)
 
@@ -245,4 +248,4 @@ suspend fun <T> runApiCall(block: suspend () -> T): T {
     }
 }
 
-data class PushDeviceRequest(val installationId: String,val token: String,val platform: String,val appVersion: String,val enabled: Boolean)
+data class PushDeviceRequest(val installationId: String,val token: String,val platform: String,val appVersion: String,val enabled: Boolean, val installationSecret: String? = null, val revision: Long? = null)

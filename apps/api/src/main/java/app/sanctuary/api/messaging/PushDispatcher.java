@@ -22,7 +22,7 @@ public class PushDispatcher {
             var delivery=rows.getFirst();
             var targets=db.queryForList("""
                 SELECT p.token,m.* FROM push_devices p JOIN push_messages m ON m.id=?
-                WHERE p.id=? AND p.user_id=? AND p.enabled AND p.valid AND p.updated_at>now()-interval '60 days'
+                WHERE p.id=? AND p.user_id IS NOT DISTINCT FROM ?::uuid AND p.enabled AND p.valid AND p.updated_at>now()-interval '60 days'
                 """,delivery.get("message_id"),delivery.get("device_id"),delivery.get("recipient_user_id"));
             if(targets.isEmpty()){db.update("UPDATE push_deliveries SET state='skipped',updated_at=now() WHERE id=?",delivery.get("id"));continue;}
             var target=targets.getFirst();

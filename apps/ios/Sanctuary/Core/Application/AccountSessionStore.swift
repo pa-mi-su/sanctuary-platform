@@ -316,7 +316,7 @@ final class AccountSessionStore: ObservableObject {
     }
 
     func syncPushDevice() async {
-        guard let token = await authorizationToken() else { return }
+        let token = await authorizationToken()
         await PushNotifications.shared.sync(api: apiClient, token: token)
     }
 
@@ -331,6 +331,7 @@ final class AccountSessionStore: ObservableObject {
 
         do {
             try await apiClient.deleteMe(token: activeSession.idToken)
+            PushNotifications.shared.resetConsent()
             clearStoredSession()
             return true
         } catch {
@@ -548,7 +549,6 @@ final class AccountSessionStore: ObservableObject {
     }
 
     private func clearStoredSession() {
-        PushNotifications.shared.resetConsent()
         secureStore.delete(account: sessionAccountKey)
         session = nil
         profile = nil

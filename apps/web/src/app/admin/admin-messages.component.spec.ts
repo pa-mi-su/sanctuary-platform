@@ -88,4 +88,17 @@ describe('Admin messaging', () => {
     await send;
     expect(component.hasDraft()).toBe(true);
   });
+  it('supports signed-out audiences without requiring an owner test device', async () => {
+    component.audience = 'guests';
+    component.title = 'Welcome';
+    component.body = 'A public prayer invitation';
+    const review = component.review();
+    const request = http.expectOne('https://api.example.test/admin-api/messages/preview');
+    expect(request.request.body.audience).toBe('guests');
+    expect(request.request.body.testDevice).toBeNull();
+    request.flush({ count: 2, recipientVersion: 'guest-snapshot' });
+    await review;
+    expect(component.preview.count).toBe(2);
+    expect(component.audienceLabel('guests')).toContain('Signed-out');
+  });
 });

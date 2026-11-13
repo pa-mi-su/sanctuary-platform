@@ -268,6 +268,8 @@ struct APIPushDeviceRequest: Encodable, Sendable {
     let platform: String
     let appVersion: String
     let enabled: Bool
+    let installationSecret: String?
+    let revision: Int
 }
 struct APIPushRegistered: Decodable, Sendable { let registered: Bool }
 
@@ -351,8 +353,8 @@ actor SanctuaryAPIClient {
         try await performRequest(path: "/me/preferences", method: "PUT", body: request, token: token)
     }
 
-    func registerPushDevice(request: APIPushDeviceRequest, token: String) async throws {
-        let _: APIPushRegistered = try await performRequest(path: "/me/push-devices", method: "PUT", body: request, token: token)
+    func registerPushDevice(request: APIPushDeviceRequest, token: String?) async throws {
+        let _: APIPushRegistered = try await performRequest(path: token == nil ? "/push/installations" : "/me/push-devices", method: "PUT", body: request, token: token)
     }
     func unregisterPushDevice(installationId: String, token: String) async throws {
         try await performVoidRequest(path: "/me/push-devices/" + installationId, method: "DELETE", body: Optional<String>.none, token: token)

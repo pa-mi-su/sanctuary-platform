@@ -17,7 +17,7 @@ class PushMessagingIntegrationTest {
     static JdbcTemplate db; static TransactionTemplate transaction;
     PushGateway gateway; PushMessages messages;
     @BeforeAll static void setup(){var source=new DriverManagerDataSource(System.getenv("ADMIN_TEST_DB_URL"),"sanctuary_test","sanctuary_test");Flyway.configure().dataSource(source).load().migrate();db=new JdbcTemplate(source);transaction=new TransactionTemplate(new DataSourceTransactionManager(source));}
-    @BeforeEach void reset(){db.execute("TRUNCATE push_deliveries,push_messages,push_devices");gateway=mock(PushGateway.class);when(gateway.enabled()).thenReturn(true);messages=new PushMessages(db,gateway);}
+    @BeforeEach void reset(){db.execute("TRUNCATE push_deliveries,push_messages,push_devices,push_registration_limits");gateway=mock(PushGateway.class);when(gateway.enabled()).thenReturn(true);messages=new PushMessages(db,gateway);}
     UUID device(String platform,boolean enabled){UUID user=UUID.randomUUID(),device=UUID.randomUUID();db.update("INSERT INTO users(id,cognito_sub,email,last_sign_in_at)VALUES(?,?,?,now())",user,"push-test-"+user,"push@example.test");db.update("INSERT INTO push_devices(id,user_id,installation_id,token,platform,app_version,enabled)VALUES(?,?,?,?,?,'1.0.16',?)",device,user,UUID.randomUUID(),"synthetic-token-"+device,platform,enabled);return device;}
     PushMessages.Draft draft(String audience){return new PushMessages.Draft("A moment of peace","An invitation to prayer","home",null,audience,null);}
     @SuppressWarnings("unchecked") Map<String,Object> preview(PushMessages.Draft draft){return (Map<String,Object>)messages.preview(draft);}
@@ -66,6 +66,51 @@ class PushMessagingIntegrationTest {
         assertEquals(1,preview(test).get("count"));
         db.update("UPDATE admin_user_directory SET email='someone@example.test' WHERE cognito_sub=?",subject);
         assertEquals(0,preview(test).get("count"));
+    }
+    @Test void anonymousInstallationsReceiveGuestBroadcastsWithoutCreatingAccounts() {
+        var registry=new PushInstallationRegistry(db);int users=db.queryForObject("SELECT count(*) FROM users",Integer.class);
+        var device=new PushDevicesController.Device(UUID.randomUUID(),"guest-token-"+UUID.randomUUID(),"ios","1.0.17",true,"A".repeat(64));
+        transaction.execute(s->registry.register(device,null,true));
+        assertEquals(users,db.queryForObject("SELECT count(*) FROM users",Integer.class));
+        assertEquals(1,preview(draft("guests")).get("count"));assertEquals(0,preview(draft("members")).get("count"));assertEquals(1,preview(draft("all")).get("count"));
+        var guestDraft=draft("guests");transaction.execute(s->messages.send("owner",new PushMessages.Send(UUID.randomUUID(),guestDraft,preview(guestDraft).get("recipientVersion").toString())));
+        when(gateway.send(anyString(),anyString(),anyString(),anyString(),anyString())).thenReturn(new PushGateway.Result(true,false,null,"guest-send"));
+        new PushDispatcher(db,gateway).dispatch();assertEquals("accepted",db.queryForObject("SELECT state FROM push_deliveries",String.class));
+        transaction.execute(s->registry.register(new PushDevicesController.Device(device.installationId(),device.token(),"ios","1.0.17",false,device.installationSecret()),null,true));
+        assertEquals(0,preview(draft("all")).get("count"));
+    }
+    @Test void guessedInstallationIdsAndForeignCredentialsCannotTakeOverDevice() {
+        var registry=new PushInstallationRegistry(db);
+        var device=new PushDevicesController.Device(UUID.randomUUID(),"protected-token-"+UUID.randomUUID(),"android","1.0.17",true,"A".repeat(64));
+        transaction.execute(s->registry.register(device,null,true));
+        assertThrows(RuntimeException.class,()->transaction.execute(s->registry.register(new PushDevicesController.Device(device.installationId(),device.token(),"android","1.0.17",false,"B".repeat(64)),null,true)));
+        assertThrows(RuntimeException.class,()->transaction.execute(s->registry.register(new PushDevicesController.Device(UUID.randomUUID(),device.token(),"android","1.0.17",true,"B".repeat(64)),null,true)));
+        assertThrows(RuntimeException.class,()->transaction.execute(s->registry.register(new PushDevicesController.Device(device.installationId(),device.token(),"android","1.0.17",true),null,true)));
+        assertEquals(1,preview(draft("guests")).get("count"));
+    }
+    @Test void accountDetachesOnAnonymousRegistrationWhileConsentSurvives() {
+        UUID id=device("ios",true);var row=db.queryForMap("SELECT * FROM push_devices WHERE id=?",id);
+        UUID owner=(UUID)row.get("user_id");var registry=new PushInstallationRegistry(db);
+        var request=new PushDevicesController.Device((UUID)row.get("installation_id"),row.get("token").toString(),"ios","1.0.17",true,"C".repeat(64));
+        transaction.execute(s->registry.register(request,owner,false));assertEquals(1,preview(draft("members")).get("count"));
+        transaction.execute(s->registry.register(request,null,true));assertEquals(1,preview(draft("guests")).get("count"));assertEquals(0,preview(draft("members")).get("count"));
+        assertNull(db.queryForObject("SELECT user_id FROM push_devices WHERE id=?",UUID.class,id));
+    }
+    @Test void aLateSignedOutRequestCannotUndoNewerSignedInRegistration() {
+        UUID id=device("ios",true);var row=db.queryForMap("SELECT * FROM push_devices WHERE id=?",id);
+        var registry=new PushInstallationRegistry(db);UUID owner=(UUID)row.get("user_id");
+        var newest=new PushDevicesController.Device((UUID)row.get("installation_id"),row.get("token").toString(),"ios","1.0.17",true,"D".repeat(64),2L);
+        transaction.execute(s->registry.register(newest,owner,false));
+        var old=new PushDevicesController.Device(newest.installationId(),newest.token(),"ios","1.0.17",true,newest.installationSecret(),1L);
+        transaction.execute(s->registry.register(old,null,true));
+        assertEquals(owner,db.queryForObject("SELECT user_id FROM push_devices WHERE id=?",UUID.class,id));
+        assertEquals(1,preview(draft("members")).get("count"));
+    }
+    @Test void publicRegistrationRateLimitIsBounded() {
+        long window=java.time.Instant.now().getEpochSecond()/3600;
+        db.update("INSERT INTO push_registration_limits(bucket,window_start,requests)VALUES('global',?,10000)",window);
+        assertThrows(RuntimeException.class,()->transaction.execute(s->{new PushRegistrationLimiter(db).check("127.0.0.2");return null;}));
+        assertEquals(10000,db.queryForObject("SELECT requests FROM push_registration_limits WHERE bucket='global'",Integer.class));
     }
     @Test void rejectsUnknownContentAndDisabledGatewayAndDoesNotResendAmbiguousClaims(){
         assertThrows(RuntimeException.class,()->preview(new PushMessages.Draft("Title","Message","saints","missing","all",null)));

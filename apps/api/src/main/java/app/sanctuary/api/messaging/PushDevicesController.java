@@ -15,19 +15,16 @@ import app.sanctuary.api.user.web.CurrentUser;
 public class PushDevicesController {
     private final JdbcTemplate db;
     private final UserAccountService accounts;
-    public PushDevicesController(JdbcTemplate db, UserAccountService accounts) { this.db=db; this.accounts=accounts; }
+    private final PushInstallationRegistry registry;
+    public PushDevicesController(JdbcTemplate db, UserAccountService accounts) { this.db=db; this.accounts=accounts; this.registry=new PushInstallationRegistry(db); }
     public record Device(@NotNull UUID installationId, @NotBlank @Size(min=20,max=4096) String token,
-        @Pattern(regexp="ios|android") @NotNull String platform, @NotBlank @Size(max=50) String appVersion, boolean enabled) {}
+        @Pattern(regexp="ios|android") @NotNull String platform, @NotBlank @Size(max=50) String appVersion, boolean enabled, @Size(max=128) String installationSecret, @PositiveOrZero Long revision) {
+        public Device(UUID installationId,String token,String platform,String appVersion,boolean enabled,String secret){this(installationId,token,platform,appVersion,enabled,secret,null);}
+        public Device(UUID installationId,String token,String platform,String appVersion,boolean enabled){this(installationId,token,platform,appVersion,enabled,null,null);}
+    }
     @PutMapping @Transactional public Object register(Authentication authentication, @Valid @RequestBody Device device) {
         var user = accounts.ensureAccount(CurrentUser.from(authentication));
-        // Token is a device credential; re-registration transfers it to the currently authenticated account.
-        db.update("DELETE FROM push_devices WHERE token=? AND installation_id<>?",device.token(),device.installationId());
-        db.update("""
-            INSERT INTO push_devices(user_id,installation_id,token,platform,app_version,enabled) VALUES (?,?,?,?,?,?)
-            ON CONFLICT(installation_id) DO UPDATE SET user_id=excluded.user_id,token=excluded.token,platform=excluded.platform,
-            app_version=excluded.app_version,enabled=excluded.enabled,valid=true,updated_at=now()
-            """,user.id(),device.installationId(),device.token(),device.platform(),device.appVersion(),device.enabled());
-        return Map.of("registered",true);
+        return registry.register(device,user.id(),false);
     }
     @DeleteMapping("/{installationId}") public void unregister(Authentication authentication,@PathVariable UUID installationId) {
         var subject = CurrentUser.from(authentication).cognitoSub();

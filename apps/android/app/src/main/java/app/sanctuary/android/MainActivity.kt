@@ -1190,6 +1190,7 @@ private fun AuthenticatedShell(
                 }
 
                 AppTab.Me -> {
+                    item { AnnouncementPreference() }
                     if (session.status == SessionStatus.Authenticated) {
                         item {
                             MeScreen(
@@ -1929,8 +1930,6 @@ private fun MeScreen(
                 }
             }
         }
-
-        AnnouncementPreference()
 
         MeSectionCard(title = l10n.t("me.reminders")) {
             ReminderToggleRow(
@@ -5345,8 +5344,13 @@ private fun AnnouncementPreference() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var enabled by remember { mutableStateOf(AndroidPushNotifications.enabled(context)) }
+    var status by remember { mutableStateOf("") }
     fun sync() {
-        scope.launch { runCatching { AndroidPushNotifications.sync(context, app.sanctuary.android.data.SessionRepository(context, app.sanctuary.android.data.SanctuaryApiFactory.create { null })) } }
+        scope.launch {
+            runCatching { AndroidPushNotifications.sync(context, app.sanctuary.android.data.SessionRepository(context, app.sanctuary.android.data.SanctuaryApiFactory.create { null })) }
+                .onSuccess { status = if (enabled) "Announcement preference synced." else "Announcements are off." }
+                .onFailure { status = "Could not sync notifications. Check your connection and try again." }
+        }
     }
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         enabled = granted
@@ -5354,6 +5358,8 @@ private fun AnnouncementPreference() {
         sync()
     }
     MeSectionCard(title = l10n.t("announcements.title")) {
+        Text(status, color = Color(0xFFD0DFEA))
+        Button(onClick = { sync() }) { Text("Refresh notification registration") }
         ReminderToggleRow(title = l10n.t("announcements.title"), subtitle = l10n.t("announcements.body"), checked = enabled, enabled = true, onCheckedChange = { value ->
             if (value && Build.VERSION.SDK_INT >= 33 && !AndroidPushNotifications.allowed(context)) permission.launch(Manifest.permission.POST_NOTIFICATIONS)
             else {
