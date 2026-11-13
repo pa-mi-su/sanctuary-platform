@@ -53,6 +53,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.ChevronRight
@@ -94,6 +95,7 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -1211,6 +1213,7 @@ private fun AuthenticatedShell(
                         item { LoadingCard() }
                     } else {
                         item { MeSectionCard(title = sanctuaryStrings().t("notifications.title")) { AnnouncementPreference() } }
+                        item { ScheduledRemindersCard() }
                         item {
                             AccountAccessScreen(
                                 session = session,
@@ -1957,6 +1960,8 @@ private fun MeScreen(
             )
             }
         }
+
+        ScheduledRemindersCard()
 
         MeSectionCard(title = l10n.t("me.inProgress")) {
             if (progress.commitments.none { it.status == CommitmentStatus.Active }) {
@@ -5411,6 +5416,8 @@ private fun ContentReminderControl(destination: String, title: String) {
                 .onFailure { problem = l10n.t("itemReminder.error") }
         }, current.first, current.second, android.text.format.DateFormat.is24HourFormat(context)).apply {
             setTitle(l10n.t("itemReminder.title"))
+            setButton(android.content.DialogInterface.BUTTON_POSITIVE, l10n.t("itemReminder.save"), this)
+            setButton(android.content.DialogInterface.BUTTON_NEGATIVE, l10n.t("common.cancel"), this)
         }.show()
     }
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -5429,10 +5436,51 @@ private fun ContentReminderControl(destination: String, title: String) {
         onDismissRequest = { showOptions = false },
         title = { Text(l10n.t("itemReminder.title")) },
         text = { Text(title + "\n" + l10n.t("itemReminder.body") + "\n" + time?.let { "%02d:%02d".format(it.first, it.second) }.orEmpty()) },
-        confirmButton = { TextButton(onClick = { showOptions = false; chooseTime() }) { Text(l10n.t("itemReminder.edit")) } },
-        dismissButton = { TextButton(onClick = { scheduler.removeItem(destination); time = null; showOptions = false }) { Text(l10n.t("itemReminder.remove")) } }
+        confirmButton = { Button(onClick = { showOptions = false; chooseTime() }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF217A66))) { Text(l10n.t("reminders.manage.change"), color = Color.White) } },
+        dismissButton = { OutlinedButton(onClick = { scheduler.removeItem(destination); time = null; showOptions = false }) {
+            Icon(Icons.Filled.Delete, contentDescription = null, tint = Color(0xFFFFA6A6))
+            Spacer(Modifier.width(6.dp))
+            Text(l10n.t("itemReminder.remove"), color = Color(0xFFFFA6A6))
+        } }
     )
     if (problem != null) AlertDialog(onDismissRequest = { problem = null },
         title = { Text(l10n.t("itemReminder.title")) }, text = { Text(problem.orEmpty()) },
         confirmButton = { TextButton(onClick = { problem = null }) { Text("OK") } })
+}
+
+
+@Composable
+private fun ScheduledRemindersCard() {
+    val context = LocalContext.current
+    val l10n = sanctuaryStrings()
+    val scheduler = remember(context) { AndroidReminderScheduler(context) }
+    var reminders by remember { mutableStateOf(scheduler.itemReminders()) }
+    DisposableEffect(scheduler) {
+        val unsubscribe = scheduler.observeItems { reminders = scheduler.itemReminders() }
+        onDispose { unsubscribe() }
+    }
+    var confirmingClear by remember { mutableStateOf(false) }
+    MeSectionCard(title = l10n.t("reminders.manage.title")) {
+        Text(l10n.t("reminders.manage.body"), color = Color(0xFFBAD9E4), fontSize = 13.sp)
+        if (reminders.isEmpty()) Text(l10n.t("reminders.manage.empty"), color = Color(0xFFBAD9E4), modifier = Modifier.padding(vertical = 12.dp))
+        reminders.forEach { reminder ->
+            Row(modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Color(0xFF243D4D)).padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                    Text(reminder.title, color = Color.White, fontWeight = FontWeight.SemiBold)
+                    val calendar = java.util.Calendar.getInstance().apply { set(java.util.Calendar.HOUR_OF_DAY, reminder.hour); set(java.util.Calendar.MINUTE, reminder.minute) }
+                    Text(l10n.t("reminders.manage.daily") + " · " + android.text.format.DateFormat.getTimeFormat(context).format(calendar.time), color = Color(0xFFBAD9E4), fontSize = 13.sp)
+                }
+                IconButton(onClick = { scheduler.removeItem(reminder.destination); reminders = scheduler.itemReminders() }) {
+                    Icon(Icons.Filled.Delete, contentDescription = l10n.t("itemReminder.remove") + ": " + reminder.title, tint = Color(0xFFFFA6A6))
+                }
+            }
+        }
+        if (reminders.isNotEmpty()) OutlinedButton(onClick = { confirmingClear = true }, modifier = Modifier.fillMaxWidth()) {
+            Text(l10n.t("reminders.manage.clear"), color = Color(0xFFFFA6A6))
+        }
+    }
+    if (confirmingClear) AlertDialog(onDismissRequest = { confirmingClear = false },
+        title = { Text(l10n.t("reminders.manage.confirm")) }, text = { Text(l10n.t("reminders.manage.body")) },
+        confirmButton = { Button(onClick = { scheduler.clearItemReminders(); reminders = scheduler.itemReminders(); confirmingClear = false }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF9E3030))) { Text(l10n.t("reminders.manage.clear"), color = Color.White) } },
+        dismissButton = { TextButton(onClick = { confirmingClear = false }) { Text(l10n.t("common.cancel")) } })
 }

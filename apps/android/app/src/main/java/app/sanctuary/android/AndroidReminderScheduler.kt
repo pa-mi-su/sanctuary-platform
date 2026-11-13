@@ -77,6 +77,25 @@ class AndroidReminderScheduler(
         )
     }
 
+    data class ItemReminder(val destination: String, val title: String, val hour: Int, val minute: Int)
+
+    fun itemReminders(): List<ItemReminder> = preferences.all.entries.filter { it.key.startsWith("item:") }.mapNotNull { (key, raw) ->
+        runCatching {
+            val row = org.json.JSONObject(raw as String)
+            ItemReminder(key.removePrefix("item:"), row.getString("title"), row.getInt("hour"), row.getInt("minute"))
+        }.getOrNull()
+    }.sortedBy { it.title.lowercase() }
+
+    fun observeItems(onChange: () -> Unit): () -> Unit {
+        val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+            if (key?.startsWith("item:") == true) onChange()
+        }
+        preferences.registerOnSharedPreferenceChangeListener(listener)
+        return { preferences.unregisterOnSharedPreferenceChangeListener(listener) }
+    }
+
+    fun clearItemReminders() { itemReminders().forEach { removeItem(it.destination) } }
+
     fun itemTime(destination: String): Pair<Int, Int>? {
         val raw = preferences.getString("item:$destination", null) ?: return null
         val row = org.json.JSONObject(raw)

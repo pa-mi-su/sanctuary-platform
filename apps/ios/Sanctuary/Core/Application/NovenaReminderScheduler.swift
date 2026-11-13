@@ -158,6 +158,7 @@ struct ContentReminderButton: View {
         }
         .buttonStyle(.plain)
         .task { await load() }
+        .onChange(of: showing) { visible in if visible { Task { await load() } } }
         .sheet(isPresented: $showing) {
             NavigationStack {
                 Form {
@@ -167,13 +168,19 @@ struct ContentReminderButton: View {
                         DatePicker(localization.t("itemReminder.time"), selection: $time, displayedComponents: .hourAndMinute)
                         if let problem { Text(problem).foregroundStyle(.red) }
                     }
-                    Button(localization.t("itemReminder.save")) { Task { await save() } }
-                    if scheduled {
-                        Button(localization.t("itemReminder.remove"), role: .destructive) {
-                            UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [identifier])
-                            scheduled = false; showing = false
+                    Section {
+                        ReminderActionButton(title: localization.t("itemReminder.save"), symbol: "checkmark.circle.fill") { Task { await save() } }
+                        if scheduled {
+                            ReminderActionButton(title: localization.t("itemReminder.remove"), symbol: "trash", destructive: true) {
+                                let center = UNUserNotificationCenter.current()
+                                center.removePendingNotificationRequests(withIdentifiers: [identifier])
+                                center.removeDeliveredNotifications(withIdentifiers: [identifier])
+                                scheduled = false; showing = false
+                            }
                         }
                     }
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets(top: 6, leading: 0, bottom: 6, trailing: 0))
                 }
                 .scrollContentBackground(.hidden)
                 .background(AppTheme.gradientTop)
@@ -188,6 +195,7 @@ struct ContentReminderButton: View {
     }
     @MainActor private func load() async {
         let requests = await UNUserNotificationCenter.current().pendingNotificationRequests()
+        scheduled = false
         if let trigger = requests.first(where: { $0.identifier == identifier })?.trigger as? UNCalendarNotificationTrigger,
            let date = Calendar.current.date(from: trigger.dateComponents) {
             scheduled = true; time = date
@@ -211,5 +219,24 @@ struct ContentReminderButton: View {
                 trigger: UNCalendarNotificationTrigger(dateMatching: components, repeats: true)))
             scheduled = true; problem = nil; showing = false
         } catch { problem = localization.t("itemReminder.error") }
+    }
+}
+
+
+struct ReminderActionButton: View {
+    let title: String
+    let symbol: String
+    var destructive = false
+    let action: () -> Void
+    var body: some View {
+        Button(role: destructive ? .destructive : nil, action: action) {
+            Label(title, systemImage: symbol)
+                .font(AppTheme.rounded(16, weight: .bold))
+                .frame(maxWidth: .infinity, minHeight: 50)
+                .foregroundStyle(destructive ? Color(red: 1, green: 0.65, blue: 0.65) : .white)
+                .background(destructive ? Color.red.opacity(0.12) : Color(red: 0.13, green: 0.48, blue: 0.40), in: RoundedRectangle(cornerRadius: 14))
+                .overlay(RoundedRectangle(cornerRadius: 14).stroke(destructive ? Color.red.opacity(0.65) : Color.white.opacity(0.35), lineWidth: 1))
+        }
+        .buttonStyle(.plain)
     }
 }

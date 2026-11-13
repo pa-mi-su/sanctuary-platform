@@ -6,7 +6,7 @@ Current release identity:
 
 - production bundle: `com.pamisu.Sanctuary`
 - display name: `Sanctuary: Prayer and Peace`
-- marketing version: `1.0.18`
+- marketing version: `1.0.19`
 - deployment target: iOS 16.6
 - Swift language mode: 5.0
 
