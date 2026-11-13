@@ -41,3 +41,9 @@ Web tests cover preview invalidation and stable request IDs on retries. Full web
 This feature intentionally changes native source and triggers native validation/release workflows when their normal branch conditions apply. Later web/API-only edits remain isolated from native pipelines. Workflow tests also verify private credentials are injected only as secrets and only when enabled.
 
 ![Local Messages preview; sending disabled and no real recipients](previews/messages-local-preview.jpg)
+
+## DEV deployment corrections — November 13, 2026
+
+The first merged DEV release passed PR validation but failed its deployment-job API tests because the job-level push-enabled setting leaked into Spring's test context without runtime credentials. API test steps now explicitly disable push, and the disabled-auth integration context also pins push off. Runtime credential validation remains fail-closed. All 79 API tests ran successfully (one existing skip), including a local run with the inherited push flag deliberately true.
+
+The first iOS distribution archive also applied command-line provisioning/signing overrides to Firebase's Swift Package targets. DEV, UAT and production archive commands now use the existing app-target signing settings in the Xcode project, leaving package resources free of app provisioning profiles. A local Release-Dev device archive succeeded with signing disabled; signed TestFlight archive/upload must still pass in CI. Nine workflow regression checks passed with 115 assertions. No additional Firebase, IAM, or production changes were made for these corrections.
