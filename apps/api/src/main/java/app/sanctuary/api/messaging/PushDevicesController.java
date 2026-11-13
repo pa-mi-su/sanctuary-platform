@@ -18,10 +18,9 @@ public class PushDevicesController {
     private final PushInstallationRegistry registry;
     public PushDevicesController(JdbcTemplate db, UserAccountService accounts) { this.db=db; this.accounts=accounts; this.registry=new PushInstallationRegistry(db); }
     public record Device(@NotNull UUID installationId, @NotBlank @Size(min=20,max=4096) String token,
-        @Pattern(regexp="ios|android") @NotNull String platform, @NotBlank @Size(max=50) String appVersion, boolean enabled, @Size(max=128) String installationSecret, @PositiveOrZero Long revision, @Size(max=100) String deviceLabel) {
-        public Device(UUID installationId,String token,String platform,String appVersion,boolean enabled,String secret,Long revision){this(installationId,token,platform,appVersion,enabled,secret,revision,null);}
-        public Device(UUID installationId,String token,String platform,String appVersion,boolean enabled,String secret){this(installationId,token,platform,appVersion,enabled,secret,null,null);}
-        public Device(UUID installationId,String token,String platform,String appVersion,boolean enabled){this(installationId,token,platform,appVersion,enabled,null,null,null);}
+        @Pattern(regexp="ios|android") @NotNull String platform, @NotBlank @Size(max=50) String appVersion, boolean enabled, @Size(max=128) String installationSecret, @PositiveOrZero Long revision) {
+        public Device(UUID installationId,String token,String platform,String appVersion,boolean enabled,String secret){this(installationId,token,platform,appVersion,enabled,secret,null);}
+        public Device(UUID installationId,String token,String platform,String appVersion,boolean enabled){this(installationId,token,platform,appVersion,enabled,null,null);}
     }
     @PutMapping @Transactional public Object register(Authentication authentication, @Valid @RequestBody Device device) {
         var user = accounts.ensureAccount(CurrentUser.from(authentication));

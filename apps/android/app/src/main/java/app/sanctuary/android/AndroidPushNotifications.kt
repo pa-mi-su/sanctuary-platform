@@ -53,7 +53,7 @@ object AndroidPushNotifications {
         if (!enabled(context) && !preferences(context).getBoolean("registered",false)) return
         channel(context)
         val token = FirebaseMessaging.getInstance().token.await()
-        repository.registerPushDevice(PushDeviceRequest(installation(context),token,"android",BuildConfig.VERSION_NAME,enabled(context) && allowed(context),secret(context),revision,(Build.MANUFACTURER + " " + Build.MODEL).take(100)))
+        repository.registerPushDevice(PushDeviceRequest(installation(context),token,"android",BuildConfig.VERSION_NAME,enabled(context) && allowed(context),secret(context),revision))
         preferences(context).edit().putBoolean("registered",true).apply()
     }
     fun forget(context: Context) {

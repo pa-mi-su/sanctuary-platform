@@ -57,7 +57,7 @@ final class PushNotifications: ObservableObject {
         let consent = enabled && authorized
         do {
             let fcm = try await Messaging.messaging().token()
-            try await api.registerPushDevice(request: .init(installationId: installationID, token: fcm, platform: "ios", appVersion: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown", enabled: consent, installationSecret: try installationSecret(), revision: revision, deviceLabel: UIDevice.current.model), token: token)
+            try await api.registerPushDevice(request: .init(installationId: installationID, token: fcm, platform: "ios", appVersion: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown", enabled: consent, installationSecret: try installationSecret(), revision: revision), token: token)
             defaults.set(true, forKey: "sanctuary.pushRegistered")
             registrationStatus = consent ? "Announcements enabled" + (token == nil ? " · no account required" : "") : "Announcements are off."
         } catch { registrationStatus = "Could not sync notifications. Try again with an internet connection." }

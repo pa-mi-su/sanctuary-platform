@@ -42,7 +42,7 @@ public class PushMessages {
             default -> "?='all'";
         };
         Object argument="test".equals(d.audience())?Objects.toString(d.testDevice(),""):d.audience();
-        return db.queryForList("SELECT p.id,p.user_id,p.token,p.updated_at,p.platform,p.app_version,p.device_label,u.email,u.display_name FROM push_devices p LEFT JOIN users u ON u.id=p.user_id WHERE p.enabled AND p.valid AND p.updated_at>now()-interval '60 days' AND "+filter+" ORDER BY p.id",argument);
+        return db.queryForList("SELECT p.id,p.user_id,p.token,p.updated_at FROM push_devices p WHERE p.enabled AND p.valid AND p.updated_at>now()-interval '60 days' AND "+filter+" ORDER BY p.id",argument);
     }
     String version(List<Map<String,Object>> rows) {
         try { return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(rows.toString().getBytes(StandardCharsets.UTF_8))); }
@@ -50,13 +50,7 @@ public class PushMessages {
     }
     public Object preview(Draft draft) {
         String link=destination(draft); var devices=recipients(draft);
-        var details=devices.stream().map(device -> {
-            Map<String,Object> detail=new LinkedHashMap<>();
-            for(String key:List.of("id","platform","app_version","updated_at","email","display_name","device_label")) detail.put(key,device.get(key));
-            detail.put("signedIn",device.get("user_id")!=null);
-            return detail;
-        }).toList();
-        return Map.of("count",devices.size(),"recipientVersion",version(devices),"destination",link,"enabled",gateway.enabled(),"devices",details);
+        return Map.of("count",devices.size(),"recipientVersion",version(devices),"destination",link,"enabled",gateway.enabled());
     }
     @Transactional public Object send(String actor,Send request) {
         if(request==null || request.id()==null) throw bad("A send identifier is required.");
@@ -72,20 +66,6 @@ public class PushMessages {
         db.update("INSERT INTO push_messages(id,actor_sub,title,body,destination,audience)VALUES(?,?,?,?,?,?)",request.id(),actor,draft.title().strip(),draft.body().strip(),destination,draft.audience());
         for(var device:devices) db.update("INSERT INTO push_deliveries(message_id,device_id,recipient_user_id)VALUES(?,?,?)",request.id(),device.get("id"),device.get("user_id"));
         return Map.of("id",request.id(),"queued",true);
-    }
-    public Object deliveryDetails(UUID messageId) {
-        var devices=db.queryForList("""
-            SELECT d.id,d.device_id,d.state,d.error_code,d.updated_at,p.platform,p.app_version,p.device_label,u.email,u.display_name
-            FROM push_deliveries d LEFT JOIN push_devices p ON p.id=d.device_id
-            LEFT JOIN users u ON u.id=d.recipient_user_id
-            WHERE d.message_id=? ORDER BY d.id
-            """,messageId);
-        return Map.of("devices",devices);
-    }
-    public Object retireDevice(UUID deviceId) {
-        int changed=db.update("UPDATE push_devices SET enabled=false,valid=false,updated_at=now() WHERE id=?",deviceId);
-        if(changed==0) throw bad("This registration no longer exists.");
-        return Map.of("retired",true);
     }
     public Object overview(int page) {
         if(page<0||page>10000) throw bad("Invalid page.");

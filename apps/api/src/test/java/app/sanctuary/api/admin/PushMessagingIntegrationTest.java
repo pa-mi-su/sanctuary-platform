@@ -44,27 +44,12 @@ class PushMessagingIntegrationTest {
         assertThrows(IllegalArgumentException.class,()->new PushMessages(db,gateway,"https://untrusted.example"));
         db.update("DELETE FROM prayers WHERE id=?",prayerId);
     }
-    @Test void retiringOneRegistrationExcludesItAndPreservesItsSendHistory() {
-        UUID id=device("android",true);var draft=draft("all");var message=UUID.randomUUID();
-        transaction.execute(t->messages.send("owner",new PushMessages.Send(message,draft,preview(draft).get("recipientVersion").toString())));
-        messages.retireDevice(id);
-        assertEquals(0,preview(draft).get("count"));
-        var json=new ObjectMapper().valueToTree(messages.deliveryDetails(message));
-        assertEquals(id.toString(),json.at("/devices/0/device_id").asText());
-        assertEquals("pending",json.at("/devices/0/state").asText());
-        assertFalse(json.toString().contains("synthetic-token"));
-        assertFalse(json.toString().contains("installation_secret"));
-    }
-    @Test void previewIdentifiesRecipientsWithoutExposingDeliveryCredentials() {
-        UUID id=device("ios",true);device("android",false);
+    @Test void previewReturnsOnlyCountsAndNoDeviceDetails() {
+        device("ios",true);
         var result=preview(draft("all"));
-        var json=new ObjectMapper().valueToTree(result);
-        assertEquals(1,json.get("devices").size());
-        assertEquals(id.toString(),json.at("/devices/0/id").asText());
-        assertEquals("push@example.test",json.at("/devices/0/email").asText());
-        assertTrue(json.at("/devices/0/signedIn").asBoolean());
-        assertFalse(json.toString().contains("synthetic-token"));
-        assertFalse(json.toString().contains("installation_secret"));
+        assertEquals(Set.of("count","recipientVersion","destination","enabled"),result.keySet());
+        assertEquals(1,result.get("count"));
+        assertFalse(new ObjectMapper().valueToTree(result).toString().contains("synthetic-token"));
     }
     @Test void changedAudienceRejectsSendAndOptOutAfterQueueSkips(){
         UUID device=device("ios",true);var draft=draft("ios");var preview=preview(draft);
