@@ -132,3 +132,84 @@ actor NovenaReminderScheduler {
     }
     #endif
 }
+
+// Per-item reminders are local to this device and independent of account-level digests.
+import SwiftUI
+
+struct ContentReminderButton: View {
+    let kind: String
+    let slug: String
+    let title: String
+    @EnvironmentObject private var localization: LocalizationManager
+    @State private var showing = false
+    @State private var time = Date()
+    @State private var scheduled = false
+    @State private var problem: String?
+    private var identifier: String { "sanctuary.item.\(kind).\(slug)" }
+
+    var body: some View {
+        Button { showing = true } label: {
+            Label(localization.t(scheduled ? "itemReminder.edit" : "itemReminder.add"), systemImage: scheduled ? "bell.badge.fill" : "bell")
+                .font(AppTheme.rounded(16, weight: .semibold))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 18).padding(.vertical, 12)
+                .background(AppTheme.cardBackgroundSoft, in: Capsule())
+                .overlay(Capsule().stroke(Color.white.opacity(0.25), lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .task { await load() }
+        .sheet(isPresented: $showing) {
+            NavigationStack {
+                Form {
+                    Section {
+                        Text(title).font(.headline)
+                        Text(localization.t("itemReminder.body")).font(.footnote)
+                        DatePicker(localization.t("itemReminder.time"), selection: $time, displayedComponents: .hourAndMinute)
+                        if let problem { Text(problem).foregroundStyle(.red) }
+                    }
+                    Button(localization.t("itemReminder.save")) { Task { await save() } }
+                    if scheduled {
+                        Button(localization.t("itemReminder.remove"), role: .destructive) {
+                            UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [identifier])
+                            scheduled = false; showing = false
+                        }
+                    }
+                }
+                .scrollContentBackground(.hidden)
+                .background(AppTheme.gradientTop)
+                .navigationTitle(localization.t("itemReminder.title"))
+                .toolbar { ToolbarItem(placement: .cancellationAction) { Button(localization.t("common.cancel")) { showing = false } } }
+            }
+            .preferredColorScheme(.dark)
+            .tint(.white)
+            .presentationBackground(AppTheme.gradientTop)
+            .presentationDetents([.medium, .large])
+        }
+    }
+    @MainActor private func load() async {
+        let requests = await UNUserNotificationCenter.current().pendingNotificationRequests()
+        if let trigger = requests.first(where: { $0.identifier == identifier })?.trigger as? UNCalendarNotificationTrigger,
+           let date = Calendar.current.date(from: trigger.dateComponents) {
+            scheduled = true; time = date
+        }
+    }
+    @MainActor private func save() async {
+        let center = UNUserNotificationCenter.current()
+        do {
+            guard try await center.requestAuthorization(options: [.alert, .sound]) else {
+                problem = localization.t("itemReminder.permission"); return
+            }
+            let pending = await center.pendingNotificationRequests()
+            guard scheduled || pending.count < 60 else { problem = localization.t("itemReminder.limit"); return }
+            let content = UNMutableNotificationContent()
+            content.title = title
+            content.body = localization.t("itemReminder.notification")
+            content.sound = .default
+            content.userInfo = ["destination": "https://mydailysanctuary.com/\(kind)/\(slug)"]
+            let components = Calendar.current.dateComponents([.hour, .minute], from: time)
+            try await center.add(UNNotificationRequest(identifier: identifier, content: content,
+                trigger: UNCalendarNotificationTrigger(dateMatching: components, repeats: true)))
+            scheduled = true; problem = nil; showing = false
+        } catch { problem = localization.t("itemReminder.error") }
+    }
+}

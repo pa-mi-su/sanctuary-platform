@@ -437,6 +437,8 @@ struct PrayerDetailView: View {
                             Spacer()
                         }
 
+                        ContentReminderButton(kind: "prayers", slug: currentPrayer.slug, title: title)
+
                         ShareLink(item: SharedContentLink(kind: .prayer, slug: currentPrayer.slug).shareText(title: title)) {
                             HStack(spacing: 10) {
                                 Image(systemName: "square.and.arrow.up")

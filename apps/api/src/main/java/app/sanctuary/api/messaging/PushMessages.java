@@ -35,7 +35,7 @@ public class PushMessages {
             default -> "?='all'";
         };
         Object argument="test".equals(d.audience())?Objects.toString(d.testDevice(),""):d.audience();
-        return db.queryForList("SELECT p.id,p.user_id,p.token,p.updated_at FROM push_devices p WHERE p.enabled AND p.valid AND p.updated_at>now()-interval '60 days' AND "+filter+" ORDER BY p.id",argument);
+        return db.queryForList("SELECT p.id,p.user_id,p.token,p.updated_at,p.platform,p.app_version,u.email,u.display_name FROM push_devices p LEFT JOIN users u ON u.id=p.user_id WHERE p.enabled AND p.valid AND p.updated_at>now()-interval '60 days' AND "+filter+" ORDER BY p.id",argument);
     }
     String version(List<Map<String,Object>> rows) {
         try { return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(rows.toString().getBytes(StandardCharsets.UTF_8))); }
@@ -43,7 +43,13 @@ public class PushMessages {
     }
     public Object preview(Draft draft) {
         String link=destination(draft); var devices=recipients(draft);
-        return Map.of("count",devices.size(),"recipientVersion",version(devices),"destination",link,"enabled",gateway.enabled());
+        var details=devices.stream().map(device -> {
+            Map<String,Object> detail=new LinkedHashMap<>();
+            for(String key:List.of("id","platform","app_version","updated_at","email","display_name")) detail.put(key,device.get(key));
+            detail.put("signedIn",device.get("user_id")!=null);
+            return detail;
+        }).toList();
+        return Map.of("count",devices.size(),"recipientVersion",version(devices),"destination",link,"enabled",gateway.enabled(),"devices",details);
     }
     @Transactional public Object send(String actor,Send request) {
         if(request==null || request.id()==null) throw bad("A send identifier is required.");

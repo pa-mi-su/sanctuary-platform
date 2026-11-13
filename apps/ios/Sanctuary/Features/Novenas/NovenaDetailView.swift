@@ -165,6 +165,8 @@ struct NovenaDetailView: View {
                             Spacer()
                         }
 
+                        ContentReminderButton(kind: "novenas", slug: effectiveNovena.slug, title: title)
+
                         ShareLink(item: SharedContentLink(kind: .novena, slug: effectiveNovena.slug).shareText(title: title)) {
                             HStack(spacing: 10) {
                                 Image(systemName: "square.and.arrow.up")

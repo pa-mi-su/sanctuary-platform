@@ -22,14 +22,6 @@ struct MeView: View {
 
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 14) {
-                        VStack(alignment: .leading, spacing: 10) {
-                            Toggle(localization.t("announcements.title"), isOn: Binding(get: { push.enabled }, set: { value in
-                                Task { await push.setEnabled(value); await accountStore.syncPushDevice() }
-                            }))
-                            Text(localization.t("announcements.body")).font(.footnote)
-                            Text(push.registrationStatus).font(.caption)
-                            Button("Refresh notification registration") { Task { await accountStore.syncPushDevice() } }
-                        }.padding().background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18))
                     if accountStore.isAuthenticated {
                         accountHeader
                         reminderPreferencesCard
@@ -39,6 +31,7 @@ struct MeView: View {
                         favoritePrayersCard
                         deleteAccountCard
                     } else {
+                        reminderPreferencesCard
                         AccountAccessView()
                     }
                 }
@@ -108,31 +101,58 @@ struct MeView: View {
     }
 
     private var reminderPreferencesCard: some View {
-        MeCard(title: localization.t("me.reminders")) {
-            VStack(alignment: .leading, spacing: 10) {
+        MeCard(title: localization.t("notifications.title")) {
+            VStack(alignment: .leading, spacing: 12) {
                 reminderToggleRow(
-                    title: localization.t("me.reminders.inProgressTitle"),
-                    subtitle: localization.t("me.reminders.inProgressBody"),
-                    isOn: Binding(
-                        get: { novenaReminderToggle },
-                        set: { newValue in
-                            novenaReminderToggle = newValue
-                            persistReminderPreferences()
-                        }
-                    )
+                    title: localization.t("announcements.title"),
+                    subtitle: localization.t("announcements.body"),
+                    isOn: Binding(get: { push.enabled }, set: { value in
+                        Task { await push.setEnabled(value); await accountStore.syncPushDevice() }
+                    }), available: true
                 )
+                if accountStore.isAuthenticated {
+                    reminderToggleRow(
+                        title: localization.t("me.reminders.inProgressTitle"),
+                        subtitle: localization.t("me.reminders.inProgressBody"),
+                        isOn: Binding(
+                            get: { novenaReminderToggle },
+                            set: { newValue in
+                                novenaReminderToggle = newValue
+                                persistReminderPreferences()
+                            }
+                        )
+                    )
 
-                reminderToggleRow(
-                    title: localization.t("me.reminders.generalTitle"),
-                    subtitle: localization.t("me.reminders.generalBody"),
-                    isOn: Binding(
-                        get: { dailyReminderToggle },
-                        set: { newValue in
-                            dailyReminderToggle = newValue
-                            persistReminderPreferences()
-                        }
+                    reminderToggleRow(
+                        title: localization.t("me.reminders.generalTitle"),
+                        subtitle: localization.t("me.reminders.generalBody"),
+                        isOn: Binding(
+                            get: { dailyReminderToggle },
+                            set: { newValue in
+                                dailyReminderToggle = newValue
+                                persistReminderPreferences()
+                            }
+                        )
                     )
-                )
+                }
+                DisclosureGroup(localization.t("notifications.details")) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        if !push.registrationStatus.isEmpty {
+                            Text(push.registrationStatus).font(.footnote)
+                        }
+                        Button(localization.t("notifications.refresh")) { Task { await accountStore.syncPushDevice() } }
+                            .font(.footnote.weight(.semibold))
+                    }.padding(.top, 8)
+                }
+                .font(AppTheme.rounded(13, weight: .medium))
+                .foregroundStyle(AppTheme.subtitleText)
+                Button {
+                    if let url = URL(string: UIApplication.openNotificationSettingsURLString) { UIApplication.shared.open(url) }
+                } label: {
+                    Label(localization.t("notifications.settings"), systemImage: "arrow.up.right.square")
+                        .font(AppTheme.rounded(13, weight: .semibold))
+                }
+                .foregroundStyle(AppTheme.subtitleText)
             }
         }
     }
@@ -339,7 +359,7 @@ struct MeView: View {
         .buttonStyle(.plain)
     }
 
-    private func reminderToggleRow(title: String, subtitle: String, isOn: Binding<Bool>) -> some View {
+    private func reminderToggleRow(title: String, subtitle: String, isOn: Binding<Bool>, available: Bool = false) -> some View {
         let active = isOn.wrappedValue
 
         return HStack(alignment: .top, spacing: 14) {
@@ -349,15 +369,7 @@ struct MeView: View {
                         .font(.system(size: 16, weight: .semibold, design: .rounded))
                         .foregroundStyle(.white)
 
-                    Text(localization.t(active ? "common.on" : "common.off"))
-                        .font(AppTheme.rounded(11, weight: .bold))
-                        .foregroundStyle(active ? AppTheme.gradientTop : .white.opacity(0.82))
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(
-                            Capsule()
-                                .fill(active ? AppTheme.tabActive : Color.white.opacity(0.12))
-                        )
+
                 }
 
                 Text(subtitle)
@@ -368,10 +380,12 @@ struct MeView: View {
 
             Spacer(minLength: 0)
 
-            Toggle("", isOn: isOn)
+            Toggle(title, isOn: isOn)
                 .labelsHidden()
-                .tint(AppTheme.tabActive)
-                .disabled(isSavingReminderPreferences)
+                .toggleStyle(NotificationSwitchStyle())
+                .accessibilityLabel(title)
+                .tint(Color(red: 0.16, green: 0.65, blue: 0.56))
+                .disabled(!available && isSavingReminderPreferences)
         }
         .padding(.vertical, 12)
         .padding(.horizontal, 14)
@@ -391,7 +405,7 @@ struct MeView: View {
         )
         .overlay(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(active ? AppTheme.tabActive.opacity(0.42) : Color.white.opacity(0.12), lineWidth: 1)
+                .stroke(active ? Color.white.opacity(0.4) : Color.white.opacity(0.24), lineWidth: 1)
         )
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         .animation(.spring(response: 0.24, dampingFraction: 0.82), value: active)
@@ -771,5 +785,23 @@ private enum MeSelectionRoute: Identifiable {
         case .prayer(let prayer):
             return "prayer:\(prayer.id)"
         }
+    }
+}
+
+
+private struct NotificationSwitchStyle: ToggleStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        Button { configuration.isOn.toggle() } label: {
+            ZStack(alignment: configuration.isOn ? .trailing : .leading) {
+                Capsule().fill(configuration.isOn ? Color(red: 0.16, green: 0.65, blue: 0.56) : Color(red: 0.31, green: 0.40, blue: 0.46))
+                Capsule().stroke(Color.white.opacity(0.5), lineWidth: 1)
+                Circle().fill(.white).padding(4).shadow(color: .black.opacity(0.25), radius: 2, y: 1)
+                    .frame(width: 32, height: 32)
+            }
+            .frame(width: 54, height: 32)
+            .animation(.easeInOut(duration: 0.18), value: configuration.isOn)
+        }
+        .buttonStyle(.plain)
+        .accessibilityValue(configuration.isOn ? Text("On") : Text("Off"))
     }
 }
