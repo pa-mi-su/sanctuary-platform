@@ -156,11 +156,14 @@ import { AdminInputComponent } from './admin-input.component';
         <section class="review" aria-labelledby="push-review">
           <h2 id="push-review">Review before sending</h2>
           <p>
-            <strong>{{ preview.count }} devices</strong> ·
+            <strong>{{ preview.count }} app installations</strong> ·
             {{ audienceLabel(audience) }}
           </p>
           <p>Destination: {{ preview.destination }}</p>
-          <p>Device counts include people using more than one device.</p>
+          <p>
+            This counts app installations, not unique phones. Reinstalls and automated tests can
+            leave older registrations.
+          </p>
           <details class="recipient-list">
             <summary>See all {{ preview.count }} recipient devices</summary>
             <p>
@@ -180,7 +183,8 @@ import { AdminInputComponent } from './admin-input.component';
               @for (device of filteredRecipients(); track device.id) {
                 <li>
                   <strong
-                    >{{ device.platform === 'ios' ? 'iOS' : 'Android' }} ·
+                    >{{ device.platform === 'ios' ? 'iOS' : 'Android' }}
+                    {{ device.device_label || '' }} ·
                     {{
                       device.display_name ||
                         device.email ||
@@ -196,12 +200,32 @@ import { AdminInputComponent } from './admin-input.component';
                   >
                   <span>Device {{ device.id }}</span>
                   <span>Last sync {{ device.updated_at | date: 'medium' }}</span>
+                  <button type="button" (click)="retireCandidate = device">
+                    Retire this registration
+                  </button>
                 </li>
               } @empty {
                 <li>No matching devices.</li>
               }
             </ul>
           </details>
+          @if (retireCandidate) {
+            <section role="alertdialog" aria-label="Retire device registration" class="panel">
+              <h3>Retire this registration?</h3>
+              <p>
+                {{ retireCandidate.platform }} ·
+                {{ retireCandidate.device_label || retireCandidate.id }}
+              </p>
+              <p>
+                It will be excluded from future sends. A currently active app can register again on
+                its next sync. Sending history is retained.
+              </p>
+              <button type="button" (click)="retireDevice()" [disabled]="busy()">
+                Retire registration
+              </button>
+              <button type="button" (click)="retireCandidate = null">Cancel</button>
+            </section>
+          }
           <label class="check"
             ><input type="checkbox" [(ngModel)]="confirmed" /> I reviewed the message, destination,
             and audience.</label
@@ -236,6 +260,44 @@ import { AdminInputComponent } from './admin-input.component';
             {{ row.recipients }} recipients · {{ row.accepted }} accepted · {{ row.failed }} failed
             · {{ row.pending }} pending · {{ row.skipped }} skipped · {{ row.unknown }} uncertain
           </p>
+          <details class="recipient-list" (toggle)="historyToggled(row, $event)">
+            <summary>View recipient devices and results</summary>
+            <p>
+              Device IDs come from this send. Model and app version reflect the current
+              registration; removed registrations may have limited details.
+            </p>
+            <label
+              >Find a device<input
+                type="search"
+                [(ngModel)]="historySearch[row.id]"
+                placeholder="Search device, account or result"
+            /></label>
+            @if (!historyDevices[row.id]) {
+              <p>Open to load recipient details.</p>
+            }
+            <ul>
+              @for (device of filteredHistory(row.id); track device.id) {
+                <li>
+                  <strong
+                    >{{ device.device_label || device.platform || 'Removed registration' }} ·
+                    {{ device.state }}</strong
+                  >
+                  <span>{{
+                    device.email || device.display_name || 'No linked account at send time'
+                  }}</span>
+                  <span
+                    >Device {{ device.device_id || 'No longer retained' }} · App
+                    {{ device.app_version || 'Unknown' }}</span
+                  >
+                  @if (device.error_code) {
+                    <span>{{ device.error_code }}</span>
+                  }
+                </li>
+              } @empty {
+                <li>No matching device results loaded.</li>
+              }
+            </ul>
+          </details>
         </article>
       } @empty {
         <p>No messages sent yet.</p>
@@ -269,6 +331,35 @@ export class AdminMessagesComponent implements OnInit {
   contentPage = 0;
   contentMore = false;
   preview: any = null;
+  retireCandidate: any = null;
+  historyDevices: Record<string, any[]> = {};
+  historySearch: Record<string, string> = {};
+  async historyToggled(row: any, event: Event) {
+    if (!(event.target as HTMLDetailsElement).open) return;
+    await this.run(async () => {
+      const result = await this.api('GET', '/messages/' + row.id + '/recipients');
+      this.historyDevices[row.id] = result.devices;
+    });
+  }
+  filteredHistory(id: string) {
+    const query = (this.historySearch[id] || '').trim().toLowerCase();
+    return (this.historyDevices[id] || []).filter((d: any) =>
+      [d.device_id, d.device_label, d.platform, d.email, d.display_name, d.state, d.error_code]
+        .join(' ')
+        .toLowerCase()
+        .includes(query),
+    );
+  }
+  async retireDevice() {
+    if (!this.retireCandidate) return;
+    const id = this.retireCandidate.id;
+    await this.run(async () => {
+      await this.api('POST', '/messages/devices/' + id + '/retire', {});
+      this.retireCandidate = null;
+      this.invalidate();
+      this.notice.set('Registration retired. Review recipients again before sending.');
+    });
+  }
   recipientSearch = '';
   filteredRecipients() {
     const query = this.recipientSearch.trim().toLowerCase();
@@ -323,6 +414,7 @@ export class AdminMessagesComponent implements OnInit {
     };
   }
   invalidate() {
+    this.retireCandidate = null;
     this.preview = null;
     this.confirmed = false;
     this.requestId = '';

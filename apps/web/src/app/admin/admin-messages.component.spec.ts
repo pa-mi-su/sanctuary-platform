@@ -40,6 +40,40 @@ describe('Admin messaging', () => {
     expect(component.filteredRecipients()).toEqual([]);
     expect(component.preview.count).toBe(2);
   });
+  it('loads searchable historical delivery results', async () => {
+    const loading = component.historyToggled({ id: 'sent-id' }, {
+      target: { open: true },
+    } as unknown as Event);
+    http
+      .expectOne('https://api.example.test/admin-api/messages/sent-id/recipients')
+      .flush({
+        devices: [
+          {
+            id: 'delivery',
+            device_id: 'phone-id',
+            device_label: 'Google Pixel',
+            state: 'accepted',
+          },
+        ],
+      });
+    await loading;
+    component.historySearch['sent-id'] = 'pixel';
+    expect(component.filteredHistory('sent-id').length).toBe(1);
+    component.historySearch['sent-id'] = 'failed';
+    expect(component.filteredHistory('sent-id')).toEqual([]);
+  });
+  it('retires only the selected registration and invalidates the reviewed audience', async () => {
+    component.preview = { count: 2 };
+    component.confirmed = true;
+    component.retireCandidate = { id: 'stale-id' };
+    const retiring = component.retireDevice();
+    http
+      .expectOne('https://api.example.test/admin-api/messages/devices/stale-id/retire')
+      .flush({ retired: true });
+    await retiring;
+    expect(component.preview).toBeNull();
+    expect(component.confirmed).toBe(false);
+  });
   it('defaults to owner test only and invalidates review after editing', async () => {
     expect(component.audience).toBe('test');
     component.title = 'Prayer';

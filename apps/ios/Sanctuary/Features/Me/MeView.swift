@@ -34,7 +34,6 @@ struct MeView: View {
                         deleteAccountCard
                     } else {
                         reminderPreferencesCard
-                        ScheduledRemindersCard()
                         AccountAccessView()
                     }
                 }

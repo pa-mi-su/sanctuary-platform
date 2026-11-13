@@ -270,6 +270,7 @@ struct APIPushDeviceRequest: Encodable, Sendable {
     let enabled: Bool
     let installationSecret: String?
     let revision: Int
+    let deviceLabel: String?
 }
 struct APIPushRegistered: Decodable, Sendable { let registered: Bool }
 

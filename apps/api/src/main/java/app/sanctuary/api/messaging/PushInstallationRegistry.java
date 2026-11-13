@@ -34,11 +34,11 @@ public class PushInstallationRegistry {
         }
         if(Boolean.TRUE.equals(db.queryForObject("SELECT EXISTS(SELECT 1 FROM push_devices WHERE token=? AND installation_id<>?)",Boolean.class,device.token(),device.installationId())))throw new AuthFlowException(HttpStatus.CONFLICT,"This device token belongs to another installation. Refresh notification registration.");
         db.update("""
-            INSERT INTO push_devices(user_id,installation_id,installation_secret_hash,token,platform,app_version,enabled,registration_version)VALUES(?,?,?,?,?,?,?,?)
+            INSERT INTO push_devices(user_id,installation_id,installation_secret_hash,token,platform,app_version,enabled,registration_version,device_label)VALUES(?,?,?,?,?,?,?,?,?)
             ON CONFLICT(installation_id)DO UPDATE SET user_id=excluded.user_id,
             installation_secret_hash=COALESCE(excluded.installation_secret_hash,push_devices.installation_secret_hash),
-            registration_version=excluded.registration_version,token=excluded.token,platform=excluded.platform,app_version=excluded.app_version,enabled=excluded.enabled,valid=true,updated_at=now()
-            """,owner,device.installationId(),secret==null?null:hash(secret),device.token(),device.platform(),device.appVersion(),device.enabled(),revision);
+            device_label=excluded.device_label,registration_version=excluded.registration_version,token=excluded.token,platform=excluded.platform,app_version=excluded.app_version,enabled=excluded.enabled,valid=true,updated_at=now()
+            """,owner,device.installationId(),secret==null?null:hash(secret),device.token(),device.platform(),device.appVersion(),device.enabled(),revision,device.deviceLabel());
         return Map.of("registered",true);
     }
 }

@@ -141,6 +141,8 @@ struct ContentReminderButton: View {
     let slug: String
     let title: String
     @EnvironmentObject private var localization: LocalizationManager
+    @EnvironmentObject private var accountStore: AccountSessionStore
+    @State private var accountRequired = false
     @State private var showing = false
     @State private var time = Date()
     @State private var scheduled = false
@@ -148,7 +150,9 @@ struct ContentReminderButton: View {
     private var identifier: String { "sanctuary.item.\(kind).\(slug)" }
 
     var body: some View {
-        Button { showing = true } label: {
+        Button {
+            if accountStore.isAuthenticated { showing = true } else { accountRequired = true }
+        } label: {
             Label(localization.t(scheduled ? "itemReminder.edit" : "itemReminder.add"), systemImage: scheduled ? "bell.badge.fill" : "bell")
                 .font(AppTheme.rounded(16, weight: .semibold))
                 .foregroundStyle(.white)
@@ -157,6 +161,8 @@ struct ContentReminderButton: View {
                 .overlay(Capsule().stroke(Color.white.opacity(0.25), lineWidth: 1))
         }
         .buttonStyle(.plain)
+        .accountRequiredPrompt(isPresented: $accountRequired, onAuthenticated: { showing = true })
+        .onChange(of: accountStore.isAuthenticated) { authenticated in if !authenticated { showing = false } }
         .task { await load() }
         .onChange(of: showing) { visible in if visible { Task { await load() } } }
         .sheet(isPresented: $showing) {
@@ -202,6 +208,7 @@ struct ContentReminderButton: View {
         }
     }
     @MainActor private func save() async {
+        guard accountStore.isAuthenticated else { showing = false; accountRequired = true; return }
         let center = UNUserNotificationCenter.current()
         do {
             guard try await center.requestAuthorization(options: [.alert, .sound]) else {

@@ -32,6 +32,29 @@ class PushMessagingIntegrationTest {
         assertEquals("accepted",db.queryForObject("SELECT state FROM push_deliveries",String.class));
         assertFalse(new ObjectMapper().valueToTree(messages.overview(0)).toString().contains("synthetic-token"));
     }
+    @Test void devDestinationsStayOnDevAndProductionStaysOnProduction() {
+        var dev=new PushMessages(db,gateway,"https://dev.mydailysanctuary.com");
+        assertEquals("https://dev.mydailysanctuary.com/",((Map<?,?>)dev.preview(draft("all"))).get("destination"));
+        String prayerId="push-link-"+UUID.randomUUID();
+        db.update("INSERT INTO prayers(id,slug,category,title_en,title_es,title_pl,body_en,body_es,body_pl,alternate_title_en,alternate_title_es,alternate_title_pl,note_en,note_es,note_pl,source_title,source_type)VALUES(?,?,'test','','','','','','','','','','','','','','')",prayerId,prayerId);
+        var prayer=Map.of("id",prayerId,"slug",prayerId);
+        var draft=new PushMessages.Draft("Prayer","Message","prayers",prayer.get("id").toString(),"all",null);
+        assertEquals("https://dev.mydailysanctuary.com/prayers/"+prayer.get("slug"),((Map<?,?>)dev.preview(draft)).get("destination"));
+        assertEquals("https://mydailysanctuary.com/prayers/"+prayer.get("slug"),preview(draft).get("destination"));
+        assertThrows(IllegalArgumentException.class,()->new PushMessages(db,gateway,"https://untrusted.example"));
+        db.update("DELETE FROM prayers WHERE id=?",prayerId);
+    }
+    @Test void retiringOneRegistrationExcludesItAndPreservesItsSendHistory() {
+        UUID id=device("android",true);var draft=draft("all");var message=UUID.randomUUID();
+        transaction.execute(t->messages.send("owner",new PushMessages.Send(message,draft,preview(draft).get("recipientVersion").toString())));
+        messages.retireDevice(id);
+        assertEquals(0,preview(draft).get("count"));
+        var json=new ObjectMapper().valueToTree(messages.deliveryDetails(message));
+        assertEquals(id.toString(),json.at("/devices/0/device_id").asText());
+        assertEquals("pending",json.at("/devices/0/state").asText());
+        assertFalse(json.toString().contains("synthetic-token"));
+        assertFalse(json.toString().contains("installation_secret"));
+    }
     @Test void previewIdentifiesRecipientsWithoutExposingDeliveryCredentials() {
         UUID id=device("ios",true);device("android",false);
         var result=preview(draft("all"));

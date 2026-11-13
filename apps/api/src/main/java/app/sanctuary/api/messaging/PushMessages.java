@@ -13,18 +13,25 @@ import app.sanctuary.api.auth.service.AuthFlowException;
 public class PushMessages {
     private final JdbcTemplate db;
     private final PushGateway gateway;
-    public PushMessages(JdbcTemplate db, PushGateway gateway) { this.db=db; this.gateway=gateway; }
+    private final String siteUrl;
+    public PushMessages(JdbcTemplate db, PushGateway gateway) { this(db,gateway,"https://mydailysanctuary.com"); }
+    @org.springframework.beans.factory.annotation.Autowired
+    public PushMessages(JdbcTemplate db, PushGateway gateway,
+        @org.springframework.beans.factory.annotation.Value("${sanctuary.push.site-url:https://mydailysanctuary.com}") String siteUrl) {
+        if (!Set.of("https://mydailysanctuary.com","https://dev.mydailysanctuary.com").contains(siteUrl)) throw new IllegalArgumentException("Invalid notification site URL");
+        this.db=db; this.gateway=gateway; this.siteUrl=siteUrl;
+    }
     public record Draft(String title,String body,String kind,String contentId,String audience,UUID testDevice) {}
     public record Send(UUID id, Draft draft,String recipientVersion) {}
     static AuthFlowException bad(String text) { return new AuthFlowException(HttpStatus.BAD_REQUEST,text); }
     String destination(Draft d) {
         if (d == null || d.title()==null || d.title().isBlank() || d.title().length()>100 || d.body()==null || d.body().isBlank() || d.body().length()>500) throw bad("Enter a title up to 100 characters and a message up to 500 characters.");
         if (!Set.of("all","ios","android","test","guests","members").contains(Objects.toString(d.audience(),""))) throw bad("Choose an audience.");
-        if ("home".equals(d.kind())) return "https://mydailysanctuary.com/";
+        if ("home".equals(d.kind())) return siteUrl+"/";
         if (!Set.of("prayers","saints","novenas").contains(Objects.toString(d.kind(),""))) throw bad("Choose a content destination.");
         var rows=db.queryForList("SELECT slug FROM "+d.kind()+" WHERE id=?",d.contentId());
         if(rows.isEmpty()) throw bad("This content no longer exists. Choose another destination.");
-        return "https://mydailysanctuary.com/"+d.kind()+"/"+rows.getFirst().get("slug");
+        return siteUrl+"/"+d.kind()+"/"+rows.getFirst().get("slug");
     }
     List<Map<String,Object>> recipients(Draft d) {
         String filter=switch(d.audience()) {
@@ -35,7 +42,7 @@ public class PushMessages {
             default -> "?='all'";
         };
         Object argument="test".equals(d.audience())?Objects.toString(d.testDevice(),""):d.audience();
-        return db.queryForList("SELECT p.id,p.user_id,p.token,p.updated_at,p.platform,p.app_version,u.email,u.display_name FROM push_devices p LEFT JOIN users u ON u.id=p.user_id WHERE p.enabled AND p.valid AND p.updated_at>now()-interval '60 days' AND "+filter+" ORDER BY p.id",argument);
+        return db.queryForList("SELECT p.id,p.user_id,p.token,p.updated_at,p.platform,p.app_version,p.device_label,u.email,u.display_name FROM push_devices p LEFT JOIN users u ON u.id=p.user_id WHERE p.enabled AND p.valid AND p.updated_at>now()-interval '60 days' AND "+filter+" ORDER BY p.id",argument);
     }
     String version(List<Map<String,Object>> rows) {
         try { return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(rows.toString().getBytes(StandardCharsets.UTF_8))); }
@@ -45,7 +52,7 @@ public class PushMessages {
         String link=destination(draft); var devices=recipients(draft);
         var details=devices.stream().map(device -> {
             Map<String,Object> detail=new LinkedHashMap<>();
-            for(String key:List.of("id","platform","app_version","updated_at","email","display_name")) detail.put(key,device.get(key));
+            for(String key:List.of("id","platform","app_version","updated_at","email","display_name","device_label")) detail.put(key,device.get(key));
             detail.put("signedIn",device.get("user_id")!=null);
             return detail;
         }).toList();
@@ -57,7 +64,7 @@ public class PushMessages {
         if(Boolean.TRUE.equals(db.queryForObject("SELECT EXISTS(SELECT 1 FROM push_messages WHERE id=?)",Boolean.class,request.id()))) return Map.of("id",request.id(),"queued",true);
         if(!gateway.enabled()) throw new AuthFlowException(HttpStatus.SERVICE_UNAVAILABLE,"Messaging is not enabled in this environment.");
         var draft=request.draft(); String destination=destination(draft); var devices=recipients(draft);
-        if(devices.isEmpty()) throw bad("No eligible opted-in devices. Update the app, sign in, and enable announcements first.");
+        if(devices.isEmpty()) throw bad("No eligible opted-in devices. Update the app and enable announcements first.");
         if(!version(devices).equals(request.recipientVersion())) throw new AuthFlowException(HttpStatus.CONFLICT,"The audience changed. Review the recipients again.");
         db.queryForObject("SELECT pg_advisory_xact_lock(724281039)",Object.class);
         int recent=db.queryForObject("SELECT count(*) FROM push_messages WHERE created_at>now()-interval '1 hour'",Integer.class);
@@ -65,6 +72,20 @@ public class PushMessages {
         db.update("INSERT INTO push_messages(id,actor_sub,title,body,destination,audience)VALUES(?,?,?,?,?,?)",request.id(),actor,draft.title().strip(),draft.body().strip(),destination,draft.audience());
         for(var device:devices) db.update("INSERT INTO push_deliveries(message_id,device_id,recipient_user_id)VALUES(?,?,?)",request.id(),device.get("id"),device.get("user_id"));
         return Map.of("id",request.id(),"queued",true);
+    }
+    public Object deliveryDetails(UUID messageId) {
+        var devices=db.queryForList("""
+            SELECT d.id,d.device_id,d.state,d.error_code,d.updated_at,p.platform,p.app_version,p.device_label,u.email,u.display_name
+            FROM push_deliveries d LEFT JOIN push_devices p ON p.id=d.device_id
+            LEFT JOIN users u ON u.id=d.recipient_user_id
+            WHERE d.message_id=? ORDER BY d.id
+            """,messageId);
+        return Map.of("devices",devices);
+    }
+    public Object retireDevice(UUID deviceId) {
+        int changed=db.update("UPDATE push_devices SET enabled=false,valid=false,updated_at=now() WHERE id=?",deviceId);
+        if(changed==0) throw bad("This registration no longer exists.");
+        return Map.of("retired",true);
     }
     public Object overview(int page) {
         if(page<0||page>10000) throw bad("Invalid page.");

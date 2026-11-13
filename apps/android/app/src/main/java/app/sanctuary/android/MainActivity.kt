@@ -232,10 +232,7 @@ class MainActivity : ComponentActivity() {
 
     private fun handleSharedContentIntent(intent: Intent?) {
         val uri = intent?.data ?: intent?.getStringExtra("destination")?.let(Uri::parse) ?: return
-        val host = uri.host?.lowercase()
-        if (uri.scheme != "https" || (host != "mydailysanctuary.com" && host != "www.mydailysanctuary.com")) {
-            return
-        }
+        if (!isSanctuaryNotificationLink(uri.toString(), BuildConfig.ENVIRONMENT)) return
 
         val segments = uri.pathSegments
         if (segments.isEmpty()) { viewModel.openHome(); return }
@@ -296,6 +293,7 @@ private sealed interface DeferredAccountAction {
         val durationDays: Int?
     ) : DeferredAccountAction
 
+    data class Reminder(val destination: String) : DeferredAccountAction
     data class StartNovena(val novenaId: String) : DeferredAccountAction
 }
 
@@ -941,6 +939,7 @@ private fun AuthenticatedShell(
     var aboutDocument by rememberSaveable { mutableStateOf<AboutDocument?>(null) }
     var showAccountRequiredPrompt by rememberSaveable { mutableStateOf(false) }
     var requestedAuthStep by rememberSaveable { mutableStateOf<AuthStep?>(null) }
+    var resumeReminder by remember { mutableStateOf<String?>(null) }
     var deferredAccountAction by remember { mutableStateOf<DeferredAccountAction?>(null) }
     var accountReturnTab by rememberSaveable { mutableStateOf<AppTab?>(null) }
     var saintsCalendarMode by rememberSaveable { mutableStateOf(CalendarMode.Day) }
@@ -987,6 +986,7 @@ private fun AuthenticatedShell(
                         )
                     }
                 }
+                is DeferredAccountAction.Reminder -> { resumeReminder = action.destination }
                 is DeferredAccountAction.StartNovena -> {
                     val alreadyStarted = novenaProgress.commitments.any {
                         it.novenaId == action.novenaId &&
@@ -1213,7 +1213,6 @@ private fun AuthenticatedShell(
                         item { LoadingCard() }
                     } else {
                         item { MeSectionCard(title = sanctuaryStrings().t("notifications.title")) { AnnouncementPreference() } }
-                        item { ScheduledRemindersCard() }
                         item {
                             AccountAccessScreen(
                                 session = session,
@@ -1463,6 +1462,8 @@ private fun AuthenticatedShell(
                         onCompleteDay = onCompleteNovenaDay,
                         onToggleFavorite = onToggleFavorite,
                         onRequireAccount = { detail -> requireAccount(detail) },
+                        resumeReminder = resumeReminder,
+                        onReminderResumed = { resumeReminder = null },
                         onDismiss = onCloseNovenaDetail
                     )
                 }
@@ -1480,6 +1481,8 @@ private fun AuthenticatedShell(
                         progress = novenaProgress,
                         onToggleFavorite = onToggleFavorite,
                         onRequireAccount = { detail -> requireAccount(detail) },
+                        resumeReminder = resumeReminder,
+                        onReminderResumed = { resumeReminder = null },
                         onDismiss = onClosePrayerDetail
                     )
                 }
@@ -3634,6 +3637,8 @@ private fun NovenaDetailSheet(
     onCompleteDay: (String, Int) -> Unit,
     onToggleFavorite: (FavoriteItemType, String, String?, String?, Int?) -> Unit,
     onRequireAccount: (DeferredAccountAction) -> Unit,
+    resumeReminder: String?,
+    onReminderResumed: () -> Unit,
     onDismiss: () -> Unit
 ) {
     val l10n = sanctuaryStrings()
@@ -3711,7 +3716,10 @@ private fun NovenaDetailSheet(
         ) {
             Text(if (isFavorite) l10n.t("detail.favorite.saved") else l10n.t("detail.favorite.add"))
         }
-        ContentReminderControl(destination = sharedContentUrl(SharedContentKind.Novena, detail.slug), title = detail.title)
+        ContentReminderControl(destination = sharedContentUrl(SharedContentKind.Novena, detail.slug), title = detail.title,
+                authenticated = session.status == SessionStatus.Authenticated,
+                onRequireAccount = { onRequireAccount(DeferredAccountAction.Reminder(sharedContentUrl(SharedContentKind.Novena, detail.slug))) },
+                resume = resumeReminder == sharedContentUrl(SharedContentKind.Novena, detail.slug), onResumed = onReminderResumed)
         Button(
             onClick = {
                 shareContent(
@@ -3845,6 +3853,8 @@ private fun PrayerDetailSheet(
     progress: NovenaProgressUiState,
     onToggleFavorite: (FavoriteItemType, String, String?, String?, Int?) -> Unit,
     onRequireAccount: (DeferredAccountAction) -> Unit,
+    resumeReminder: String?,
+    onReminderResumed: () -> Unit,
     onDismiss: () -> Unit
 ) {
     val l10n = sanctuaryStrings()
@@ -3924,7 +3934,10 @@ private fun PrayerDetailSheet(
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(if (isFavorite) l10n.t("detail.favorite.saved") else l10n.t("detail.favorite.add"))
             }
-            ContentReminderControl(destination = sharedContentUrl(SharedContentKind.Prayer, detail.slug), title = detail.title)
+            ContentReminderControl(destination = sharedContentUrl(SharedContentKind.Prayer, detail.slug), title = detail.title,
+                authenticated = session.status == SessionStatus.Authenticated,
+                onRequireAccount = { onRequireAccount(DeferredAccountAction.Reminder(sharedContentUrl(SharedContentKind.Prayer, detail.slug))) },
+                resume = resumeReminder == sharedContentUrl(SharedContentKind.Prayer, detail.slug), onResumed = onReminderResumed)
             Button(
                 onClick = {
                     shareContent(
@@ -5401,16 +5414,18 @@ private fun AnnouncementPreference(reminders: @Composable () -> Unit = {}) {
 
 
 @Composable
-private fun ContentReminderControl(destination: String, title: String) {
+private fun ContentReminderControl(destination: String, title: String, authenticated: Boolean, onRequireAccount: () -> Unit, resume: Boolean, onResumed: () -> Unit) {
     val context = LocalContext.current
     val l10n = sanctuaryStrings()
     val scheduler = remember(context) { AndroidReminderScheduler(context) }
+    val currentAuthenticated by androidx.compose.runtime.rememberUpdatedState(authenticated)
     var time by remember(destination) { mutableStateOf(scheduler.itemTime(destination)) }
     var problem by remember { mutableStateOf<String?>(null) }
     var showOptions by remember { mutableStateOf(false) }
     fun chooseTime() {
         val current = time ?: (8 to 0)
         android.app.TimePickerDialog(context, { _, hour, minute ->
+            if (!currentAuthenticated) { onRequireAccount(); return@TimePickerDialog }
             runCatching { scheduler.setItem(destination, title, hour, minute) }
                 .onSuccess { time = hour to minute; problem = null }
                 .onFailure { problem = l10n.t("itemReminder.error") }
@@ -5421,10 +5436,19 @@ private fun ContentReminderControl(destination: String, title: String) {
         }.show()
     }
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (granted) chooseTime() else problem = l10n.t("itemReminder.permission")
+        if (!currentAuthenticated) onRequireAccount()
+        else if (granted) chooseTime() else problem = l10n.t("itemReminder.permission")
+    }
+    LaunchedEffect(authenticated, resume) {
+        if (authenticated && resume) {
+            onResumed()
+            if (!AndroidPushNotifications.allowed(context) && Build.VERSION.SDK_INT >= 33) permission.launch(Manifest.permission.POST_NOTIFICATIONS)
+            else chooseTime()
+        }
     }
     OutlinedButton(onClick = {
-        if (time != null) showOptions = true
+        if (!currentAuthenticated) onRequireAccount()
+        else if (time != null) showOptions = true
         else if (!AndroidPushNotifications.allowed(context)) {
             if (Build.VERSION.SDK_INT >= 33) permission.launch(Manifest.permission.POST_NOTIFICATIONS)
             else problem = l10n.t("itemReminder.permission")
