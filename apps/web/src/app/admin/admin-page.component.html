@@ -199,13 +199,24 @@
           >
             <span aria-hidden="true">◷</span>Publishing history
           </button>
+          <button
+            [class.active]="section === 'messages'"
+            (click)="navigate('messages')"
+            [disabled]="busy()"
+          >
+            Messages
+          </button>
           <div class="sidebar-note">
             <span class="status-dot"></span>Secure workspace
             <p>8-hour idle timeout<br />24-hour session maximum</p>
           </div>
         </nav>
         <section class="workspace" [attr.aria-busy]="busy()">
-          @if (section === 'content') {
+          @if (section === 'messages') {
+            <admin-messages
+              (sessionExpired)="logout('Your session expired. Please sign in again.')"
+            />
+          } @else if (section === 'content') {
             @if (!values) {
               <div class="page-heading">
                 <div>
@@ -841,7 +852,7 @@
               }
             }
           }
-          @if (!values && !user && !auditSnapshot) {
+          @if (section !== 'messages' && !values && !user && !auditSnapshot) {
             <div class="pagination">
               <button [disabled]="busy() || page === 0" (click)="turnPage(-1)">← Previous</button
               ><span>Page {{ page + 1 }}</span
@@ -881,8 +892,12 @@
       <p class="eyebrow">UNPUBLISHED CHANGES</p>
       <h2 id="dialog-title">Keep your work?</h2>
       <p>
-        You’ve made changes to this item. Leave without publishing, or return to the editor to keep
-        working.
+        @if (section === 'messages') {
+          Your message has unsent changes. Leave without sending, or return to keep editing.
+        } @else {
+          You’ve made changes to this item. Leave without publishing, or return to the editor to
+          keep working.
+        }
       </p>
       <div class="dialog-actions">
         <button class="subtle" (click)="decideDiscard(true)">Discard changes</button

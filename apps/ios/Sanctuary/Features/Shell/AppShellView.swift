@@ -10,6 +10,8 @@ enum AppTab: Hashable {
 
 struct AppShellView: View {
     let environment: AppEnvironment
+    @Environment(\.scenePhase) private var scenePhase
+    @ObservedObject private var push = PushNotifications.shared
     @State private var selectedTab: AppTab = .home
     @State private var sharedContentLink: SharedContentLink?
     @StateObject private var localization: LocalizationManager
@@ -88,6 +90,17 @@ struct AppShellView: View {
                 novenaEnabled: accountStore.profile?.novenaRemindersEnabled ?? false,
                 generalDailyEnabled: accountStore.profile?.feastRemindersEnabled ?? false
             )
+        }
+        .onChange(of: scenePhase) { phase in
+            if phase == .active { Task { await accountStore.syncPushDevice() } }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: PushNotifications.tokenChanged)) { _ in
+            Task { await accountStore.syncPushDevice() }
+        }
+        .onReceive(push.$destination) { url in
+            guard let url else { return }
+            if url.path == "/" { sharedContentLink = nil; selectedTab = .home } else { openSharedContent(url) }
+            push.destination = nil
         }
         .onOpenURL { url in
             openSharedContent(url)

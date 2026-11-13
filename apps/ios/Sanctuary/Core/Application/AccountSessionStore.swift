@@ -277,6 +277,7 @@ final class AccountSessionStore: ObservableObject {
             profile = mapProfile(response, fallbackSession: activeSession)
             status = .authenticated
             clearMessage()
+            await syncPushDevice()
         } catch {
             if isSessionRejected(error) {
                 guard let refreshedToken = await refreshAuthorizationTokenAfterRejection() else {
@@ -309,7 +310,14 @@ final class AccountSessionStore: ObservableObject {
     }
 
     func logout() {
+        let token = session.map { $0.idToken.isEmpty ? $0.accessToken : $0.idToken }
         clearStoredSession()
+        Task { await PushNotifications.shared.signOut(api: apiClient, token: token) }
+    }
+
+    func syncPushDevice() async {
+        guard let token = await authorizationToken() else { return }
+        await PushNotifications.shared.sync(api: apiClient, token: token)
     }
 
     func deleteAccount() async -> Bool {
@@ -540,6 +548,7 @@ final class AccountSessionStore: ObservableObject {
     }
 
     private func clearStoredSession() {
+        PushNotifications.shared.resetConsent()
         secureStore.delete(account: sessionAccountKey)
         session = nil
         profile = nil
