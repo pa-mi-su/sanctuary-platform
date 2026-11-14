@@ -3,7 +3,15 @@
         <item name="postSplashScreenTheme">@style/Theme.Sanctuary</item>
     </style>
 
-    <style name="Theme.Sanctuary.Base" parent="Theme.Material3.DayNight.NoActionBar">
+    <style name="Theme.Sanctuary.Base" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="colorPrimary">#3E9FC1</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="colorSecondary">#8EE0F2</item>
+        <item name="colorSurface">#173340</item>
+        <item name="colorOnSurface">#F4FAFF</item>
+        <item name="android:colorAccent">#8EE0F2</item>
+        <item name="android:datePickerDialogTheme">@style/Theme.Sanctuary.Picker</item>
+        <item name="android:timePickerDialogTheme">@style/Theme.Sanctuary.Picker</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">#132433</item>
         <item name="android:windowLightStatusBar">false</item>
@@ -12,4 +20,19 @@
     </style>
 
     <style name="Theme.Sanctuary" parent="Theme.Sanctuary.Base" />
+    <style name="Theme.Sanctuary.Picker" parent="android:style/Theme.Material.Dialog.Alert">
+        <item name="android:colorAccent">#8EE0F2</item>
+        <item name="android:colorBackground">#173340</item>
+        <item name="android:windowBackground">@drawable/sanctuary_dialog_background</item>
+        <item name="android:datePickerStyle">@style/Widget.Sanctuary.DatePicker</item>
+        <item name="android:timePickerStyle">@style/Widget.Sanctuary.TimePicker</item>
+        <item name="android:textColorPrimary">#F4FAFF</item>
+        <item name="android:textColorSecondary">#D0DFEA</item>
+    </style>
+    <style name="Widget.Sanctuary.DatePicker" parent="android:style/Widget.Material.DatePicker">
+        <item name="android:headerBackground">#245C73</item>
+    </style>
+    <style name="Widget.Sanctuary.TimePicker" parent="android:style/Widget.Material.TimePicker">
+        <item name="android:headerBackground">#245C73</item>
+    </style>
 </resources>

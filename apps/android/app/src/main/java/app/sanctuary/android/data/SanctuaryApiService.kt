@@ -40,6 +40,9 @@ interface SanctuaryApiService {
     @POST("auth/reset-password")
     suspend fun resetPassword(@Body request: AuthResetPasswordRequest): AuthSessionResponse
 
+    @GET("calendar/novenas/{id}/window/{year}")
+    suspend fun novenaWindow(@Path("id") id: String, @Path("year") year: Int): NovenaWindowResponse
+
     @PUT("push/installations")
     suspend fun registerAnonymousPushDevice(@Body request: PushDeviceRequest)
 
@@ -249,3 +252,5 @@ suspend fun <T> runApiCall(block: suspend () -> T): T {
 }
 
 data class PushDeviceRequest(val installationId: String,val token: String,val platform: String,val appVersion: String,val enabled: Boolean, val installationSecret: String? = null, val revision: Long? = null)
+
+data class NovenaWindowResponse(val novenaId: String, val startDate: String, val endDate: String, val feastDate: String)
