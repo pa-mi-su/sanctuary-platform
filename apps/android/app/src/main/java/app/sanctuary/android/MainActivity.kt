@@ -23,6 +23,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
@@ -38,6 +39,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
@@ -53,6 +55,13 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.NotificationsActive
+import androidx.compose.material.icons.filled.NotificationsNone
+import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.NorthEast
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.ChevronLeft
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.NotificationsOff
 import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.ExpandMore
@@ -165,6 +174,9 @@ import app.sanctuary.android.ui.theme.SanctuaryGradientBottom
 import app.sanctuary.android.ui.theme.SanctuaryGradientMid
 import app.sanctuary.android.ui.theme.SanctuaryGradientTop
 import app.sanctuary.android.ui.theme.SanctuaryCardElevated
+import app.sanctuary.android.ui.theme.SanctuaryCardBorder
+import app.sanctuary.android.ui.theme.SanctuaryCardSoft
+import app.sanctuary.android.ui.theme.SanctuaryCard
 import app.sanctuary.android.ui.theme.SanctuaryTabActive
 import app.sanctuary.android.ui.theme.SanctuaryTabBackground
 import app.sanctuary.android.ui.theme.SanctuaryTabBorder
@@ -943,6 +955,7 @@ private fun AuthenticatedShell(
     var deferredAccountAction by remember { mutableStateOf<DeferredAccountAction?>(null) }
     var accountReturnTab by rememberSaveable { mutableStateOf<AppTab?>(null) }
     var saintsCalendarMode by rememberSaveable { mutableStateOf(CalendarMode.Day) }
+    var novenaDetailYear by rememberSaveable { mutableStateOf(LocalDate.now().year) }
     var novenasCalendarMode by rememberSaveable { mutableStateOf(CalendarMode.Day) }
     fun openSupportEmail() {
         val intent = Intent(Intent.ACTION_SENDTO).apply {
@@ -1050,10 +1063,11 @@ private fun AuthenticatedShell(
                                 unselectedTextColor = SanctuaryTabInactive
                             ),
                             icon = {
-                                Icon(
-                                    imageVector = tab.icon(),
-                                    contentDescription = tab.label(l10n)
-                                )
+                                Box(Modifier.size(28.dp)) {
+                                    Icon(imageVector = tab.icon(), contentDescription = tab.label(l10n), modifier = Modifier.size(26.dp))
+                                    if (tab != AppTab.Home && tab != AppTab.Me) Icon(Icons.Filled.Schedule, contentDescription = null,
+                                        modifier = Modifier.align(Alignment.BottomEnd).size(12.dp).background(SanctuaryTabBackground, CircleShape))
+                                }
                             }
                         )
                     }
@@ -1065,8 +1079,8 @@ private fun AuthenticatedShell(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
-            contentPadding = PaddingValues(if (selectedTab == AppTab.Me) 16.dp else 24.dp),
-            verticalArrangement = Arrangement.spacedBy(if (selectedTab == AppTab.Me) 14.dp else 16.dp)
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             when (selectedTab) {
                 AppTab.Home -> {
@@ -1160,6 +1174,7 @@ private fun AuthenticatedShell(
                                 onModeChange = { novenasCalendarMode = it },
                                 onSearch = { showNovenaSearch = true },
                                 onOpenNovena = onOpenNovena,
+                                onYearChanged = { novenaDetailYear = it },
                                 fetchNovenasInRange = fetchNovenasInRange,
                                 fetchLiturgicalRange = fetchLiturgicalRange
                             )
@@ -1432,7 +1447,7 @@ private fun AuthenticatedShell(
         }
 
         if (requestedAuthStep == null && (saintDetail.isLoading || saintDetail.item != null || saintDetail.error != null)) {
-            SanctuaryModalSheet(onDismissRequest = onCloseSaintDetail) {
+            SanctuaryModalSheet(onDismissRequest = onCloseSaintDetail, heroContent = saintDetail.item != null) {
                 when {
                     saintDetail.isLoading -> DetailLoadingSheet(l10n.t("common.loading"))
                     saintDetail.error != null -> DetailErrorSheet(saintDetail.error, onCloseSaintDetail)
@@ -1449,7 +1464,7 @@ private fun AuthenticatedShell(
         }
 
         if (requestedAuthStep == null && (novenaDetail.isLoading || novenaDetail.item != null || novenaDetail.error != null)) {
-            SanctuaryModalSheet(onDismissRequest = onCloseNovenaDetail) {
+            SanctuaryModalSheet(onDismissRequest = onCloseNovenaDetail, heroContent = novenaDetail.item != null) {
                 when {
                     novenaDetail.isLoading -> DetailLoadingSheet(l10n.t("common.loading"))
                     novenaDetail.error != null -> DetailErrorSheet(novenaDetail.error, onCloseNovenaDetail)
@@ -1464,6 +1479,7 @@ private fun AuthenticatedShell(
                         onRequireAccount = { detail -> requireAccount(detail) },
                         resumeReminder = resumeReminder,
                         onReminderResumed = { resumeReminder = null },
+                        displayYear = if (selectedTab == AppTab.Novenas) novenaDetailYear else LocalDate.now().year,
                         onDismiss = onCloseNovenaDetail
                     )
                 }
@@ -1471,7 +1487,7 @@ private fun AuthenticatedShell(
         }
 
         if (requestedAuthStep == null && (prayerDetail.isLoading || prayerDetail.item != null || prayerDetail.error != null)) {
-            SanctuaryModalSheet(onDismissRequest = onClosePrayerDetail) {
+            SanctuaryModalSheet(onDismissRequest = onClosePrayerDetail, heroContent = prayerDetail.item != null) {
                 when {
                     prayerDetail.isLoading -> DetailLoadingSheet(l10n.t("common.loading"))
                     prayerDetail.error != null -> DetailErrorSheet(prayerDetail.error, onClosePrayerDetail)
@@ -1577,6 +1593,7 @@ private fun ChoiceCard(
 @Composable
 private fun AuthCard(content: @Composable ColumnScope.() -> Unit) {
     Card(
+        border = BorderStroke(1.dp, SanctuaryCardBorder),
         modifier = Modifier.sanctuaryCardShadow(),
         colors = CardDefaults.cardColors(containerColor = SanctuaryCardElevated),
         shape = RoundedCornerShape(24.dp)
@@ -1594,6 +1611,7 @@ private fun AuthCard(content: @Composable ColumnScope.() -> Unit) {
 @Composable
 private fun Banner(message: String, isError: Boolean) {
     Card(
+        border = BorderStroke(1.dp, SanctuaryCardBorder),
         modifier = Modifier.sanctuaryCardShadow(RoundedCornerShape(18.dp)),
         colors = CardDefaults.cardColors(
             containerColor = if (isError) Color(0x4D7B1E26) else Color(0x332F9FD9)
@@ -1663,9 +1681,10 @@ private fun PrimaryButton(
     onClick: () -> Unit
 ) {
     Button(
+        border = BorderStroke(1.dp, SanctuaryCardBorder),
         onClick = onClick,
         enabled = enabled && !isBusy,
-        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF5CAED4)),
+        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2B728D)),
         shape = RoundedCornerShape(18.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -1693,10 +1712,11 @@ private fun SecondaryButton(
     onClick: () -> Unit
 ) {
     Button(
+        border = BorderStroke(1.dp, SanctuaryCardBorder),
         onClick = onClick,
         enabled = enabled && !isBusy,
         colors = ButtonDefaults.buttonColors(
-            containerColor = Color(0x6622394C),
+            containerColor = SanctuaryCardSoft,
             contentColor = Color(0xFF7AC8EA)
         ),
         shape = RoundedCornerShape(18.dp),
@@ -1752,7 +1772,8 @@ private fun PasswordPanel(
 ) {
     val l10n = sanctuaryStrings()
     Card(
-        colors = CardDefaults.cardColors(containerColor = Color(0x6622394C)),
+        border = BorderStroke(1.dp, SanctuaryCardBorder),
+        colors = CardDefaults.cardColors(containerColor = SanctuaryCardSoft),
         shape = RoundedCornerShape(22.dp)
     ) {
         Column(
@@ -1805,7 +1826,8 @@ private fun HomeCard(session: SessionUiState) {
     val l10n = sanctuaryStrings()
     val profile = session.profile
     Card(
-        colors = CardDefaults.cardColors(containerColor = Color(0xCC22394C)),
+        border = BorderStroke(1.dp, SanctuaryCardBorder),
+        colors = CardDefaults.cardColors(containerColor = SanctuaryCard),
         shape = RoundedCornerShape(28.dp)
     ) {
         Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -1889,7 +1911,8 @@ private fun MeScreen(
         )
 
         Card(
-            colors = CardDefaults.cardColors(containerColor = Color(0xCC22394C)),
+        border = BorderStroke(1.dp, SanctuaryCardBorder),
+            colors = CardDefaults.cardColors(containerColor = SanctuaryCard),
             shape = RoundedCornerShape(24.dp)
         ) {
             Column(
@@ -1932,6 +1955,7 @@ private fun MeScreen(
                     }
                 }
                 Button(
+                    border = BorderStroke(1.dp, SanctuaryCardBorder),
                     onClick = onLogout,
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2A4153)),
                     shape = RoundedCornerShape(18.dp),
@@ -2045,6 +2069,7 @@ private fun MeScreen(
                 lineHeight = 20.sp
             )
             Button(
+                border = BorderStroke(1.dp, SanctuaryCardBorder),
                 onClick = { showDeleteAccountDialog = true },
                 enabled = !session.isDeletingAccount,
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF9C2630)),
@@ -2180,6 +2205,7 @@ private fun LinkedMeRow(
     onClick: () -> Unit
 ) {
     Card(
+        border = BorderStroke(1.dp, SanctuaryCardBorder),
         onClick = onClick,
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(containerColor = Color(0xFF2A4153)),
@@ -2221,7 +2247,8 @@ private fun initialsFor(name: String): String {
 private fun HomeHeroCard(session: SessionUiState) {
     val l10n = sanctuaryStrings()
     Card(
-        colors = CardDefaults.cardColors(containerColor = Color(0xCC22394C)),
+        border = BorderStroke(1.dp, SanctuaryCardBorder),
+        colors = CardDefaults.cardColors(containerColor = SanctuaryCard),
         shape = RoundedCornerShape(28.dp)
     ) {
         Column(
@@ -2412,7 +2439,8 @@ private fun AboutInfoCard(
     content: @Composable ColumnScope.() -> Unit
 ) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = Color(0xCC22394C)),
+        border = BorderStroke(1.dp, SanctuaryCardBorder),
+        colors = CardDefaults.cardColors(containerColor = SanctuaryCard),
         shape = RoundedCornerShape(24.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -2430,6 +2458,7 @@ private fun AboutInfoCard(
 @Composable
 private fun PrimarySheetButton(title: String, onClick: () -> Unit) {
     Button(
+        border = BorderStroke(1.dp, SanctuaryCardBorder),
         onClick = onClick,
         colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
         shape = RoundedCornerShape(20.dp),
@@ -2451,6 +2480,7 @@ private fun PrimarySheetButton(title: String, onClick: () -> Unit) {
 @Composable
 private fun SecondarySheetButton(title: String, onClick: () -> Unit) {
     Button(
+        border = BorderStroke(1.dp, SanctuaryCardBorder),
         onClick = onClick,
         colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
         shape = RoundedCornerShape(20.dp),
@@ -2532,15 +2562,16 @@ private fun TopPillButton(
     onClick: () -> Unit
 ) {
     Card(
+        border = BorderStroke(1.dp, SanctuaryCardBorder),
         modifier = modifier,
-        colors = CardDefaults.cardColors(containerColor = Color(0x1222394C)),
+        colors = CardDefaults.cardColors(containerColor = SanctuaryCard),
         shape = RoundedCornerShape(18.dp),
         onClick = onClick
     ) {
         Row(
             modifier = Modifier
-                .background(Color.White.copy(alpha = 0.08f))
-                .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(18.dp))
+                .fillMaxWidth()
+                .background(Color.White.copy(alpha = 0.05f))
                 .padding(horizontal = 14.dp, vertical = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -2565,6 +2596,7 @@ private fun CalendarSearchButton(
 ) {
     val shape = RoundedCornerShape(26.dp)
     Button(
+        border = BorderStroke(1.dp, SanctuaryCardBorder),
         onClick = onClick,
         modifier = Modifier
             .fillMaxWidth()
@@ -2583,7 +2615,7 @@ private fun CalendarSearchButton(
                         listOf(
                             Color(0xFF55C0E1),
                             Color(0xFF2B8DAA),
-                            Color(0xFF22394C)
+                            SanctuaryCardSoft
                         )
                     )
                 )
@@ -2638,7 +2670,7 @@ private fun LanguagePickerSheet(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 12.dp),
+            .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Text(
@@ -2649,8 +2681,9 @@ private fun LanguagePickerSheet(
         )
         AppLanguage.entries.forEach { language ->
             Card(
+        border = BorderStroke(1.dp, SanctuaryCardBorder),
                 colors = CardDefaults.cardColors(
-                    containerColor = if (language == current) Color(0x223CB8F2) else Color(0x1222394C)
+                    containerColor = if (language == current) Color(0xFF245C73) else SanctuaryCard
                 ),
                 shape = RoundedCornerShape(18.dp),
                 onClick = { onSelect(language) }
@@ -2681,6 +2714,7 @@ private fun HomeFeatureCard(
     val l10n = sanctuaryStrings()
     val fontScale = LocalDensity.current.fontScale
     Card(
+        border = BorderStroke(1.dp, SanctuaryCardBorder),
         modifier = Modifier.shadow(18.dp, RoundedCornerShape(28.dp), clip = false),
         colors = CardDefaults.cardColors(containerColor = Color.Transparent),
         shape = RoundedCornerShape(28.dp),
@@ -3301,8 +3335,9 @@ private fun HomeActionIllustration(
 private fun LoadingCard() {
     val l10n = sanctuaryStrings()
     Card(
+        border = BorderStroke(1.dp, SanctuaryCardBorder),
         modifier = Modifier.shadow(12.dp, RoundedCornerShape(24.dp), clip = false),
-        colors = CardDefaults.cardColors(containerColor = Color(0xCC22394C)),
+        colors = CardDefaults.cardColors(containerColor = SanctuaryCard),
         shape = RoundedCornerShape(24.dp)
     ) {
         Row(
@@ -3343,6 +3378,7 @@ private fun SearchCard(
 ) {
     val l10n = sanctuaryStrings()
     Card(
+        border = BorderStroke(1.dp, SanctuaryCardBorder),
         modifier = Modifier.sanctuaryCardShadow(),
         colors = CardDefaults.cardColors(containerColor = SanctuaryCardElevated),
         shape = RoundedCornerShape(24.dp)
@@ -3365,8 +3401,9 @@ private fun ContentCard(
     onClick: () -> Unit
 ) {
     Card(
+        border = BorderStroke(1.dp, SanctuaryCardBorder),
         modifier = Modifier.sanctuaryCardShadow(RoundedCornerShape(22.dp)),
-        colors = CardDefaults.cardColors(containerColor = Color(0xC3182F40)),
+        colors = CardDefaults.cardColors(containerColor = SanctuaryCard),
         shape = RoundedCornerShape(22.dp),
         onClick = onClick
     ) {
@@ -3453,6 +3490,7 @@ private fun ThumbnailStack(
 private fun DetailSheetScaffold(
     title: String,
     subtitle: String? = null,
+    showHeading: Boolean = true,
     content: @Composable ColumnScope.() -> Unit
 ) {
     Column(
@@ -3461,9 +3499,9 @@ private fun DetailSheetScaffold(
             .padding(horizontal = 24.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text(title, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 28.sp, lineHeight = 32.sp)
-        if (!subtitle.isNullOrBlank()) {
-            Text(subtitle, color = Color(0xFF7AC8EA))
+        if (showHeading) {
+            Text(title, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 34.sp, lineHeight = 39.sp)
+            if (!subtitle.isNullOrBlank()) Text(subtitle, color = Color(0xFF8BD7EC))
         }
         content()
         Spacer(modifier = Modifier.height(24.dp))
@@ -3473,6 +3511,7 @@ private fun DetailSheetScaffold(
 @Composable
 private fun SanctuaryModalSheet(
     onDismissRequest: () -> Unit,
+    heroContent: Boolean = false,
     content: @Composable ColumnScope.() -> Unit
 ) {
     Dialog(
@@ -3503,12 +3542,13 @@ private fun SanctuaryModalSheet(
                     .fillMaxWidth()
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
-                    .padding(top = 64.dp, bottom = 18.dp),
+                    .padding(top = if (heroContent) 16.dp else 64.dp, bottom = 18.dp),
                 verticalArrangement = Arrangement.Top
             ) {
                 content()
             }
             Surface(
+        border = BorderStroke(1.dp, SanctuaryCardBorder),
                 color = Color(0xCC102232),
                 shape = CircleShape,
                 modifier = Modifier
@@ -3558,17 +3598,15 @@ private fun SaintDetailSheet(
     val isFavorite = progress.favorites.any { it.itemType == FavoriteItemType.Saint && it.itemId == detail.id }
     DetailSheetScaffold(
         title = detail.name,
-        subtitle = detail.feastLabel
+        subtitle = detail.feastLabel,
+        showHeading = false
     ) {
-        ThumbnailImage(
-            imageUrl = detail.imageUrl,
-            contentDescription = detail.name,
-            modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(1.4f),
-            shape = RoundedCornerShape(24.dp)
-        )
+        if (!detail.imageUrl.isNullOrBlank()) ContentHeroImage(detail.imageUrl, detail.name)
+        DetailSectionCard(title = detail.name, prominentTitle = true) {
+            Text(detail.feastLabel, color = Color(0xFF8BD7EC), fontSize = 14.sp)
+
         Button(
+            border = BorderStroke(1.dp, SanctuaryCardBorder),
             onClick = {
                 if (session.status == SessionStatus.Authenticated) {
                     onToggleFavorite(FavoriteItemType.Saint, detail.id, detail.name, detail.slug, null)
@@ -3585,15 +3623,18 @@ private fun SaintDetailSheet(
                 }
             },
             colors = ButtonDefaults.buttonColors(
-                containerColor = if (isFavorite) Color(0xFF5CAED4) else Color(0xFF22394C),
+                containerColor = if (isFavorite) Color(0xFF2B728D) else SanctuaryCardSoft,
                 contentColor = Color.White
             ),
-            shape = RoundedCornerShape(18.dp),
-            modifier = Modifier.fillMaxWidth()
+            shape = RoundedCornerShape(99.dp),
+            modifier = Modifier.wrapContentWidth(Alignment.Start)
         ) {
+            Icon(if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder, contentDescription = null, tint = Color.White)
+            Spacer(Modifier.width(8.dp))
             Text(if (isFavorite) l10n.t("detail.favorite.saved") else l10n.t("detail.favorite.add"))
         }
         Button(
+            border = BorderStroke(1.dp, SanctuaryCardBorder),
             onClick = {
                 shareContent(
                     context = context,
@@ -3603,11 +3644,11 @@ private fun SaintDetailSheet(
                 )
             },
             colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFF22394C),
+                containerColor = SanctuaryCardSoft,
                 contentColor = Color.White
             ),
-            shape = RoundedCornerShape(18.dp),
-            modifier = Modifier.fillMaxWidth()
+            shape = RoundedCornerShape(99.dp),
+            modifier = Modifier.wrapContentWidth(Alignment.Start)
         ) {
             Icon(
                 imageVector = Icons.Filled.Share,
@@ -3620,7 +3661,8 @@ private fun SaintDetailSheet(
         if (detail.patronages.isNotEmpty()) {
             DetailSectionCard(title = l10n.t("detail.patronages")) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    detail.patronages.forEach { patronage ->
+                    }
+        detail.patronages.forEach { patronage ->
                         Text("• $patronage", color = Color(0xFFD0DFEA), lineHeight = 20.sp)
                     }
                 }
@@ -3651,10 +3693,14 @@ private fun NovenaDetailSheet(
     onRequireAccount: (DeferredAccountAction) -> Unit,
     resumeReminder: String?,
     onReminderResumed: () -> Unit,
+    displayYear: Int,
     onDismiss: () -> Unit
 ) {
     val l10n = sanctuaryStrings()
     val context = LocalContext.current
+    val window by produceState<app.sanctuary.android.data.NovenaWindowResponse?>(null, detail.id, displayYear) {
+        value = runCatching { app.sanctuary.android.data.SanctuaryApiFactory.create { null }.novenaWindow(detail.id, displayYear) }.getOrNull()
+    }
     val activeCommitment = progress.commitments.firstOrNull {
         it.novenaId == detail.id && it.status == CommitmentStatus.Active
     }
@@ -3687,23 +3733,16 @@ private fun NovenaDetailSheet(
 
     DetailSheetScaffold(
         title = detail.title,
-        subtitle = "${detail.durationDays}-day novena"
+        subtitle = "${detail.durationDays}-day novena",
+        showHeading = false
     ) {
-        ThumbnailImage(
-            imageUrl = detail.imageUrl,
-            contentDescription = detail.title,
-            modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(1.4f),
-            shape = RoundedCornerShape(24.dp)
-        )
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            detail.description.takeIf { it.isNotBlank() }?.let {
-                Text(it, color = Color.White, lineHeight = 24.sp)
-            }
-        }
+        if (!detail.imageUrl.isNullOrBlank()) ContentHeroImage(detail.imageUrl, detail.title)
+        DetailSectionCard(title = detail.title, prominentTitle = true) {
+
+
 
         Button(
+            border = BorderStroke(1.dp, SanctuaryCardBorder),
             onClick = {
                 if (session.status == SessionStatus.Authenticated) {
                     onToggleFavorite(FavoriteItemType.Novena, detail.id, detail.title, detail.slug, detail.durationDays)
@@ -3720,12 +3759,14 @@ private fun NovenaDetailSheet(
                 }
             },
             colors = ButtonDefaults.buttonColors(
-                containerColor = if (isFavorite) Color(0xFF5CAED4) else Color(0xFF22394C),
+                containerColor = if (isFavorite) Color(0xFF2B728D) else SanctuaryCardSoft,
                 contentColor = Color.White
             ),
-            shape = RoundedCornerShape(18.dp),
-            modifier = Modifier.fillMaxWidth()
+            shape = RoundedCornerShape(99.dp),
+            modifier = Modifier.wrapContentWidth(Alignment.Start)
         ) {
+            Icon(if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder, contentDescription = null, tint = Color.White)
+            Spacer(Modifier.width(8.dp))
             Text(if (isFavorite) l10n.t("detail.favorite.saved") else l10n.t("detail.favorite.add"))
         }
         ContentReminderControl(destination = sharedContentUrl(SharedContentKind.Novena, detail.slug), title = detail.title,
@@ -3733,6 +3774,7 @@ private fun NovenaDetailSheet(
                 onRequireAccount = { onRequireAccount(DeferredAccountAction.Reminder(sharedContentUrl(SharedContentKind.Novena, detail.slug))) },
                 resume = resumeReminder == sharedContentUrl(SharedContentKind.Novena, detail.slug), onResumed = onReminderResumed)
         Button(
+            border = BorderStroke(1.dp, SanctuaryCardBorder),
             onClick = {
                 shareContent(
                     context = context,
@@ -3742,11 +3784,11 @@ private fun NovenaDetailSheet(
                 )
             },
             colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFF22394C),
+                containerColor = SanctuaryCardSoft,
                 contentColor = Color.White
             ),
-            shape = RoundedCornerShape(18.dp),
-            modifier = Modifier.fillMaxWidth()
+            shape = RoundedCornerShape(99.dp),
+            modifier = Modifier.wrapContentWidth(Alignment.Start)
         ) {
             Icon(
                 imageVector = Icons.Filled.Share,
@@ -3757,6 +3799,17 @@ private fun NovenaDetailSheet(
             Text("Share")
         }
 
+        DetailMetaChip(l10n.t("detail.duration") + ": " + detail.durationDays + " " + l10n.t("detail.days"))
+        window?.let { dates ->
+            runCatching { LocalDate.parse(dates.startDate) }.getOrNull()?.let { date -> DetailMetaChip(l10n.t("detail.startDate") + ": " + l10n.formatMonthDayYear(date)) }
+            runCatching { LocalDate.parse(dates.feastDate) }.getOrNull()?.let { date -> DetailMetaChip(l10n.t("detail.endDate") + ": " + l10n.formatMonthDayYear(date)) }
+        }
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            detail.description.takeIf { it.isNotBlank() }?.let {
+                Text(it, color = Color.White, lineHeight = 24.sp)
+            }
+        }
+        }
         if (detail.intentions.isNotEmpty()) {
             DetailSectionCard(title = l10n.t("detail.intentions")) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -3767,7 +3820,7 @@ private fun NovenaDetailSheet(
             }
         }
 
-        Text(l10n.t("calendar.chooseDay"), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 24.sp)
+        DetailSectionCard(title = l10n.t("calendar.chooseDay")) {
         androidx.compose.foundation.lazy.grid.LazyVerticalGrid(
             columns = androidx.compose.foundation.lazy.grid.GridCells.Adaptive(minSize = 92.dp),
             modifier = Modifier
@@ -3780,10 +3833,11 @@ private fun NovenaDetailSheet(
                 val day = orderedDays[index]
                 val active = day.dayNumber == selectedDay
                 Button(
+                    border = BorderStroke(1.dp, SanctuaryCardBorder),
                     onClick = { selectedDay = day.dayNumber },
                     shape = RoundedCornerShape(22.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = if (active) Color(0xFF5FAED5) else Color(0xFF20384B),
+                        containerColor = if (active) Color(0xFF2B728D) else Color(0xFF20384B),
                         contentColor = Color.White
                     ),
                     contentPadding = PaddingValues(vertical = 12.dp, horizontal = 8.dp),
@@ -3797,6 +3851,7 @@ private fun NovenaDetailSheet(
             }
         }
 
+        }
         when {
             session.status != SessionStatus.Authenticated -> {
                 PrimaryButton(
@@ -3845,9 +3900,10 @@ private fun NovenaDetailSheet(
 
         if (session.status == SessionStatus.Authenticated && (activeCommitment != null || latestCommitment?.status == CommitmentStatus.Completed)) {
             Button(
+                border = BorderStroke(1.dp, SanctuaryCardBorder),
                 onClick = { onCompleteDay(detail.id, detail.durationDays) },
                 enabled = latestCommitment?.status != CommitmentStatus.Completed,
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF5CAED4)),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2B728D)),
                 shape = RoundedCornerShape(18.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -3877,8 +3933,11 @@ private fun PrayerDetailSheet(
     val isFavorite = progress.favorites.any { it.itemType == FavoriteItemType.Prayer && it.itemId == detail.id }
     DetailSheetScaffold(
         title = detail.title,
-        subtitle = visiblePrayerCategory(detail.category)
+        subtitle = visiblePrayerCategory(detail.category),
+        showHeading = false
     ) {
+        if (!detail.imageUrl.isNullOrBlank()) Card(
+        border = BorderStroke(1.dp, SanctuaryCardBorder),colors = CardDefaults.cardColors(containerColor = SanctuaryCard), shape = RoundedCornerShape(24.dp)) {
         Box {
             ThumbnailImage(
                 imageUrl = detail.imageUrl,
@@ -3897,6 +3956,7 @@ private fun PrayerDetailSheet(
             )
             if (canExpandHeroImage) {
                 Surface(
+        border = BorderStroke(1.dp, SanctuaryCardBorder),
                     color = Color(0xCC102232),
                     shape = CircleShape,
                     modifier = Modifier
@@ -3914,8 +3974,10 @@ private fun PrayerDetailSheet(
                 }
             }
         }
-        DetailSectionCard(title = detail.title) {
+        }
+        DetailSectionCard(title = detail.title, prominentTitle = true) {
             Button(
+                border = BorderStroke(1.dp, SanctuaryCardBorder),
                 onClick = {
                     if (session.status == SessionStatus.Authenticated) {
                         onToggleFavorite(FavoriteItemType.Prayer, detail.id, detail.title, detail.slug, null)
@@ -3932,14 +3994,14 @@ private fun PrayerDetailSheet(
                     }
                 },
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isFavorite) Color(0xFF5CAED4) else Color(0xFF22394C),
+                    containerColor = if (isFavorite) Color(0xFF2B728D) else SanctuaryCardSoft,
                     contentColor = Color.White
                 ),
-                shape = RoundedCornerShape(18.dp),
-                modifier = Modifier.fillMaxWidth()
+                shape = RoundedCornerShape(99.dp),
+                modifier = Modifier.wrapContentWidth(Alignment.Start)
             ) {
                 Icon(
-                    imageVector = Icons.Filled.Favorite,
+                    imageVector = if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
                     contentDescription = null,
                     tint = Color.White
                 )
@@ -3951,6 +4013,7 @@ private fun PrayerDetailSheet(
                 onRequireAccount = { onRequireAccount(DeferredAccountAction.Reminder(sharedContentUrl(SharedContentKind.Prayer, detail.slug))) },
                 resume = resumeReminder == sharedContentUrl(SharedContentKind.Prayer, detail.slug), onResumed = onReminderResumed)
             Button(
+                border = BorderStroke(1.dp, SanctuaryCardBorder),
                 onClick = {
                     shareContent(
                         context = context,
@@ -3960,11 +4023,11 @@ private fun PrayerDetailSheet(
                     )
                 },
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF22394C),
+                    containerColor = SanctuaryCardSoft,
                     contentColor = Color.White
                 ),
-                shape = RoundedCornerShape(18.dp),
-                modifier = Modifier.fillMaxWidth()
+                shape = RoundedCornerShape(99.dp),
+                modifier = Modifier.wrapContentWidth(Alignment.Start)
             ) {
                 Icon(
                     imageVector = Icons.Filled.Share,
@@ -4053,6 +4116,7 @@ private fun ExpandedPrayerImageDialog(
             }
 
             Surface(
+        border = BorderStroke(1.dp, SanctuaryCardBorder),
                 color = Color.White.copy(alpha = 0.16f),
                 shape = CircleShape,
                 modifier = Modifier
@@ -4076,9 +4140,11 @@ private fun ExpandedPrayerImageDialog(
 @Composable
 private fun DetailSectionCard(
     title: String,
+    prominentTitle: Boolean = false,
     content: @Composable ColumnScope.() -> Unit
 ) {
     Card(
+        border = BorderStroke(1.dp, SanctuaryCardBorder),
         modifier = Modifier
             .fillMaxWidth()
             .sanctuaryCardShadow(),
@@ -4089,7 +4155,8 @@ private fun DetailSectionCard(
             modifier = Modifier.padding(18.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Text(title, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 22.sp)
+            Text(title, color = Color.White, fontWeight = FontWeight.Bold, fontSize = if (prominentTitle) 40.sp else 22.sp, lineHeight = if (prominentTitle) 44.sp else 28.sp)
+            if (!prominentTitle) Box(Modifier.fillMaxWidth().height(1.dp).background(SanctuaryCardBorder))
             content()
         }
     }
@@ -4106,7 +4173,7 @@ private fun DetailSectionLabel(text: String) {
 }
 
 private fun AppTab.icon(): ImageVector = when (this) {
-    AppTab.Home -> Icons.Filled.Today
+    AppTab.Home -> Icons.Filled.Home
     AppTab.Novenas -> Icons.Filled.CalendarMonth
     AppTab.Liturgical -> Icons.Filled.CalendarMonth
     AppTab.Saints -> Icons.Filled.CalendarMonth
@@ -4143,8 +4210,9 @@ private fun InlineLoading(message: String) {
 @Composable
 private fun SectionHint(title: String, body: String) {
     Card(
+        border = BorderStroke(1.dp, SanctuaryCardBorder),
         modifier = Modifier.sanctuaryCardShadow(RoundedCornerShape(22.dp)),
-        colors = CardDefaults.cardColors(containerColor = Color(0xC3182F40)),
+        colors = CardDefaults.cardColors(containerColor = SanctuaryCard),
         shape = RoundedCornerShape(22.dp)
     ) {
         Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -4175,7 +4243,7 @@ private fun ThumbnailImage(
                 .clip(shape)
                 .background(
                     brush = Brush.linearGradient(
-                        listOf(Color(0xFF385E77), Color(0xFF22394C))
+                        listOf(Color(0xFF385E77), SanctuaryCardSoft)
                     )
                 ),
             contentAlignment = Alignment.Center
@@ -4448,6 +4516,8 @@ private fun SaintsCalendarScreen(
                 }
             }
         },
+        selectedDate = LocalDate.of(selectedYear, selectedMonth, selectedDay.coerceIn(1, month.lengthOfMonth())),
+        onDateSelected = { date -> selectedYear = date.year; selectedMonth = date.monthValue; selectedDay = date.dayOfMonth },
         footer = {
             CalendarSearchButton(label = l10n.t("calendar.searchSaints"), onClick = onSearch)
             SeasonLegend()
@@ -4514,6 +4584,7 @@ private fun NovenasCalendarScreen(
     onModeChange: (CalendarMode) -> Unit,
     onSearch: () -> Unit,
     onOpenNovena: (String) -> Unit,
+    onYearChanged: (Int) -> Unit,
     fetchNovenasInRange: suspend (String, String) -> List<app.sanctuary.android.data.NovenaCalendarDate>,
     fetchLiturgicalRange: suspend (String, String) -> List<app.sanctuary.android.data.LiturgicalDay>
 ) {
@@ -4522,6 +4593,7 @@ private fun NovenasCalendarScreen(
     var selectedDay by rememberSaveable { mutableStateOf(today.dayOfMonth) }
     var selectedMonth by rememberSaveable { mutableStateOf(today.monthValue) }
     var selectedYear by rememberSaveable { mutableStateOf(today.year) }
+    LaunchedEffect(selectedYear) { onYearChanged(selectedYear) }
     val month = remember(selectedYear, selectedMonth) { YearMonth.of(selectedYear, selectedMonth) }
     val state by produceState<CalendarLoadState<List<app.sanctuary.android.data.NovenaCalendarDate>>>(
         initialValue = CalendarLoadState.Loading,
@@ -4604,6 +4676,8 @@ private fun NovenasCalendarScreen(
                 }
             }
         },
+        selectedDate = LocalDate.of(selectedYear, selectedMonth, selectedDay.coerceIn(1, month.lengthOfMonth())),
+        onDateSelected = { date -> selectedYear = date.year; selectedMonth = date.monthValue; selectedDay = date.dayOfMonth },
         footer = {
             CalendarSearchButton(label = l10n.t("calendar.searchNovenas"), onClick = onSearch)
             SeasonLegend()
@@ -4762,6 +4836,8 @@ private fun LiturgicalCalendarScreen(
                 }
             }
         },
+        selectedDate = LocalDate.of(selectedYear, selectedMonth, selectedDay.coerceIn(1, month.lengthOfMonth())),
+        onDateSelected = { date -> selectedYear = date.year; selectedMonth = date.monthValue; selectedDay = date.dayOfMonth },
         footer = {
             SeasonLegend()
         }
@@ -4849,6 +4925,7 @@ private fun DailyReadingsSheet(
 @Composable
 private fun DailyReadingsWebView(url: String) {
     Card(
+        border = BorderStroke(1.dp, SanctuaryCardBorder),
         colors = CardDefaults.cardColors(containerColor = Color(0xFF10212E)),
         shape = RoundedCornerShape(24.dp)
     ) {
@@ -4911,38 +4988,52 @@ private fun CalendarSurface(
     onToday: () -> Unit,
     onPrev: () -> Unit,
     onNext: () -> Unit,
+    selectedDate: LocalDate,
+    onDateSelected: (LocalDate) -> Unit,
     footer: @Composable ColumnScope.() -> Unit = {},
     content: @Composable ColumnScope.() -> Unit
 ) {
     val l10n = sanctuaryStrings()
+    val context = LocalContext.current
     Column(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Card(
-            colors = CardDefaults.cardColors(containerColor = Color(0xCC22394C)),
+        border = BorderStroke(1.dp, SanctuaryCardBorder),
+            colors = CardDefaults.cardColors(containerColor = SanctuaryCard),
             shape = RoundedCornerShape(28.dp)
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(20.dp),
+                    .padding(horizontal = 12.dp, vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 CalendarNavButton(symbol = "‹", onClick = onPrev)
                 Column(
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).clip(RoundedCornerShape(12.dp)).clickable {
+                        android.app.DatePickerDialog(context, { _, year, monthIndex, day ->
+                            onDateSelected(LocalDate.of(year, monthIndex + 1, day))
+                        }, selectedDate.year, selectedDate.monthValue - 1, selectedDate.dayOfMonth).show()
+                    },
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text(title, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(title, color = Color.White, fontSize = 21.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                        Icon(Icons.Filled.ExpandMore, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+                    }
                     Text(subtitle, color = Color(0xFFD0DFEA))
                 }
                 CalendarNavButton(symbol = "›", onClick = onNext)
             }
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Card(
+            border = BorderStroke(1.dp, SanctuaryCardBorder),
+            shape = RoundedCornerShape(26.dp), colors = CardDefaults.cardColors(containerColor = SanctuaryCard)) {
+        Row(modifier = Modifier.fillMaxWidth().padding(10.dp).then(if (LocalDensity.current.fontScale > 1.2f) Modifier.horizontalScroll(rememberScrollState()) else Modifier), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             FilterChipButton(title = l10n.t("common.today"), selected = false, onClick = onToday)
             CalendarMode.entries.forEach { entry ->
                 FilterChipButton(
@@ -4951,6 +5042,7 @@ private fun CalendarSurface(
                     onClick = { onModeChange(entry) }
                 )
             }
+        }
         }
         Box(
             modifier = Modifier
@@ -4984,7 +5076,8 @@ private fun CalendarNavButton(
     onClick: () -> Unit
 ) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = Color(0x6622394C)),
+        border = BorderStroke(1.dp, SanctuaryCardBorder),
+        colors = CardDefaults.cardColors(containerColor = SanctuaryCardSoft),
         shape = RoundedCornerShape(999.dp),
         onClick = onClick
     ) {
@@ -4993,7 +5086,7 @@ private fun CalendarNavButton(
                 .size(44.dp),
             contentAlignment = Alignment.Center
         ) {
-            Text(symbol, color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            Icon(if (symbol == "‹") Icons.Filled.ChevronLeft else Icons.Filled.ChevronRight, contentDescription = if (symbol == "‹") "Previous date" else "Next date", tint = Color.White, modifier = Modifier.size(26.dp))
         }
     }
 }
@@ -5005,8 +5098,9 @@ private fun FilterChipButton(
     onClick: () -> Unit
 ) {
     Card(
+        border = BorderStroke(1.dp, SanctuaryCardBorder),
         colors = CardDefaults.cardColors(
-            containerColor = if (selected) Color(0xFF5CAED4) else Color(0x6622394C)
+            containerColor = if (selected) Color(0xFF2B728D) else SanctuaryCardSoft
         ),
         shape = RoundedCornerShape(20.dp),
         onClick = onClick
@@ -5032,55 +5126,29 @@ private fun DayPreviewCard(
     borderColor: Color = liturgicalBorderColor(null),
     onClick: () -> Unit
 ) {
-    val cardShape = RoundedCornerShape(26.dp)
+    val cardShape = RoundedCornerShape(28.dp)
     Card(
-        colors = CardDefaults.cardColors(containerColor = Color(0xCC22394C)),
-        shape = cardShape,
-        border = BorderStroke(4.dp, borderColor),
-        enabled = enabled,
-        onClick = onClick
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = SanctuaryCard), shape = cardShape,
+        border = BorderStroke(5.dp, borderColor), enabled = enabled, onClick = onClick
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(14.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Text(date.dayOfMonth.toString(), color = Color.White, fontSize = 34.sp, fontWeight = FontWeight.Bold)
-                Text(title, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                if (subtitle.isNotBlank()) {
-                    Text(subtitle, color = Color(0xFFD0DFEA), maxLines = 3, overflow = TextOverflow.Ellipsis)
-                }
-                if (buttonLabel != null) {
-                    Text(buttonLabel, color = Color.White, fontWeight = FontWeight.Medium)
-                }
-            }
-            if (showImage) {
-                Box(modifier = Modifier.width(140.dp).aspectRatio(1.15f)) {
-                    ThumbnailImage(
-                        imageUrl = imageUrl,
-                        contentDescription = title,
-                        modifier = Modifier.fillMaxSize(),
-                        shape = RoundedCornerShape(20.dp)
-                    )
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(8.dp)
-                            .size(28.dp)
-                            .background(Color(0x22324456), CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.SouthEast,
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(16.dp)
-                        )
+        val largeText = LocalDensity.current.fontScale > 1.2f
+        Box(Modifier.fillMaxWidth().height(if (largeText) 178.dp else 142.dp)) {
+            if (showImage && !imageUrl.isNullOrBlank()) ThumbnailImage(imageUrl, title, Modifier.fillMaxSize(), RoundedCornerShape(23.dp))
+            Box(Modifier.matchParentSize().background(Brush.horizontalGradient(listOf(Color(0xDD102738), Color(0x44102738), Color(0xAA102738)))))
+            Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Row(verticalAlignment = Alignment.Top) {
+                    Column(Modifier.weight(1f)) {
+                        Text(date.dayOfMonth.toString(), color = Color.White, fontSize = 32.sp, fontWeight = FontWeight.Bold)
+                        Text(title, color = Color.White, fontSize = 17.sp, lineHeight = 21.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    }
+                    if (enabled) Box(Modifier.size(30.dp).background(Color.White.copy(alpha = .12f), CircleShape), contentAlignment = Alignment.Center) {
+                        Icon(Icons.Filled.NorthEast, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
                     }
                 }
+                if (buttonLabel != null) Text(buttonLabel, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.clip(RoundedCornerShape(99.dp)).background(Color.White.copy(alpha = .14f)).padding(horizontal = 12.dp, vertical = 5.dp))
+                else if (subtitle.isNotBlank()) Text(subtitle, color = Color(0xFFD0DFEA), fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
         }
     }
@@ -5184,6 +5252,7 @@ private fun CalendarEntryCell(
 ) {
     val scale = if (selected) 1f else 0.985f
     Button(
+        border = BorderStroke(1.dp, SanctuaryCardBorder),
         onClick = onClick,
         modifier = modifier
             .height(height)
@@ -5309,9 +5378,10 @@ private fun shortLiturgicalLabel(detail: app.sanctuary.android.data.LiturgicalDa
 @Composable
 private fun SeasonLegend() {
     val l10n = sanctuaryStrings()
-    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+    Card(border = BorderStroke(1.dp, SanctuaryCardBorder), shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = SanctuaryCard)) {
+    BoxWithConstraints(modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 12.dp)) {
         val compact = maxWidth < 380.dp
-        val fontSize = if (compact) 10.sp else 12.sp
+        val fontSize = if (maxWidth < 320.dp) 10.sp else 11.sp
         val dotSize = if (compact) 6.dp else 7.dp
         val spacing = if (compact) 8.dp else 14.dp
 
@@ -5320,13 +5390,14 @@ private fun SeasonLegend() {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            SeasonDot(l10n.t("season.advent"), Color(0xFF8B5CF6), fontSize, dotSize, spacing)
-            SeasonDot(l10n.t("season.christmas"), Color(0xFFE7C76A), fontSize, dotSize, spacing)
-            SeasonDot(l10n.t("season.lent"), Color(0xFFD16BA5), fontSize, dotSize, spacing)
+            SeasonDot(l10n.t("season.advent"), Color(0xFF7858B9), fontSize, dotSize, spacing)
+            SeasonDot(l10n.t("season.christmas"), Color(0xFFDCB969), fontSize, dotSize, spacing)
+            SeasonDot(l10n.t("season.lent"), Color(0xFF9B5087), fontSize, dotSize, spacing)
             SeasonDot(l10n.t("season.easter"), Color(0xFFF5F5F5), fontSize, dotSize, spacing)
-            SeasonDot(l10n.t("season.ordinary"), Color(0xFF6FB56B), fontSize, dotSize, spacing)
+            SeasonDot(l10n.t("season.ordinary"), Color(0xFF3C9B5F), fontSize, dotSize, spacing)
         }
     }
+}
 }
 
 @Composable
@@ -5338,7 +5409,7 @@ private fun SeasonDot(
     spacing: androidx.compose.ui.unit.Dp
 ) {
     Row(
-        modifier = Modifier.width(intrinsicSize = androidx.compose.foundation.layout.IntrinsicSize.Min),
+        modifier = Modifier.width(intrinsicSize = androidx.compose.foundation.layout.IntrinsicSize.Max),
         horizontalArrangement = Arrangement.spacedBy(spacing / 2),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -5478,14 +5549,17 @@ private fun ContentReminderControl(destination: String, title: String, authentic
             if (Build.VERSION.SDK_INT >= 33) permission.launch(Manifest.permission.POST_NOTIFICATIONS)
             else problem = l10n.t("itemReminder.permission")
         } else chooseTime()
-    }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp)) {
+    }, modifier = Modifier.wrapContentWidth(Alignment.Start), shape = RoundedCornerShape(99.dp)) {
+        Icon(if (time == null) Icons.Filled.NotificationsNone else Icons.Filled.NotificationsActive, contentDescription = null, tint = Color.White)
+        Spacer(Modifier.width(8.dp))
         Text(l10n.t(if (time == null) "itemReminder.add" else "itemReminder.edit"), color = Color.White)
     }
     if (showOptions) AlertDialog(
         onDismissRequest = { showOptions = false },
         title = { Text(l10n.t("itemReminder.title")) },
         text = { Text(title + "\n" + l10n.t("itemReminder.body") + "\n" + time?.let { "%02d:%02d".format(it.first, it.second) }.orEmpty()) },
-        confirmButton = { Button(onClick = { showOptions = false; chooseTime() }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF217A66))) { Text(l10n.t("reminders.manage.change"), color = Color.White) } },
+        confirmButton = { Button(
+        border = BorderStroke(1.dp, SanctuaryCardBorder),onClick = { showOptions = false; chooseTime() }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF217A66))) { Text(l10n.t("reminders.manage.change"), color = Color.White) } },
         dismissButton = { OutlinedButton(onClick = { scheduler.removeItem(destination); time = null; showOptions = false }) {
             Icon(Icons.Filled.Delete, contentDescription = null, tint = Color(0xFFFFA6A6))
             Spacer(Modifier.width(6.dp))
@@ -5533,6 +5607,26 @@ private fun ScheduledRemindersCard() {
     }
     if (confirmingClear) AlertDialog(onDismissRequest = { confirmingClear = false },
         title = { Text(l10n.t("reminders.manage.confirm")) }, text = { Text(l10n.t("reminders.manage.body")) },
-        confirmButton = { Button(onClick = { scheduler.clearItemReminders(); reminders = scheduler.itemReminders(); confirmingClear = false }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF9E3030))) { Text(l10n.t("reminders.manage.clear"), color = Color.White) } },
+        confirmButton = { Button(
+        border = BorderStroke(1.dp, SanctuaryCardBorder),onClick = { scheduler.clearItemReminders(); reminders = scheduler.itemReminders(); confirmingClear = false }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF9E3030))) { Text(l10n.t("reminders.manage.clear"), color = Color.White) } },
         dismissButton = { TextButton(onClick = { confirmingClear = false }) { Text(l10n.t("common.cancel")) } })
+}
+
+
+@Composable
+private fun ContentHeroImage(url: String?, title: String) {
+    Card(modifier = Modifier.fillMaxWidth(), border = BorderStroke(1.dp, SanctuaryCardBorder), shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = SanctuaryCardSoft)) {
+        Box(Modifier.fillMaxWidth().padding(8.dp)) {
+            ThumbnailImage(url, title, Modifier.fillMaxWidth().aspectRatio(1.4f), RoundedCornerShape(18.dp))
+        }
+    }
+}
+
+
+@Composable
+private fun DetailMetaChip(text: String) {
+    Row(Modifier.clip(RoundedCornerShape(12.dp)).background(SanctuaryCardSoft).border(1.dp, SanctuaryCardBorder, RoundedCornerShape(12.dp)).padding(horizontal = 10.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Icon(Icons.Filled.CalendarMonth, contentDescription = null, tint = Color(0xFFD0DFEA), modifier = Modifier.size(16.dp))
+        Text(text, color = Color(0xFFD0DFEA), fontSize = 14.sp)
+    }
 }

@@ -5,7 +5,7 @@
 Current release identity:
 
 - production package: `com.pamisu.sanctuary`
-- version name: `1.0.20`
+- version name: `1.0.21`
 - minimum SDK: 26
 - target/compile SDK: 36
 - Java/Kotlin bytecode target: 17
