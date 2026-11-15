@@ -10,7 +10,7 @@ The default audience is **Send test to my device**. A test device must belong to
 
 Review the preview, destination and recipient count, then check the explicit confirmation before sending. Editing invalidates review. Unsent drafts trigger the existing discard prompt when leaving admin sections. Drafts are not persisted across reloads.
 
-History records the owner subject, title, message, destination, audience, creation time, and per-message recipient totals: pending, accepted, failed, skipped, uncertain. Refresh results manually. Firebase acceptance does not prove delivery or display. Open/read tracking and campaign scheduling are not implemented.
+The admin history shows the message, date, audience and a plain submission status. Internal owner identifiers and registration/delivery totals are not displayed. Detailed dispatch records remain in the database for diagnostics. Review shows a friendly destination instead of the raw URL. Successful submission clears the composer and review; a history-refresh failure does not restore the sent draft. Firebase acceptance does not prove delivery or display. Open/read tracking and campaign scheduling are not implemented.
 
 ## Delivery and consent
 
@@ -114,3 +114,11 @@ The audit tool's four policy tests verify that validated/ambiguous tokens are ne
 ### Android Me visual parity
 
 Android Me now uses opaque rounded panels with explicit borders, full-width cards, title dividers, and the iPhone's outer spacing. The embedded account section has a bordered outer panel, Sanctuary account eyebrow, Choose your way in heading and bordered Login/Register choices. Notifications show the disclosure row before the external device-settings link, with proper chevron/external-link icons and inset diagnostics. Signed-in scheduled reminders use a matching panel and bell-off empty-state icon. The account-only reminder restriction is unchanged. English, Spanish and Polish account copy are provided. Android builds/unit tests passed; final physical-phone visual verification remains required because the local emulator window was unavailable to the UI inspection tool.
+
+## Locked-phone alert delivery
+
+Visible announcement payloads explicitly request Android FCM high-priority delivery with default sound on the existing `sanctuary-announcements` channel. This prevents ordinary-priority transport from unnecessarily deferring these visible messages during Android idle mode. Newly created Android announcement channels explicitly use the default notification sound; reusing the existing channel preserves the user's chosen sound and importance.
+
+Apple payloads explicitly use `apns-push-type: alert`, `apns-priority: 10`, and the default APNs sound. The current iOS app already requests alert/sound permission and allows banners and sound in the foreground, so this change needs no iOS client update. Both platforms retain the existing one-day expiry and content deep links.
+
+The payload test serializes the real SDK message and verifies both platform configurations without contacting Firebase. A physical locked/idle phone test remains necessary after DEV deployment. OS permissions, muted channels, Focus/Do Not Disturb, offline state and device/vendor restrictions can still silence or delay notifications; this change does not bypass user choices or guarantee immediate delivery.
