@@ -22,17 +22,23 @@ public class FirebasePushGateway implements PushGateway {
     public boolean enabled() { return messaging != null; }
     public Result send(String token, String title, String body, String destination, String messageId) {
         if (!enabled()) return new Result(false,false,"DISABLED",null);
-        var message = Message.builder().setToken(token)
-            .setNotification(Notification.builder().setTitle(title).setBody(body).build())
-            .putData("destination", destination).putData("messageId", messageId)
-            .setAndroidConfig(AndroidConfig.builder().setTtl(86400000L)
-                .setNotification(AndroidNotification.builder().setChannelId("sanctuary-announcements").build()).build())
-            .setApnsConfig(ApnsConfig.builder().putHeader("apns-expiration", Long.toString(java.time.Instant.now().plusSeconds(86400).getEpochSecond()))
-                .setAps(Aps.builder().setSound("default").build()).build()).build();
+        var message = notificationMessage(token, title, body, destination, messageId);
         try { return new Result(true,false,null,messaging.send(message)); }
         catch (FirebaseMessagingException e) {
             var code = e.getMessagingErrorCode();
             return new Result(false,code == MessagingErrorCode.UNREGISTERED,code == null ? "PROVIDER_ERROR" : code.name(),null);
         }
     }
+    // Visible announcements request prompt transport delivery; device sound/Focus settings still apply.
+    static Message notificationMessage(String token, String title, String body, String destination, String messageId) {
+        return Message.builder().setToken(token)
+            .setNotification(Notification.builder().setTitle(title).setBody(body).build())
+            .putData("destination", destination).putData("messageId", messageId)
+            .setAndroidConfig(AndroidConfig.builder().setPriority(AndroidConfig.Priority.HIGH).setTtl(86400000L)
+                .setNotification(AndroidNotification.builder().setChannelId("sanctuary-announcements").setDefaultSound(true).build()).build())
+            .setApnsConfig(ApnsConfig.builder().putHeader("apns-push-type", "alert").putHeader("apns-priority", "10")
+                .putHeader("apns-expiration", Long.toString(java.time.Instant.now().plusSeconds(86400).getEpochSecond()))
+                .setAps(Aps.builder().setSound("default").build()).build()).build();
+    }
+
 }

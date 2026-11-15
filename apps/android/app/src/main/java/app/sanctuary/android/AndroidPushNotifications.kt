@@ -1,6 +1,8 @@
 package app.sanctuary.android
 
 import android.Manifest
+import android.media.AudioAttributes
+import android.media.RingtoneManager
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -33,7 +35,12 @@ object AndroidPushNotifications {
             NotificationManagerCompat.from(context).areNotificationsEnabled()
     fun channel(context: Context) {
         val manager = context.getSystemService(NotificationManager::class.java)
-        manager.createNotificationChannel(NotificationChannel("sanctuary-announcements", "Sanctuary announcements", NotificationManager.IMPORTANCE_DEFAULT))
+        val channel = NotificationChannel("sanctuary-announcements", "Sanctuary announcements", NotificationManager.IMPORTANCE_DEFAULT).apply {
+            setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION), AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_NOTIFICATION).setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build())
+        }
+        // Reusing the channel preserves sound/importance choices made in Android settings.
+        manager.createNotificationChannel(channel)
     }
     @Synchronized private fun secret(context: Context): String {
         val store = androidx.security.crypto.EncryptedSharedPreferences.create(context,"sanctuary_push_credentials",
