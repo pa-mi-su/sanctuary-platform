@@ -25,48 +25,9 @@ class AndroidReminderScheduler(
         novenaEnabled: Boolean,
         generalDailyEnabled: Boolean
     ) {
-        preferences.edit()
-            .putInt(KEY_ACTIVE_COUNT, activeCommitmentCount)
-            .putBoolean(KEY_NOVENA_ENABLED, novenaEnabled)
-            .putBoolean(KEY_GENERAL_ENABLED, generalDailyEnabled)
-            .apply()
-
+        // Retire legacy morning/evening digests; per-item reminders are independent.
+        preferences.edit().putBoolean(KEY_NOVENA_ENABLED, false).putBoolean(KEY_GENERAL_ENABLED, false).apply()
         cancelAll()
-
-        if (!novenaEnabled && !generalDailyEnabled) return
-        if (!areNotificationsAllowed()) return
-
-        createNotificationChannel()
-
-        if (activeCommitmentCount > 0 && novenaEnabled) {
-            val body = if (activeCommitmentCount == 1) {
-                "You have a novena in progress. Take a calm moment to continue your prayer in Sanctuary."
-            } else {
-                "You have $activeCommitmentCount novenas in progress. Take a calm moment to continue your prayer in Sanctuary."
-            }
-            scheduleAlarm(
-                kind = KIND_MORNING,
-                title = "Continue your novena",
-                body = body,
-                hour = MORNING_HOUR
-            )
-            scheduleAlarm(
-                kind = KIND_EVENING,
-                title = "Continue your novena",
-                body = body,
-                hour = EVENING_HOUR
-            )
-            return
-        }
-
-        if (generalDailyEnabled) {
-            scheduleAlarm(
-                kind = KIND_MORNING,
-                title = "Your sanctuary is calling",
-                body = "Spend a peaceful moment exploring saints, prayer, and perhaps beginning a novena today.",
-                hour = MORNING_HOUR
-            )
-        }
     }
 
     fun resyncFromStoredPreferences() {
@@ -273,9 +234,7 @@ class ReminderNotificationReceiver : BroadcastReceiver() {
             scheduler.resyncItems()
             return
         }
-        val title = intent.getStringExtra(AndroidReminderScheduler.EXTRA_TITLE).orEmpty()
-        val body = intent.getStringExtra(AndroidReminderScheduler.EXTRA_BODY).orEmpty()
-        scheduler.showReminderNotification(title, body)
+        // Ignore a legacy digest broadcast that was already queued during upgrade.
         scheduler.resyncFromStoredPreferences()
     }
 }

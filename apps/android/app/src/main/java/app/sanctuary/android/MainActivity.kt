@@ -481,7 +481,6 @@ private fun SanctuaryApp(viewModel: MainViewModel) {
                     onStopNovena = viewModel::stopNovena,
                     onCompleteNovenaDay = viewModel::completeNovenaDay,
                     onToggleFavorite = viewModel::toggleFavorite,
-                    onUpdateReminderPreferences = viewModel::updateReminderPreferences,
                     fetchSaintsInRange = viewModel::fetchSaintsInRange,
                     fetchNovenasInRange = viewModel::fetchNovenasInRange,
                     fetchLiturgicalRange = viewModel::fetchLiturgicalRange
@@ -931,7 +930,6 @@ private fun AuthenticatedShell(
     onStopNovena: (String) -> Unit,
     onCompleteNovenaDay: (String, Int) -> Unit,
     onToggleFavorite: (FavoriteItemType, String, String?, String?, Int?) -> Unit,
-    onUpdateReminderPreferences: (Boolean, Boolean) -> Unit,
     fetchSaintsInRange: suspend (String, String) -> List<app.sanctuary.android.data.SaintDateGroup>,
     fetchNovenasInRange: suspend (String, String) -> List<app.sanctuary.android.data.NovenaCalendarDate>,
     fetchLiturgicalRange: suspend (String, String) -> List<app.sanctuary.android.data.LiturgicalDay>
@@ -1220,8 +1218,7 @@ private fun AuthenticatedShell(
                                 onOpenSaint = onOpenSaint,
                                 onOpenPrayer = onOpenPrayer,
                                 onLogout = onLogout,
-                                onDeleteAccount = onDeleteAccount,
-                                onUpdateReminderPreferences = onUpdateReminderPreferences
+                                onDeleteAccount = onDeleteAccount
                             )
                         }
                     } else if (session.status == SessionStatus.Loading && session.session != null) {
@@ -1861,8 +1858,7 @@ private fun MeScreen(
     onOpenSaint: (String) -> Unit,
     onOpenPrayer: (String) -> Unit,
     onLogout: () -> Unit,
-    onDeleteAccount: () -> Unit,
-    onUpdateReminderPreferences: (Boolean, Boolean) -> Unit
+    onDeleteAccount: () -> Unit
 ) {
     val l10n = sanctuaryStrings()
     val context = LocalContext.current
@@ -1870,37 +1866,7 @@ private fun MeScreen(
     val favoriteNovenas = progress.favorites.filter { it.itemType == FavoriteItemType.Novena }
     val favoriteSaints = progress.favorites.filter { it.itemType == FavoriteItemType.Saint }
     val favoritePrayers = progress.favorites.filter { it.itemType == FavoriteItemType.Prayer }
-    val novenaReminderToggle = profile?.novenaRemindersEnabled == true
-    val dailyReminderToggle = profile?.feastRemindersEnabled == true
-    var pendingReminderUpdate by remember { mutableStateOf<Pair<Boolean, Boolean>?>(null) }
     var showDeleteAccountDialog by rememberSaveable { mutableStateOf(false) }
-    val notificationPermissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        val update = pendingReminderUpdate
-        pendingReminderUpdate = null
-        if (granted && update != null) {
-            onUpdateReminderPreferences(update.first, update.second)
-        }
-    }
-
-    fun notificationsPermissionRequired(): Boolean {
-        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-            ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.POST_NOTIFICATIONS
-            ) != android.content.pm.PackageManager.PERMISSION_GRANTED
-    }
-
-    fun requestReminderUpdate(nextNovenaEnabled: Boolean, nextDailyEnabled: Boolean) {
-        val needsPermission = (nextNovenaEnabled || nextDailyEnabled) && notificationsPermissionRequired()
-        if (needsPermission) {
-            pendingReminderUpdate = nextNovenaEnabled to nextDailyEnabled
-            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-        } else {
-            onUpdateReminderPreferences(nextNovenaEnabled, nextDailyEnabled)
-        }
-    }
 
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Text(l10n.t("me.title"), color = Color.White, fontSize = 42.sp, fontWeight = FontWeight.Bold)
@@ -1967,26 +1933,7 @@ private fun MeScreen(
         }
 
         MeSectionCard(title = l10n.t("notifications.title")) {
-            AnnouncementPreference {
-            ReminderToggleRow(
-                title = l10n.t("reminder.novenas"),
-                subtitle = l10n.t("reminder.novenasBody"),
-                checked = novenaReminderToggle,
-                enabled = !session.isSavingReminderPreferences,
-                onCheckedChange = { checked ->
-                    requestReminderUpdate(checked, dailyReminderToggle)
-                }
-            )
-            ReminderToggleRow(
-                title = l10n.t("reminder.daily"),
-                subtitle = l10n.t("reminder.dailyBody"),
-                checked = dailyReminderToggle,
-                enabled = !session.isSavingReminderPreferences,
-                onCheckedChange = { checked ->
-                    requestReminderUpdate(novenaReminderToggle, checked)
-                }
-            )
-            }
+            AnnouncementPreference()
         }
 
         ScheduledRemindersCard()
@@ -5450,7 +5397,7 @@ private fun headerTitle(mode: CalendarMode, anchor: LocalDate, language: AppLang
 }
 
 @Composable
-private fun AnnouncementPreference(reminders: @Composable () -> Unit = {}) {
+private fun AnnouncementPreference() {
     val l10n = sanctuaryStrings()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -5477,7 +5424,6 @@ private fun AnnouncementPreference(reminders: @Composable () -> Unit = {}) {
                 sync()
             }
         })
-        reminders()
         var expanded by remember { mutableStateOf(false) }
         Row(
             modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable(role = androidx.compose.ui.semantics.Role.Button) { expanded = !expanded }.padding(vertical = 12.dp, horizontal = 2.dp),
@@ -5505,6 +5451,7 @@ private fun AnnouncementPreference(reminders: @Composable () -> Unit = {}) {
             Icon(Icons.Filled.OpenInNew, contentDescription = null, tint = Color(0xFFC3D6DE), modifier = Modifier.size(18.dp))
             Text(l10n.t("notifications.settings"), color = Color(0xFFC3D6DE), fontSize = 14.sp)
         }
+        Text(l10n.t("notifications.settingsBody"), color = Color(0xFFD0DFEA), fontSize = 13.sp)
     }
 }
 

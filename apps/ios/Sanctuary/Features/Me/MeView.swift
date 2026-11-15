@@ -11,9 +11,6 @@ struct MeView: View {
     @State private var saintDetailsByID: [String: Saint] = [:]
     @State private var novenaDetailsByID: [String: Novena] = [:]
     @State private var prayerDetailsByID: [String: Prayer] = [:]
-    @State private var novenaReminderToggle = false
-    @State private var dailyReminderToggle = false
-    @State private var isSavingReminderPreferences = false
     @State private var isShowingDeleteAccountConfirmation = false
     @State private var isDeletingAccount = false
 
@@ -57,10 +54,7 @@ struct MeView: View {
         .task(id: favoritePrayerLookupKey) {
             await loadFavoritePrayerDetails()
         }
-        .task(id: reminderPreferenceKey) {
-            novenaReminderToggle = accountStore.profile?.novenaRemindersEnabled ?? false
-            dailyReminderToggle = accountStore.profile?.feastRemindersEnabled ?? false
-        }
+
         .fullScreenCover(item: $selectedRoute) { route in
             switch route {
             case .saint(let saint):
@@ -110,33 +104,8 @@ struct MeView: View {
                     subtitle: localization.t("announcements.body"),
                     isOn: Binding(get: { push.enabled }, set: { value in
                         Task { await push.setEnabled(value); await accountStore.syncPushDevice() }
-                    }), available: true
+                    })
                 )
-                if accountStore.isAuthenticated {
-                    reminderToggleRow(
-                        title: localization.t("me.reminders.inProgressTitle"),
-                        subtitle: localization.t("me.reminders.inProgressBody"),
-                        isOn: Binding(
-                            get: { novenaReminderToggle },
-                            set: { newValue in
-                                novenaReminderToggle = newValue
-                                persistReminderPreferences()
-                            }
-                        )
-                    )
-
-                    reminderToggleRow(
-                        title: localization.t("me.reminders.generalTitle"),
-                        subtitle: localization.t("me.reminders.generalBody"),
-                        isOn: Binding(
-                            get: { dailyReminderToggle },
-                            set: { newValue in
-                                dailyReminderToggle = newValue
-                                persistReminderPreferences()
-                            }
-                        )
-                    )
-                }
                 DisclosureGroup(localization.t("notifications.details")) {
                     VStack(alignment: .leading, spacing: 8) {
                         if !push.registrationStatus.isEmpty {
@@ -155,6 +124,10 @@ struct MeView: View {
                         .font(AppTheme.rounded(13, weight: .semibold))
                 }
                 .foregroundStyle(AppTheme.subtitleText)
+                Text(localization.t("notifications.settingsBody"))
+                    .font(AppTheme.rounded(13, weight: .medium))
+                    .foregroundStyle(AppTheme.subtitleText)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
     }
@@ -361,7 +334,7 @@ struct MeView: View {
         .buttonStyle(.plain)
     }
 
-    private func reminderToggleRow(title: String, subtitle: String, isOn: Binding<Bool>, available: Bool = false) -> some View {
+    private func reminderToggleRow(title: String, subtitle: String, isOn: Binding<Bool>) -> some View {
         let active = isOn.wrappedValue
 
         return HStack(alignment: .top, spacing: 14) {
@@ -370,7 +343,6 @@ struct MeView: View {
                     Text(title)
                         .font(.system(size: 16, weight: .semibold, design: .rounded))
                         .foregroundStyle(.white)
-
 
                 }
 
@@ -387,7 +359,7 @@ struct MeView: View {
                 .toggleStyle(NotificationSwitchStyle())
                 .accessibilityLabel(title)
                 .tint(Color(red: 0.16, green: 0.65, blue: 0.56))
-                .disabled(!available && isSavingReminderPreferences)
+
         }
         .padding(.vertical, 12)
         .padding(.horizontal, 14)
@@ -492,11 +464,6 @@ struct MeView: View {
         ([localization.language.contentLocale.rawValue] + favoriteSaints.map(\.itemID).sorted()).joined(separator: "|")
     }
 
-    private var reminderPreferenceKey: String {
-        let novena = accountStore.profile?.novenaRemindersEnabled == true ? "1" : "0"
-        let general = accountStore.profile?.feastRemindersEnabled == true ? "1" : "0"
-        return "\(novena)-\(general)-\(accountStore.profile?.userID ?? "signed-out")"
-    }
 
     private var novenaLookupKey: String {
         let allIDs = progressStore.activeCommitments.map(\.novenaID) + favoriteNovenas.map(\.itemID)
@@ -666,31 +633,6 @@ struct MeView: View {
         novenaDetailsByID = loadedDetails
     }
 
-    private func persistReminderPreferences() {
-        guard !isSavingReminderPreferences else { return }
-        let pendingNovena = novenaReminderToggle
-        let pendingDaily = dailyReminderToggle
-        isSavingReminderPreferences = true
-
-        Task {
-            let success = await accountStore.updateReminderPreferences(
-                novenaEnabled: pendingNovena,
-                dailyEnabled: pendingDaily
-            )
-
-            if success {
-                await progressStore.setReminderPreferences(
-                    novenaEnabled: pendingNovena,
-                    generalDailyEnabled: pendingDaily
-                )
-            } else {
-                novenaReminderToggle = accountStore.profile?.novenaRemindersEnabled ?? false
-                dailyReminderToggle = accountStore.profile?.feastRemindersEnabled ?? false
-            }
-
-            isSavingReminderPreferences = false
-        }
-    }
 
     private func deleteAccount() {
         guard !isDeletingAccount else { return }
@@ -790,7 +732,6 @@ private enum MeSelectionRoute: Identifiable {
     }
 }
 
-
 private struct NotificationSwitchStyle: ToggleStyle {
     func makeBody(configuration: Configuration) -> some View {
         Button { configuration.isOn.toggle() } label: {
@@ -807,7 +748,6 @@ private struct NotificationSwitchStyle: ToggleStyle {
         .accessibilityValue(configuration.isOn ? Text("On") : Text("Off"))
     }
 }
-
 
 private struct ScheduledRemindersCard: View {
     @EnvironmentObject private var localization: LocalizationManager
