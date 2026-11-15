@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import java.time.Instant
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -46,6 +48,7 @@ class SessionRepository(
         val response = runApiCall {
             api.login(AuthLoginRequest(email = email, password = password))
         }
+        currentCoroutineContext().ensureActive()
         val session = response.toStoredSession()
         persistSession(session)
         loadProfile(session)
@@ -121,6 +124,7 @@ class SessionRepository(
                     )
                 )
             }
+            currentCoroutineContext().ensureActive()
             val session = response.toStoredSession()
             persistSession(session)
             loadProfile(session)

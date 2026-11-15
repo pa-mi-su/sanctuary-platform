@@ -1,4 +1,4 @@
-import { Component, computed, effect, inject, input, output, signal } from '@angular/core';
+import { Component, OnDestroy, computed, effect, inject, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
 import { SanctuaryAuthService } from '../core/auth/sanctuary-auth.service';
@@ -66,16 +66,21 @@ type AuthStep = 'landing' | 'login' | 'register' | 'confirm' | 'forgot' | 'reset
 
               <label class="field">
                 <span>{{ t('Email', 'Correo', 'Email') }}</span>
-                <input type="email" [(ngModel)]="loginEmail" name="loginEmail" autocomplete="email" />
+                <div class="password-control text-control">
+                  <input type="email" #loginEmailInput [(ngModel)]="loginEmail" name="loginEmail" autocomplete="email" />
+                  @if (loginEmail) {
+                    <div class="password-actions"><button class="password-icon-button" type="button" [attr.aria-label]="t('Clear email', 'Borrar correo', 'Wyczyść email')" (click)="loginEmail = ''; loginEmailInput.focus()"><span aria-hidden="true">×</span></button></div>
+                  }
+                </div>
               </label>
 
               <label class="field">
                 <span>{{ t('Password', 'Contraseña', 'Hasło') }}</span>
                 <div class="password-control">
-                  <input [type]="showLoginPassword ? 'text' : 'password'" [(ngModel)]="loginPassword" name="loginPassword" autocomplete="current-password" />
+                  <input [type]="showLoginPassword ? 'text' : 'password'" #loginPasswordInput [(ngModel)]="loginPassword" name="loginPassword" autocomplete="current-password" />
                   <div class="password-actions">
                     @if (loginPassword) {
-                      <button class="password-icon-button" type="button" [attr.aria-label]="t('Clear password', 'Borrar contraseña', 'Wyczyść hasło')" (click)="loginPassword = ''">
+                      <button class="password-icon-button" type="button" [attr.aria-label]="t('Clear password', 'Borrar contraseña', 'Wyczyść hasło')" (click)="loginPassword = ''; showLoginPassword = false; loginPasswordInput.focus()">
                         <span aria-hidden="true">×</span>
                       </button>
                     }
@@ -109,28 +114,43 @@ type AuthStep = 'landing' | 'login' | 'register' | 'confirm' | 'forgot' | 'reset
               <div class="field-grid">
                 <label class="field">
                   <span>{{ t('First name', 'Nombre', 'Imię') }}</span>
-                  <input type="text" [(ngModel)]="registerFirstName" name="registerFirstName" autocomplete="given-name" />
+                  <div class="password-control text-control">
+                    <input type="text" #registerFirstNameInput [(ngModel)]="registerFirstName" name="registerFirstName" autocomplete="given-name" />
+                    @if (registerFirstName) {
+                      <div class="password-actions"><button class="password-icon-button" type="button" [attr.aria-label]="t('Clear first name', 'Borrar nombre', 'Wyczyść imię')" (click)="registerFirstName = ''; registerFirstNameInput.focus()"><span aria-hidden="true">×</span></button></div>
+                    }
+                  </div>
                 </label>
 
                 <label class="field">
                   <span>{{ t('Last name', 'Apellido', 'Nazwisko') }}</span>
-                  <input type="text" [(ngModel)]="registerLastName" name="registerLastName" autocomplete="family-name" />
+                  <div class="password-control text-control">
+                    <input type="text" #registerLastNameInput [(ngModel)]="registerLastName" name="registerLastName" autocomplete="family-name" />
+                    @if (registerLastName) {
+                      <div class="password-actions"><button class="password-icon-button" type="button" [attr.aria-label]="t('Clear last name', 'Borrar apellido', 'Wyczyść nazwisko')" (click)="registerLastName = ''; registerLastNameInput.focus()"><span aria-hidden="true">×</span></button></div>
+                    }
+                  </div>
                 </label>
               </div>
 
               <label class="field">
                 <span>{{ t('Email', 'Correo', 'Email') }}</span>
-                <input type="email" [(ngModel)]="registerEmail" name="registerEmail" autocomplete="email" />
+                <div class="password-control text-control">
+                  <input type="email" #registerEmailInput [(ngModel)]="registerEmail" name="registerEmail" autocomplete="email" />
+                  @if (registerEmail) {
+                    <div class="password-actions"><button class="password-icon-button" type="button" [attr.aria-label]="t('Clear email', 'Borrar correo', 'Wyczyść email')" (click)="registerEmail = ''; registerEmailInput.focus()"><span aria-hidden="true">×</span></button></div>
+                  }
+                </div>
               </label>
 
               <div class="field-grid">
                 <label class="field">
                   <span>{{ t('Password', 'Contraseña', 'Hasło') }}</span>
                   <div class="password-control">
-                    <input [type]="showRegisterPassword ? 'text' : 'password'" [(ngModel)]="registerPassword" name="registerPassword" autocomplete="new-password" />
+                    <input [type]="showRegisterPassword ? 'text' : 'password'" #registerPasswordInput [(ngModel)]="registerPassword" name="registerPassword" autocomplete="new-password" />
                     <div class="password-actions">
                       @if (registerPassword) {
-                        <button class="password-icon-button" type="button" [attr.aria-label]="t('Clear password', 'Borrar contraseña', 'Wyczyść hasło')" (click)="registerPassword = ''">
+                        <button class="password-icon-button" type="button" [attr.aria-label]="t('Clear password', 'Borrar contraseña', 'Wyczyść hasło')" (click)="registerPassword = ''; showRegisterPassword = false; registerPasswordInput.focus()">
                           <span aria-hidden="true">×</span>
                         </button>
                       }
@@ -144,10 +164,10 @@ type AuthStep = 'landing' | 'login' | 'register' | 'confirm' | 'forgot' | 'reset
                 <label class="field">
                   <span>{{ t('Confirm password', 'Confirmar contraseña', 'Potwierdź hasło') }}</span>
                   <div class="password-control">
-                    <input [type]="showRegisterPasswordConfirmation ? 'text' : 'password'" [(ngModel)]="registerPasswordConfirmation" name="registerPasswordConfirmation" autocomplete="new-password" />
+                    <input [type]="showRegisterPasswordConfirmation ? 'text' : 'password'" #registerPasswordConfirmationInput [(ngModel)]="registerPasswordConfirmation" name="registerPasswordConfirmation" autocomplete="new-password" />
                     <div class="password-actions">
                       @if (registerPasswordConfirmation) {
-                        <button class="password-icon-button" type="button" [attr.aria-label]="t('Clear password', 'Borrar contraseña', 'Wyczyść hasło')" (click)="registerPasswordConfirmation = ''">
+                        <button class="password-icon-button" type="button" [attr.aria-label]="t('Clear password', 'Borrar contraseña', 'Wyczyść hasło')" (click)="registerPasswordConfirmation = ''; showRegisterPasswordConfirmation = false; registerPasswordConfirmationInput.focus()">
                           <span aria-hidden="true">×</span>
                         </button>
                       }
@@ -210,7 +230,12 @@ type AuthStep = 'landing' | 'login' | 'register' | 'confirm' | 'forgot' | 'reset
 
               <label class="field">
                 <span>{{ t('Verification code', 'Código de verificación', 'Kod weryfikacyjny') }}</span>
-                <input type="text" [(ngModel)]="confirmationCode" name="confirmationCode" autocomplete="one-time-code" inputmode="numeric" />
+                <div class="password-control text-control">
+                  <input type="text" #confirmationCodeInput [(ngModel)]="confirmationCode" name="confirmationCode" autocomplete="one-time-code" inputmode="numeric" />
+                  @if (confirmationCode) {
+                    <div class="password-actions"><button class="password-icon-button" type="button" [attr.aria-label]="t('Clear confirmation code', 'Borrar código de confirmación', 'Wyczyść kod potwierdzający')" (click)="confirmationCode = ''; confirmationCodeInput.focus()"><span aria-hidden="true">×</span></button></div>
+                  }
+                </div>
               </label>
 
               <button class="primary-action" type="submit" [disabled]="pending()">
@@ -238,7 +263,12 @@ type AuthStep = 'landing' | 'login' | 'register' | 'confirm' | 'forgot' | 'reset
 
               <label class="field">
                 <span>{{ t('Email', 'Correo', 'Email') }}</span>
-                <input type="email" [(ngModel)]="forgotEmail" name="forgotEmail" autocomplete="email" />
+                <div class="password-control text-control">
+                  <input type="email" #forgotEmailInput [(ngModel)]="forgotEmail" name="forgotEmail" autocomplete="email" />
+                  @if (forgotEmail) {
+                    <div class="password-actions"><button class="password-icon-button" type="button" [attr.aria-label]="t('Clear email', 'Borrar correo', 'Wyczyść email')" (click)="forgotEmail = ''; forgotEmailInput.focus()"><span aria-hidden="true">×</span></button></div>
+                  }
+                </div>
               </label>
 
               <button class="primary-action" type="submit" [disabled]="pending()">
@@ -268,17 +298,22 @@ type AuthStep = 'landing' | 'login' | 'register' | 'confirm' | 'forgot' | 'reset
 
               <label class="field">
                 <span>{{ t('Reset code', 'Código de restablecimiento', 'Kod resetujący') }}</span>
-                <input type="text" [(ngModel)]="resetCode" name="resetCode" autocomplete="one-time-code" inputmode="numeric" />
+                <div class="password-control text-control">
+                  <input type="text" #resetCodeInput [(ngModel)]="resetCode" name="resetCode" autocomplete="one-time-code" inputmode="numeric" />
+                  @if (resetCode) {
+                    <div class="password-actions"><button class="password-icon-button" type="button" [attr.aria-label]="t('Clear reset code', 'Borrar código de restablecimiento', 'Wyczyść kod resetujący')" (click)="resetCode = ''; resetCodeInput.focus()"><span aria-hidden="true">×</span></button></div>
+                  }
+                </div>
               </label>
 
               <div class="field-grid">
                 <label class="field">
                   <span>{{ t('New password', 'Nueva contraseña', 'Nowe hasło') }}</span>
                   <div class="password-control">
-                    <input [type]="showResetPassword ? 'text' : 'password'" [(ngModel)]="resetPassword" name="resetPassword" autocomplete="new-password" />
+                    <input [type]="showResetPassword ? 'text' : 'password'" #resetPasswordInput [(ngModel)]="resetPassword" name="resetPassword" autocomplete="new-password" />
                     <div class="password-actions">
                       @if (resetPassword) {
-                        <button class="password-icon-button" type="button" [attr.aria-label]="t('Clear password', 'Borrar contraseña', 'Wyczyść hasło')" (click)="resetPassword = ''">
+                        <button class="password-icon-button" type="button" [attr.aria-label]="t('Clear password', 'Borrar contraseña', 'Wyczyść hasło')" (click)="resetPassword = ''; showResetPassword = false; resetPasswordInput.focus()">
                           <span aria-hidden="true">×</span>
                         </button>
                       }
@@ -292,10 +327,10 @@ type AuthStep = 'landing' | 'login' | 'register' | 'confirm' | 'forgot' | 'reset
                 <label class="field">
                   <span>{{ t('Confirm new password', 'Confirmar nueva contraseña', 'Potwierdź nowe hasło') }}</span>
                   <div class="password-control">
-                    <input [type]="showResetPasswordConfirmation ? 'text' : 'password'" [(ngModel)]="resetPasswordConfirmation" name="resetPasswordConfirmation" autocomplete="new-password" />
+                    <input [type]="showResetPasswordConfirmation ? 'text' : 'password'" #resetPasswordConfirmationInput [(ngModel)]="resetPasswordConfirmation" name="resetPasswordConfirmation" autocomplete="new-password" />
                     <div class="password-actions">
                       @if (resetPasswordConfirmation) {
-                        <button class="password-icon-button" type="button" [attr.aria-label]="t('Clear password', 'Borrar contraseña', 'Wyczyść hasło')" (click)="resetPasswordConfirmation = ''">
+                        <button class="password-icon-button" type="button" [attr.aria-label]="t('Clear password', 'Borrar contraseña', 'Wyczyść hasło')" (click)="resetPasswordConfirmation = ''; showResetPasswordConfirmation = false; resetPasswordConfirmationInput.focus()">
                           <span aria-hidden="true">×</span>
                         </button>
                       }
@@ -351,7 +386,7 @@ type AuthStep = 'landing' | 'login' | 'register' | 'confirm' | 'forgot' | 'reset
     </section>
   `,
 })
-export class AuthPageComponent {
+export class AuthPageComponent implements OnDestroy {
   readonly currentLanguage = input<AppLanguage>('en');
   readonly isConfigured = input<boolean>(false);
   readonly initialStep = input<AuthStep>('landing');
@@ -365,7 +400,7 @@ export class AuthPageComponent {
   protected readonly message = signal<string | null>(null);
 
   constructor() {
-    effect(() => this.step.set(this.initialStep()));
+    effect(() => { this.clearForm(); this.step.set(this.initialStep()); });
   }
 
   protected loginEmail = '';
@@ -523,6 +558,7 @@ export class AuthPageComponent {
       return;
     }
 
+    const generation = this.formGeneration;
     this.pending.set(true);
     this.error.set(null);
     this.message.set(null);
@@ -532,8 +568,10 @@ export class AuthPageComponent {
         email: this.loginEmail.trim(),
         password: this.loginPassword,
       });
+      if (this.destroyed || generation !== this.formGeneration) return;
       this.pending.set(false);
       if (this.auth.state().status === 'authenticated') {
+        this.clearForm();
         this.authenticated.emit();
       } else {
         this.error.set(
@@ -542,6 +580,7 @@ export class AuthPageComponent {
         );
       }
     } catch {
+      if (this.destroyed || generation !== this.formGeneration) return;
       this.pending.set(false);
       this.error.set(this.auth.state().message);
     }
@@ -577,6 +616,7 @@ export class AuthPageComponent {
       return;
     }
 
+    const generation = this.formGeneration;
     this.pending.set(true);
     this.error.set(null);
     this.message.set(null);
@@ -588,12 +628,15 @@ export class AuthPageComponent {
         email: this.registerEmail.trim(),
         password: this.registerPassword,
       });
+      if (this.destroyed || generation !== this.formGeneration) return;
       this.pending.set(false);
       this.confirmationEmail = result.email;
       this.confirmationCode = '';
       this.message.set(this.t('Your account is almost ready. Enter the confirmation code we emailed you.', 'Tu cuenta casi está lista. Ingresa el código de confirmación que te enviamos por correo.', 'Twoje konto jest prawie gotowe. Wpisz kod potwierdzający wysłany e-mailem.'));
+      this.clearSecrets();
       this.step.set('confirm');
     } catch {
+      if (this.destroyed || generation !== this.formGeneration) return;
       this.pending.set(false);
       this.error.set(this.auth.state().message);
     }
@@ -609,6 +652,7 @@ export class AuthPageComponent {
       return;
     }
 
+    const generation = this.formGeneration;
     this.pending.set(true);
     this.error.set(null);
 
@@ -617,6 +661,7 @@ export class AuthPageComponent {
         email: this.confirmationEmail,
         code: this.confirmationCode.trim(),
       });
+      if (this.destroyed || generation !== this.formGeneration) return;
       const email = this.confirmationEmail;
       const password = this.registerPassword;
 
@@ -626,13 +671,16 @@ export class AuthPageComponent {
             email,
             password,
           });
+      if (this.destroyed || generation !== this.formGeneration) return;
           if (this.auth.state().status === 'authenticated') {
             this.pending.set(false);
             this.message.set(null);
-            this.authenticated.emit();
+            this.clearForm();
+        this.authenticated.emit();
             return;
           }
         } catch {
+      if (this.destroyed || generation !== this.formGeneration) return;
           // Fall back to the login screen with the confirmed email prefilled.
         }
       }
@@ -650,6 +698,7 @@ export class AuthPageComponent {
       this.loginPassword = '';
       this.confirmationCode = '';
     } catch {
+      if (this.destroyed || generation !== this.formGeneration) return;
       this.pending.set(false);
       this.error.set(this.auth.state().message);
     }
@@ -664,14 +713,17 @@ export class AuthPageComponent {
       return;
     }
 
+    const generation = this.formGeneration;
     this.pending.set(true);
     this.error.set(null);
 
     try {
       const message = await this.auth.resendConfirmation(this.confirmationEmail);
+      if (this.destroyed || generation !== this.formGeneration) return;
       this.pending.set(false);
       this.message.set(message);
     } catch {
+      if (this.destroyed || generation !== this.formGeneration) return;
       this.pending.set(false);
       this.error.set(this.auth.state().message);
     }
@@ -684,7 +736,9 @@ export class AuthPageComponent {
 
     this.error.set(null);
     this.message.set(null);
-    this.forgotEmail = this.loginEmail.trim();
+    const email = this.loginEmail.trim();
+    this.clearForm();
+    this.forgotEmail = email;
     this.step.set('forgot');
   }
 
@@ -702,6 +756,7 @@ export class AuthPageComponent {
       return;
     }
 
+    const generation = this.formGeneration;
     this.pending.set(true);
     this.error.set(null);
     this.message.set(null);
@@ -709,6 +764,7 @@ export class AuthPageComponent {
     try {
       const email = this.forgotEmail.trim();
       const message = await this.auth.forgotPassword({ email });
+      if (this.destroyed || generation !== this.formGeneration) return;
       this.pending.set(false);
       this.message.set(message);
       this.resetEmail = email;
@@ -717,6 +773,7 @@ export class AuthPageComponent {
       this.resetPasswordConfirmation = '';
       this.step.set('reset');
     } catch {
+      if (this.destroyed || generation !== this.formGeneration) return;
       this.pending.set(false);
       this.error.set(this.auth.state().message);
     }
@@ -731,14 +788,17 @@ export class AuthPageComponent {
       return;
     }
 
+    const generation = this.formGeneration;
     this.pending.set(true);
     this.error.set(null);
 
     try {
       const message = await this.auth.forgotPassword({ email: this.resetEmail.trim() });
+      if (this.destroyed || generation !== this.formGeneration) return;
       this.pending.set(false);
       this.message.set(message);
     } catch {
+      if (this.destroyed || generation !== this.formGeneration) return;
       this.pending.set(false);
       this.error.set(this.auth.state().message);
     }
@@ -770,6 +830,7 @@ export class AuthPageComponent {
       return;
     }
 
+    const generation = this.formGeneration;
     this.pending.set(true);
     this.error.set(null);
 
@@ -780,16 +841,44 @@ export class AuthPageComponent {
         code: this.resetCode.trim(),
         newPassword: this.resetPassword,
       });
+      if (this.destroyed || generation !== this.formGeneration) return;
       this.pending.set(false);
       this.resetCode = '';
       this.resetPassword = '';
       this.resetPasswordConfirmation = '';
       this.forgotEmail = email;
+      this.clearForm();
       this.authenticated.emit();
     } catch {
+      if (this.destroyed || generation !== this.formGeneration) return;
       this.pending.set(false);
       this.error.set(this.auth.state().message);
     }
+  }
+
+  private destroyed = false;
+  private formGeneration = 0;
+
+  ngOnDestroy(): void {
+    this.destroyed = true;
+    this.clearForm();
+  }
+
+  private clearSecrets(): void {
+    this.loginPassword = this.registerPassword = this.registerPasswordConfirmation = '';
+    this.confirmationCode = this.resetCode = this.resetPassword = this.resetPasswordConfirmation = '';
+    this.showLoginPassword = this.showRegisterPassword = this.showRegisterPasswordConfirmation = false;
+    this.showResetPassword = this.showResetPasswordConfirmation = false;
+  }
+
+  private clearForm(): void {
+    this.formGeneration++;
+    this.pending.set(false);
+    this.clearSecrets();
+    this.loginEmail = this.registerFirstName = this.registerLastName = this.registerEmail = '';
+    this.confirmationEmail = this.forgotEmail = this.resetEmail = '';
+    this.error.set(null);
+    this.message.set(null);
   }
 
   protected goBack(): void {
@@ -797,8 +886,7 @@ export class AuthPageComponent {
       return;
     }
 
-    this.error.set(null);
-    this.message.set(null);
+    this.clearForm();
 
     if (this.step() === 'confirm') {
       this.step.set('register');

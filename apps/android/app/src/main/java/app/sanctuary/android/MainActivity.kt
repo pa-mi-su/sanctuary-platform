@@ -17,6 +17,7 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.foundation.Canvas
@@ -555,25 +556,44 @@ private fun AccountAccessScreen(
     embedded: Boolean = false,
     initialStep: AuthStep = AuthStep.Landing
 ) {
-    var step by rememberSaveable(initialStep) {
+    var step by remember(initialStep) {
         mutableStateOf(
             if (session.status == SessionStatus.AwaitingConfirmation) AuthStep.Confirm else initialStep
         )
     }
-    var loginEmail by rememberSaveable { mutableStateOf(session.pendingConfirmationEmail.orEmpty()) }
-    var loginPassword by rememberSaveable { mutableStateOf("") }
-    var firstName by rememberSaveable { mutableStateOf("") }
-    var lastName by rememberSaveable { mutableStateOf("") }
-    var registerEmail by rememberSaveable { mutableStateOf(session.pendingConfirmationEmail.orEmpty()) }
-    var registerPassword by rememberSaveable { mutableStateOf("") }
-    var registerPasswordConfirmation by rememberSaveable { mutableStateOf("") }
-    var confirmationCode by rememberSaveable { mutableStateOf("") }
-    var forgotEmail by rememberSaveable { mutableStateOf(session.pendingPasswordResetEmail.orEmpty()) }
-    var resetEmail by rememberSaveable { mutableStateOf(session.pendingPasswordResetEmail.orEmpty()) }
-    var resetCode by rememberSaveable { mutableStateOf("") }
-    var newPassword by rememberSaveable { mutableStateOf("") }
-    var resetPasswordConfirmation by rememberSaveable { mutableStateOf("") }
+    var loginEmail by remember { mutableStateOf(session.pendingConfirmationEmail.orEmpty()) }
+    var loginPassword by remember { mutableStateOf("") }
+    var firstName by remember { mutableStateOf("") }
+    var lastName by remember { mutableStateOf("") }
+    var registerEmail by remember { mutableStateOf(session.pendingConfirmationEmail.orEmpty()) }
+    var registerPassword by remember { mutableStateOf("") }
+    var registerPasswordConfirmation by remember { mutableStateOf("") }
+    var confirmationCode by remember { mutableStateOf("") }
+    var forgotEmail by remember { mutableStateOf(session.pendingPasswordResetEmail.orEmpty()) }
+    var resetEmail by remember { mutableStateOf(session.pendingPasswordResetEmail.orEmpty()) }
+    var resetCode by remember { mutableStateOf("") }
+    var newPassword by remember { mutableStateOf("") }
+    var resetPasswordConfirmation by remember { mutableStateOf("") }
 
+    fun clearForm() {
+        loginEmail = ""; loginPassword = ""
+        firstName = ""; lastName = ""; registerEmail = ""
+        registerPassword = ""; registerPasswordConfirmation = ""; confirmationCode = ""
+        forgotEmail = ""; resetEmail = ""; resetCode = ""
+        newPassword = ""; resetPasswordConfirmation = ""
+    }
+    fun navigate(next: AuthStep) {
+        clearForm()
+        onAction.abandonAccountForm()
+        step = next
+    }
+    DisposableEffect(Unit) {
+        onDispose { onAction.abandonAccountForm() }
+    }
+    LaunchedEffect(step) {
+        loginPassword = ""; registerPassword = ""; registerPasswordConfirmation = ""
+        newPassword = ""; resetPasswordConfirmation = ""; resetCode = ""; confirmationCode = ""
+    }
     LaunchedEffect(session.status, session.pendingConfirmationEmail, session.pendingPasswordResetEmail) {
         if (session.status == SessionStatus.AwaitingConfirmation) {
             step = AuthStep.Confirm
@@ -597,6 +617,14 @@ private fun AccountAccessScreen(
     }
 
     val isBusy = session.status == SessionStatus.Loading
+    BackHandler(enabled = step != AuthStep.Landing && !isBusy) {
+        navigate(when (step) {
+            AuthStep.Confirm -> AuthStep.Register
+            AuthStep.ResetPassword -> AuthStep.ForgotPassword
+            AuthStep.ForgotPassword -> AuthStep.Login
+            else -> AuthStep.Landing
+        })
+    }
     val l10n = sanctuaryStrings()
     val introTitle = if (embedded) l10n.t("auth.chooseWay") else l10n.t("auth.androidTitle")
     val introBody = if (embedded) {
@@ -639,7 +667,7 @@ private fun AccountAccessScreen(
                 onNewPasswordChange = { newPassword = it },
                 resetPasswordConfirmation = resetPasswordConfirmation,
                 onResetPasswordConfirmationChange = { resetPasswordConfirmation = it },
-                onStepChange = { step = it },
+                onStepChange = { navigate(it) },
                 onAction = onAction,
                 showAccountEyebrow = true
             )
@@ -683,7 +711,7 @@ private fun AccountAccessScreen(
                     onNewPasswordChange = { newPassword = it },
                     resetPasswordConfirmation = resetPasswordConfirmation,
                     onResetPasswordConfirmationChange = { resetPasswordConfirmation = it },
-                    onStepChange = { step = it },
+                    onStepChange = { navigate(it) },
                     onAction = onAction,
                     showAccountEyebrow = true
                 )
@@ -1635,7 +1663,7 @@ private fun TextFieldBlock(
     keyboardType: KeyboardType = KeyboardType.Text,
     onValueChange: (String) -> Unit
 ) {
-    var passwordVisible by rememberSaveable { mutableStateOf(false) }
+    var passwordVisible by remember(value.isEmpty()) { mutableStateOf(false) }
     val visualTransformation = when {
         secure && !passwordVisible -> PasswordVisualTransformation()
         else -> VisualTransformation.None

@@ -259,14 +259,31 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    private var accountFormGeneration = 0
+    private var accountFormJob: kotlinx.coroutines.Job? = null
+
+    fun abandonAccountForm() {
+        accountFormGeneration++
+        accountFormJob?.cancel()
+        _session.update { current ->
+            current.copy(
+                status = if (current.session != null) current.status else SessionStatus.SignedOut,
+                pendingConfirmationEmail = null, pendingPasswordResetEmail = null,
+                message = null, isErrorMessage = false
+            )
+        }
+    }
+
     fun register(firstName: String, lastName: String, email: String, password: String) {
         if (!beginAuthRequest()) return
-        viewModelScope.launch {
+        val generation = accountFormGeneration
+        accountFormJob = viewModelScope.launch {
             runCatching {
                 withTimeoutOrNull(15_000) {
                     repository.register(firstName, lastName, email, password)
                 } ?: throw IllegalStateException(l10n().t("status.registerTimeout"))
             }.onSuccess { response: AuthRegistrationResponse ->
+                if (generation != accountFormGeneration) return@onSuccess
                 _session.value = SessionUiState(
                     status = SessionStatus.AwaitingConfirmation,
                     pendingConfirmationEmail = response.email,
@@ -274,6 +291,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     isErrorMessage = false
                 )
             }.onFailure { failure ->
+                if (generation != accountFormGeneration) return@onFailure
                 _session.value = SessionUiState(
                     status = SessionStatus.Failed,
                     pendingConfirmationEmail = email,
@@ -287,7 +305,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun confirmRegistration(code: String, password: String? = null) {
         val email = _session.value.pendingConfirmationEmail ?: return
         if (!beginAuthRequest()) return
-        viewModelScope.launch {
+        val generation = accountFormGeneration
+        accountFormJob = viewModelScope.launch {
             var confirmationMessage: String? = null
             runCatching {
                 val confirmation = withTimeoutOrNull(15_000) {
@@ -303,6 +322,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     null
                 }
             }.onSuccess { loginResult ->
+                if (generation != accountFormGeneration) return@onSuccess
                 if (loginResult?.authenticated == true) {
                     applyAuthenticatedSession(loginResult)
                 } else {
@@ -314,6 +334,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     )
                 }
             }.onFailure { failure ->
+                if (generation != accountFormGeneration) return@onFailure
                 _session.value = _session.value.copy(
                     status = SessionStatus.Failed,
                     message = failure.message,
@@ -326,19 +347,22 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun resendConfirmation() {
         val email = _session.value.pendingConfirmationEmail ?: return
         if (!beginAuthRequest()) return
-        viewModelScope.launch {
+        val generation = accountFormGeneration
+        accountFormJob = viewModelScope.launch {
             runCatching {
                 withTimeoutOrNull(15_000) {
                     repository.resendConfirmation(email)
                 } ?: throw IllegalStateException(l10n().t("status.resendTimeout"))
             }
                 .onSuccess { response ->
+                    if (generation != accountFormGeneration) return@onSuccess
                     _session.value = _session.value.copy(
                         status = SessionStatus.AwaitingConfirmation,
                         message = response.message,
                         isErrorMessage = false
                     )
                 }.onFailure { failure ->
+                    if (generation != accountFormGeneration) return@onFailure
                     _session.value = _session.value.copy(
                         status = SessionStatus.Failed,
                         message = failure.message,
@@ -350,13 +374,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun forgotPassword(email: String) {
         if (!beginAuthRequest()) return
-        viewModelScope.launch {
+        val generation = accountFormGeneration
+        accountFormJob = viewModelScope.launch {
             runCatching {
                 withTimeoutOrNull(15_000) {
                     repository.forgotPassword(email)
                 } ?: throw IllegalStateException(l10n().t("status.forgotTimeout"))
             }
                 .onSuccess { response ->
+                    if (generation != accountFormGeneration) return@onSuccess
                     _session.value = SessionUiState(
                         status = SessionStatus.SignedOut,
                         pendingPasswordResetEmail = email,
@@ -364,6 +390,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         isErrorMessage = false
                     )
                 }.onFailure { failure ->
+                    if (generation != accountFormGeneration) return@onFailure
                     _session.value = SessionUiState(
                         status = SessionStatus.Failed,
                         pendingPasswordResetEmail = email,
@@ -376,13 +403,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun resetPassword(email: String, code: String, newPassword: String) {
         if (!beginAuthRequest()) return
-        viewModelScope.launch {
+        val generation = accountFormGeneration
+        accountFormJob = viewModelScope.launch {
             runCatching {
                 withTimeoutOrNull(15_000) {
                     repository.resetPassword(email, code, newPassword)
                 } ?: throw IllegalStateException(l10n().t("status.resetTimeout"))
             }
                 .onSuccess { result ->
+                    if (generation != accountFormGeneration) return@onSuccess
                     if (result.authenticated) {
                         applyAuthenticatedSession(result)
                     } else {
@@ -394,6 +423,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         )
                     }
                 }.onFailure { failure ->
+                    if (generation != accountFormGeneration) return@onFailure
                     _session.value = SessionUiState(
                         status = SessionStatus.Failed,
                         pendingPasswordResetEmail = email,
@@ -406,13 +436,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun login(email: String, password: String) {
         if (!beginAuthRequest()) return
-        viewModelScope.launch {
+        val generation = accountFormGeneration
+        accountFormJob = viewModelScope.launch {
             runCatching {
                 withTimeoutOrNull(15_000) {
                     repository.login(email, password)
                 } ?: throw IllegalStateException(l10n().t("status.loginTimeout"))
             }
                 .onSuccess { result ->
+                    if (generation != accountFormGeneration) return@onSuccess
                     if (result.authenticated) {
                         applyAuthenticatedSession(result)
                     } else {
@@ -424,6 +456,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         )
                     }
                 }.onFailure { failure ->
+                    if (generation != accountFormGeneration) return@onFailure
                     _session.value = SessionUiState(
                         status = SessionStatus.Failed,
                         message = failure.message,

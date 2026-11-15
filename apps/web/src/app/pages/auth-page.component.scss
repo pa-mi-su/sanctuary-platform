@@ -446,3 +446,9 @@
     grid-template-columns: 1fr;
   }
 }
+
+.text-control input { padding-inline-end: 52px; }
+
+.password-icon-button { min-width: 44px; min-height: 44px; }
+.password-control input { padding-inline-end: 112px; }
+.text-control input { padding-inline-end: 60px; }
