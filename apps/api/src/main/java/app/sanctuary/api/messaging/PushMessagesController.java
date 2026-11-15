@@ -9,4 +9,6 @@ public class PushMessagesController {
     @GetMapping public Object list(@RequestHeader(value="Authorization",required=false)String token,@RequestParam(defaultValue="0")int page){auth.authenticate(token);return messages.overview(page);}
     @PostMapping("/preview")public Object preview(@RequestHeader(value="Authorization",required=false)String token,@RequestBody PushMessages.Draft draft){auth.authenticate(token);return messages.preview(draft);}
     @PostMapping public Object send(@RequestHeader(value="Authorization",required=false)String token,@RequestBody PushMessages.Send request){return messages.send(auth.authenticate(token),request);}
+    @DeleteMapping("/history") public Object clearHistory(@RequestHeader(value="Authorization",required=false)String token,@RequestBody PushMessages.ClearHistory request){auth.authenticate(token);return messages.clearHistory(request);}
+
 }

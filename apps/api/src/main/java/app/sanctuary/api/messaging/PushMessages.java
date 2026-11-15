@@ -67,6 +67,18 @@ public class PushMessages {
         for(var device:devices) db.update("INSERT INTO push_deliveries(message_id,device_id,recipient_user_id)VALUES(?,?,?)",request.id(),device.get("id"),device.get("user_id"));
         return Map.of("id",request.id(),"queued",true);
     }
+    public record ClearHistory(UUID throughMessageId) {}
+    @Transactional public Object clearHistory(ClearHistory request) {
+        if(request==null || request.throughMessageId()==null) throw bad("Choose the history to clear.");
+        var rows=db.queryForList("SELECT created_at FROM push_messages WHERE id=?",request.throughMessageId());
+        if(rows.isEmpty()) throw bad("History changed. Refresh and try again.");
+        int cleared=db.update("""
+            UPDATE push_messages m SET history_cleared_at=now()
+            WHERE m.history_cleared_at IS NULL AND m.created_at<=?
+              AND NOT EXISTS(SELECT 1 FROM push_deliveries d WHERE d.message_id=m.id AND d.state IN ('pending','sending'))
+            """,rows.getFirst().get("created_at"));
+        return Map.of("cleared",cleared);
+    }
     public Object overview(int page) {
         if(page<0||page>10000) throw bad("Invalid page.");
         var items=db.queryForList("""
@@ -78,6 +90,7 @@ public class PushMessages {
             count(d.id)FILTER(WHERE d.state='skipped') AS skipped,
             string_agg(DISTINCT d.error_code,', ') AS errors
             FROM push_messages m LEFT JOIN push_deliveries d ON d.message_id=m.id
+            WHERE m.history_cleared_at IS NULL
             GROUP BY m.id ORDER BY m.created_at DESC,m.id LIMIT 21 OFFSET ?
             """,page*20);
         var tests=db.queryForList("""

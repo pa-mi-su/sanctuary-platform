@@ -139,4 +139,24 @@ class PushMessagingIntegrationTest {
         db.update("UPDATE push_deliveries SET state='sending',updated_at=now()-interval '11 minutes'");new PushDispatcher(db,gateway).dispatch();
         verify(gateway,never()).send(anyString(),anyString(),anyString(),anyString(),anyString());assertEquals("unknown",db.queryForObject("SELECT state FROM push_deliveries",String.class));
     }
+    @Test void clearingHistoryPreservesPendingSendsNewerEntriesAndIdempotency() {
+        device("ios",true); var draft=draft("all");
+        UUID old=UUID.randomUUID(), pending=UUID.randomUUID(), newer=UUID.randomUUID();
+        String version=preview(draft).get("recipientVersion").toString();
+        for(UUID id:List.of(old,pending,newer)) transaction.execute(s->messages.send("owner",new PushMessages.Send(id,draft,version)));
+        db.update("UPDATE push_messages SET created_at='2026-01-02T00:00:00Z' WHERE id=?",old);
+        db.update("UPDATE push_messages SET created_at='2026-01-01T00:00:00Z' WHERE id=?",pending);
+        db.update("UPDATE push_messages SET created_at='2026-01-03T00:00:00Z' WHERE id=?",newer);
+        db.update("UPDATE push_deliveries SET state='accepted' WHERE message_id IN (?,?)",old,newer);
+        var result=(Map<?,?>)transaction.execute(s->messages.clearHistory(new PushMessages.ClearHistory(old)));
+        assertEquals(1,result.get("cleared"));
+        assertNotNull(db.queryForObject("SELECT history_cleared_at FROM push_messages WHERE id=?",java.sql.Timestamp.class,old));
+        assertEquals(2,((List<?>)((Map<?,?>)messages.overview(0)).get("items")).size());
+        assertEquals(1,db.queryForObject("SELECT count(*) FROM push_deliveries WHERE message_id=? AND state='pending'",Integer.class,pending));
+        transaction.execute(s->messages.send("owner",new PushMessages.Send(old,draft,version)));
+        assertEquals(3,db.queryForObject("SELECT count(*) FROM push_messages",Integer.class));
+        assertEquals(3,db.queryForObject("SELECT count(*) FROM push_deliveries",Integer.class));
+        assertThrows(app.sanctuary.api.auth.service.AuthFlowException.class,()->messages.clearHistory(new PushMessages.ClearHistory(UUID.randomUUID())));
+    }
+
 }
