@@ -29,6 +29,7 @@ struct AccountAccessView: View {
     @EnvironmentObject private var localization: LocalizationManager
     @EnvironmentObject private var accountStore: AccountSessionStore
 
+    @State private var authTask: Task<Void, Never>?
     @State private var step: AccountAccessStep
     @State private var loginEmail = ""
     @State private var loginPassword = ""
@@ -148,7 +149,14 @@ struct AccountAccessView: View {
             }
         }
         .onChange(of: step) { _ in
+            clearSecrets()
             focusedField = nil
+        }
+        .onDisappear {
+            authTask?.cancel()
+            clearForm()
+            step = .landing
+            accountStore.abandonAccountForm()
         }
     }
 
@@ -272,7 +280,7 @@ struct AccountAccessView: View {
                 Button {
                     guard !isBusy else { return }
                     focusedField = nil
-                    Task {
+                    authTask = Task {
                         await accountStore.resendConfirmation()
                     }
                 } label: {
@@ -366,9 +374,10 @@ struct AccountAccessView: View {
                 Button {
                     guard !isBusy else { return }
                     focusedField = nil
-                    Task {
+                    authTask = Task {
                         let email = accountStore.pendingPasswordResetEmail ?? forgotPasswordEmail.trimmed
                         await accountStore.forgotPassword(email: email)
+            guard !Task.isCancelled else { return }
                     }
                 } label: {
                     authSecondaryActionLabel(
@@ -620,7 +629,7 @@ struct AccountAccessView: View {
     private func submitLogin() {
         guard !isBusy, !loginEmail.trimmed.isEmpty, !loginPassword.isEmpty else { return }
         focusedField = nil
-        Task {
+        authTask = Task {
             await accountStore.login(email: loginEmail.trimmed, password: loginPassword)
         }
     }
@@ -628,7 +637,7 @@ struct AccountAccessView: View {
     private func submitRegistration() {
         guard !isBusy, canSubmitRegistration else { return }
         focusedField = nil
-        Task {
+        authTask = Task {
             await accountStore.register(
                 firstName: registerFirstName.trimmed,
                 lastName: registerLastName.trimmed,
@@ -641,7 +650,7 @@ struct AccountAccessView: View {
     private func submitConfirmation() {
         guard !isBusy, !confirmationCode.trimmed.isEmpty else { return }
         focusedField = nil
-        Task {
+        authTask = Task {
             let email = accountStore.pendingConfirmationEmail ?? registerEmail.trimmed
             let password = registerPassword
             let confirmed = await accountStore.confirmRegistration(code: confirmationCode.trimmed)
@@ -680,9 +689,10 @@ struct AccountAccessView: View {
     private func submitForgotPassword() {
         guard !isBusy, !forgotPasswordEmail.trimmed.isEmpty else { return }
         focusedField = nil
-        Task {
+        authTask = Task {
             let email = forgotPasswordEmail.trimmed
             await accountStore.forgotPassword(email: email)
+            guard !Task.isCancelled else { return }
             if accountStore.isErrorMessage == false {
                 forgotPasswordEmail = email
                 resetPasswordCode = ""
@@ -701,7 +711,7 @@ struct AccountAccessView: View {
         else { return }
 
         focusedField = nil
-        Task {
+        authTask = Task {
             let email = accountStore.pendingPasswordResetEmail ?? forgotPasswordEmail.trimmed
             let reset = await accountStore.resetPassword(
                 email: email,
@@ -735,16 +745,30 @@ struct AccountAccessView: View {
             Text(title)
                 .font(AppTheme.rounded(15, weight: .bold))
                 .foregroundStyle(.white)
-            TextField("", text: text)
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
-                .keyboardType(keyboardType)
-                .textContentType(textContentType)
-                .focused($focusedField, equals: focus)
-                .submitLabel(submitLabel)
-                .onSubmit(onSubmit)
-                .font(AppTheme.rounded(16, weight: .medium))
-                .foregroundStyle(.white)
+            HStack(spacing: 8) {
+                TextField("", text: text)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .keyboardType(keyboardType)
+                    .textContentType(textContentType)
+                    .focused($focusedField, equals: focus)
+                    .submitLabel(submitLabel)
+                    .onSubmit(onSubmit)
+                    .font(AppTheme.rounded(16, weight: .medium))
+                    .foregroundStyle(.white)
+                if !text.wrappedValue.isEmpty {
+                    Button {
+                        text.wrappedValue = ""
+                        focusedField = focus
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(AppTheme.subtitleText)
+                            .frame(minWidth: 44, minHeight: 44)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(copy("Clear", "Borrar", "Wyczyść") + " " + title)
+                }
+            }
                 .padding(.horizontal, 14)
                 .padding(.vertical, 12)
                 .background(
@@ -790,11 +814,13 @@ struct AccountAccessView: View {
                 if !text.wrappedValue.isEmpty {
                     Button {
                         text.wrappedValue = ""
+                        isRevealed.wrappedValue = false
                         focusedField = focus
                     } label: {
                         Image(systemName: "xmark.circle.fill")
                             .font(.system(size: 18, weight: .semibold))
                             .foregroundStyle(AppTheme.subtitleText)
+                            .frame(minWidth: 44, minHeight: 44)
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel(copy("Clear password", "Borrar contraseña", "Wyczyść hasło"))
@@ -807,6 +833,7 @@ struct AccountAccessView: View {
                     Image(systemName: isRevealed.wrappedValue ? "eye.slash.fill" : "eye.fill")
                         .font(.system(size: 18, weight: .semibold))
                         .foregroundStyle(AppTheme.tabActive)
+                        .frame(minWidth: 44, minHeight: 44)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(
@@ -840,8 +867,35 @@ struct AccountAccessView: View {
         }
     }
 
+    private func clearSecrets() {
+        loginPassword = ""
+        registerPassword = ""
+        registerPasswordConfirmation = ""
+        confirmationCode = ""
+        resetPasswordCode = ""
+        resetPassword = ""
+        resetPasswordConfirmation = ""
+        isLoginPasswordVisible = false
+        isRegisterPasswordVisible = false
+        isRegisterPasswordConfirmationVisible = false
+        isResetPasswordVisible = false
+        isResetPasswordConfirmationVisible = false
+    }
+
+    private func clearForm() {
+        clearSecrets()
+        loginEmail = ""
+        registerFirstName = ""
+        registerLastName = ""
+        registerEmail = ""
+        forgotPasswordEmail = ""
+        focusedField = nil
+    }
+
     private func goBack() {
-        accountStore.clearTransientMessage()
+        authTask?.cancel()
+        clearForm()
+        accountStore.abandonAccountForm()
         if step == .confirm {
             step = .register
         } else if step == .resetPassword {

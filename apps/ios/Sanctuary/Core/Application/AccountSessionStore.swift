@@ -139,6 +139,7 @@ final class AccountSessionStore: ObservableObject {
         }
 
         guard beginAuthenticationRequest() else { return }
+        let generation = accountFormGeneration
 
         do {
             let response = try await apiClient.register(
@@ -149,10 +150,12 @@ final class AccountSessionStore: ObservableObject {
                     password: password
                 )
             )
+            guard generation == accountFormGeneration, !Task.isCancelled else { return }
             pendingConfirmationEmail = response.email
             status = .awaitingConfirmation
             setMessage("Your account is almost ready. Enter the confirmation code we emailed you.", isError: false)
         } catch {
+            guard generation == accountFormGeneration, !Task.isCancelled else { return }
             status = .failed
             setMessage(error.localizedDescription, isError: true)
         }
@@ -165,16 +168,19 @@ final class AccountSessionStore: ObservableObject {
         }
 
         guard beginAuthenticationRequest() else { return false }
+        let generation = accountFormGeneration
 
         do {
             let response = try await apiClient.confirm(
                 APIAuthConfirmRequest(email: email, code: code)
             )
+            guard generation == accountFormGeneration, !Task.isCancelled else { return false }
             pendingConfirmationEmail = nil
             status = .signedOut
             setMessage(response.message, isError: false)
             return true
         } catch {
+            guard generation == accountFormGeneration, !Task.isCancelled else { return false }
             status = .failed
             setMessage(error.localizedDescription, isError: true)
             return false
@@ -188,12 +194,15 @@ final class AccountSessionStore: ObservableObject {
         }
 
         guard beginAuthenticationRequest() else { return }
+        let generation = accountFormGeneration
 
         do {
             let response = try await apiClient.resendConfirmation(email: email)
+            guard generation == accountFormGeneration, !Task.isCancelled else { return }
             status = .awaitingConfirmation
             setMessage(response.message, isError: false)
         } catch {
+            guard generation == accountFormGeneration, !Task.isCancelled else { return }
             status = .failed
             setMessage(error.localizedDescription, isError: true)
         }
@@ -206,13 +215,16 @@ final class AccountSessionStore: ObservableObject {
         }
 
         guard beginAuthenticationRequest() else { return }
+        let generation = accountFormGeneration
 
         do {
             let response = try await apiClient.forgotPassword(email: email)
+            guard generation == accountFormGeneration, !Task.isCancelled else { return }
             pendingPasswordResetEmail = email
             status = .signedOut
             setMessage(response.message, isError: false)
         } catch {
+            guard generation == accountFormGeneration, !Task.isCancelled else { return }
             status = .failed
             setMessage(error.localizedDescription, isError: true)
         }
@@ -225,9 +237,11 @@ final class AccountSessionStore: ObservableObject {
         }
 
         guard beginAuthenticationRequest() else { return false }
+        let generation = accountFormGeneration
 
         do {
             let response = try await apiClient.resetPassword(email: email, code: code, newPassword: newPassword)
+            guard generation == accountFormGeneration, !Task.isCancelled else { return false }
             let session = buildSession(from: response, fallbackRefreshToken: nil)
             self.session = session
             pendingPasswordResetEmail = nil
@@ -235,6 +249,7 @@ final class AccountSessionStore: ObservableObject {
             await refreshProfile(fallbackSession: session)
             return true
         } catch {
+            guard generation == accountFormGeneration, !Task.isCancelled else { return false }
             clearStoredSession()
             status = .failed
             setMessage(error.localizedDescription, isError: true)
@@ -249,9 +264,11 @@ final class AccountSessionStore: ObservableObject {
         }
 
         guard beginAuthenticationRequest() else { return }
+        let generation = accountFormGeneration
 
         do {
             let response = try await apiClient.login(APIAuthLoginRequest(email: email, password: password))
+            guard generation == accountFormGeneration, !Task.isCancelled else { return }
             let session = buildSession(from: response, fallbackRefreshToken: nil)
             self.session = session
             pendingConfirmationEmail = nil
@@ -259,6 +276,7 @@ final class AccountSessionStore: ObservableObject {
             try persist(session)
             await refreshProfile(fallbackSession: session)
         } catch {
+            guard generation == accountFormGeneration, !Task.isCancelled else { return }
             clearStoredSession()
             status = .failed
             setMessage(error.localizedDescription, isError: true)
@@ -344,6 +362,16 @@ final class AccountSessionStore: ObservableObject {
             setMessage(error.localizedDescription, isError: true)
             return false
         }
+    }
+
+    private var accountFormGeneration = 0
+
+    func abandonAccountForm() {
+        accountFormGeneration += 1
+        pendingConfirmationEmail = nil
+        pendingPasswordResetEmail = nil
+        clearMessage()
+        if session == nil { status = .signedOut }
     }
 
     func clearTransientMessage() {
