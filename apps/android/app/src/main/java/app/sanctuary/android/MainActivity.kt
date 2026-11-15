@@ -64,6 +64,7 @@ import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.NotificationsOff
 import androidx.compose.material.icons.filled.OpenInNew
+import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ArrowBack
@@ -1224,7 +1225,6 @@ private fun AuthenticatedShell(
                     } else if (session.status == SessionStatus.Loading && session.session != null) {
                         item { LoadingCard() }
                     } else {
-                        item { MeSectionCard(title = sanctuaryStrings().t("notifications.title")) { AnnouncementPreference() } }
                         item {
                             AccountAccessScreen(
                                 session = session,
@@ -1233,6 +1233,9 @@ private fun AuthenticatedShell(
                                 initialStep = requestedAuthStep ?: AuthStep.Landing
                             )
                         }
+                    }
+                    if (session.status != SessionStatus.Authenticated) {
+                        item { MeSectionCard(title = sanctuaryStrings().t("notifications.title")) { AnnouncementPreference() } }
                     }
                 }
             }
@@ -1932,9 +1935,6 @@ private fun MeScreen(
             }
         }
 
-        MeSectionCard(title = l10n.t("notifications.title")) {
-            AnnouncementPreference()
-        }
 
         ScheduledRemindersCard()
 
@@ -2039,6 +2039,10 @@ private fun MeScreen(
                 )
             }
         }
+        MeSectionCard(title = l10n.t("notifications.title")) {
+            AnnouncementPreference()
+        }
+
     }
 
     if (showDeleteAccountDialog) {
@@ -5424,37 +5428,49 @@ private fun AnnouncementPreference() {
                 sync()
             }
         })
-        var expanded by remember { mutableStateOf(false) }
-        Row(
-            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable(role = androidx.compose.ui.semantics.Role.Button) { expanded = !expanded }.padding(vertical = 12.dp, horizontal = 2.dp),
-            verticalAlignment = Alignment.CenterVertically
+        NotificationActionCard(
+            title = l10n.t("notifications.settings"), subtitle = l10n.t("notifications.settingsBody"),
+            icon = Icons.Filled.OpenInNew, trailingIcon = Icons.Filled.OpenInNew
         ) {
-            Text(l10n.t("notifications.details"), color = Color(0xFFC3D6DE), fontSize = 14.sp, modifier = Modifier.weight(1f))
-            Icon(if (expanded) Icons.Filled.ExpandMore else Icons.Filled.ChevronRight, contentDescription = null, tint = Color(0xFFC3D6DE))
+            val intent = if (Build.VERSION.SDK_INT >= 26) Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                .putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, context.packageName)
+            else Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + context.packageName))
+            context.startActivity(intent)
         }
+        var expanded by rememberSaveable { mutableStateOf(false) }
+        NotificationActionCard(
+            title = l10n.t("notifications.details"),
+            subtitle = l10n.t(if (expanded) "notifications.hideDetails" else "notifications.showDetails"),
+            icon = Icons.Filled.NotificationsNone,
+            trailingIcon = if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore
+        ) { expanded = !expanded }
         if (expanded) {
-            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Color(0xFF213F4B)).padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                if (status.isNotBlank()) Text(status, color = Color(0xFFD0DFEA), fontSize = 13.sp)
-                TextButton(onClick = { sync() }) { Text(l10n.t("notifications.refresh"), color = Color(0xFF9ADFEB)) }
+            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(SanctuaryCardSoft).padding(14.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                if (status.isNotBlank()) Text(status, color = Color(0xFFD0DFEA), fontSize = 14.sp)
+                OutlinedButton(onClick = { sync() }) { Text(l10n.t("notifications.refresh"), color = Color(0xFF9ADFEB)) }
             }
         }
-        Row(
-            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable(role = androidx.compose.ui.semantics.Role.Button) {
-                val intent = if (Build.VERSION.SDK_INT >= 26) Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS)
-                    .putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, context.packageName)
-                else Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + context.packageName))
-                context.startActivity(intent)
-            }.padding(vertical = 12.dp, horizontal = 2.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Icon(Icons.Filled.OpenInNew, contentDescription = null, tint = Color(0xFFC3D6DE), modifier = Modifier.size(18.dp))
-            Text(l10n.t("notifications.settings"), color = Color(0xFFC3D6DE), fontSize = 14.sp)
-        }
-        Text(l10n.t("notifications.settingsBody"), color = Color(0xFFD0DFEA), fontSize = 13.sp)
     }
 }
 
+
+
+@Composable
+private fun NotificationActionCard(title: String, subtitle: String, icon: ImageVector, trailingIcon: ImageVector, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp))
+            .background(SanctuaryCardSoft).border(1.dp, Color(0xFF7E96A3), RoundedCornerShape(18.dp))
+            .clickable(role = androidx.compose.ui.semantics.Role.Button, onClick = onClick).padding(14.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top
+    ) {
+        Icon(icon, contentDescription = null, tint = Color(0xFF9ADFEB), modifier = Modifier.size(24.dp))
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(title, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+            Text(subtitle, color = Color(0xFFD0DFEA), fontSize = 13.sp, lineHeight = 18.sp)
+        }
+        Icon(trailingIcon, contentDescription = null, tint = Color.White, modifier = Modifier.size(22.dp))
+    }
+}
 
 @Composable
 private fun ContentReminderControl(destination: String, title: String, authenticated: Boolean, onRequireAccount: () -> Unit, resume: Boolean, onResumed: () -> Unit) {
