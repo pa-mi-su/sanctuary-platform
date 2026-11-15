@@ -101,4 +101,124 @@ describe('Admin messaging', () => {
     expect(component.preview.count).toBe(2);
     expect(component.audienceLabel('guests')).toContain('Signed-out');
   });
+  it('clears the entire composer and prevents resending after a successful submission', async () => {
+    Object.assign(component, {
+      title: 'Prayer',
+      body: 'A moment of peace',
+      kind: 'prayers',
+      contentId: 'prayer-1',
+      audience: 'all',
+      testDevice: 'old-device',
+      query: 'peace',
+      choices: [{ id: 'prayer-1', title: 'Peace' }],
+      contentPage: 2,
+      contentMore: true,
+      preview: { count: 11, recipientVersion: 'snapshot' },
+      confirmed: true,
+      requestId: 'original-send-id',
+    });
+    const send = component.send();
+    http.expectOne('https://api.example.test/admin-api/messages').flush({ queued: true });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(component.title).toBe('');
+    expect(component.body).toBe('');
+    expect(component.kind).toBe('home');
+    expect(component.audience).toBe('test');
+    expect(component.testDevice).toBe('');
+    expect(component.contentId).toBe('');
+    expect(component.query).toBe('');
+    expect(component.choices).toEqual([]);
+    expect(component.contentPage).toBe(0);
+    expect(component.contentMore).toBe(false);
+    expect(component.preview).toBeNull();
+    expect(component.confirmed).toBe(false);
+    expect(component.requestId).toBe('');
+    expect(component.hasDraft()).toBe(false);
+    http
+      .expectOne('https://api.example.test/admin-api/messages?page=0')
+      .flush({ items: [], hasMore: false });
+    await send;
+    await component.send();
+    http.expectNone('https://api.example.test/admin-api/messages');
+  });
+  it('does not restore a sent draft or suggest resending when history refresh fails', async () => {
+    component.title = 'Prayer';
+    component.body = 'Message';
+    component.preview = { count: 11, recipientVersion: 'snapshot' };
+    component.confirmed = true;
+    component.requestId = 'send-id';
+    const send = component.send();
+    http.expectOne('https://api.example.test/admin-api/messages').flush({ queued: true });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    http
+      .expectOne('https://api.example.test/admin-api/messages?page=0')
+      .error(new ProgressEvent('error'));
+    await send;
+    expect(component.title).toBe('');
+    expect(component.preview).toBeNull();
+    expect(component.requestId).toBe('');
+    expect(component.notice()).toContain('queued for sending');
+    expect(component.notice()).toContain('history could not refresh');
+    await component.send();
+    http.expectNone('https://api.example.test/admin-api/messages');
+  });
+  it('uses friendly content names and honest submission status without totals', () => {
+    component.kind = 'saints';
+    component.contentId = 'saint-1';
+    component.choices = [{ id: 'saint-1', title: 'St. Cecilia' }];
+    expect(component.destinationLabel()).toBe('Saint / feast day: St. Cecilia');
+    component.kind = 'home';
+    expect(component.destinationLabel()).toBe('Home');
+    expect(component.submissionStatus({ pending: 11 })).toBe('Queued for sending');
+    expect(component.submissionStatus({ accepted: 11 })).toBe('Submitted to Firebase');
+    expect(component.submissionStatus({ failed: 11 })).toBe('Sending failed');
+    expect(component.submissionStatus({ unknown: 11 })).toBe(
+      'Sending status could not be confirmed',
+    );
+  });
+
+  it('renders review and history without registration totals, raw URLs or internal IDs', async () => {
+    const fixture = TestBed.createComponent(AdminMessagesComponent);
+    const view = fixture.componentInstance;
+    view.title = 'Invitation';
+    view.body = 'A moment to pray';
+    view.audience = 'all';
+    view.preview = {
+      count: 11,
+      recipientVersion: 'snapshot',
+      destination: 'https://dev.mydailysanctuary.com/',
+    };
+    fixture.detectChanges();
+    http.expectOne('https://api.example.test/admin-api/messages?page=0').flush({
+      enabled: true,
+      testDevices: [],
+      hasMore: false,
+      items: [
+        {
+          id: 'history-1',
+          title: 'Previous invitation',
+          body: 'Message',
+          audience: 'all',
+          created_at: '2026-11-15T18:00:00Z',
+          actor_sub: 'internal-actor-id',
+          recipients: 11,
+          accepted: 11,
+        },
+      ],
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await fixture.whenStable();
+    fixture.changeDetectorRef.markForCheck();
+    fixture.detectChanges();
+    const text = fixture.nativeElement.textContent;
+    expect(text).toContain('Review');
+    expect(text).toContain('Opens: Home');
+    expect(text).toContain('Past announcements');
+    expect(text).toContain('Submitted to Firebase');
+    expect(text).not.toContain('app installations');
+    expect(text).not.toContain('11 recipients');
+    expect(text).not.toContain('dev.mydailysanctuary.com');
+    expect(text).not.toContain('internal-actor-id');
+    fixture.destroy();
+  });
 });

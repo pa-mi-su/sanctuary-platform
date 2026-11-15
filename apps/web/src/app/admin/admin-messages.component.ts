@@ -149,21 +149,17 @@ import { AdminInputComponent } from './admin-input.component';
             (audience === 'test' && !testDevice)
           "
         >
-          Review recipients →
+          Review →
         </button>
       </form>
       @if (preview) {
         <section class="review" aria-labelledby="push-review">
-          <h2 id="push-review">Review before sending</h2>
-          <p>
-            <strong>{{ preview.count }} app installations</strong> ·
-            {{ audienceLabel(audience) }}
-          </p>
-          <p>Destination: {{ preview.destination }}</p>
-          <p>
-            This counts app installations, not unique phones. Reinstalls and automated tests can
-            leave older registrations.
-          </p>
+          <h2 id="push-review">Review</h2>
+          <p><strong>Audience:</strong> {{ audienceLabel(audience) }}</p>
+          <p><strong>Opens:</strong> {{ destinationLabel() }}</p>
+          @if (!preview.count) {
+            <p role="status">No opted-in devices are available for this audience.</p>
+          }
           <label class="check"
             ><input type="checkbox" [(ngModel)]="confirmed" /> I reviewed the message, destination,
             and audience.</label
@@ -180,24 +176,16 @@ import { AdminInputComponent } from './admin-input.component';
     </section>
     <section class="panel">
       <div class="actions">
-        <h2>Sending history</h2>
-        <button (click)="load()" [disabled]="busy()">Refresh results</button>
+        <h2>Past announcements</h2>
+        <button (click)="load()" [disabled]="busy()">Refresh history</button>
       </div>
-      <p>
-        Accepted means Firebase accepted a send. It does not confirm delivery, display, or reading.
-      </p>
+      <p>Submission status does not confirm delivery or reading.</p>
       @for (row of history; track row.id) {
         <article>
           <strong>{{ row.title }}</strong>
           <p>{{ row.body }}</p>
-          <small
-            >{{ row.created_at | date: 'medium' }} · {{ audienceLabel(row.audience) }} ·
-            {{ row.actor_sub }}</small
-          >
-          <p>
-            {{ row.recipients }} recipients · {{ row.accepted }} accepted by Firebase · {{ row.failed }} failed
-            · {{ row.pending }} pending · {{ row.skipped }} skipped · {{ row.unknown }} uncertain
-          </p>
+          <small>{{ row.created_at | date: 'medium' }} · {{ audienceLabel(row.audience) }}</small>
+          <p class="submission-status">{{ submissionStatus(row) }}</p>
         </article>
       } @empty {
         <p>No messages sent yet.</p>
@@ -253,6 +241,44 @@ export class AdminMessagesComponent implements OnInit {
         } as Record<string, string>
       )[value] || value
     );
+  }
+  destinationLabel() {
+    if (this.kind === 'home') return 'Home';
+    const name = this.choices.find((row) => row.id === this.contentId)?.title;
+    const kind =
+      (
+        { prayers: 'Prayer', saints: 'Saint / feast day', novenas: 'Novena' } as Record<
+          string,
+          string
+        >
+      )[this.kind] || 'Content';
+    return name ? kind + ': ' + name : kind;
+  }
+  submissionStatus(row: any) {
+    if (Number(row.pending) > 0) return 'Queued for sending';
+    if (Number(row.unknown) > 0) return 'Sending status could not be confirmed';
+    if (Number(row.accepted) > 0) {
+      return Number(row.failed) > 0 || Number(row.skipped) > 0
+        ? 'Submitted to Firebase with sending issues'
+        : 'Submitted to Firebase';
+    }
+    if (Number(row.failed) > 0) return 'Sending failed';
+    if (Number(row.skipped) > 0) return 'Not sent';
+    return 'Submission recorded';
+  }
+  private resetComposer() {
+    this.title = '';
+    this.body = '';
+    this.kind = 'home';
+    this.contentId = '';
+    this.audience = 'test';
+    this.testDevice = '';
+    this.query = '';
+    this.choices = [];
+    this.contentPage = 0;
+    this.contentMore = false;
+    this.sentSnapshot = '';
+    this.invalidate();
   }
   ngOnInit() {
     void this.load();
@@ -347,12 +373,20 @@ export class AdminMessagesComponent implements OnInit {
         recipientVersion: this.preview.recipientVersion,
       });
       this.sentSnapshot = JSON.stringify(sentDraft);
-      this.invalidate();
-      const result = await this.api('GET', '/messages?page=0');
-      this.history = result.items;
-      this.page = 0;
-      this.more = result.hasMore;
-      this.notice.set('Message queued. Refresh results to see Firebase acceptance and failures.');
+      if (JSON.stringify(this.draft()) === this.sentSnapshot) this.resetComposer();
+      else this.invalidate();
+      this.notice.set('Announcement queued for sending. You can create a new message.');
+      try {
+        const result = await this.api('GET', '/messages?page=0');
+        this.history = result.items;
+        this.page = 0;
+        this.more = result.hasMore;
+      } catch (error) {
+        if (error instanceof HttpErrorResponse && error.status === 401) this.sessionExpired.emit();
+        this.notice.set(
+          'Announcement queued for sending, but history could not refresh. Refresh history to check its status.',
+        );
+      }
     });
   }
 }
