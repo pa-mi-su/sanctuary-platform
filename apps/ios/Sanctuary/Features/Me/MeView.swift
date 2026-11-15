@@ -13,6 +13,7 @@ struct MeView: View {
     @State private var prayerDetailsByID: [String: Prayer] = [:]
     @State private var isShowingDeleteAccountConfirmation = false
     @State private var isDeletingAccount = false
+    @State private var showingDeliveryDetails = false
 
     var body: some View {
         ZStack {
@@ -22,7 +23,6 @@ struct MeView: View {
                 VStack(alignment: .leading, spacing: 14) {
                     if accountStore.isAuthenticated {
                         accountHeader
-                        reminderPreferencesCard
                         ScheduledRemindersCard()
                         inProgressCard
                         favoriteNovenasCard
@@ -30,9 +30,9 @@ struct MeView: View {
                         favoritePrayersCard
                         deleteAccountCard
                     } else {
-                        reminderPreferencesCard
                         AccountAccessView()
                     }
+                    reminderPreferencesCard
                 }
                 .padding(16)
                 .padding(.bottom, 28)
@@ -106,30 +106,61 @@ struct MeView: View {
                         Task { await push.setEnabled(value); await accountStore.syncPushDevice() }
                     })
                 )
-                DisclosureGroup(localization.t("notifications.details")) {
-                    VStack(alignment: .leading, spacing: 8) {
+                notificationActionCard(
+                    title: localization.t("notifications.settings"),
+                    subtitle: localization.t("notifications.settingsBody"),
+                    icon: "gearshape.fill", trailingIcon: "arrow.up.right.square"
+                ) {
+                    if let url = URL(string: UIApplication.openNotificationSettingsURLString) { UIApplication.shared.open(url) }
+                }
+                notificationActionCard(
+                    title: localization.t("notifications.details"),
+                    subtitle: localization.t(showingDeliveryDetails ? "notifications.hideDetails" : "notifications.showDetails"),
+                    icon: "iphone.radiowaves.left.and.right",
+                    trailingIcon: showingDeliveryDetails ? "chevron.up" : "chevron.down"
+                ) {
+                    withAnimation { showingDeliveryDetails.toggle() }
+                }
+                .accessibilityValue(localization.t(showingDeliveryDetails ? "notifications.hideDetails" : "notifications.showDetails"))
+                if showingDeliveryDetails {
+                    VStack(alignment: .leading, spacing: 12) {
                         if !push.registrationStatus.isEmpty {
-                            Text(push.registrationStatus).font(.footnote)
+                            Text(push.registrationStatus).font(AppTheme.rounded(14, weight: .medium))
                         }
                         Button(localization.t("notifications.refresh")) { Task { await accountStore.syncPushDevice() } }
-                            .font(.footnote.weight(.semibold))
-                    }.padding(.top, 8)
-                }
-                .font(AppTheme.rounded(13, weight: .medium))
-                .foregroundStyle(AppTheme.subtitleText)
-                Button {
-                    if let url = URL(string: UIApplication.openNotificationSettingsURLString) { UIApplication.shared.open(url) }
-                } label: {
-                    Label(localization.t("notifications.settings"), systemImage: "arrow.up.right.square")
-                        .font(AppTheme.rounded(13, weight: .semibold))
-                }
-                .foregroundStyle(AppTheme.subtitleText)
-                Text(localization.t("notifications.settingsBody"))
-                    .font(AppTheme.rounded(13, weight: .medium))
+                            .font(AppTheme.rounded(15, weight: .semibold))
+                            .buttonStyle(.bordered)
+                    }
                     .foregroundStyle(AppTheme.subtitleText)
-                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(14)
+                    .background(AppTheme.cardBackgroundSoft, in: RoundedRectangle(cornerRadius: 18))
+                }
             }
         }
+    }
+
+    private func notificationActionCard(title: String, subtitle: String, icon: String, trailingIcon: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(alignment: .top, spacing: 12) {
+                Image(systemName: icon)
+                    .font(.system(size: 23, weight: .semibold))
+                    .foregroundStyle(AppTheme.tabActive)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(title).font(AppTheme.rounded(16, weight: .semibold)).foregroundStyle(.white)
+                    Text(subtitle).font(AppTheme.rounded(13, weight: .medium)).foregroundStyle(AppTheme.subtitleText)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 0)
+                Image(systemName: trailingIcon).font(.system(size: 18, weight: .bold)).foregroundStyle(.white)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(14)
+            .background(AppTheme.cardBackgroundSoft, in: RoundedRectangle(cornerRadius: 18))
+            .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color.white.opacity(0.4), lineWidth: 1))
+            .contentShape(RoundedRectangle(cornerRadius: 18))
+        }
+        .buttonStyle(.plain)
     }
 
     private var accountHeader: some View {
