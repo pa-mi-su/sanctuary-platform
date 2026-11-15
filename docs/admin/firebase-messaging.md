@@ -122,3 +122,9 @@ Visible announcement payloads explicitly request Android FCM high-priority deliv
 Apple payloads explicitly use `apns-push-type: alert`, `apns-priority: 10`, and the default APNs sound. The current iOS app already requests alert/sound permission and allows banners and sound in the foreground, so this change needs no iOS client update. Both platforms retain the existing one-day expiry and content deep links.
 
 The payload test serializes the real SDK message and verifies both platform configurations without contacting Firebase. A physical locked/idle phone test remains necessary after DEV deployment. OS permissions, muted channels, Focus/Do Not Disturb, offline state and device/vendor restrictions can still silence or delay notifications; this change does not bypass user choices or guarantee immediate delivery.
+
+## Completion and history cleanup
+
+A successful submission immediately releases the composer and shows an explicit completion card with a Create another message action. History refresh has independent state and cannot keep the composer busy; requests time out after 15 seconds. Editing/dismissing the completion clears its stale message. The interface does not infer device delivery from submission success.
+
+Clear completed history requires owner authentication and an explicit confirmation. Its cutoff is captured when the confirmation opens, so newer announcements are preserved. Pending/sending entries remain visible and dispatch is unaffected. Migration V25 adds `history_cleared_at`; clearing removes entries from the history view while retaining dispatch and idempotency records, so an old send identifier cannot trigger a second broadcast. This does not delete notifications already on phones.

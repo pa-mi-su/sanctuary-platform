@@ -154,11 +154,12 @@ describe('Admin messaging', () => {
       .expectOne('https://api.example.test/admin-api/messages?page=0')
       .error(new ProgressEvent('error'));
     await send;
+    await new Promise((resolve) => setTimeout(resolve, 0));
     expect(component.title).toBe('');
     expect(component.preview).toBeNull();
     expect(component.requestId).toBe('');
-    expect(component.notice()).toContain('queued for sending');
-    expect(component.notice()).toContain('history could not refresh');
+    expect(component.completed()).toBe(true);
+    expect(component.historyError()).toContain('History could not refresh');
     await component.send();
     http.expectNone('https://api.example.test/admin-api/messages');
   });
@@ -219,6 +220,90 @@ describe('Admin messaging', () => {
     expect(text).not.toContain('11 recipients');
     expect(text).not.toContain('dev.mydailysanctuary.com');
     expect(text).not.toContain('internal-actor-id');
+    fixture.destroy();
+  });
+  it('unlocks the cleared composer without waiting for history to respond', async () => {
+    component.title = 'Prayer';
+    component.body = 'Message';
+    component.preview = { count: 1, recipientVersion: 'snapshot' };
+    component.confirmed = true;
+    component.requestId = 'send-id';
+    const send = component.send();
+    http.expectOne('https://api.example.test/admin-api/messages').flush({ queued: true });
+    await send;
+    const history = http.expectOne('https://api.example.test/admin-api/messages?page=0');
+    expect(component.busy()).toBe(false);
+    expect(component.refreshingHistory()).toBe(true);
+    expect(component.completed()).toBe(true);
+    expect(component.title).toBe('');
+    component.createAnother();
+    expect(component.completed()).toBe(false);
+    component.title = 'Another message';
+    component.body = 'New invitation';
+    expect(component.hasDraft()).toBe(true);
+    history.flush({ items: [], hasMore: false, enabled: true, testDevices: [] });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(component.title).toBe('Another message');
+  });
+  it('times out stalled history without blocking a new message or undoing submission', async () => {
+    vi.useFakeTimers();
+    try {
+      component.title = 'Prayer';
+      component.body = 'Message';
+      component.preview = { count: 1, recipientVersion: 'snapshot' };
+      component.confirmed = true;
+      component.requestId = 'send-id';
+      const send = component.send();
+      http.expectOne('https://api.example.test/admin-api/messages').flush({ queued: true });
+      await send;
+      http.expectOne('https://api.example.test/admin-api/messages?page=0');
+      await vi.advanceTimersByTimeAsync(15001);
+      expect(component.busy()).toBe(false);
+      expect(component.refreshingHistory()).toBe(false);
+      expect(component.completed()).toBe(true);
+      expect(component.historyError()).toContain('History could not refresh');
+      expect(component.preview).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+  it('requires confirmation before clearing history and preserves the current draft', async () => {
+    component.history = [{ id: 'latest-reviewed-id' }];
+    component.title = 'Unsent draft';
+    component.body = 'Keep this';
+    await component.clearHistory();
+    http.expectNone('https://api.example.test/admin-api/messages/history');
+    component.requestClearHistory();
+    component.history = [{ id: 'newer-unreviewed-id' }];
+    const clear = component.clearHistory();
+    const request = http.expectOne('https://api.example.test/admin-api/messages/history');
+    expect(request.request.method).toBe('DELETE');
+    expect(request.request.body.throughMessageId).toBe('latest-reviewed-id');
+    expect(request.request.withCredentials).toBe(true);
+    request.flush({ cleared: 1 });
+    await clear;
+    http
+      .expectOne('https://api.example.test/admin-api/messages?page=0')
+      .flush({ items: [], hasMore: false });
+    expect(component.confirmClearHistory).toBe(false);
+    expect(component.title).toBe('Unsent draft');
+    expect(component.body).toBe('Keep this');
+  });
+  it('shows a usable create-another action while history is still loading', () => {
+    const fixture = TestBed.createComponent(AdminMessagesComponent);
+    const view = fixture.componentInstance;
+    view.completed.set(true);
+    fixture.detectChanges();
+    const history = http.expectOne('https://api.example.test/admin-api/messages?page=0');
+    const button = Array.from(fixture.nativeElement.querySelectorAll('button')).find(
+      (candidate: any) => candidate.textContent.trim() === 'Create another message',
+    ) as HTMLButtonElement;
+    expect(fixture.nativeElement.textContent).toContain('Announcement submitted');
+    expect(button.disabled).toBe(false);
+    button.click();
+    expect(view.completed()).toBe(false);
+    expect(document.activeElement).toBe(fixture.nativeElement.querySelector('#push-title'));
+    history.flush({ items: [], hasMore: false, enabled: true, testDevices: [] });
     fixture.destroy();
   });
 });
