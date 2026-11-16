@@ -28,6 +28,7 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.core.tween
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.activity.viewModels
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.BorderStroke
@@ -55,6 +56,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
@@ -89,7 +91,6 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SelfImprovement
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.SouthEast
 import androidx.compose.material.icons.filled.Today
@@ -1079,7 +1080,8 @@ private fun AuthenticatedShell(
         bottomBar = {
             if (!showSettings && !showInbox) Surface(
                 modifier = Modifier
-                    .padding(horizontal = 12.dp, vertical = 10.dp)
+                    .navigationBarsPadding()
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
                     .shadow(18.dp, RoundedCornerShape(26.dp), clip = false),
                 shape = RoundedCornerShape(26.dp),
                 color = SanctuaryTabBackground,
@@ -1087,10 +1089,12 @@ private fun AuthenticatedShell(
             ) {
                 NavigationBar(
                     containerColor = Color.Transparent,
+                    windowInsets = WindowInsets(0, 0, 0, 0),
                     tonalElevation = 0.dp
                 ) {
                     AppTab.entries.forEach { tab ->
                         NavigationBarItem(
+                            modifier = Modifier.weight(1f),
                             selected = selectedTab == tab,
                             onClick = { onTabSelected(tab) },
                             label = {
@@ -1111,7 +1115,7 @@ private fun AuthenticatedShell(
                                 unselectedTextColor = SanctuaryTabInactive
                             ),
                             icon = {
-                                Box(Modifier.size(28.dp)) {
+                                Box(Modifier.size(28.dp), contentAlignment = Alignment.Center) {
                                     Icon(imageVector = tab.icon(), contentDescription = tab.label(l10n), modifier = Modifier.size(26.dp))
                                     if (tab != AppTab.Home && tab != AppTab.Me) Icon(Icons.Filled.Schedule, contentDescription = null,
                                         modifier = Modifier.align(Alignment.BottomEnd).size(12.dp).background(SanctuaryTabBackground, CircleShape))
@@ -5649,7 +5653,15 @@ private fun ScheduledRemindersCard() {
     val issue by AccountReminderSync.problem.collectAsState()
     val busy by AccountReminderSync.busy.collectAsState()
     var problem by remember { mutableStateOf<String?>(null) }
-    LaunchedEffect(Unit) { AccountReminderSync.refresh() }
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    LaunchedEffect(lifecycleOwner) {
+        lifecycleOwner.lifecycle.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.RESUMED) {
+            while (true) {
+                AccountReminderSync.refresh()
+                delay(30_000)
+            }
+        }
+    }
     val scheduler = remember(context) { AndroidReminderScheduler(context) }
     var reminders by remember { mutableStateOf(scheduler.itemReminders()) }
     var legacyNotice by remember { mutableStateOf(scheduler.legacyNotice()) }
@@ -5659,19 +5671,11 @@ private fun ScheduledRemindersCard() {
     }
     var confirmingClear by remember { mutableStateOf(false) }
     MeSectionCard(title = l10n.t("reminders.manage.title")) {
-        Text(l10n.t("reminders.manage.body"), color = Color(0xFFBAD9E4), fontSize = 13.sp)
         if (legacyNotice) {
             Text(l10n.t("reminders.manage.legacy"), color = Color(0xFFBAD9E4))
             OutlinedButton(onClick = { scheduler.dismissLegacyNotice(); legacyNotice = false }) { Text(l10n.t("common.close"), color = Color.White) }
         }
-        (problem ?: issue)?.let { Text(it, color = Color(0xFFFFC67D)) }
-        Button(enabled = !busy, onClick = { scope.launch { AccountReminderSync.refresh() } }, modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp),
-            shape = RoundedCornerShape(14.dp), border = BorderStroke(1.dp, Color.White.copy(alpha = 0.35f)),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF217A66))) {
-            Icon(Icons.Filled.Refresh, contentDescription = null, tint = Color.White)
-            Spacer(Modifier.width(8.dp))
-            Text(l10n.t("common.refresh"), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-        }
+        (problem ?: issue)?.let { Text(l10n.t(it), color = Color(0xFFFFC67D)) }
         if (reminders.isEmpty()) Row(modifier = Modifier.padding(vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Top) {
             Icon(Icons.Filled.NotificationsOff, contentDescription = null, tint = Color(0xFFBAD9E4), modifier = Modifier.size(20.dp))
             Text(l10n.t("reminders.manage.empty"), color = Color(0xFFBAD9E4), fontSize = 14.sp, lineHeight = 20.sp)
@@ -5684,7 +5688,7 @@ private fun ScheduledRemindersCard() {
                     Text(l10n.t("reminders.manage.daily") + " · " + android.text.format.DateFormat.getTimeFormat(context).format(calendar.time), color = Color(0xFFBAD9E4), fontSize = 13.sp)
                 }
                 IconButton(enabled = !busy, onClick = { scope.launch {
-                    runCatching { AccountReminderSync.remove(reminder.destination) }.onFailure { problem = it.message }
+                    runCatching { AccountReminderSync.remove(reminder.destination) }.onSuccess { problem = null }.onFailure { problem = it.message }
                 } }) {
                     Icon(Icons.Filled.Delete, contentDescription = l10n.t("itemReminder.remove") + ": " + reminder.title, tint = Color(0xFFFFA6A6))
                 }
@@ -5698,7 +5702,7 @@ private fun ScheduledRemindersCard() {
         title = { Text(l10n.t("reminders.manage.confirm")) }, text = { Text(l10n.t("reminders.manage.body")) },
         confirmButton = { Button(
         border = BorderStroke(1.dp, SanctuaryCardBorder),onClick = { scope.launch {
-            runCatching { AccountReminderSync.clear() }.onFailure { problem = it.message }
+            runCatching { AccountReminderSync.clear() }.onSuccess { problem = null }.onFailure { problem = it.message }
             confirmingClear = false
         } }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF9E3030))) { Text(l10n.t("reminders.manage.clear"), color = Color.White) } },
         dismissButton = { TextButton(onClick = { confirmingClear = false }) { Text(l10n.t("common.cancel")) } })

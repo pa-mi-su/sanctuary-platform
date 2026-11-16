@@ -882,19 +882,19 @@ private struct NotificationSwitchStyle: ToggleStyle {
 private struct ScheduledRemindersCard: View {
     @EnvironmentObject private var localization: LocalizationManager
     @EnvironmentObject private var accountStore: AccountSessionStore
+    @Environment(\.scenePhase) private var scenePhase
     @ObservedObject private var reminders = AccountReminders.shared
     @State private var confirmingClear = false
+    @State private var visible = false
     @State private var problem: String?
     var body: some View {
         MeCard(title: localization.t("reminders.manage.title")) {
             VStack(alignment: .leading, spacing: 14) {
-                Text(localization.t("reminders.manage.body")).font(AppTheme.rounded(13, weight: .medium)).foregroundStyle(AppTheme.subtitleText)
                 if reminders.legacyNotice {
                     Text(localization.t("reminders.manage.legacy")).foregroundStyle(AppTheme.subtitleText)
                     Button(localization.t("common.close")) { reminders.dismissLegacyNotice() }
                 }
-                if let issue = problem ?? reminders.problem { Text(issue).foregroundStyle(.orange) }
-                ReminderActionButton(title: localization.t("common.refresh"), symbol: "arrow.clockwise") { Task { await reminders.refresh(account: accountStore) } }.disabled(reminders.syncing)
+                if let issue = problem ?? reminders.problem { Text(localization.t(issue)).foregroundStyle(.orange) }
                 if reminders.items.isEmpty {
                     Label(localization.t("reminders.manage.empty"), systemImage: "bell.slash").foregroundStyle(AppTheme.subtitleText).padding(.vertical, 12)
                 }
@@ -914,10 +914,18 @@ private struct ScheduledRemindersCard: View {
                 if !reminders.items.isEmpty {
                     ReminderActionButton(title: localization.t("reminders.manage.clear"), symbol: "trash", destructive: true) { confirmingClear = true }
                 }
-            }.disabled(reminders.syncing)
+            }.disabled(reminders.updating)
         }
-        .task { await reminders.refresh(account: accountStore) }
-        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in Task { await reminders.refresh(account: accountStore) } }
+        .onAppear { visible = true }
+        .onDisappear { visible = false }
+        .task(id: scenePhase == .active && visible) {
+            guard scenePhase == .active && visible else { return }
+            while !Task.isCancelled {
+                await reminders.refresh(account: accountStore)
+                do { try await Task.sleep(nanoseconds: 30_000_000_000) }
+                catch { return }
+            }
+        }
         .confirmationDialog(localization.t("reminders.manage.confirm"), isPresented: $confirmingClear, titleVisibility: .visible) {
             Button(localization.t("reminders.manage.clear"), role: .destructive) { mutate { try await reminders.clear(account: accountStore) } }
         } message: { Text(localization.t("reminders.manage.body")) }
