@@ -66,3 +66,17 @@ Native Me now has prominent bell and gear controls. Announcement content stays l
 The visible-publication and send-history panels are combined into one aligned card list. Visibility and phone alerts remain independent fields; there is no duplicate message rendering or ambiguous “Withdraw” label. Removing an inbox publication requires confirmation that already-sent phone alerts cannot be recalled. Its card then reads “Removed from app”. One pagination control covers the complete list.
 
 Checks: API 101 passed / one existing audit skipped; web 59 tests and production build passed. The UI rendering test checks visible, removed, publish-only, and owner-test distinctions. Localhost visual verification used the actual Angular component with synthetic read-only records; no admin sign-in or live records were used. `admin-unified-preview.jpg` shows the verified layout.
+
+## Dismissible admin feedback
+
+Status notices, history-load errors, and dialog errors have explicit dismiss controls; existing submission and global admin confirmations remain dismissible. Closing feedback changes only the message state, preserving the draft, reviewed audience, and open dialog. Close targets are at least 44 px.
+
+Verified with 60 web tests, a production build, and a read-only synthetic localhost preview (`dismissible-admin-notices.jpg`). The DEV public feed still returned the existing announcement during the audit. Admin “Visible in app” indicates publication, while personal Clear/Clear all state can hide that same record for an individual and persists across app upgrades. No announcement was published, removed, or reset during this audit.
+
+## App-icon badge lifecycle — 1.0.28
+
+The app icon indicates an unacknowledged delivered phone alert, independently of the in-app bell's unread inbox state. APNs alerts include a binary badge of 1; iOS requests badge authorization with sound/alerts, including a one-time request for existing announcement opt-ins, and respects subsequent OS badge preferences. Foreground presentation includes badge support.
+
+Opening a successfully loaded Announcements inbox acknowledges the announcement alerts currently delivered to that device. Clear/Clear all also acknowledges them after the inbox update succeeds. iOS removes delivered remote alerts and resets the icon badge; Android removes active notifications only from the sanctuary-announcements channel so the launcher can clear its dot. Pending and delivered local prayer/novena reminders remain separate. iOS also clears a stale badge when becoming active if no delivered remote alerts remain. Undo restores an inbox entry without re-posting a phone notification. This is device-local acknowledgement, not proof of delivery or reading.
+
+Validation: iOS DEV simulator build passed. An isolated simulator received a synthetic APNs alert against a localhost-only feed: the app icon exposed “1 new item” before opening the inbox, and no badge after opening/clearing it. Screenshots: ios-icon-badge-before.jpg and ios-icon-badge-after.jpg. QA announcement consent was restored to off and no live alert was sent. Android DEV APK, 20 tests, and UAT/production Kotlin compilation passed; its channel-selection test excludes reminder and unknown channels. Both Firebase gateway tests passed, checking the actual serialized badge, sound, priority and destination payload. Physical Android launcher rendering remains controlled by the launcher and OS notification settings.

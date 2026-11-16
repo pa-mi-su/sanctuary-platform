@@ -71,6 +71,7 @@ suspend fun announcementUnread(context:Context,authenticated:Boolean):Boolean {
      }
     }
     badge()
+    AndroidPushNotifications.acknowledgeAnnouncementAlerts(context)
    } catch (e: Exception) {
     if (request == generation) error = e.message ?: "Could not load announcements"
    } finally {
@@ -90,6 +91,7 @@ suspend fun announcementUnread(context:Context,authenticated:Boolean):Boolean {
    }
    context.getSharedPreferences("announcement-inbox-"+BuildConfig.ENVIRONMENT,0).edit().putString("state",Gson().toJson(state)).apply()
   }
+  if(action=="clear" || action=="clearAll") AndroidPushNotifications.acknowledgeAnnouncementAlerts(context)
   undo=if(action=="clear")id else null;badge()
  }catch(e:Exception){error=e.message ?: "Could not update inbox"}finally{if(request==generation){busy=false;after()}} } }
  LaunchedEffect(authenticated){confirm=false;clearThrough=null;undo=null;load()}

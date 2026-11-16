@@ -42,6 +42,12 @@ object AndroidPushNotifications {
         // Reusing the channel preserves sound/importance choices made in Android settings.
         manager.createNotificationChannel(channel)
     }
+    fun acknowledgeAnnouncementAlerts(context: Context) {
+        val manager = context.getSystemService(NotificationManager::class.java)
+        // Launcher dots follow delivered notifications. Never cancel reminder-channel alerts.
+        manager.activeNotifications.filter { isAnnouncementAlertChannel(it.notification.channelId) }
+            .forEach { manager.cancel(it.tag, it.id) }
+    }
     @Synchronized private fun secret(context: Context): String {
         val store = androidx.security.crypto.EncryptedSharedPreferences.create(context,"sanctuary_push_credentials",
             androidx.security.crypto.MasterKey.Builder(context).setKeyScheme(androidx.security.crypto.MasterKey.KeyScheme.AES256_GCM).build(),
@@ -101,3 +107,5 @@ internal fun isSanctuaryNotificationLink(value: String, environment: String): Bo
     uri.scheme == "https" && (uri.host == "mydailysanctuary.com" || uri.host == "www.mydailysanctuary.com" ||
         (environment == "dev" && uri.host == "dev.mydailysanctuary.com"))
 }.getOrDefault(false)
+
+internal fun isAnnouncementAlertChannel(channelId: String?) = channelId == "sanctuary-announcements"

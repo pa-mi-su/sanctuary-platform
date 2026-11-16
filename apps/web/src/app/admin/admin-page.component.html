@@ -885,7 +885,12 @@
       ×
     </button>
     @if (dialogError) {
-      <p class="notice error" role="alert">{{ dialogError }}</p>
+      <div class="notice error" role="alert">
+        <span>{{ dialogError }}</span>
+        <button type="button" aria-label="Dismiss dialog error" (click)="dialogError = ''">
+          ×
+        </button>
+      </div>
     }
     @if (dialog === 'discard') {
       <div class="dialog-symbol" aria-hidden="true">✧</div>

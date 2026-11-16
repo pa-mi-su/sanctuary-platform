@@ -18,6 +18,37 @@ describe('Admin messaging', () => {
     http = TestBed.inject(HttpTestingController);
   });
   afterEach(() => http.verify());
+  it('dismisses notices without discarding the draft or review', async () => {
+    const fixture = TestBed.createComponent(AdminMessagesComponent);
+    const view = fixture.componentInstance;
+    view.title = 'Draft invitation';
+    view.body = 'Keep this message';
+    view.preview = { recipientVersion: 'reviewed' };
+    view.confirmed = true;
+    view.notice.set('No old history to clear.');
+    fixture.detectChanges();
+    http.expectOne('https://api.example.test/admin-api/messages?page=0').flush({
+      enabled: true,
+      testDevices: [],
+      items: [],
+      hasMore: false,
+    });
+    await fixture.whenStable();
+    view.historyError.set('History could not refresh.');
+    fixture.detectChanges();
+    const root = fixture.nativeElement as HTMLElement;
+    root.querySelector<HTMLButtonElement>('[aria-label="Dismiss message"]')!.click();
+    root.querySelector<HTMLButtonElement>('[aria-label="Dismiss history error"]')!.click();
+    fixture.detectChanges();
+    expect(root.querySelector('[aria-label="Dismiss message"]')).toBeNull();
+    expect(root.querySelector('[aria-label="Dismiss history error"]')).toBeNull();
+    expect(view.title).toBe('Draft invitation');
+    expect(view.body).toBe('Keep this message');
+    expect(view.preview.recipientVersion).toBe('reviewed');
+    expect(view.confirmed).toBe(true);
+    fixture.destroy();
+  });
+
   it('defaults to owner test only and invalidates review after editing', async () => {
     expect(component.audience).toBe('test');
     component.title = 'Prayer';

@@ -38,7 +38,7 @@ public class FirebasePushGateway implements PushGateway {
                 .setNotification(AndroidNotification.builder().setChannelId("sanctuary-announcements").setDefaultSound(true).build()).build())
             .setApnsConfig(ApnsConfig.builder().putHeader("apns-push-type", "alert").putHeader("apns-priority", "10")
                 .putHeader("apns-expiration", Long.toString(java.time.Instant.now().plusSeconds(86400).getEpochSecond()))
-                .setAps(Aps.builder().setSound("default").build()).build()).build();
+                .setAps(Aps.builder().setSound("default").setBadge(1).build()).build()).build();
     }
 
 }

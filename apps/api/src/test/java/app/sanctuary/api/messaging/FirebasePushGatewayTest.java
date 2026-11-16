@@ -21,6 +21,8 @@ class FirebasePushGatewayTest {
         assertEquals("alert", json.at("/apns/headers/apns-push-type").asText());
         assertEquals("10", json.at("/apns/headers/apns-priority").asText());
         assertEquals("default", json.at("/apns/payload/aps/sound").asText());
+        // A binary badge signals a new phone alert; it is not a fabricated unread total.
+        assertEquals(1, json.at("/apns/payload/aps/badge").asInt());
         long expires = json.at("/apns/headers/apns-expiration").asLong();
         assertTrue(expires >= before && expires <= Instant.now().plusSeconds(86400).getEpochSecond());
         assertEquals("Prayer", json.at("/notification/title").asText());
