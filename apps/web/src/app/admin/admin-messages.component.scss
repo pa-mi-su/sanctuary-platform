@@ -111,7 +111,123 @@ article {
   border-radius: 12px;
 }
 
-.completion { background: #244f59; }
-.completion button { margin: .3rem .5rem .3rem 0; }
-.history-confirm { border: 1px solid #e5c476; border-radius: 16px; padding: 1rem; margin: 1rem 0; }
-.history-confirm button { margin: .3rem .5rem .3rem 0; }
+.completion {
+  background: #244f59;
+}
+.completion button {
+  margin: 0.3rem 0.5rem 0.3rem 0;
+}
+.history-confirm {
+  border: 1px solid #e5c476;
+  border-radius: 16px;
+  padding: 1rem;
+  margin: 1rem 0;
+}
+.history-confirm button {
+  margin: 0.3rem 0.5rem 0.3rem 0;
+}
+
+.records-header,
+.record-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.records-header h2,
+.record-heading h3 {
+  margin: 0;
+}
+.records-description {
+  color: #b8d1dc;
+}
+.announcement-record {
+  display: grid;
+  gap: 1rem;
+  padding: 1.25rem;
+  margin: 1.25rem 0;
+  background: #102738;
+  border: 1px solid #7cc7de66;
+  border-radius: 20px;
+}
+.record-heading h3 {
+  font-size: 1.1rem;
+  line-height: 1.4;
+}
+.record-date {
+  display: block;
+}
+.record-body {
+  margin: 0;
+  white-space: pre-wrap;
+}
+.record-statuses {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin: 0;
+  padding-top: 1rem;
+  border-top: 1px solid #7cc7de33;
+}
+.record-statuses dt {
+  color: #b8d1dc;
+  font-size: 0.85rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+.record-statuses dd {
+  margin: 0;
+}
+.status-badge {
+  display: inline-block;
+  padding: 0.4rem 0.7rem;
+  border: 1px solid #91aebe66;
+  border-radius: 999px;
+  background: #ffffff0a;
+  font-size: 0.85rem;
+}
+.status-visible {
+  background: #216b6044;
+  border-color: #8cd5b8aa;
+  color: #c7f3df;
+}
+.status-removed {
+  background: #9a783622;
+  border-color: #d7bd7e88;
+  color: #f1dcaa;
+}
+.alert-audience {
+  display: block;
+  margin-top: 0.5rem;
+}
+.record-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+.records-pagination {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 1rem;
+  align-items: center;
+  padding-top: 0.5rem;
+}
+.records-pagination button:first-child {
+  justify-self: start;
+}
+.records-pagination button:last-child {
+  justify-self: end;
+}
+@media (max-width: 640px) {
+  .record-statuses {
+    grid-template-columns: 1fr;
+  }
+  .records-header .actions,
+  .records-header .actions button,
+  .record-actions button {
+    width: 100%;
+  }
+  .panel {
+    padding: 1rem;
+  }
+}

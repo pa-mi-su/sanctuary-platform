@@ -59,6 +59,19 @@ class AnnouncementInboxIntegrationTest {
   messages.withdraw(id);assertTrue(feed().isEmpty());assertThrows(Exception.class,()->inbox.detail(id));
   assertEquals(1,db.queryForObject("SELECT count(*) FROM push_messages",Integer.class));
  }
+ @Test void unifiedListKeepsActivePublicationsAndSeparatelyTracksRemovalAndAlerts(){
+  UUID id=publish();
+  db.update("UPDATE push_messages SET history_cleared_at=now() WHERE id=?",id);
+  var rows=(List<?>)((Map<?,?>)messages.overview(0)).get("items");assertEquals(1,rows.size());
+  var row=(Map<?,?>)rows.getFirst();assertEquals(true,row.get("published"));assertEquals(false,row.get("removed_from_inbox"));assertEquals(false,row.get("phone_alert_requested"));
+  assertEquals(0,((Map<?,?>)tx.execute(s->messages.clearHistory(new PushMessages.ClearHistory(id)))).get("cleared"));
+  tx.execute(s->messages.withdraw(id));
+  rows=(List<?>)((Map<?,?>)messages.overview(0)).get("items");assertEquals(1,rows.size());row=(Map<?,?>)rows.getFirst();
+  assertEquals(false,row.get("published"));assertEquals(true,row.get("removed_from_inbox"));assertEquals(false,row.get("phone_alert_requested"));
+  assertEquals(1,((Map<?,?>)tx.execute(s->messages.clearHistory(new PushMessages.ClearHistory(id)))).get("cleared"));
+  assertTrue(((List<?>)((Map<?,?>)messages.overview(0)).get("items")).isEmpty());
+  assertEquals(1,db.queryForObject("SELECT count(*) FROM push_messages WHERE id=?",Integer.class,id));
+ }
  @Test void olderInstalledAppsReceiveTheCompatibleContentLinkDuringRollout(){
   UUID user=UUID.randomUUID();db.update("INSERT INTO users(id,cognito_sub,last_sign_in_at)VALUES(?,?,now())",user,UUID.randomUUID().toString());
   db.update("INSERT INTO push_devices(user_id,installation_id,token,platform,app_version,enabled)VALUES(?,?,'synthetic-legacy-inbox-token','ios','1.0.24',true)",user,UUID.randomUUID());

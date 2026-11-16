@@ -86,10 +86,17 @@ public class PushMessages {
             UPDATE push_messages m SET history_cleared_at=now()
             WHERE m.history_cleared_at IS NULL AND m.created_at<=?
               AND NOT EXISTS(SELECT 1 FROM push_deliveries d WHERE d.message_id=m.id AND d.state IN ('pending','sending'))
+              AND NOT EXISTS(SELECT 1 FROM announcements a WHERE a.id=m.id AND a.withdrawn_at IS NULL)
             """,rows.getFirst().get("created_at"));
         return Map.of("cleared",cleared);
     }
-    public Object withdraw(UUID id){db.update("UPDATE announcements SET withdrawn_at=now() WHERE id=? AND withdrawn_at IS NULL",id);return Map.of("withdrawn",true);}
+    @Transactional public Object withdraw(UUID id){
+        int removed=db.update("UPDATE announcements SET withdrawn_at=now() WHERE id=? AND withdrawn_at IS NULL",id);
+        // Older admin versions could clear send history while a publication was still visible.
+        // Keep the removal record in the unified list until the owner explicitly clears it.
+        if(removed>0)db.update("UPDATE push_messages SET history_cleared_at=NULL WHERE id=?",id);
+        return Map.of("withdrawn",true);
+    }
     public Object published(int page) {
         if(page<0||page>10000)throw bad("Invalid page.");
         var items=db.queryForList("SELECT id,title,body,published_at FROM announcements WHERE withdrawn_at IS NULL ORDER BY published_at DESC,id DESC LIMIT 21 OFFSET ?",page*20);
@@ -98,7 +105,9 @@ public class PushMessages {
     public Object overview(int page) {
         if(page<0||page>10000) throw bad("Invalid page.");
         var items=db.queryForList("""
-            SELECT m.*,EXISTS(SELECT 1 FROM announcements a WHERE a.id=m.id AND a.withdrawn_at IS NULL) AS published,count(d.id) AS recipients,
+            SELECT m.*,EXISTS(SELECT 1 FROM announcements a WHERE a.id=m.id AND a.withdrawn_at IS NULL) AS published,
+            EXISTS(SELECT 1 FROM announcements a WHERE a.id=m.id AND a.withdrawn_at IS NOT NULL) AS removed_from_inbox,
+            count(d.id)>0 AS phone_alert_requested,count(d.id) AS recipients,
             count(d.id)FILTER(WHERE d.state='accepted') AS accepted,
             count(d.id)FILTER(WHERE d.state='failed') AS failed,
             count(d.id)FILTER(WHERE d.state IN ('pending','sending')) AS pending,
@@ -106,7 +115,7 @@ public class PushMessages {
             count(d.id)FILTER(WHERE d.state='skipped') AS skipped,
             string_agg(DISTINCT d.error_code,', ') AS errors
             FROM push_messages m LEFT JOIN push_deliveries d ON d.message_id=m.id
-            WHERE m.history_cleared_at IS NULL
+            WHERE m.history_cleared_at IS NULL OR EXISTS(SELECT 1 FROM announcements a WHERE a.id=m.id AND a.withdrawn_at IS NULL)
             GROUP BY m.id ORDER BY m.created_at DESC,m.id LIMIT 21 OFFSET ?
             """,page*20);
         var tests=db.queryForList("""

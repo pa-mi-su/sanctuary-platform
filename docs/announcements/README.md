@@ -23,7 +23,7 @@ The existing Messages area becomes an Announcements composer with independent co
 
 Owner test alerts never create public inbox entries, even if the publication flag is submitted. Publication without a phone alert works without registered devices or enabled Firebase. Phone audience filters apply only to alerts; published messages are visible to everyone. Message limits remain 100 characters for the title and 500 for the body.
 
-A separate paginated **Published in the app inbox** section lets the owner withdraw a message independently of sending history. Withdrawal hides the public message and skips remaining queued deliveries; alerts already accepted by Firebase cannot be recalled. Clearing completed sending history does not withdraw public announcements. Successful submission still resets the composer and prevents duplicate resubmission with the same request ID.
+A single paginated **Announcements & alerts** list shows each message once, with separate **App inbox** (Visible in app / Removed from app / Not published) and **Phone alert** statuses (Not requested / Queued / Submitted / sending issues). Owner tests are labeled separately. **Remove from app inbox** removes a publication while keeping its historical record. Withdrawal hides the public message and skips remaining queued deliveries; alerts already accepted by Firebase cannot be recalled. Clearing old history preserves both active publications and pending sends. Active publications whose send history was cleared by an older admin version are included in the unified list, and removal restores their historical record until explicitly cleared. Successful submission still resets the composer and prevents duplicate resubmission with the same request ID.
 
 ## API and data
 
@@ -60,3 +60,9 @@ The previous recipient fingerprint included `push_devices.updated_at` and the to
 Regression verification: API 100 passed / one existing audit skipped, Android 19 tests and all flavor checks passed, web 58 tests and production build passed, iOS DEV simulator build passed. UI previews in `refinement-previews` use only explicitly local QA messages; no live messages were sent.
 
 Menus and Me → Settings now share prominent navigation cards. Announcement content stays left-aligned for reading within centered, width-limited containers, with consistent heading, card-border, surface, and action styles across native platforms.
+
+## Unified admin list follow-up
+
+The visible-publication and send-history panels are combined into one aligned card list. Visibility and phone alerts remain independent fields; there is no duplicate message rendering or ambiguous “Withdraw” label. Removing an inbox publication requires confirmation that already-sent phone alerts cannot be recalled. Its card then reads “Removed from app”. One pagination control covers the complete list.
+
+Checks: API 101 passed / one existing audit skipped; web 59 tests and production build passed. The UI rendering test checks visible, removed, publish-only, and owner-test distinctions. Localhost visual verification used the actual Angular component with synthetic read-only records; no admin sign-in or live records were used. `admin-unified-preview.jpg` shows the verified layout.

@@ -255,61 +255,26 @@ import { AdminInputComponent } from './admin-input.component';
         </section>
       }
     </section>
-    <section class="panel">
-      <h2>Published in the app inbox</h2>
-      <p>These messages remain visible until withdrawn, even after you clear sending history.</p>
-      @for (row of publications; track row.id) {
-        <article>
-          <strong>{{ row.title }}</strong>
-          <p>{{ row.body }}</p>
-          <small>{{ row.published_at | date: 'medium' }}</small>
-          <button (click)="withdrawId = row.id" [disabled]="busy()">
-            Withdraw from Announcements
+    <section class="panel" aria-labelledby="announcement-records-title">
+      <div class="records-header">
+        <h2 id="announcement-records-title">Announcements &amp; alerts</h2>
+        <div class="actions">
+          <button (click)="load()" [disabled]="refreshingHistory()">
+            {{ refreshingHistory() ? 'Refreshing…' : 'Refresh list' }}
           </button>
-        </article>
-      } @empty {
-        <p>No published announcements.</p>
-      }
-      <div class="actions">
-        <button
-          (click)="loadPublications(publicationPage - 1)"
-          [disabled]="busy() || publicationPage === 0"
-        >
-          Previous</button
-        ><span>Page {{ publicationPage + 1 }}</span
-        ><button
-          (click)="loadPublications(publicationPage + 1)"
-          [disabled]="busy() || !publicationMore"
-        >
-          Next
-        </button>
+          <button
+            type="button"
+            (click)="requestClearHistory()"
+            [disabled]="busy() || !history.length"
+          >
+            Clear old history
+          </button>
+        </div>
       </div>
-      @if (withdrawId) {
-        <section role="alertdialog" aria-label="Withdraw announcement">
-          <p>
-            Withdraw this announcement from everyone’s inbox? Phone alerts already sent cannot be
-            recalled.
-          </p>
-          <button (click)="withdraw(withdrawId)" [disabled]="busy()">Withdraw announcement</button
-          ><button (click)="withdrawId = null" [disabled]="busy()">Cancel</button>
-        </section>
-      }
-    </section>
-    <section class="panel">
-      <div class="actions">
-        <h2>Past announcements</h2>
-        <button (click)="load()" [disabled]="refreshingHistory()">
-          {{ refreshingHistory() ? 'Refreshing…' : 'Refresh history' }}
-        </button>
-        <button
-          type="button"
-          (click)="requestClearHistory()"
-          [disabled]="busy() || !history.length"
-        >
-          Clear completed history
-        </button>
-      </div>
-      <p>Submission status does not confirm delivery or reading.</p>
+      <p class="records-description">
+        App inbox visibility and phone-alert submission are shown separately for each message. A
+        submitted alert does not confirm delivery or reading.
+      </p>
       @if (historyError()) {
         <p role="status">{{ historyError() }}</p>
       }
@@ -320,38 +285,86 @@ import { AdminInputComponent } from './admin-input.component';
           aria-labelledby="clear-history-title"
           aria-describedby="clear-history-body"
         >
-          <h3 id="clear-history-title">Clear past announcements?</h3>
+          <h3 id="clear-history-title">Clear old history?</h3>
           <p id="clear-history-body">
-            Completed entries up to the latest announcement on this page will be removed from
-            history. Pending sends stay visible. This does not remove notifications from phones or
-            cancel sends, or withdraw published announcements.
+            Completed entries up to the latest message on this page will be cleared. Announcements
+            still visible in the app and pending sends stay listed. This does not remove inbox
+            messages or recall phone alerts.
           </p>
-          <button type="button" (click)="clearHistory()" [disabled]="busy()">
-            Clear completed history
-          </button>
-          <button type="button" (click)="confirmClearHistory = false" [disabled]="busy()">
-            Cancel
-          </button>
+          <div class="actions">
+            <button type="button" (click)="clearHistory()" [disabled]="busy()">
+              Clear old history</button
+            ><button type="button" (click)="confirmClearHistory = false" [disabled]="busy()">
+              Cancel
+            </button>
+          </div>
         </section>
       }
       @for (row of history; track row.id) {
-        <article>
-          <strong>{{ row.title }}</strong>
-          <p>{{ row.body }}</p>
-          <small>{{ row.created_at | date: 'medium' }} · {{ audienceLabel(row.audience) }}</small>
-          <p class="submission-status">
-            {{ row.published ? 'Published in Announcements · ' : '' }}{{ submissionStatus(row) }}
-          </p>
+        <article class="announcement-record">
+          <div class="record-heading">
+            <h3>{{ row.title }}</h3>
+            @if (row.audience === 'test') {
+              <span class="status-badge">Owner test only</span>
+            }
+          </div>
+          <small class="record-date">{{ row.created_at | date: 'medium' }}</small>
+          <p class="record-body">{{ row.body }}</p>
+          <dl class="record-statuses">
+            <div>
+              <dt>App inbox</dt>
+              <dd>
+                <span
+                  class="status-badge"
+                  [class.status-visible]="row.published"
+                  [class.status-removed]="row.removed_from_inbox"
+                  >{{ inboxStatus(row) }}</span
+                >
+              </dd>
+            </div>
+            <div>
+              <dt>Phone alert</dt>
+              <dd>
+                <span class="status-badge">{{ phoneAlertStatus(row) }}</span>
+                @if (row.phone_alert_requested !== false) {
+                  <small class="alert-audience">{{ audienceLabel(row.audience) }}</small>
+                }
+              </dd>
+            </div>
+          </dl>
           @if (row.published) {
-            <button type="button" (click)="withdrawId = row.id" [disabled]="busy()">
-              Withdraw from Announcements
-            </button>
+            <div class="record-actions">
+              <button type="button" (click)="withdrawId = row.id" [disabled]="busy()">
+                Remove from app inbox
+              </button>
+            </div>
+          }
+          @if (withdrawId === row.id) {
+            <section
+              class="history-confirm"
+              role="alertdialog"
+              aria-labelledby="remove-inbox-title"
+              aria-describedby="remove-inbox-body"
+            >
+              <h3 id="remove-inbox-title">Remove this message from the app inbox?</h3>
+              <p id="remove-inbox-body">
+                It will disappear from everyone’s Announcements inbox. Phone alerts already sent
+                cannot be recalled. This message will remain in this list as “Removed from app”.
+              </p>
+              <div class="actions">
+                <button type="button" (click)="withdraw(row.id)" [disabled]="busy()">
+                  Remove from app inbox</button
+                ><button type="button" (click)="withdrawId = null" [disabled]="busy()">
+                  Cancel
+                </button>
+              </div>
+            </section>
           }
         </article>
       } @empty {
-        <p>No messages sent yet.</p>
+        <p>No announcements or alerts yet.</p>
       }
-      <div class="actions">
+      <div class="records-pagination">
         <button (click)="load(page - 1)" [disabled]="refreshingHistory() || page === 0">
           Previous</button
         ><span>Page {{ page + 1 }}</span
@@ -388,9 +401,6 @@ export class AdminMessagesComponent implements OnInit, OnDestroy {
   choices: any[] = [];
   devices: any[] = [];
   history: any[] = [];
-  publications: any[] = [];
-  publicationPage = 0;
-  publicationMore = false;
   page = 0;
   more = false;
   contentPage = 0;
@@ -430,6 +440,23 @@ export class AdminMessagesComponent implements OnInit, OnDestroy {
         >
       )[this.kind] || 'Content';
     return name ? kind + ': ' + name : kind;
+  }
+  inboxStatus(row: any) {
+    if (row.published) return 'Visible in app';
+    if (row.removed_from_inbox) return 'Removed from app';
+    return 'Not published';
+  }
+  phoneAlertStatus(row: any) {
+    if (row.phone_alert_requested === false) return 'Not requested';
+    if (Number(row.pending) > 0) return 'Queued for sending';
+    if (Number(row.unknown) > 0) return 'Status unconfirmed';
+    if (Number(row.accepted) > 0)
+      return Number(row.failed) > 0 || Number(row.skipped) > 0
+        ? 'Submitted with sending issues'
+        : 'Submitted for sending';
+    if (Number(row.failed) > 0) return 'Sending failed';
+    if (Number(row.skipped) > 0) return 'Not sent';
+    return 'Submission recorded';
   }
   submissionStatus(row: any) {
     if (Number(row.pending) > 0) return 'Queued for sending';
@@ -526,9 +553,6 @@ export class AdminMessagesComponent implements OnInit, OnDestroy {
       const result = await this.api('GET', '/messages?page=' + page);
       if (this.destroyed || generation !== this.historyGeneration) return;
       this.history = result.items;
-      this.publications = result.announcements?.items ?? [];
-      this.publicationMore = result.announcements?.hasMore ?? false;
-      this.publicationPage = 0;
       this.more = result.hasMore;
       this.devices = result.testDevices;
       this.enabled = result.enabled;
@@ -558,8 +582,8 @@ export class AdminMessagesComponent implements OnInit, OnDestroy {
       this.completed.set(false);
       this.notice.set(
         result.cleared
-          ? 'Completed history cleared. Pending sends stay visible.'
-          : 'No completed history to clear. Pending sends stay visible.',
+          ? 'Old history cleared. Visible inbox announcements and pending sends stay listed.'
+          : 'No old history to clear. Visible inbox announcements and pending sends stay listed.',
       );
       void this.load(0);
     });
@@ -571,19 +595,12 @@ export class AdminMessagesComponent implements OnInit, OnDestroy {
     }
     this.invalidate();
   }
-  async loadPublications(page = 0) {
-    await this.run(async () => {
-      const result = await this.api('GET', '/messages/announcements?page=' + page);
-      this.publications = result.items;
-      this.publicationMore = result.hasMore;
-      this.publicationPage = page;
-    });
-  }
   async withdraw(id: string) {
     if (this.withdrawId !== id) return;
     await this.run(async () => {
       await this.api('DELETE', '/messages/announcements/' + id);
       this.withdrawId = null;
+      this.notice.set('Removed from the app inbox. Phone alerts already sent cannot be recalled.');
       void this.load();
     });
   }
