@@ -66,6 +66,11 @@ interface SanctuaryApiService {
     @PUT("me/preferences")
     suspend fun updateMePreferences(@Body request: UserPreferencesUpdateRequest): UserProfileResponse
 
+    @GET("me/reminders") suspend fun contentReminders(): List<AccountContentReminder>
+    @PUT("me/reminders") suspend fun saveContentReminder(@Body reminder: AccountContentReminder)
+    @DELETE("me/reminders/{kind}/{slug}") suspend fun deleteContentReminder(@retrofit2.http.Path("kind") kind: String, @retrofit2.http.Path("slug") slug: String)
+    @DELETE("me/reminders") suspend fun clearContentReminders()
+
     @GET("me/favorites")
     suspend fun listFavorites(): List<UserFavoriteResponse>
 

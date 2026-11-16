@@ -120,7 +120,12 @@ final class SanctuaryAppDelegate: NSObject, UIApplicationDelegate, MessagingDele
     }
     func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
         let isAnnouncement = notification.request.content.userInfo["messageId"] != nil
-        Task { @MainActor in completionHandler(!isAnnouncement || PushNotifications.shared.enabled ? [.banner, .sound, .badge] : []) }
+        Task { @MainActor in
+            // Local reminders remain in Notification Center even when received in the foreground,
+            // matching Android's persistent notification tray. Announcement consent is separate.
+            let presentation: UNNotificationPresentationOptions = isAnnouncement ? [.banner, .sound, .badge] : [.banner, .list, .sound]
+            completionHandler(!isAnnouncement || PushNotifications.shared.enabled ? presentation : [])
+        }
     }
     func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
         if let destination = response.notification.request.content.userInfo["destination"] as? String,

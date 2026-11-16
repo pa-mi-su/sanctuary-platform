@@ -333,7 +333,18 @@ final class AccountSessionStore: ObservableObject {
         Task { await PushNotifications.shared.signOut(api: apiClient, token: token) }
     }
 
+    func reminderRequest<T>(_ request: (SanctuaryAPIClient, String) async throws -> T) async throws -> T {
+        guard let token = await authorizationToken() else { throw SanctuaryAPIError.missingAccessToken }
+        do { return try await request(apiClient, token) }
+        catch {
+            guard isSessionRejected(error), let refreshed = await refreshAuthorizationTokenAfterRejection() else { throw error }
+            return try await request(apiClient, refreshed)
+        }
+    }
+
     func syncPushDevice() async {
+        await AccountReminders.shared.refresh(account: self)
+
         let token = await authorizationToken()
         await PushNotifications.shared.sync(api: apiClient, token: token)
     }
@@ -577,6 +588,7 @@ final class AccountSessionStore: ObservableObject {
     }
 
     private func clearStoredSession() {
+        AccountReminders.shared.signOut()
         secureStore.delete(account: sessionAccountKey)
         session = nil
         profile = nil
