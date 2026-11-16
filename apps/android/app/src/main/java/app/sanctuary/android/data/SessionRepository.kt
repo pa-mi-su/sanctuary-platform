@@ -44,6 +44,9 @@ class SessionRepository(
         loadProfile(stored)
     }
 
+    suspend fun announcementState(): AnnouncementState = authenticatedCall { it.announcementState() }
+    suspend fun changeAnnouncements(change: AnnouncementChange): AnnouncementState = authenticatedCall { it.changeAnnouncements(change) }
+
     suspend fun login(email: String, password: String): SessionBootstrapResult = withContext(Dispatchers.IO) {
         val response = runApiCall {
             api.login(AuthLoginRequest(email = email, password = password))

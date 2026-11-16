@@ -1,5 +1,7 @@
+import { AnnouncementsPageComponent } from './pages/announcements-page.component';
+import { AnnouncementInboxService } from './core/state/announcement-inbox.service';
 import { RouterOutlet } from '@angular/router';
-import { Component, Injector, inject } from '@angular/core';
+import { Component, Injector, inject, signal } from '@angular/core';
 import { HomePageComponent } from './pages/home-page.component';
 import { AppHeaderComponent } from './pages/app-header.component';
 import { AppFooterComponent } from './pages/app-footer.component';
@@ -23,6 +25,7 @@ import { AppShellFacade } from './core/state/app-shell.facade';
     HomePageComponent,
     AppHeaderComponent,
     AppFooterComponent,
+    AnnouncementsPageComponent,
     SaintsPageComponent,
     LiturgicalPageComponent,
     NovenasPageComponent,
@@ -38,7 +41,20 @@ import { AppShellFacade } from './core/state/app-shell.facade';
   styleUrl: './app.scss',
 })
 export class App {
-  protected readonly isAdmin = typeof window !== 'undefined' && /^\/admin\/?$/.test(window.location.pathname);
+  protected overlay = signal<'settings' | 'announcements' | null>(
+    typeof window !== 'undefined' && window.location.pathname.startsWith('/announcements')
+      ? 'announcements'
+      : null,
+  );
+  protected requestedAnnouncement =
+    typeof window !== 'undefined' ? window.location.pathname.split('/')[2] || '' : '';
+  protected get inbox() {
+    return this.injector.get(AnnouncementInboxService);
+  }
+  protected readonly isAdmin =
+    typeof window !== 'undefined' && /^\/admin\/?$/.test(window.location.pathname);
   private readonly injector = inject(Injector);
-  protected get facade(): AppShellFacade { return this.injector.get(AppShellFacade); }
+  protected get facade(): AppShellFacade {
+    return this.injector.get(AppShellFacade);
+  }
 }

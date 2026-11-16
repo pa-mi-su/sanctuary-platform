@@ -306,4 +306,50 @@ describe('Admin messaging', () => {
     history.flush({ items: [], hasMore: false, enabled: true, testDevices: [] });
     fixture.destroy();
   });
+  it('publishes without a phone alert and never publishes an owner test', async () => {
+    expect(component.draft().publishToInbox).toBe(false);
+    component.sendPush = false;
+    component.deliveryChanged();
+    expect(component.draft().publishToInbox).toBe(true);
+    expect(component.draft().sendPush).toBe(false);
+    component.title = 'Announcement';
+    component.body = 'Full text';
+    const review = component.review();
+    http
+      .expectOne('https://api.example.test/admin-api/messages/preview')
+      .flush({ count: 0, enabled: true, recipientVersion: 'empty' });
+    await review;
+    component.confirmed = true;
+    const send = component.send();
+    const request = http.expectOne('https://api.example.test/admin-api/messages');
+    expect(request.request.body.draft.sendPush).toBe(false);
+    request.flush({ published: true, queued: false });
+    await send;
+    http
+      .expectOne('https://api.example.test/admin-api/messages?page=0')
+      .flush({ items: [], hasMore: false });
+    expect(component.completedTitle()).toBe('Announcement published');
+  });
+  it('keeps published announcements manageable after sending history is cleared', async () => {
+    const load = component.load();
+    http.expectOne('https://api.example.test/admin-api/messages?page=0').flush({
+      items: [],
+      hasMore: false,
+      announcements: { items: [{ id: 'published', title: 'Public invitation' }], hasMore: false },
+    });
+    await load;
+    expect(component.publications[0].id).toBe('published');
+    component.withdrawId = 'published';
+    const withdraw = component.withdraw('published');
+    const request = http.expectOne(
+      'https://api.example.test/admin-api/messages/announcements/published',
+    );
+    expect(request.request.method).toBe('DELETE');
+    request.flush({ withdrawn: true });
+    await withdraw;
+    http
+      .expectOne('https://api.example.test/admin-api/messages?page=0')
+      .flush({ items: [], hasMore: false });
+    expect(component.withdrawId).toBeNull();
+  });
 });

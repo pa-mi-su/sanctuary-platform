@@ -1,0 +1,114 @@
+package app.sanctuary.android
+import android.content.Context
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.ui.platform.LocalContext
+import app.sanctuary.android.data.*
+import app.sanctuary.android.ui.sanctuaryStrings
+import app.sanctuary.android.ui.theme.*
+import com.google.gson.Gson
+import kotlinx.coroutines.launch
+
+private fun guestState(context:Context):AnnouncementState = runCatching { Gson().fromJson(context.getSharedPreferences("announcement-inbox-"+BuildConfig.ENVIRONMENT,0).getString("state",null),AnnouncementState::class.java) }.getOrNull()?.takeIf { it.readIds != null && it.clearedIds != null && it.clearedBefore.isFinite() } ?: AnnouncementState()
+internal fun visibleAnnouncements(rows:List<InboxAnnouncement>,state:AnnouncementState)=rows.filter { it.id !in state.clearedIds && it.published_at>state.clearedBefore }
+suspend fun announcementUnread(context:Context,authenticated:Boolean):Boolean {
+ val api=SanctuaryApiFactory.create { null }; val repository=SessionRepository(context,api)
+ val state=if(authenticated) repository.announcementState() else guestState(context)
+ return visibleAnnouncements(api.announcements().items,state).any { it.id !in state.readIds }
+}
+@Composable fun AnnouncementInboxSheet(initialID:String?=null,authenticated:Boolean,onUnread:(Boolean)->Unit,onOpen:(String)->Unit) {
+ val context=LocalContext.current;val l10n=sanctuaryStrings();val scope=rememberCoroutineScope()
+ val api=remember { SanctuaryApiFactory.create { null } };val repository=remember { SessionRepository(context,api) }
+ var rows by remember { mutableStateOf(emptyList<InboxAnnouncement>()) };var state by remember { mutableStateOf(AnnouncementState()) }
+ var forcedID by remember(initialID) { mutableStateOf(initialID) }
+ var clearThrough by remember { mutableStateOf<InboxAnnouncement?>(null) }
+ var generation by remember { mutableIntStateOf(0) }
+ var page by remember { mutableIntStateOf(0) };var more by remember { mutableStateOf(false) };var busy by remember { mutableStateOf(false) }
+ var error by remember { mutableStateOf("") };var expanded by remember { mutableStateOf<String?>(null) };var undo by remember { mutableStateOf<String?>(null) };var confirm by remember { mutableStateOf(false) }
+ val displayed=visibleAnnouncements(rows,state).let { visible -> rows.firstOrNull { it.id==forcedID && visible.none { row->row.id==it.id } }?.let { listOf(it)+visible } ?: visible }
+ fun badge(){onUnread(visibleAnnouncements(rows,state).any { it.id !in state.readIds })}
+ fun load(next: Int = 0) {
+  generation++
+  val request = generation
+  val member = authenticated
+  scope.launch {
+   busy = true
+   error = ""
+   try {
+    if (next == 0) {
+     val loaded = if (member) repository.announcementState() else guestState(context)
+     if (request != generation) return@launch
+     state = loaded
+    }
+    val feed = api.announcements(next)
+    val requested = if (next == 0 && !initialID.isNullOrBlank() && feed.items.none { it.id == initialID }) api.announcement(initialID) else null
+    if (request != generation) return@launch
+    rows = if (next == 0) feed.items else (rows + feed.items).distinctBy { it.id }
+    if (requested != null) rows = listOf(requested) + rows
+    page = next
+    more = feed.hasMore
+    if (next == 0 && !initialID.isNullOrBlank()) {
+     expanded = initialID
+     if (member) {
+      val loaded = repository.changeAnnouncements(AnnouncementChange("read", listOf(initialID)))
+      if (request != generation) return@launch
+      state = loaded
+     } else {
+      state = state.copy(readIds = (state.readIds + initialID).distinct())
+      context.getSharedPreferences("announcement-inbox-" + BuildConfig.ENVIRONMENT, 0).edit().putString("state", Gson().toJson(state)).apply()
+     }
+    }
+    badge()
+   } catch (e: Exception) {
+    if (request == generation) error = e.message ?: "Could not load announcements"
+   } finally {
+    if (request == generation) busy = false
+   }
+  }
+ }
+ fun change(action:String,id:String?=null,after:()->Unit={}) { if(busy)return;val request=generation;val through=clearThrough ?: rows.maxByOrNull { it.published_at };scope.launch { busy=true;error="";try {
+  if(authenticated) { val loaded=repository.changeAnnouncements(AnnouncementChange(action,id?.let { listOf(it) } ?: emptyList(),if(action=="clearAll")through?.id else null));if(request!=generation)return@launch;state=loaded }
+  else {
+   state=when(action){
+    "read"->state.copy(readIds=(state.readIds+listOfNotNull(id)).distinct())
+    "clear"->state.copy(clearedIds=(state.clearedIds+listOfNotNull(id)).distinct())
+    "restore"->state.copy(clearedIds=state.clearedIds.filter { it!=id })
+    "clearAll"->state.copy(clearedBefore=maxOf(state.clearedBefore,through?.published_at ?: 0.0))
+    else->state
+   }
+   context.getSharedPreferences("announcement-inbox-"+BuildConfig.ENVIRONMENT,0).edit().putString("state",Gson().toJson(state)).apply()
+  }
+  undo=if(action=="clear")id else null;badge()
+ }catch(e:Exception){error=e.message ?: "Could not update inbox"}finally{if(request==generation){busy=false;after()}} } }
+ LaunchedEffect(authenticated){confirm=false;clearThrough=null;undo=null;load()}
+ Column(Modifier.padding(horizontal=18.dp),verticalArrangement=Arrangement.spacedBy(14.dp)) {
+  Text(l10n.t("inbox.title"),color=Color.White,fontSize=30.sp)
+  Row { OutlinedButton(onClick={load()},enabled=!busy){Text(l10n.t("inbox.refresh"))};Spacer(Modifier.weight(1f));OutlinedButton(onClick={clearThrough=rows.maxByOrNull { it.published_at };confirm=true},enabled=!busy&&visibleAnnouncements(rows,state).isNotEmpty()){Text(l10n.t("inbox.clearAll"))} }
+  if(busy)CircularProgressIndicator()
+  if(error.isNotEmpty())Text(error,color=Color(0xFFFFB4AB))
+  undo?.let { id->OutlinedButton(onClick={change("restore",id)},enabled=!busy){Text(l10n.t("inbox.undo"))} }
+  if(!busy&&displayed.isEmpty())Text(l10n.t("inbox.empty"),color=Color.White)
+  displayed.forEach { row->
+   Card(colors=CardDefaults.cardColors(containerColor=SanctuaryCard),shape=RoundedCornerShape(24.dp),border=BorderStroke(1.dp,SanctuaryCardBorder)) {
+    Column(Modifier.padding(18.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
+     TextButton(onClick={expanded=if(expanded==row.id)null else row.id;change("read",row.id)},enabled=!busy){Row(Modifier.fillMaxWidth()){Text((if(row.id !in state.readIds)"• " else "")+row.title,color=Color.White,fontSize=20.sp,modifier=Modifier.weight(1f));Text(if(expanded==row.id)"⌃" else "⌄",color=Color.White,fontSize=20.sp)}}
+     Text(java.text.DateFormat.getDateInstance().format(java.util.Date(row.published_at.toLong())),color=Color.LightGray)
+     Text(row.body,color=Color.White,maxLines=if(expanded==row.id)Int.MAX_VALUE else 3)
+     Row {
+      OutlinedButton(onClick={change("read",row.id) { if(isSanctuaryNotificationLink(row.destination,BuildConfig.ENVIRONMENT))onOpen(row.destination) }},enabled=!busy){Text(l10n.t("inbox.open"))}
+      Spacer(Modifier.weight(1f));TextButton(onClick={forcedID=null;change("clear",row.id)},enabled=!busy){Text(l10n.t("inbox.clear"))}
+     }
+    }
+   }
+  }
+  if(more)OutlinedButton(onClick={load(page+1)},enabled=!busy){Text(l10n.t("inbox.more"))}
+ }
+ if(confirm)AlertDialog(onDismissRequest={confirm=false},title={Text(l10n.t("inbox.confirmClear"))},confirmButton={TextButton(onClick={confirm=false;forcedID=null;change("clearAll")}){Text(l10n.t("inbox.clearAll"))}},dismissButton={TextButton(onClick={confirm=false}){Text(l10n.t("common.cancel"))}})
+}

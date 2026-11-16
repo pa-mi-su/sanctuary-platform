@@ -1,6 +1,17 @@
 import { Component, input, output } from '@angular/core';
 
-type AppTab = 'home' | 'novenas' | 'intentions' | 'patronage' | 'liturgical' | 'saints' | 'prayers' | 'rosaries' | 'about' | 'auth' | 'me';
+type AppTab =
+  | 'home'
+  | 'novenas'
+  | 'intentions'
+  | 'patronage'
+  | 'liturgical'
+  | 'saints'
+  | 'prayers'
+  | 'rosaries'
+  | 'about'
+  | 'auth'
+  | 'me';
 type AppLanguage = 'en' | 'es' | 'pl';
 
 @Component({
@@ -10,19 +21,39 @@ type AppLanguage = 'en' | 'es' | 'pl';
   template: `
     <nav class="primary-nav glass-card" aria-label="Primary">
       <div class="primary-nav__tabs">
-        <button class="tab" [class.active]="currentTab() === 'home'" type="button" (click)="navigate.emit('home')">
+        <button
+          class="tab"
+          [class.active]="currentTab() === 'home'"
+          type="button"
+          (click)="navigate.emit('home')"
+        >
           <span class="tab-icon">⌂</span>
           <span>{{ t('Home', 'Inicio', 'Start') }}</span>
         </button>
-        <button class="tab" [class.active]="currentTab() === 'novenas'" type="button" (click)="navigate.emit('novenas')">
+        <button
+          class="tab"
+          [class.active]="currentTab() === 'novenas'"
+          type="button"
+          (click)="navigate.emit('novenas')"
+        >
           <span class="tab-icon">☰</span>
           <span>{{ t('Novenas', 'Novenas', 'Nowenny') }}</span>
         </button>
-        <button class="tab" [class.active]="currentTab() === 'liturgical'" type="button" (click)="navigate.emit('liturgical')">
+        <button
+          class="tab"
+          [class.active]="currentTab() === 'liturgical'"
+          type="button"
+          (click)="navigate.emit('liturgical')"
+        >
           <span class="tab-icon">▦</span>
           <span>{{ t('Liturgical', 'Litúrgico', 'Liturgia') }}</span>
         </button>
-        <button class="tab" [class.active]="currentTab() === 'saints'" type="button" (click)="navigate.emit('saints')">
+        <button
+          class="tab"
+          [class.active]="currentTab() === 'saints'"
+          type="button"
+          (click)="navigate.emit('saints')"
+        >
           <span class="tab-icon">♁</span>
           <span>{{ t('Saints', 'Santos', 'Swieci') }}</span>
         </button>
@@ -46,43 +77,48 @@ type AppLanguage = 'en' | 'es' | 'pl';
         </button>
       </div>
 
-      <div class="primary-nav__actions" [class.primary-nav__actions--authenticated]="isAuthenticated()">
-        @if (isAuthenticated()) {
-          <button class="pill-button nav-pill-button logout-button" type="button" (click)="logout.emit()">
-            <span class="pill-icon">↩</span>
-            <span class="nav-label nav-label--desktop">{{ t('Logout', 'Salir', 'Wyloguj') }}</span>
-            <span class="nav-label nav-label--mobile">{{ t('Logout', 'Salir', 'Wyloguj') }}</span>
+      <div
+        class="primary-nav__actions"
+        [class.primary-nav__actions--authenticated]="isAuthenticated()"
+      >
+        <details #menu>
+          <summary class="pill-button">☰ {{ t('Menu', 'Menú', 'Menu') }}</summary>
+          <button class="pill-button" (click)="menu.open = false; openSettings.emit()">
+            {{ t('Settings', 'Ajustes', 'Ustawienia') }}
           </button>
-        }
+          <button class="pill-button" (click)="menu.open = false; navigate.emit('about')">
+            {{ t('About & Help', 'Acerca de y ayuda', 'O aplikacji i pomoc') }}
+          </button>
+          <button class="pill-button" (click)="menu.open = false; openInbox.emit()">
+            {{ t('Announcements', 'Anuncios', 'Ogłoszenia') }}
+          </button>
+        </details>
         <button
-          class="pill-button nav-pill-button"
-          [class.active]="currentTab() === 'about'"
-          type="button"
-          (click)="navigate.emit('about')"
+          class="pill-button"
+          (click)="menu.open = false; openInbox.emit()"
+          [attr.aria-label]="t('Announcements', 'Anuncios', 'Ogłoszenia') + (unread() ? ' •' : '')"
         >
-          <span class="pill-icon">◎</span>
-          <span class="nav-label">{{ t('About', 'Acerca de', 'O aplikacji') }}</span>
-        </button>
-        <label class="pill-button nav-pill-button nav-language-picker" for="app-language-select">
-          <span class="pill-icon">⌘</span>
-          <span class="nav-language-picker__label nav-language-picker__label--desktop">{{ t('Language', 'Idioma', 'Język') }}</span>
-          <span class="nav-language-picker__label nav-language-picker__label--mobile">{{ t('Lang', 'Idioma', 'Język') }}</span>
-          <select
-            id="app-language-select"
-            class="nav-language-picker__select"
-            [value]="currentLanguage()"
-            (change)="selectLanguage.emit(($any($event.target).value))"
+          <svg
+            aria-hidden="true"
+            width="22"
+            height="22"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
           >
-            <option value="en">English</option>
-            <option value="es">Spanish</option>
-            <option value="pl">Polish</option>
-          </select>
-        </label>
+            <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" />
+          </svg>
+          {{ t('Announcements', 'Anuncios', 'Ogłoszenia') }} {{ unread() ? '●' : '' }}
+        </button>
       </div>
     </nav>
   `,
 })
 export class AppHeaderComponent {
+  readonly openSettings = output<void>();
+  readonly openInbox = output<void>();
+  readonly unread = input(false);
   readonly currentTab = input<AppTab>('home');
   readonly isEnglish = input<boolean>(true);
   readonly currentLanguage = input<AppLanguage>('en');

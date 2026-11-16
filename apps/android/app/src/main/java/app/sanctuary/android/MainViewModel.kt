@@ -468,6 +468,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _homeNavigation = MutableStateFlow(0)
     val homeNavigation: StateFlow<Int> = _homeNavigation.asStateFlow()
+    val announcementRequest = MutableStateFlow<String?>(null)
+    fun openAnnouncement(id:String){announcementRequest.value=id}
+    fun consumeAnnouncement(){announcementRequest.value=null}
     fun openHome() { closeSaintDetail(); closeNovenaDetail(); closePrayerDetail(); _homeNavigation.value += 1 }
 
     fun syncPushDevice() {

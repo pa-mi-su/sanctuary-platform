@@ -21,14 +21,17 @@ import { AdminInputComponent } from './admin-input.component';
   styleUrl: './admin-messages.component.scss',
   template: ` <header>
       <p class="eyebrow">A LITTLE INVITATION TO PRAYER</p>
-      <h1>Messages</h1>
-      <p>Send an English notification to people who opted in to Sanctuary announcements.</p>
+      <h1>Announcements</h1>
+      <p>
+        Publish a message in the app inbox, with an optional English phone alert for people who
+        opted in.
+      </p>
     </header>
     @if (completed()) {
       <section class="notice completion" role="status" aria-labelledby="send-complete">
-        <h2 id="send-complete">Announcement submitted</h2>
+        <h2 id="send-complete">{{ completedTitle() }}</h2>
         <p>
-          Your message was accepted for sending.
+          Your message was submitted successfully.
           {{
             hasDraft()
               ? 'Your new draft is still here.'
@@ -51,10 +54,31 @@ import { AdminInputComponent } from './admin-input.component';
     }
     <section class="panel">
       <h2>Create a message</h2>
-      @if (!enabled) {
+      @if (!enabled && sendPush) {
         <p>Sending is disabled in this environment. You can still prepare and preview a message.</p>
       }
       <form (ngSubmit)="review()">
+        <label class="check"
+          ><input
+            type="checkbox"
+            name="publish"
+            [(ngModel)]="publishToInbox"
+            (ngModelChange)="invalidate()"
+          />
+          Publish in Announcements (visible to everyone; test messages are never published)</label
+        >
+        <label class="check"
+          ><input
+            type="checkbox"
+            name="alert"
+            [(ngModel)]="sendPush"
+            (ngModelChange)="deliveryChanged()"
+          />
+          Also send a phone alert</label
+        >
+        @if (audience === 'test') {
+          <p>Owner test only: this will not appear in anyone’s Announcements inbox.</p>
+        }
         <admin-input
           #composerTitle
           label="Title"
@@ -86,7 +110,12 @@ import { AdminInputComponent } from './admin-input.component';
             </select></label
           >
           <label
-            >Audience<select name="audience" [(ngModel)]="audience" (ngModelChange)="invalidate()">
+            >Phone alert audience<select
+              [disabled]="!sendPush"
+              name="audience"
+              [(ngModel)]="audience"
+              (ngModelChange)="invalidate()"
+            >
               <option value="test">Send test to my device</option>
               <option value="all">All opted-in devices</option>
               <option value="members">Signed-in users</option>
@@ -175,10 +204,11 @@ import { AdminInputComponent } from './admin-input.component';
           class="primary"
           [disabled]="
             busy() ||
+            (!sendPush && !publishToInbox) ||
             !title.trim() ||
             !body.trim() ||
             (kind !== 'home' && !contentId) ||
-            (audience === 'test' && !testDevice)
+            (sendPush && audience === 'test' && !testDevice)
           "
         >
           Review →
@@ -187,9 +217,18 @@ import { AdminInputComponent } from './admin-input.component';
       @if (preview) {
         <section class="review" aria-labelledby="push-review">
           <h2 id="push-review">Review</h2>
-          <p><strong>Audience:</strong> {{ audienceLabel(audience) }}</p>
+          <p>
+            <strong>Audience:</strong>
+            {{ !sendPush ? 'Everyone in the app inbox' : audienceLabel(audience) }}
+          </p>
+          @if (publishToInbox && audience !== 'test') {
+            <p>
+              Published in the app inbox for everyone.
+              {{ sendPush ? 'A phone alert will also be sent.' : 'No phone alert will be sent.' }}
+            </p>
+          }
           <p><strong>Opens:</strong> {{ destinationLabel() }}</p>
-          @if (!preview.count) {
+          @if (sendPush && !preview.count) {
             <p role="status">No opted-in devices are available for this audience.</p>
           }
           <label class="check"
@@ -199,10 +238,60 @@ import { AdminInputComponent } from './admin-input.component';
           <button
             class="primary"
             (click)="send()"
-            [disabled]="busy() || !confirmed || !enabled || !preview.count"
+            [disabled]="
+              busy() || !confirmed || (!enabled && sendPush) || (sendPush && !preview.count)
+            "
           >
-            {{ audience === 'test' ? 'Send test notification' : 'Send notification' }}
+            {{
+              !sendPush
+                ? 'Publish announcement'
+                : audience === 'test'
+                  ? 'Send test notification'
+                  : publishToInbox
+                    ? 'Publish and send announcement'
+                    : 'Send notification'
+            }}
           </button>
+        </section>
+      }
+    </section>
+    <section class="panel">
+      <h2>Published in the app inbox</h2>
+      <p>These messages remain visible until withdrawn, even after you clear sending history.</p>
+      @for (row of publications; track row.id) {
+        <article>
+          <strong>{{ row.title }}</strong>
+          <p>{{ row.body }}</p>
+          <small>{{ row.published_at | date: 'medium' }}</small>
+          <button (click)="withdrawId = row.id" [disabled]="busy()">
+            Withdraw from Announcements
+          </button>
+        </article>
+      } @empty {
+        <p>No published announcements.</p>
+      }
+      <div class="actions">
+        <button
+          (click)="loadPublications(publicationPage - 1)"
+          [disabled]="busy() || publicationPage === 0"
+        >
+          Previous</button
+        ><span>Page {{ publicationPage + 1 }}</span
+        ><button
+          (click)="loadPublications(publicationPage + 1)"
+          [disabled]="busy() || !publicationMore"
+        >
+          Next
+        </button>
+      </div>
+      @if (withdrawId) {
+        <section role="alertdialog" aria-label="Withdraw announcement">
+          <p>
+            Withdraw this announcement from everyone’s inbox? Phone alerts already sent cannot be
+            recalled.
+          </p>
+          <button (click)="withdraw(withdrawId)" [disabled]="busy()">Withdraw announcement</button
+          ><button (click)="withdrawId = null" [disabled]="busy()">Cancel</button>
         </section>
       }
     </section>
@@ -235,7 +324,7 @@ import { AdminInputComponent } from './admin-input.component';
           <p id="clear-history-body">
             Completed entries up to the latest announcement on this page will be removed from
             history. Pending sends stay visible. This does not remove notifications from phones or
-            cancel sends.
+            cancel sends, or withdraw published announcements.
           </p>
           <button type="button" (click)="clearHistory()" [disabled]="busy()">
             Clear completed history
@@ -250,7 +339,14 @@ import { AdminInputComponent } from './admin-input.component';
           <strong>{{ row.title }}</strong>
           <p>{{ row.body }}</p>
           <small>{{ row.created_at | date: 'medium' }} · {{ audienceLabel(row.audience) }}</small>
-          <p class="submission-status">{{ submissionStatus(row) }}</p>
+          <p class="submission-status">
+            {{ row.published ? 'Published in Announcements · ' : '' }}{{ submissionStatus(row) }}
+          </p>
+          @if (row.published) {
+            <button type="button" (click)="withdrawId = row.id" [disabled]="busy()">
+              Withdraw from Announcements
+            </button>
+          }
         </article>
       } @empty {
         <p>No messages sent yet.</p>
@@ -270,6 +366,7 @@ export class AdminMessagesComponent implements OnInit, OnDestroy {
   busy = signal(false);
   notice = signal('');
   completed = signal(false);
+  completedTitle = signal('Announcement submitted');
   refreshingHistory = signal(false);
   historyError = signal('');
   confirmClearHistory = false;
@@ -278,6 +375,9 @@ export class AdminMessagesComponent implements OnInit, OnDestroy {
   private destroyed = false;
   @ViewChild('composerTitle') composerTitle?: AdminInputComponent;
   enabled = false;
+  withdrawId: string | null = null;
+  publishToInbox = true;
+  sendPush = true;
   title = '';
   body = '';
   kind = 'home';
@@ -288,6 +388,9 @@ export class AdminMessagesComponent implements OnInit, OnDestroy {
   choices: any[] = [];
   devices: any[] = [];
   history: any[] = [];
+  publications: any[] = [];
+  publicationPage = 0;
+  publicationMore = false;
   page = 0;
   more = false;
   contentPage = 0;
@@ -341,6 +444,8 @@ export class AdminMessagesComponent implements OnInit, OnDestroy {
     return 'Submission recorded';
   }
   private resetComposer() {
+    this.publishToInbox = true;
+    this.sendPush = true;
     this.title = '';
     this.body = '';
     this.kind = 'home';
@@ -365,6 +470,8 @@ export class AdminMessagesComponent implements OnInit, OnDestroy {
       contentId: this.contentId,
       audience: this.audience,
       testDevice: this.testDevice || null,
+      publishToInbox: this.publishToInbox && this.audience !== 'test',
+      sendPush: this.sendPush,
     };
   }
   invalidate() {
@@ -419,6 +526,9 @@ export class AdminMessagesComponent implements OnInit, OnDestroy {
       const result = await this.api('GET', '/messages?page=' + page);
       if (this.destroyed || generation !== this.historyGeneration) return;
       this.history = result.items;
+      this.publications = result.announcements?.items ?? [];
+      this.publicationMore = result.announcements?.hasMore ?? false;
+      this.publicationPage = 0;
       this.more = result.hasMore;
       this.devices = result.testDevices;
       this.enabled = result.enabled;
@@ -454,6 +564,29 @@ export class AdminMessagesComponent implements OnInit, OnDestroy {
       void this.load(0);
     });
   }
+  deliveryChanged() {
+    if (!this.sendPush) {
+      this.audience = 'all';
+      this.publishToInbox = true;
+    }
+    this.invalidate();
+  }
+  async loadPublications(page = 0) {
+    await this.run(async () => {
+      const result = await this.api('GET', '/messages/announcements?page=' + page);
+      this.publications = result.items;
+      this.publicationMore = result.hasMore;
+      this.publicationPage = page;
+    });
+  }
+  async withdraw(id: string) {
+    if (this.withdrawId !== id) return;
+    await this.run(async () => {
+      await this.api('DELETE', '/messages/announcements/' + id);
+      this.withdrawId = null;
+      void this.load();
+    });
+  }
   changeKind() {
     this.contentId = '';
     this.query = '';
@@ -487,7 +620,7 @@ export class AdminMessagesComponent implements OnInit, OnDestroy {
     if (!this.preview || !this.confirmed) return;
     await this.run(async () => {
       const sentDraft = this.draft();
-      await this.api('POST', '/messages', {
+      const outcome = await this.api('POST', '/messages', {
         id: this.requestId,
         draft: sentDraft,
         recipientVersion: this.preview.recipientVersion,
@@ -495,7 +628,12 @@ export class AdminMessagesComponent implements OnInit, OnDestroy {
       this.sentSnapshot = JSON.stringify(sentDraft);
       if (JSON.stringify(this.draft()) === this.sentSnapshot) this.resetComposer();
       else this.invalidate();
-      this.notice.set('Announcement submitted for sending.');
+      this.completedTitle.set(
+        outcome.published ? 'Announcement published' : 'Notification submitted',
+      );
+      this.notice.set(
+        outcome.published ? 'Published in Announcements.' : 'Notification submitted for sending.',
+      );
       this.completed.set(true);
       // History is independent: a delayed refresh must never lock the fresh composer.
       void this.load(0);

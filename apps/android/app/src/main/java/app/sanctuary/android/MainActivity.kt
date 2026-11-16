@@ -1,6 +1,9 @@
 package app.sanctuary.android
 
 import android.annotation.SuppressLint
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import android.Manifest
 import android.content.ActivityNotFoundException
 import android.content.Intent
@@ -253,6 +256,7 @@ class MainActivity : ComponentActivity() {
 
         val segments = uri.pathSegments
         if (segments.isEmpty()) { viewModel.openHome(); return }
+        if(segments[0]=="announcements"){viewModel.openAnnouncement(segments.getOrNull(1).orEmpty());return}
         if (segments.size < 2) {
             return
         }
@@ -419,6 +423,7 @@ private fun SanctuaryApp(viewModel: MainViewModel) {
     val prayerDetail by viewModel.prayerDetail.collectAsState()
     val novenaProgress by viewModel.novenaProgress.collectAsState()
     var selectedTab by rememberSaveable { mutableStateOf(AppTab.Home) }
+    val announcementRequest by viewModel.announcementRequest.collectAsState()
     val homeNavigation by viewModel.homeNavigation.collectAsState()
     LaunchedEffect(homeNavigation) { if (homeNavigation > 0) selectedTab = AppTab.Home }
     var showLanguagePicker by rememberSaveable { mutableStateOf(false) }
@@ -433,6 +438,8 @@ private fun SanctuaryApp(viewModel: MainViewModel) {
                 BrandedLaunchScreen()
             } else {
                 AuthenticatedShell(
+                    requestedAnnouncement = announcementRequest,
+                    consumeAnnouncement = viewModel::consumeAnnouncement,
                     session = session,
                     saints = saints,
                     novenas = novenas,
@@ -912,6 +919,8 @@ private fun AccountAccessContent(
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
 private fun AuthenticatedShell(
+    requestedAnnouncement: String?,
+    consumeAnnouncement: () -> Unit,
     session: SessionUiState,
     saints: ContentListUiState<SaintSummary>,
     novenas: ContentListUiState<NovenaSummary>,
@@ -965,6 +974,11 @@ private fun AuthenticatedShell(
 ) {
     val l10n = sanctuaryStrings()
     val context = LocalContext.current
+    var showSettings by rememberSaveable { mutableStateOf(false) }
+    var showInbox by rememberSaveable { mutableStateOf(false) }
+    var inboxRequestedID by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(requestedAnnouncement) { if(requestedAnnouncement!=null){inboxRequestedID=requestedAnnouncement.lowercase();showInbox=true;consumeAnnouncement()} }
+    var inboxUnread by remember { mutableStateOf(false) }
     var showAbout by rememberSaveable { mutableStateOf(false) }
     var showSaintSearch by rememberSaveable { mutableStateOf(false) }
     var showNovenaSearch by rememberSaveable { mutableStateOf(false) }
@@ -1116,7 +1130,8 @@ private fun AuthenticatedShell(
                             language = selectedLanguage,
                             onShowAbout = { showAbout = true }
                             ,
-                            onShowLanguage = onShowLanguagePicker
+                            onShowLanguage = onShowLanguagePicker,
+                            onSettings = { showSettings = true }, onInbox = { inboxRequestedID=null; showInbox = true }, unread = inboxUnread
                         )
                     }
                     item {
@@ -1247,7 +1262,7 @@ private fun AuthenticatedShell(
                                 onOpenSaint = onOpenSaint,
                                 onOpenPrayer = onOpenPrayer,
                                 onLogout = onLogout,
-                                onDeleteAccount = onDeleteAccount
+                                onDeleteAccount = onDeleteAccount, onSettings = { showSettings=true }
                             )
                         }
                     } else if (session.status == SessionStatus.Loading && session.session != null) {
@@ -1263,12 +1278,39 @@ private fun AuthenticatedShell(
                         }
                     }
                     if (session.status != SessionStatus.Authenticated) {
-                        item { MeSectionCard(title = sanctuaryStrings().t("notifications.title")) { AnnouncementPreference() } }
+                        item { TextButton(onClick = { showSettings=true }) { Text(sanctuaryStrings().t("settings.title")) } }
                     }
                 }
             }
         }
 
+        androidx.lifecycle.compose.LifecycleResumeEffect(session.session?.email) {
+            scope.launch { runCatching { announcementUnread(context,session.status == SessionStatus.Authenticated) }.onSuccess { inboxUnread=it } }
+            onPauseOrDispose { }
+        }
+        LaunchedEffect(selectedTab,session.session?.email) {
+            runCatching { announcementUnread(context,session.status == SessionStatus.Authenticated) }.onSuccess { inboxUnread=it }
+        }
+        if(showInbox) {
+            SanctuaryModalSheet(onDismissRequest={showInbox=false;inboxRequestedID=null}) {
+                AnnouncementInboxSheet(initialID=inboxRequestedID,authenticated=session.status == SessionStatus.Authenticated,onUnread={inboxUnread=it},onOpen={url ->
+                    showInbox=false;inboxRequestedID=null
+                    context.startActivity(Intent(context,MainActivity::class.java).setAction(Intent.ACTION_VIEW).setData(Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP))
+                })
+            }
+        }
+        if(showSettings) {
+            SanctuaryModalSheet(onDismissRequest={showSettings=false}) {
+                Column(Modifier.padding(horizontal=18.dp),verticalArrangement=Arrangement.spacedBy(14.dp)) {
+                    Text(sanctuaryStrings().t("settings.title"),fontSize=30.sp,color=Color.White,fontWeight=FontWeight.Bold)
+                    TextButton(onClick=onShowLanguagePicker) { Text(sanctuaryStrings().t("home.language")) }
+                    TextButton(onClick={showSettings=false;showAbout=true}) { Text(sanctuaryStrings().t("home.about")) }
+                    if(session.status == SessionStatus.Authenticated) {
+                        MeScreen(session,novenaProgress,onOpenNovena,onOpenSaint,onOpenPrayer,onLogout,onDeleteAccount,settingsMode=true)
+                    } else { AnnouncementPreference() }
+                }
+            }
+        }
         if (showAbout) {
             SanctuaryModalSheet(onDismissRequest = { showAbout = false }) {
                 AboutOverviewSheet(
@@ -1889,7 +1931,9 @@ private fun MeScreen(
     onOpenSaint: (String) -> Unit,
     onOpenPrayer: (String) -> Unit,
     onLogout: () -> Unit,
-    onDeleteAccount: () -> Unit
+    onDeleteAccount: () -> Unit,
+    settingsMode: Boolean = false,
+    onSettings: () -> Unit = {}
 ) {
     val l10n = sanctuaryStrings()
     val context = LocalContext.current
@@ -1900,12 +1944,10 @@ private fun MeScreen(
     var showDeleteAccountDialog by rememberSaveable { mutableStateOf(false) }
 
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        Text(l10n.t("me.title"), color = Color.White, fontSize = 42.sp, fontWeight = FontWeight.Bold)
-        Text(
-            l10n.t("me.subtitle"),
-            color = Color(0xFFD0DFEA),
-            fontSize = 18.sp
-        )
+        if(!settingsMode) {
+            Text(l10n.t("me.title"), color = Color.White, fontSize = 42.sp, fontWeight = FontWeight.Bold)
+            Text(l10n.t("me.subtitle"),color=Color(0xFFD0DFEA),fontSize=18.sp)
+        }
 
         Card(
         border = BorderStroke(1.dp, SanctuaryCardBorder),
@@ -1951,6 +1993,7 @@ private fun MeScreen(
                         )
                     }
                 }
+                if(settingsMode) {
                 Button(
                     border = BorderStroke(1.dp, SanctuaryCardBorder),
                     onClick = onLogout,
@@ -1960,10 +2003,13 @@ private fun MeScreen(
                 ) {
                     Text(l10n.t("me.logout"), color = Color.White)
                 }
+                }
             }
         }
 
 
+        if(!settingsMode) {
+        TextButton(onClick=onSettings) { Text(l10n.t("settings.title")) }
         ScheduledRemindersCard()
 
         MeSectionCard(title = l10n.t("me.inProgress")) {
@@ -2003,6 +2049,11 @@ private fun MeScreen(
             }
         }
 
+        MeSectionCard(title=l10n.t("me.completed")) {
+            val completed=progress.commitments.filter { it.status == CommitmentStatus.Completed }
+            if(completed.isEmpty())Text(l10n.t("me.noCompleted"),color=Color.LightGray)
+            completed.forEach { item -> LinkedMeRow(title=progress.novenaTitles[item.novenaId] ?: item.novenaId,subtitle=null,onClick={onOpenNovena(item.novenaId)}) }
+        }
         MeSectionCard(title = l10n.t("me.favoriteSaints")) {
             if (favoriteSaints.isEmpty()) {
                 Text(l10n.t("me.noneFavoriteSaints"), color = Color(0xFFD0DFEA))
@@ -2037,6 +2088,8 @@ private fun MeScreen(
             }
         }
 
+        }
+        if(settingsMode) {
         MeSectionCard(title = l10n.t("me.deleteAccount.title")) {
             Text(
                 l10n.t("me.deleteAccount.body"),
@@ -2071,6 +2124,7 @@ private fun MeScreen(
             AnnouncementPreference()
         }
 
+        }
     }
 
     if (showDeleteAccountDialog) {
@@ -2511,25 +2565,31 @@ private fun BrandLogoMark(
 private fun HomeTopActions(
     language: AppLanguage,
     onShowAbout: () -> Unit,
-    onShowLanguage: () -> Unit
+    onShowLanguage: () -> Unit,
+    onSettings: () -> Unit,
+    onInbox: () -> Unit,
+    unread: Boolean
 ) {
     val l10n = sanctuaryStrings()
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        TopPillButton(
-            modifier = Modifier.weight(1f),
-            title = l10n.t("home.about"),
-            icon = Icons.Filled.Info,
-            onClick = onShowAbout
-        )
-        TopPillButton(
-            modifier = Modifier.weight(1f),
-            title = "${l10n.t("home.language")}: ${language.displayName}",
-            icon = Icons.Filled.Language,
-            onClick = onShowLanguage
-        )
+        var menu by remember { mutableStateOf(false) }
+        Box(Modifier.weight(1f)) {
+            TopPillButton(title=l10n.t("menu.title"),icon=Icons.Filled.Menu,onClick={menu=true})
+            if(menu) AlertDialog(
+                onDismissRequest={menu=false},
+                title={Text(l10n.t("menu.title"))},
+                text={Column(verticalArrangement=Arrangement.spacedBy(12.dp)) {
+                    OutlinedButton(modifier=Modifier.fillMaxWidth(),onClick={menu=false;onSettings()}) { Text(l10n.t("settings.title")) }
+                    OutlinedButton(modifier=Modifier.fillMaxWidth(),onClick={menu=false;onShowAbout()}) { Text(l10n.t("home.about")) }
+                    OutlinedButton(modifier=Modifier.fillMaxWidth(),onClick={menu=false;onInbox()}) { Text(l10n.t("inbox.title")) }
+                }},
+                confirmButton={TextButton(onClick={menu=false}) { Text(l10n.t("common.close")) }}
+            )
+        }
+        TopPillButton(modifier=Modifier.weight(1f),title=l10n.t("inbox.title")+(if(unread) " •" else ""),icon=Icons.Filled.NotificationsNone,onClick=onInbox)
     }
 }
 

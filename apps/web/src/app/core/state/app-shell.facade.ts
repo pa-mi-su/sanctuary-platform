@@ -401,6 +401,11 @@ export class AppShellFacade {
         imageUrl: novena.imageUrl,
       }));
   });
+  readonly meCompletedNovenaItems = computed(() => {
+    if(!this.isAuthenticated()) return [];
+    const catalog=new Map(this.meNovenaCatalog().map(row=>[row.id,row]));
+    return this.userNovenaCommitments().filter(row=>row.status==='completed').map(row=>catalog.get(row.novenaId)).filter((row):row is NovenaSummary=>!!row).map(row=>({id:row.id,slug:row.slug,title:row.title,subtitle:this.translate('Completed','Completada','Ukończona'),imageUrl:row.imageUrl}));
+  });
   readonly meFavoriteNovenaItems = computed(() => {
     if (!this.isAuthenticated()) {
       return [];

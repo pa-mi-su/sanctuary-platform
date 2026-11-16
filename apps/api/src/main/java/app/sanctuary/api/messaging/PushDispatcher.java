@@ -21,16 +21,29 @@ public class PushDispatcher {
             if(rows.isEmpty())return;
             var delivery=rows.getFirst();
             var targets=db.queryForList("""
-                SELECT p.token,m.* FROM push_devices p JOIN push_messages m ON m.id=?
-                WHERE p.id=? AND p.user_id IS NOT DISTINCT FROM ?::uuid AND p.enabled AND p.valid AND p.updated_at>now()-interval '60 days'
+                SELECT p.token,p.app_version,m.*,a.destination AS content_destination FROM push_devices p JOIN push_messages m ON m.id=? LEFT JOIN announcements a ON a.id=m.id
+                WHERE (a.id IS NULL OR a.withdrawn_at IS NULL) AND p.id=? AND p.user_id IS NOT DISTINCT FROM ?::uuid AND p.enabled AND p.valid AND p.updated_at>now()-interval '60 days'
                 """,delivery.get("message_id"),delivery.get("device_id"),delivery.get("recipient_user_id"));
             if(targets.isEmpty()){db.update("UPDATE push_deliveries SET state='skipped',updated_at=now() WHERE id=?",delivery.get("id"));continue;}
             var target=targets.getFirst();
             try{
-                var result=gateway.send(target.get("token").toString(),target.get("title").toString(),target.get("body").toString(),target.get("destination").toString(),target.get("id").toString());
+                var result=gateway.send(target.get("token").toString(),target.get("title").toString(),target.get("body").toString(),destinationFor(target),target.get("id").toString());
                 db.update("UPDATE push_deliveries SET state=?,provider_id=?,error_code=?,updated_at=now() WHERE id=?",result.accepted()?"accepted":"failed",result.providerId(),result.code(),delivery.get("id"));
                 if(result.invalid())db.update("UPDATE push_devices SET valid=false WHERE id=? AND token=?",delivery.get("device_id"),target.get("token"));
             }catch(Exception e){db.update("UPDATE push_deliveries SET state='unknown',error_code='INTERRUPTED',updated_at=now() WHERE id=?",delivery.get("id"));}
         }
     }
+    // Keep older installed apps usable during rollout: they cannot route announcement URLs yet.
+    static String destinationFor(Map<String,Object> target) {
+        String destination=target.get("destination").toString();
+        if(target.get("content_destination")==null)return destination;
+        String version=Objects.toString(target.get("app_version"),"");
+        var match=java.util.regex.Pattern.compile("^(\\d+)\\.(\\d+)\\.(\\d+)(?:[-+].*)?$").matcher(version);
+        if(match.matches())try {
+            int major=Integer.parseInt(match.group(1)),minor=Integer.parseInt(match.group(2)),patch=Integer.parseInt(match.group(3));
+            if(major>1||(major==1&&(minor>0||patch>=26)))return destination;
+        } catch(NumberFormatException ignored){}
+        return target.get("content_destination").toString();
+    }
+
 }
