@@ -809,8 +809,10 @@ dd {
   color: #ffdadd;
 }
 .notice button {
-  min-height: 25px;
-  padding: 0 3px;
+  flex: 0 0 44px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
   border: 0;
   background: none;
   color: inherit;

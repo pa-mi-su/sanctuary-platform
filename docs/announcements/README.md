@@ -66,3 +66,9 @@ Native Me now has prominent bell and gear controls. Announcement content stays l
 The visible-publication and send-history panels are combined into one aligned card list. Visibility and phone alerts remain independent fields; there is no duplicate message rendering or ambiguous “Withdraw” label. Removing an inbox publication requires confirmation that already-sent phone alerts cannot be recalled. Its card then reads “Removed from app”. One pagination control covers the complete list.
 
 Checks: API 101 passed / one existing audit skipped; web 59 tests and production build passed. The UI rendering test checks visible, removed, publish-only, and owner-test distinctions. Localhost visual verification used the actual Angular component with synthetic read-only records; no admin sign-in or live records were used. `admin-unified-preview.jpg` shows the verified layout.
+
+## Dismissible admin feedback
+
+Status notices, history-load errors, and dialog errors have explicit dismiss controls; existing submission and global admin confirmations remain dismissible. Closing feedback changes only the message state, preserving the draft, reviewed audience, and open dialog. Close targets are at least 44 px.
+
+Verified with 60 web tests, a production build, and a read-only synthetic localhost preview (`dismissible-admin-notices.jpg`). The DEV public feed still returned the existing announcement during the audit. Admin “Visible in app” indicates publication, while personal Clear/Clear all state can hide that same record for an individual and persists across app upgrades. No announcement was published, removed, or reset during this audit.

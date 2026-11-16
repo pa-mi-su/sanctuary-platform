@@ -50,7 +50,17 @@ import { AdminInputComponent } from './admin-input.component';
         </button>
       </section>
     } @else if (notice()) {
-      <p role="status" class="notice">{{ notice() }}</p>
+      <div role="status" class="notice dismissible-notice">
+        <span>{{ notice() }}</span>
+        <button
+          type="button"
+          class="notice-dismiss"
+          aria-label="Dismiss message"
+          (click)="notice.set('')"
+        >
+          ×
+        </button>
+      </div>
     }
     <section class="panel">
       <h2>Create a message</h2>
@@ -276,7 +286,17 @@ import { AdminInputComponent } from './admin-input.component';
         submitted alert does not confirm delivery or reading.
       </p>
       @if (historyError()) {
-        <p role="status">{{ historyError() }}</p>
+        <div role="alert" class="notice dismissible-notice">
+          <span>{{ historyError() }}</span>
+          <button
+            type="button"
+            class="notice-dismiss"
+            aria-label="Dismiss history error"
+            (click)="historyError.set('')"
+          >
+            ×
+          </button>
+        </div>
       }
       @if (confirmClearHistory) {
         <section
