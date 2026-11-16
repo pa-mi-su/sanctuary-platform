@@ -165,12 +165,12 @@
   }
 
   .primary-nav__actions {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1fr);
     gap: 8px;
   }
 
   .primary-nav__actions--authenticated {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .tab {
@@ -324,3 +324,5 @@
 .primary-nav__actions details[open] > button:nth-of-type(3) {
   top: 158px;
 }
+
+.primary-nav__actions details > button { min-height: 64px; font-size: 1rem; }

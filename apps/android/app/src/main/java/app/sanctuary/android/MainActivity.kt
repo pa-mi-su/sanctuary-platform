@@ -1,5 +1,7 @@
 package app.sanctuary.android
 
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import android.annotation.SuppressLint
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.DropdownMenu
@@ -20,6 +22,10 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.ComponentActivity
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.core.tween
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
@@ -1070,7 +1076,7 @@ private fun AuthenticatedShell(
     Scaffold(
         containerColor = Color.Transparent,
         bottomBar = {
-            Surface(
+            if (!showSettings && !showInbox) Surface(
                 modifier = Modifier
                     .padding(horizontal = 12.dp, vertical = 10.dp)
                     .shadow(18.dp, RoundedCornerShape(26.dp), clip = false),
@@ -1116,6 +1122,7 @@ private fun AuthenticatedShell(
             }
         }
     ) { padding ->
+        Box(Modifier.fillMaxSize()) {
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -1125,15 +1132,6 @@ private fun AuthenticatedShell(
         ) {
             when (selectedTab) {
                 AppTab.Home -> {
-                    item {
-                        HomeTopActions(
-                            language = selectedLanguage,
-                            onShowAbout = { showAbout = true }
-                            ,
-                            onShowLanguage = onShowLanguagePicker,
-                            onSettings = { showSettings = true }, onInbox = { inboxRequestedID=null; showInbox = true }, unread = inboxUnread
-                        )
-                    }
                     item {
                         HomeHeroCard(session)
                     }
@@ -1253,6 +1251,13 @@ private fun AuthenticatedShell(
                 }
 
                 AppTab.Me -> {
+                    item {
+                        Row(Modifier.fillMaxWidth(), verticalAlignment=Alignment.CenterVertically, horizontalArrangement=Arrangement.SpaceBetween) {
+                            MeHeaderAction(sanctuaryStrings().t("inbox.title"), Icons.Filled.NotificationsNone, inboxUnread) { inboxRequestedID=null; showInbox=true }
+                            Text(sanctuaryStrings().t("me.title"), color=Color.White, fontSize=32.sp, fontWeight=FontWeight.Bold)
+                            MeHeaderAction(sanctuaryStrings().t("settings.title"), Icons.Filled.Settings) { showSettings=true }
+                        }
+                    }
                     if (session.status == SessionStatus.Authenticated) {
                         item {
                             MeScreen(
@@ -1262,7 +1267,7 @@ private fun AuthenticatedShell(
                                 onOpenSaint = onOpenSaint,
                                 onOpenPrayer = onOpenPrayer,
                                 onLogout = onLogout,
-                                onDeleteAccount = onDeleteAccount, onSettings = { showSettings=true }
+                                onDeleteAccount = onDeleteAccount
                             )
                         }
                     } else if (session.status == SessionStatus.Loading && session.session != null) {
@@ -1277,9 +1282,7 @@ private fun AuthenticatedShell(
                             )
                         }
                     }
-                    if (session.status != SessionStatus.Authenticated) {
-                        item { TextButton(onClick = { showSettings=true }) { Text(sanctuaryStrings().t("settings.title")) } }
-                    }
+                    item { NavigationCardAction(sanctuaryStrings().t("home.about"), Icons.Filled.Info) { showAbout = true } }
                 }
             }
         }
@@ -1291,25 +1294,30 @@ private fun AuthenticatedShell(
         LaunchedEffect(selectedTab,session.session?.email) {
             runCatching { announcementUnread(context,session.status == SessionStatus.Authenticated) }.onSuccess { inboxUnread=it }
         }
-        if(showInbox) {
-            SanctuaryModalSheet(onDismissRequest={showInbox=false;inboxRequestedID=null}) {
+        SanctuarySlidePage(visible=showInbox, onBack={showInbox=false;inboxRequestedID=null}) {
+            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(top=64.dp,bottom=32.dp)) {
                 AnnouncementInboxSheet(initialID=inboxRequestedID,authenticated=session.status == SessionStatus.Authenticated,onUnread={inboxUnread=it},onOpen={url ->
                     showInbox=false;inboxRequestedID=null
                     context.startActivity(Intent(context,MainActivity::class.java).setAction(Intent.ACTION_VIEW).setData(Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP))
                 })
             }
         }
-        if(showSettings) {
-            SanctuaryModalSheet(onDismissRequest={showSettings=false}) {
-                Column(Modifier.padding(horizontal=18.dp),verticalArrangement=Arrangement.spacedBy(14.dp)) {
-                    Text(sanctuaryStrings().t("settings.title"),fontSize=30.sp,color=Color.White,fontWeight=FontWeight.Bold)
-                    TextButton(onClick=onShowLanguagePicker) { Text(sanctuaryStrings().t("home.language")) }
-                    TextButton(onClick={showSettings=false;showAbout=true}) { Text(sanctuaryStrings().t("home.about")) }
-                    if(session.status == SessionStatus.Authenticated) {
-                        MeScreen(session,novenaProgress,onOpenNovena,onOpenSaint,onOpenPrayer,onLogout,onDeleteAccount,settingsMode=true)
-                    } else { AnnouncementPreference() }
+        SanctuarySlidePage(visible=showSettings, onBack={showSettings=false}) {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(start = 18.dp, end = 18.dp, top = 76.dp, bottom = 96.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    item { Text(sanctuaryStrings().t("settings.title"), fontSize = 32.sp, color = Color.White, fontWeight = FontWeight.Bold) }
+                    item { LanguageSettingsButton(language = selectedLanguage, onClick = onShowLanguagePicker) }
+                    item {
+                        if (session.status == SessionStatus.Authenticated) {
+                            MeScreen(session, novenaProgress, onOpenNovena, onOpenSaint, onOpenPrayer, onLogout, onDeleteAccount, settingsMode = true)
+                        } else {
+                            MeSectionCard(title = sanctuaryStrings().t("notifications.title")) { AnnouncementPreference() }
+                        }
+                    }
                 }
-            }
         }
         if (showAbout) {
             SanctuaryModalSheet(onDismissRequest = { showAbout = false }) {
@@ -1604,6 +1612,7 @@ private fun AuthenticatedShell(
                     }
                 }
             )
+        }
         }
     }
 }
@@ -1932,8 +1941,7 @@ private fun MeScreen(
     onOpenPrayer: (String) -> Unit,
     onLogout: () -> Unit,
     onDeleteAccount: () -> Unit,
-    settingsMode: Boolean = false,
-    onSettings: () -> Unit = {}
+    settingsMode: Boolean = false
 ) {
     val l10n = sanctuaryStrings()
     val context = LocalContext.current
@@ -1945,7 +1953,6 @@ private fun MeScreen(
 
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         if(!settingsMode) {
-            Text(l10n.t("me.title"), color = Color.White, fontSize = 42.sp, fontWeight = FontWeight.Bold)
             Text(l10n.t("me.subtitle"),color=Color(0xFFD0DFEA),fontSize=18.sp)
         }
 
@@ -2009,7 +2016,6 @@ private fun MeScreen(
 
 
         if(!settingsMode) {
-        TextButton(onClick=onSettings) { Text(l10n.t("settings.title")) }
         ScheduledRemindersCard()
 
         MeSectionCard(title = l10n.t("me.inProgress")) {
@@ -2562,68 +2568,38 @@ private fun BrandLogoMark(
 }
 
 @Composable
-private fun HomeTopActions(
-    language: AppLanguage,
-    onShowAbout: () -> Unit,
-    onShowLanguage: () -> Unit,
-    onSettings: () -> Unit,
-    onInbox: () -> Unit,
-    unread: Boolean
-) {
-    val l10n = sanctuaryStrings()
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        var menu by remember { mutableStateOf(false) }
-        Box(Modifier.weight(1f)) {
-            TopPillButton(title=l10n.t("menu.title"),icon=Icons.Filled.Menu,onClick={menu=true})
-            if(menu) AlertDialog(
-                onDismissRequest={menu=false},
-                title={Text(l10n.t("menu.title"))},
-                text={Column(verticalArrangement=Arrangement.spacedBy(12.dp)) {
-                    OutlinedButton(modifier=Modifier.fillMaxWidth(),onClick={menu=false;onSettings()}) { Text(l10n.t("settings.title")) }
-                    OutlinedButton(modifier=Modifier.fillMaxWidth(),onClick={menu=false;onShowAbout()}) { Text(l10n.t("home.about")) }
-                    OutlinedButton(modifier=Modifier.fillMaxWidth(),onClick={menu=false;onInbox()}) { Text(l10n.t("inbox.title")) }
-                }},
-                confirmButton={TextButton(onClick={menu=false}) { Text(l10n.t("common.close")) }}
-            )
+private fun MeHeaderAction(title: String, icon: ImageVector, unread: Boolean = false, onClick: () -> Unit) {
+    Box {
+        Surface(onClick=onClick, modifier=Modifier.size(56.dp), shape=RoundedCornerShape(18.dp),
+            color=SanctuaryCard, border=BorderStroke(1.5.dp,SanctuaryTabActive.copy(alpha=0.7f))) {
+            Box(contentAlignment=Alignment.Center) { Icon(icon, contentDescription=title, tint=SanctuaryTabActive, modifier=Modifier.size(28.dp)) }
         }
-        TopPillButton(modifier=Modifier.weight(1f),title=l10n.t("inbox.title")+(if(unread) " •" else ""),icon=Icons.Filled.NotificationsNone,onClick=onInbox)
+        if(unread) Box(Modifier.align(Alignment.TopEnd).padding(5.dp).size(12.dp).background(Color(0xFFEF4444),CircleShape).border(2.dp,SanctuaryCard,CircleShape))
     }
 }
 
 @Composable
-private fun TopPillButton(
-    modifier: Modifier = Modifier,
-    title: String,
-    icon: ImageVector,
-    onClick: () -> Unit
-) {
-    Card(
-        border = BorderStroke(1.dp, SanctuaryCardBorder),
-        modifier = modifier,
-        colors = CardDefaults.cardColors(containerColor = SanctuaryCard),
-        shape = RoundedCornerShape(18.dp),
-        onClick = onClick
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(Color.White.copy(alpha = 0.05f))
-                .padding(horizontal = 14.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(26.dp)
-                    .background(Color.White.copy(alpha = 0.08f), CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(icon, contentDescription = title, tint = Color(0xFFD0DFEA), modifier = Modifier.size(13.dp))
+private fun SanctuarySlidePage(visible: Boolean, onBack: () -> Unit, content: @Composable () -> Unit) {
+    BackHandler(enabled=visible, onBack=onBack)
+    AnimatedVisibility(visible=visible, enter=slideInHorizontally(tween(280)) { it }, exit=slideOutHorizontally(tween(280)) { it }) {
+        Box(Modifier.fillMaxSize().background(Brush.linearGradient(listOf(SanctuaryGradientTop,SanctuaryGradientMid,SanctuaryGradientBottom))).statusBarsPadding().navigationBarsPadding()) {
+            content()
+            Surface(onClick=onBack, modifier=Modifier.align(Alignment.TopStart).padding(start=18.dp,top=12.dp).size(42.dp),
+                color=SanctuaryCard, shape=CircleShape, border=BorderStroke(1.dp,SanctuaryCardBorder)) {
+                Box(contentAlignment=Alignment.Center) { Icon(Icons.Filled.ArrowBack,contentDescription="Back",tint=Color.White,modifier=Modifier.size(22.dp)) }
             }
-            Text(title, color = Color.White.copy(alpha = 0.9f), fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+        }
+    }
+}
+
+@Composable
+private fun NavigationCardAction(title: String, icon: ImageVector, onClick: () -> Unit) {
+    Card(onClick = onClick, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = SanctuaryCard), border = BorderStroke(1.dp, Color(0x997CC7DE))) {
+        Row(Modifier.fillMaxWidth().heightIn(min = 64.dp).padding(18.dp), horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(icon, contentDescription = null, tint = SanctuaryTabActive, modifier = Modifier.size(25.dp))
+            Text(title, Modifier.weight(1f), color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = SanctuaryTabActive, modifier = Modifier.size(20.dp))
         }
     }
 }
@@ -2696,6 +2672,27 @@ private fun CalendarSearchButton(
                     modifier = Modifier.size(20.dp)
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun LanguageSettingsButton(language: AppLanguage, onClick: () -> Unit) {
+    Card(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = SanctuaryCardSoft),
+        border = BorderStroke(1.dp, SanctuaryCardBorder),
+        shape = RoundedCornerShape(20.dp)
+    ) {
+        Row(Modifier.fillMaxWidth().padding(18.dp), verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            Icon(Icons.Filled.Language, contentDescription = null, tint = SanctuaryTabActive, modifier = Modifier.size(26.dp))
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(sanctuaryStrings().t("home.language"), color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                Text(language.displayName, color = Color(0xFFD0DFEA), fontSize = 16.sp)
+            }
+            Icon(Icons.Filled.ExpandMore, contentDescription = null, tint = Color.White)
         }
     }
 }
@@ -3551,6 +3548,7 @@ private fun DetailSheetScaffold(
 private fun SanctuaryModalSheet(
     onDismissRequest: () -> Unit,
     heroContent: Boolean = false,
+    scrollContent: Boolean = true,
     content: @Composable ColumnScope.() -> Unit
 ) {
     Dialog(
@@ -3580,8 +3578,8 @@ private fun SanctuaryModalSheet(
                 modifier = Modifier
                     .fillMaxWidth()
                     .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-                    .padding(top = if (heroContent) 16.dp else 64.dp, bottom = 18.dp),
+                    .then(if (scrollContent) Modifier.verticalScroll(rememberScrollState())
+                        .padding(top = if (heroContent) 16.dp else 64.dp, bottom = 32.dp) else Modifier),
                 verticalArrangement = Arrangement.Top
             ) {
                 content()

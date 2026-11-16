@@ -82,35 +82,19 @@ type AppLanguage = 'en' | 'es' | 'pl';
         [class.primary-nav__actions--authenticated]="isAuthenticated()"
       >
         <details #menu>
-          <summary class="pill-button">☰ {{ t('Menu', 'Menú', 'Menu') }}</summary>
+          <summary class="pill-button">
+            ☰ {{ t('Menu', 'Menú', 'Menu') }} {{ unread() ? '●' : '' }}
+          </summary>
+          <button class="pill-button" (click)="menu.open = false; openInbox.emit()">
+            {{ t('Announcements', 'Anuncios', 'Ogłoszenia') }} {{ unread() ? '●' : '' }}
+          </button>
           <button class="pill-button" (click)="menu.open = false; openSettings.emit()">
             {{ t('Settings', 'Ajustes', 'Ustawienia') }}
           </button>
           <button class="pill-button" (click)="menu.open = false; navigate.emit('about')">
             {{ t('About & Help', 'Acerca de y ayuda', 'O aplikacji i pomoc') }}
           </button>
-          <button class="pill-button" (click)="menu.open = false; openInbox.emit()">
-            {{ t('Announcements', 'Anuncios', 'Ogłoszenia') }}
-          </button>
         </details>
-        <button
-          class="pill-button"
-          (click)="menu.open = false; openInbox.emit()"
-          [attr.aria-label]="t('Announcements', 'Anuncios', 'Ogłoszenia') + (unread() ? ' •' : '')"
-        >
-          <svg
-            aria-hidden="true"
-            width="22"
-            height="22"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" />
-          </svg>
-          {{ t('Announcements', 'Anuncios', 'Ogłoszenia') }} {{ unread() ? '●' : '' }}
-        </button>
       </div>
     </nav>
   `,

@@ -8,9 +8,9 @@ Version 1.0.26 separates three things:
 
 ## Navigation
 
-Home has a Menu with Settings, About/Help, and Announcements, alongside a visible bell with an unread dot. Existing primary tabs stay unchanged. Me contains saved content, active/completed novenas, and native scheduled reminders. Settings contains language, announcement preferences, OS notification settings/details, and authenticated account actions.
+Native Me has a large bell at the top left and gear at the top right. The bell displays a red unread dot and opens Announcements; the gear opens Settings. Both destinations slide in as full pages with back navigation. Native Home has no hamburger. About remains a separate card on Me. Web keeps its existing navigation. Existing primary tabs stay unchanged. Me contains saved content, active/completed novenas, and native scheduled reminders. Settings contains language, announcement preferences, OS notification settings/details, and authenticated account actions.
 
-The inbox supports expanding the full message, opening its linked content, marking it read, clearing one with Undo, and clearing all after confirmation. An old alert can still open its specific message even if it was cleared from the inbox, provided the administrator has not withdrawn it. This does not restore the cleared entry to the regular inbox.
+The inbox shows the full message without an expander (messages are limited to 500 characters). A content action appears only for an associated prayer, saint, or novena; plain app announcements have no content button. Opening the inbox marks the loaded messages as read, with clearing one/Undo and clearing all/confirmation retained. This is inbox state, not proof that a message was read. An old alert can still open its specific message even if it was cleared from the inbox, provided the administrator has not withdrawn it. This does not restore the cleared entry to the regular inbox.
 
 Guest receipts are local to the installation/browser and environment. Signed-in receipts synchronize through the API and are separate from guest receipts. Clearing a message affects only that reader. Clear all uses a publication cutoff so future messages still appear. The unread dot reflects the currently loaded feed page; older announcements remain available through Load more.
 
@@ -23,7 +23,7 @@ The existing Messages area becomes an Announcements composer with independent co
 
 Owner test alerts never create public inbox entries, even if the publication flag is submitted. Publication without a phone alert works without registered devices or enabled Firebase. Phone audience filters apply only to alerts; published messages are visible to everyone. Message limits remain 100 characters for the title and 500 for the body.
 
-A separate paginated **Published in the app inbox** section lets the owner withdraw a message independently of sending history. Withdrawal hides the public message and skips remaining queued deliveries; alerts already accepted by Firebase cannot be recalled. Clearing completed sending history does not withdraw public announcements. Successful submission still resets the composer and prevents duplicate resubmission with the same request ID.
+A single paginated **Announcements & alerts** list shows each message once, with separate **App inbox** (Visible in app / Removed from app / Not published) and **Phone alert** statuses (Not requested / Queued / Submitted / sending issues). Owner tests are labeled separately. **Remove from app inbox** removes a publication while keeping its historical record. Withdrawal hides the public message and skips remaining queued deliveries; alerts already accepted by Firebase cannot be recalled. Clearing old history preserves both active publications and pending sends. Active publications whose send history was cleared by an older admin version are included in the unified list, and removal restores their historical record until explicitly cleared. Successful submission still resets the composer and prevents duplicate resubmission with the same request ID.
 
 ## API and data
 
@@ -52,3 +52,17 @@ Android includes DEV announcement deep links only in its DEV manifest. iOS handl
 - Visual previews use an explicitly labeled isolated local QA announcement, not real user content. No live announcements or phone alerts were sent for these checks.
 
 Physical-device alert handoff and signed-in native cross-device receipt synchronization still need a DEV smoke test after deployment; backend receipt isolation is integration-tested locally.
+
+## 1.0.27 follow-up: review stability and presentation
+
+The previous recipient fingerprint included `push_devices.updated_at` and the token. A routine device registration refresh between review and send could therefore reject an unchanged audience. The fingerprint now uses a sorted canonical set of installation ID/account ID pairs. Last-sync updates and token rotation do not invalidate review; actual eligibility, recipient membership, and account changes still do. The dispatcher still checks opt-in and account identity at dispatch time. Duplicate-send protections remain unchanged. A genuine audience conflict clears the stale admin review while preserving the draft and send identifier, so another explicit review is required.
+
+Regression verification: API 100 passed / one existing audit skipped, Android 19 tests and all flavor checks passed, web 58 tests and production build passed, iOS DEV simulator build passed. UI previews in `refinement-previews` use only explicitly local QA messages; no live messages were sent.
+
+Native Me now has prominent bell and gear controls. Announcement content stays left-aligned for reading within centered, width-limited containers, with consistent heading, card-border, surface, and action styles across native platforms.
+
+## Unified admin list follow-up
+
+The visible-publication and send-history panels are combined into one aligned card list. Visibility and phone alerts remain independent fields; there is no duplicate message rendering or ambiguous “Withdraw” label. Removing an inbox publication requires confirmation that already-sent phone alerts cannot be recalled. Its card then reads “Removed from app”. One pagination control covers the complete list.
+
+Checks: API 101 passed / one existing audit skipped; web 59 tests and production build passed. The UI rendering test checks visible, removed, publish-only, and owner-test distinctions. Localhost visual verification used the actual Angular component with synthetic read-only records; no admin sign-in or live records were used. `admin-unified-preview.jpg` shows the verified layout.

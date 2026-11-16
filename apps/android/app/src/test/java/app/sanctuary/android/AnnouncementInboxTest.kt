@@ -14,4 +14,12 @@ class AnnouncementInboxTest {
   val state=AnnouncementState(readIds=listOf("read"),clearedIds=listOf("clear"),clearedBefore=100.0)
   assertEquals(state,Gson().fromJson(Gson().toJson(state),AnnouncementState::class.java))
  }
+ @Test fun onlyAssociatedSanctuaryContentHasAnOpenAction() {
+  assertFalse(announcementHasContentLink("https://mydailysanctuary.com/"))
+  assertFalse(announcementHasContentLink("https://mydailysanctuary.com/announcements/123"))
+  assertFalse(announcementHasContentLink("https://untrusted.example/saints/test"))
+  assertTrue(announcementHasContentLink("https://mydailysanctuary.com/saints/st-cecilia"))
+  assertTrue(announcementHasContentLink("https://mydailysanctuary.com/novenas/st-joseph"))
+  assertTrue(announcementHasContentLink("https://mydailysanctuary.com/prayers/our-father"))
+ }
 }

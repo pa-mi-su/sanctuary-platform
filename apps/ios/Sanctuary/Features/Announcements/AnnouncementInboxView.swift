@@ -11,6 +11,15 @@ struct SanctuaryAnnouncement: Codable, Identifiable {
   let body: String
   let destination: String
   let published_at: Double
+  var contentURL: URL? {
+    guard let url = URL(string: destination), url.scheme == "https",
+      url.host == "mydailysanctuary.com"
+        || (PlatformEnvironment.current() == .dev && url.host == "dev.mydailysanctuary.com"),
+      url.pathComponents.count == 3,
+      ["prayers", "saints", "novenas"].contains(url.pathComponents[1])
+    else { return nil }
+    return url
+  }
 }
 struct AnnouncementFeed: Decodable {
   let items: [SanctuaryAnnouncement]
@@ -78,7 +87,9 @@ struct AnnouncementChange: Encodable {
       self.more = feed.hasMore
     } catch { if request == generation { self.error = error.localizedDescription } }
   }
-  func change(_ action: String, id: String? = nil, through: SanctuaryAnnouncement? = nil) async {
+  func change(
+    _ action: String, id: String? = nil, through: SanctuaryAnnouncement? = nil, ids: [String]? = nil
+  ) async {
     guard !busy, let api else { return }
     let request = generation
     busy = true
@@ -86,7 +97,7 @@ struct AnnouncementChange: Encodable {
     defer { if request == generation { busy = false } }
     do {
       let change = AnnouncementChange(
-        action: action, ids: id.map { [$0] } ?? [],
+        action: action, ids: ids ?? id.map { [$0] } ?? [],
         throughId: action == "clearAll"
           ? (through ?? items.max(by: { $0.published_at < $1.published_at }))?.id : nil)
       if let token {
@@ -94,7 +105,7 @@ struct AnnouncementChange: Encodable {
         guard request == generation else { return }
         state = loaded
       } else {
-        if action == "read", let id { state.readIds = Array(Set(state.readIds + [id])) }
+        if action == "read" { state.readIds = Array(Set(state.readIds + change.ids)) }
         if action == "clear", let id { state.clearedIds = Array(Set(state.clearedIds + [id])) }
         if action == "restore", let id { state.clearedIds.removeAll { $0 == id } }
         if action == "clearAll" {
@@ -117,7 +128,6 @@ struct AnnouncementInboxView: View {
   @EnvironmentObject private var account: AccountSessionStore
   @EnvironmentObject private var localization: LocalizationManager
   @Environment(\.dismiss) private var dismiss
-  @State private var expanded: String?
   @State private var confirmClear = false
   @State private var clearThrough: SanctuaryAnnouncement?
   @State private var forcedID: String?
@@ -128,90 +138,82 @@ struct AnnouncementInboxView: View {
     else { return visible }
     return [row] + visible
   }
+  private func refresh(more: Bool = false) async {
+    await store.load(
+      api: environment.apiClient, token: await account.authorizationToken(), more: more)
+    await markDisplayedRead()
+  }
+  private func markDisplayedRead() async {
+    let unread = displayed.filter { !store.state.readIds.contains($0.id) }.map(\.id)
+    if !unread.isEmpty { await store.change("read", ids: Array(unread.prefix(100))) }
+  }
   var body: some View {
-    ZStack {
+    ZStack(alignment: .topLeading) {
       AppBackdrop()
       ScrollView {
-        VStack(alignment: .leading, spacing: 16) {
-          HStack {
-            Text(localization.t("inbox.title")).font(AppTheme.rounded(32, weight: .bold))
-              .foregroundStyle(.white)
-            Spacer()
-            Button(localization.t("common.close")) { dismiss() }
-          }
-          HStack {
-            Button(localization.t("inbox.refresh")) {
-              Task {
-                await store.load(
-                  api: environment.apiClient, token: await account.authorizationToken())
-              }
-            }
-            Spacer()
+        VStack(alignment: .leading, spacing: 18) {
+          Text(localization.t("inbox.title"))
+            .font(AppTheme.rounded(30, weight: .bold)).foregroundStyle(.white)
+            .frame(maxWidth: .infinity, alignment: .center)
+          HStack(spacing: 12) {
+            Button(localization.t("inbox.refresh")) { Task { await refresh() } }
+              .buttonStyle(SecondaryPillButtonStyle())
             Button(localization.t("inbox.clearAll")) {
               clearThrough = store.items.max(by: { $0.published_at < $1.published_at })
               confirmClear = true
-            }.disabled(store.visible.isEmpty)
-          }.buttonStyle(.bordered)
+            }.buttonStyle(SecondaryPillButtonStyle()).disabled(store.visible.isEmpty || store.busy)
+          }
           if let error = store.error { Text(error).foregroundStyle(.red) }
-          if store.busy { ProgressView() }
+          if store.busy { ProgressView().frame(maxWidth: .infinity) }
           if let id = store.undoID {
             Button(localization.t("inbox.undo")) { Task { await store.change("restore", id: id) } }
-              .buttonStyle(.bordered)
+              .buttonStyle(SecondaryPillButtonStyle())
           }
           if displayed.isEmpty && !store.busy {
             Text(localization.t("inbox.empty")).foregroundStyle(AppTheme.subtitleText)
+              .padding(20).frame(maxWidth: .infinity).appGlassCard(cornerRadius: 24)
           }
           ForEach(displayed) { row in
-            VStack(alignment: .leading, spacing: 12) {
-              Button {
-                expanded = expanded == row.id ? nil : row.id
-                Task { await store.change("read", id: row.id) }
-              } label: {
-                HStack {
-                  if !store.state.readIds.contains(row.id) {
-                    Circle().fill(AppTheme.tabActive).frame(width: 8, height: 8)
-                  }
-                  Text(row.title).font(AppTheme.rounded(20, weight: .bold))
-                  Spacer()
-                  Image(systemName: expanded == row.id ? "chevron.up" : "chevron.down")
+            VStack(alignment: .leading, spacing: 14) {
+              Text(row.title).font(AppTheme.rounded(20, weight: .bold)).foregroundStyle(.white)
+                .fixedSize(horizontal: false, vertical: true)
+              Text(Date(timeIntervalSince1970: row.published_at / 1000), style: .date)
+                .font(AppTheme.rounded(14, weight: .medium)).foregroundStyle(AppTheme.subtitleText)
+              Text(row.body).font(AppTheme.rounded(17, weight: .medium))
+                .foregroundStyle(AppTheme.cardText).fixedSize(horizontal: false, vertical: true)
+              Divider().overlay(AppTheme.purpleOutline.opacity(0.4))
+              HStack(spacing: 12) {
+                if let url = row.contentURL {
+                  Button(localization.t("inbox.open")) { open(url) }.buttonStyle(
+                    PrimaryPillButtonStyle())
                 }
-              }.buttonStyle(.plain)
-              Text(Date(timeIntervalSince1970: row.published_at / 1000), style: .date).font(
-                .caption
-              ).foregroundStyle(AppTheme.subtitleText)
-              Text(row.body).lineLimit(expanded == row.id ? nil : 3).foregroundStyle(
-                AppTheme.subtitleText)
-              HStack {
-                Button(localization.t("inbox.open")) {
-                  if let url = URL(string: row.destination), url.scheme == "https",
-                    url.host == "mydailysanctuary.com"
-                      || (PlatformEnvironment.current() == .dev
-                        && url.host == "dev.mydailysanctuary.com")
-                  {
-                    Task {
-                      await store.change("read", id: row.id)
-                      open(url)
-                    }
-                  }
-                }
-                Spacer()
                 Button(localization.t("inbox.clear")) {
                   forcedID = nil
                   Task { await store.change("clear", id: row.id) }
-                }
-              }.buttonStyle(.bordered)
-            }.padding(18).appGlassCard(cornerRadius: 24).foregroundStyle(.white)
+                }.buttonStyle(SecondaryPillButtonStyle()).disabled(store.busy)
+              }
+            }
+            .padding(20).frame(maxWidth: .infinity, alignment: .leading)
+            .background(AppTheme.cardBackground).clipShape(RoundedRectangle(cornerRadius: 24))
+            .overlay(
+              RoundedRectangle(cornerRadius: 24).stroke(
+                AppTheme.purpleOutline.opacity(0.6), lineWidth: 1))
           }
           if store.more {
-            Button(localization.t("inbox.more")) {
-              Task {
-                await store.load(
-                  api: environment.apiClient, token: await account.authorizationToken(), more: true)
-              }
-            }.buttonStyle(.bordered)
+            Button(localization.t("inbox.more")) { Task { await refresh(more: true) } }
+              .buttonStyle(SecondaryPillButtonStyle()).disabled(store.busy)
           }
-        }.padding(18)
+        }.frame(maxWidth: 680).padding(.horizontal, 18).padding(.top, 76).padding(.bottom, 48)
+          .frame(maxWidth: .infinity)
       }
+      Button {
+        dismiss()
+      } label: {
+        Image(systemName: "arrow.left").font(.system(size: 20, weight: .medium))
+          .foregroundStyle(.white).frame(width: 42, height: 42)
+          .background(AppTheme.cardBackground).clipShape(Circle())
+          .overlay(Circle().stroke(AppTheme.tabBorder, lineWidth: 1))
+      }.accessibilityLabel(localization.t("common.close")).padding(.leading, 18).padding(.top, 12)
     }.task {
       await store.load(api: environment.apiClient, token: await account.authorizationToken())
       if let id = initialID, UUID(uuidString: id) != nil {
@@ -220,10 +222,10 @@ struct AnnouncementInboxView: View {
             store.items.insert(try await environment.apiClient.announcement(id: id), at: 0)
           }
           forcedID = id
-          expanded = id
           await store.change("read", id: id)
         } catch { store.error = error.localizedDescription }
       }
+      await markDisplayedRead()
     }
     .confirmationDialog(localization.t("inbox.confirmClear"), isPresented: $confirmClear) {
       Button(localization.t("inbox.clearAll"), role: .destructive) {

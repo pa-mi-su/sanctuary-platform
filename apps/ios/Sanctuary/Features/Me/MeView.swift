@@ -6,6 +6,10 @@ struct MeView: View {
     @Environment(\.dismiss) private var dismiss
     var settingsMode = false
     @State private var showSettings = false
+    @State private var showInbox = false
+    @State private var showAbout = false
+    @StateObject private var inbox = AnnouncementInboxStore()
+    @State private var showLanguagePicker = false
     @ObservedObject private var push = PushNotifications.shared
     @EnvironmentObject private var localization: LocalizationManager
     @EnvironmentObject private var accountStore: AccountSessionStore
@@ -19,22 +23,76 @@ struct MeView: View {
     @State private var showingDeliveryDetails = false
 
     var body: some View {
+        if settingsMode { page }
+        else {
+            NavigationStack {
+                page
+                    .navigationDestination(isPresented: $showSettings) {
+                        MeView(environment: environment, settingsMode: true).toolbar(.hidden, for: .tabBar).toolbar(.hidden, for: .navigationBar)
+                    }
+                    .navigationDestination(isPresented: $showInbox) {
+                        AnnouncementInboxView(environment: environment, store: inbox) { url in
+                            showInbox = false
+                            PushNotifications.shared.destination = url
+                        }.toolbar(.hidden, for: .tabBar).toolbar(.hidden, for: .navigationBar)
+                    }
+                    .navigationDestination(isPresented: $showAbout) { AboutView().toolbar(.hidden, for: .tabBar).toolbar(.hidden, for: .navigationBar) }
+                    .toolbar(.hidden, for: .navigationBar)
+            }
+        }
+    }
+
+    private func headerAction(_ title: String, icon: String, unread: Bool = false, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: icon).font(.system(size: 28, weight: .semibold))
+                .foregroundStyle(AppTheme.tabActive).frame(width: 56, height: 56)
+                .background(AppTheme.cardBackground).clipShape(RoundedRectangle(cornerRadius: 18))
+                .overlay(RoundedRectangle(cornerRadius: 18).stroke(AppTheme.tabActive.opacity(0.7), lineWidth: 1.5))
+                .overlay(alignment: .topTrailing) {
+                    if unread { Circle().fill(.red).frame(width: 12, height: 12).overlay(Circle().stroke(AppTheme.cardBackground, lineWidth: 2)).offset(x: -5, y: 5) }
+                }
+        }.buttonStyle(.plain).accessibilityLabel(title).accessibilityValue(unread ? "Unread announcements" : "")
+    }
+
+    private var page: some View {
         ZStack {
             AppBackdrop()
 
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 14) {
+                    if !settingsMode {
+                        HStack {
+                            headerAction(localization.t("inbox.title"), icon: "bell.fill", unread: inbox.unread) { showInbox = true }
+                            Spacer()
+                            Text(localization.t("tab.me")).font(AppTheme.rounded(32, weight: .bold)).foregroundStyle(.white)
+                            Spacer()
+                            headerAction(localization.t("settings.title"), icon: "gearshape.fill") { showSettings = true }
+                        }
+                    }
                     if settingsMode {
-                        Button(localization.t("common.close")) { dismiss() }.buttonStyle(.bordered)
+                        Button { dismiss() } label: {
+                            Image(systemName: "arrow.left").font(.system(size: 20, weight: .medium))
+                                .foregroundStyle(.white).frame(width: 42, height: 42)
+                                .background(AppTheme.cardBackground).clipShape(Circle())
+                                .overlay(Circle().stroke(AppTheme.tabBorder, lineWidth: 1))
+                        }.accessibilityLabel(localization.t("common.close"))
                         Text(localization.t("settings.title")).font(AppTheme.rounded(32, weight: .bold)).foregroundStyle(.white)
-                        Picker(localization.t("home.language"), selection: $localization.language) {
-                            ForEach(AppLanguage.allCases) { language in Text(language.displayName).tag(language) }
-                        }.pickerStyle(.menu).tint(AppTheme.tabActive)
-                        reminderPreferencesCard
+                        Button { showLanguagePicker = true } label: {
+                            HStack(spacing: 14) {
+                                Image(systemName: "globe").font(.system(size: 26)).foregroundStyle(AppTheme.tabActive)
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(localization.t("home.language")).font(AppTheme.rounded(18, weight: .semibold)).foregroundStyle(.white)
+                                    Text(localization.language.displayName).font(AppTheme.rounded(16, weight: .medium)).foregroundStyle(AppTheme.subtitleText)
+                                }
+                                Spacer()
+                                Image(systemName: "chevron.down").foregroundStyle(.white)
+                            }
+                            .padding(18).frame(maxWidth: .infinity, alignment: .leading).appGlassCard(cornerRadius: 20)
+                        }.buttonStyle(.plain)
                         if accountStore.isAuthenticated { accountHeader; deleteAccountCard }
+                        reminderPreferencesCard
                     } else if accountStore.isAuthenticated {
                         accountHeader
-                        Button(localization.t("settings.title")) { showSettings = true }.buttonStyle(.bordered)
                         ScheduledRemindersCard()
                         inProgressCard
                         completedNovenasCard
@@ -43,15 +101,28 @@ struct MeView: View {
                         favoritePrayersCard
                     } else {
                         AccountAccessView()
-                        Button(localization.t("settings.title")) { showSettings = true }.buttonStyle(.bordered)
+                    }
+                    if !settingsMode {
+                        NavigationCardButton(title: localization.t("home.about"), icon: "info.circle") { showAbout = true }
                     }
                 }
-                .padding(16)
-                .padding(.bottom, 28)
+                .padding(settingsMode ? 18 : 16)
+                .padding(.bottom, settingsMode ? 48 : 28)
             }
             .scrollDismissesKeyboard(.interactively)
         }
-        .sheet(isPresented: $showSettings) { MeView(environment: environment, settingsMode: true) }
+        .sheet(isPresented: $showLanguagePicker) {
+            LanguagePickerSheet()
+                .presentationDetents([.height(370), .large])
+                .presentationDragIndicator(.visible)
+        }
+        .task(id: accountStore.profile?.userID) { if !settingsMode { await refreshInbox() } }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
+            if !settingsMode { Task { await refreshInbox() } }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .announcementInboxChanged)) { _ in
+            if !settingsMode { Task { await refreshInbox() } }
+        }
         .task {
             if accountStore.isAuthenticated {
                 await accountStore.refreshProfile()
@@ -176,12 +247,13 @@ struct MeView: View {
         .buttonStyle(.plain)
     }
 
+    private func refreshInbox() async {
+        await inbox.load(api: environment.apiClient, token: await accountStore.authorizationToken())
+    }
+
     private var accountHeader: some View {
         VStack(alignment: .leading, spacing: 14) {
             if !settingsMode {
-            Text(localization.t("tab.me"))
-                .font(AppTheme.rounded(42, weight: .bold))
-                .foregroundStyle(.white)
 
             Text(localization.t("me.subtitle"))
                 .font(AppTheme.rounded(18, weight: .medium))

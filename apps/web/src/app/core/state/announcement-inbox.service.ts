@@ -130,7 +130,7 @@ export class AnnouncementInboxService {
       undefined,
     );
   }
-  async change(action: string, id?: string, through?: Announcement) {
+  async change(action: string, id?: string, through?: Announcement, ids?: string[]) {
     if (this.busy()) return;
     const generation = this.generation;
     this.busy.set(true);
@@ -140,12 +140,15 @@ export class AnnouncementInboxService {
       if (this.auth.state().status === 'authenticated')
         state = await this.request<InboxState>('POST', '/me/announcements', {
           action,
-          ids: id ? [id] : [],
+          ids: ids ?? (id ? [id] : []),
           throughId: action === 'clearAll' ? (through ?? this.latest())?.id : null,
         });
       else {
-        if (action === 'read' && id)
-          state = { ...state, readIds: [...new Set([...state.readIds, id])] };
+        if (action === 'read')
+          state = {
+            ...state,
+            readIds: [...new Set([...state.readIds, ...(ids ?? (id ? [id] : []))])],
+          };
         if (action === 'clear' && id)
           state = { ...state, clearedIds: [...new Set([...state.clearedIds, id])] };
         if (action === 'restore')

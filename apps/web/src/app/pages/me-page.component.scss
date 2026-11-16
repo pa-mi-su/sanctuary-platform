@@ -425,3 +425,8 @@
   }
 
 }
+
+.settings-action { display: block; width: 100%; min-height: 64px; padding: 18px; margin: 18px 0;
+ color: white; background: #102738; border: 1px solid #7cc7de99; border-radius: 20px; font: inherit; font-weight: 600; font-size: 1.125rem; text-align: left; cursor: pointer; }
+.settings-action::before { content: '⚙'; color: #8ee0f2; margin-right: 14px; }
+.settings-action::after { content: '›'; float: right; color: #8ee0f2; }

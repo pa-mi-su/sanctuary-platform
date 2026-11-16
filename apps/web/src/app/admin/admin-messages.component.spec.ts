@@ -169,7 +169,7 @@ describe('Admin messaging', () => {
     component.choices = [{ id: 'saint-1', title: 'St. Cecilia' }];
     expect(component.destinationLabel()).toBe('Saint / feast day: St. Cecilia');
     component.kind = 'home';
-    expect(component.destinationLabel()).toBe('Home');
+    expect(component.destinationLabel()).toBe('Announcement only (no content link)');
     expect(component.submissionStatus({ pending: 11 })).toBe('Queued for sending');
     expect(component.submissionStatus({ accepted: 11 })).toBe('Submitted to Firebase');
     expect(component.submissionStatus({ failed: 11 })).toBe('Sending failed');
@@ -213,9 +213,9 @@ describe('Admin messaging', () => {
     fixture.detectChanges();
     const text = fixture.nativeElement.textContent;
     expect(text).toContain('Review');
-    expect(text).toContain('Opens: Home');
-    expect(text).toContain('Past announcements');
-    expect(text).toContain('Submitted to Firebase');
+    expect(text).toContain('Opens: Announcement only (no content link)');
+    expect(text).toContain('Announcements & alerts');
+    expect(text).toContain('Submitted for sending');
     expect(text).not.toContain('app installations');
     expect(text).not.toContain('11 recipients');
     expect(text).not.toContain('dev.mydailysanctuary.com');
@@ -333,12 +333,11 @@ describe('Admin messaging', () => {
   it('keeps published announcements manageable after sending history is cleared', async () => {
     const load = component.load();
     http.expectOne('https://api.example.test/admin-api/messages?page=0').flush({
-      items: [],
+      items: [{ id: 'published', title: 'Public invitation', published: true }],
       hasMore: false,
-      announcements: { items: [{ id: 'published', title: 'Public invitation' }], hasMore: false },
     });
     await load;
-    expect(component.publications[0].id).toBe('published');
+    expect(component.history[0].id).toBe('published');
     component.withdrawId = 'published';
     const withdraw = component.withdraw('published');
     const request = http.expectOne(
@@ -351,5 +350,89 @@ describe('Admin messaging', () => {
       .expectOne('https://api.example.test/admin-api/messages?page=0')
       .flush({ items: [], hasMore: false });
     expect(component.withdrawId).toBeNull();
+  });
+  it('requires a fresh review after a real audience change without discarding the draft', async () => {
+    component.title = 'Keep this message';
+    component.body = 'Full announcement';
+    component.preview = { recipientVersion: 'reviewed' };
+    component.confirmed = true;
+    component.requestId = 'same-send-id';
+    const send = component.send();
+    http
+      .expectOne('https://api.example.test/admin-api/messages')
+      .flush(
+        { message: 'Notification subscriptions changed since your review.' },
+        { status: 409, statusText: 'Conflict' },
+      );
+    await send;
+    expect(component.preview).toBeNull();
+    expect(component.confirmed).toBe(false);
+    expect(component.title).toBe('Keep this message');
+    expect(component.requestId).toBe('same-send-id');
+    expect(component.notice()).toContain('subscriptions changed');
+  });
+  it('renders each message once with independent inbox and phone-alert statuses', async () => {
+    const fixture = TestBed.createComponent(AdminMessagesComponent);
+    fixture.detectChanges();
+    http.expectOne('https://api.example.test/admin-api/messages?page=0').flush({
+      enabled: true,
+      testDevices: [],
+      hasMore: false,
+      items: [
+        {
+          id: 'published',
+          title: 'Visible message',
+          body: 'One copy',
+          published: true,
+          phone_alert_requested: false,
+          created_at: '2026-11-16T15:00:00Z',
+          audience: 'all',
+        },
+        {
+          id: 'removed',
+          title: 'Removed message',
+          body: 'Previously published',
+          published: false,
+          removed_from_inbox: true,
+          phone_alert_requested: true,
+          accepted: 1,
+          created_at: '2026-11-16T14:00:00Z',
+          audience: 'all',
+        },
+        {
+          id: 'test',
+          title: 'Private test',
+          body: 'No publication',
+          published: false,
+          phone_alert_requested: true,
+          pending: 1,
+          created_at: '2026-11-16T13:00:00Z',
+          audience: 'test',
+        },
+      ],
+      announcements: { items: [{ id: 'published', title: 'Visible message' }] },
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await fixture.whenStable();
+    fixture.changeDetectorRef.markForCheck();
+    fixture.detectChanges();
+    const records = fixture.nativeElement.querySelectorAll('.announcement-record');
+    expect(records.length).toBe(3);
+    expect(records[0].textContent).toContain('Visible in app');
+    expect(records[0].textContent).toContain('Not requested');
+    expect(records[1].textContent).toContain('Removed from app');
+    expect(records[1].textContent).toContain('Submitted for sending');
+    expect(records[2].textContent).toContain('Owner test only');
+    expect(records[2].textContent).toContain('Not published');
+    expect(records[2].textContent).toContain('Queued for sending');
+    expect(fixture.nativeElement.textContent.match(/Visible message/g)).toHaveLength(1);
+    const removal = Array.from(records[0].querySelectorAll('button')).find((b: any) =>
+      b.textContent.includes('Remove from app inbox'),
+    ) as HTMLButtonElement;
+    removal.click();
+    fixture.detectChanges();
+    expect(records[0].textContent).toContain('Phone alerts already sent cannot be recalled');
+    expect(records[1].querySelector('button')).toBeNull();
+    fixture.destroy();
   });
 });
