@@ -372,6 +372,19 @@ actor SanctuaryAPIClient {
     func unregisterPushDevice(installationId: String, token: String) async throws {
         try await performVoidRequest(path: "/me/push-devices/" + installationId, method: "DELETE", body: Optional<String>.none, token: token)
     }
+    func contentReminders(token: String) async throws -> [AccountContentReminder] {
+        try await performRequest(path: "/me/reminders", method: "GET", body: Optional<String>.none, token: token)
+    }
+    func saveContentReminder(_ reminder: AccountContentReminder, token: String) async throws {
+        try await performVoidRequest(path: "/me/reminders", method: "PUT", body: reminder, token: token)
+    }
+    func deleteContentReminder(kind: String, slug: String, token: String) async throws {
+        try await performVoidRequest(path: "/me/reminders/\(kind)/\(slug)", method: "DELETE", body: Optional<String>.none, token: token)
+    }
+    func clearContentReminders(token: String) async throws {
+        try await performVoidRequest(path: "/me/reminders", method: "DELETE", body: Optional<String>.none, token: token)
+    }
+
     func favorites(token: String) async throws -> [APIUserFavoriteResponse] {
         try await performRequest(path: "/me/favorites", method: "GET", body: Optional<String>.none, token: token)
     }

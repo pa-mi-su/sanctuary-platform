@@ -304,6 +304,11 @@ class SessionRepository(
             }
     }
 
+    suspend fun contentReminders(): List<AccountContentReminder> = authenticatedCall { it.contentReminders() }
+    suspend fun saveContentReminder(reminder: AccountContentReminder) = authenticatedCall { it.saveContentReminder(reminder) }
+    suspend fun deleteContentReminder(kind: String, slug: String) = authenticatedCall { it.deleteContentReminder(kind, slug) }
+    suspend fun clearContentReminders() = authenticatedCall { it.clearContentReminders() }
+
     suspend fun listFavorites(): List<UserFavorite> = withContext(Dispatchers.IO) {
         authenticatedCall { it.listFavorites() }
             .mapNotNull { response ->
@@ -596,9 +601,10 @@ class SessionRepository(
             val response = runApiCall {
                 api.refresh(AuthRefreshRequest(refreshToken = refreshToken))
             }
+            if (loadSession()?.idToken != previous.idToken) return null
             response.toStoredSession(previous.refreshToken).also(::persistSession)
         } catch (_: Exception) {
-            clearSession()
+            if (loadSession()?.idToken == previous.idToken) clearSession()
             null
         }
     }

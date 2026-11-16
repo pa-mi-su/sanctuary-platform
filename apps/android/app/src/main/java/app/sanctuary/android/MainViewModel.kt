@@ -245,7 +245,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 refreshNovenaProgress()
                 syncPushDevice()
             } else {
-                reminderScheduler.cancelAll()
+                cancelAccountReminders()
                 _appLanguage.value = AppLanguage.fromCode(repository.currentLanguage())
                 _session.value = SessionUiState(
                     status = SessionStatus.SignedOut,
@@ -448,7 +448,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     if (result.authenticated) {
                         applyAuthenticatedSession(result)
                     } else {
-                        reminderScheduler.cancelAll()
+                        cancelAccountReminders()
                         _session.value = SessionUiState(
                             status = SessionStatus.Failed,
                             message = result.errorMessage ?: l10n().t("status.loginFailed"),
@@ -474,14 +474,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun openHome() { closeSaintDetail(); closeNovenaDetail(); closePrayerDetail(); _homeNavigation.value += 1 }
 
     fun syncPushDevice() {
+        if (_session.value.status != SessionStatus.Loading) {
+            AccountReminderSync.configure(getApplication(), repository, _session.value.profile?.userId)
+            if (_session.value.status == SessionStatus.Authenticated) viewModelScope.launch { AccountReminderSync.refresh() }
+        }
         viewModelScope.launch { runCatching { AndroidPushNotifications.sync(getApplication(), repository) } }
     }
 
     fun logout() {
         repository.logout()
-        syncPushDevice()
-        reminderScheduler.cancelAll()
+        cancelAccountReminders()
         _session.value = SessionUiState(status = SessionStatus.SignedOut, isSavingReminderPreferences = false)
+        syncPushDevice()
         _novenaProgress.value = NovenaProgressUiState()
         loadInitialContent()
     }
@@ -504,7 +508,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     repository.deleteAccount()
                 } ?: throw IllegalStateException(l10n().t("status.deleteAccountTimeout"))
             }.onSuccess {
-                reminderScheduler.cancelAll()
+                cancelAccountReminders()
                 _session.value = SessionUiState(status = SessionStatus.SignedOut)
                 _novenaProgress.value = NovenaProgressUiState()
                 loadInitialContent()
@@ -901,7 +905,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun refreshNovenaProgress() {
         if (_session.value.status != SessionStatus.Authenticated) {
-            reminderScheduler.cancelAll()
+            cancelAccountReminders()
             _novenaProgress.value = NovenaProgressUiState()
             return
         }
@@ -1187,9 +1191,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         loadRosaries()
     }
 
+    private fun cancelAccountReminders() {
+        AccountReminderSync.configure(getApplication(), repository, null)
+        reminderScheduler.cancelAll()
+    }
+
     private fun syncReminderScheduler(profile: UserProfile?, activeCommitmentCount: Int) {
         if (profile == null) {
-            reminderScheduler.cancelAll()
+            cancelAccountReminders()
             return
         }
         reminderScheduler.syncDigestReminder(
