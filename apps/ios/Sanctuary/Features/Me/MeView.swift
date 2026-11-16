@@ -6,6 +6,7 @@ struct MeView: View {
     @Environment(\.dismiss) private var dismiss
     var settingsMode = false
     @State private var showSettings = false
+    @State private var showLanguagePicker = false
     @ObservedObject private var push = PushNotifications.shared
     @EnvironmentObject private var localization: LocalizationManager
     @EnvironmentObject private var accountStore: AccountSessionStore
@@ -25,13 +26,27 @@ struct MeView: View {
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 14) {
                     if settingsMode {
-                        Button(localization.t("common.close")) { dismiss() }.buttonStyle(.bordered)
+                        Button { dismiss() } label: {
+                            Image(systemName: "arrow.left").font(.system(size: 20, weight: .medium))
+                                .foregroundStyle(.white).frame(width: 42, height: 42)
+                                .background(AppTheme.cardBackground).clipShape(Circle())
+                                .overlay(Circle().stroke(AppTheme.tabBorder, lineWidth: 1))
+                        }.accessibilityLabel(localization.t("common.close"))
                         Text(localization.t("settings.title")).font(AppTheme.rounded(32, weight: .bold)).foregroundStyle(.white)
-                        Picker(localization.t("home.language"), selection: $localization.language) {
-                            ForEach(AppLanguage.allCases) { language in Text(language.displayName).tag(language) }
-                        }.pickerStyle(.menu).tint(AppTheme.tabActive)
-                        reminderPreferencesCard
+                        Button { showLanguagePicker = true } label: {
+                            HStack(spacing: 14) {
+                                Image(systemName: "globe").font(.system(size: 26)).foregroundStyle(AppTheme.tabActive)
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(localization.t("home.language")).font(AppTheme.rounded(18, weight: .semibold)).foregroundStyle(.white)
+                                    Text(localization.language.displayName).font(AppTheme.rounded(16, weight: .medium)).foregroundStyle(AppTheme.subtitleText)
+                                }
+                                Spacer()
+                                Image(systemName: "chevron.down").foregroundStyle(.white)
+                            }
+                            .padding(18).frame(maxWidth: .infinity, alignment: .leading).appGlassCard(cornerRadius: 20)
+                        }.buttonStyle(.plain)
                         if accountStore.isAuthenticated { accountHeader; deleteAccountCard }
+                        reminderPreferencesCard
                     } else if accountStore.isAuthenticated {
                         accountHeader
                         Button(localization.t("settings.title")) { showSettings = true }.buttonStyle(.bordered)
@@ -46,10 +61,15 @@ struct MeView: View {
                         Button(localization.t("settings.title")) { showSettings = true }.buttonStyle(.bordered)
                     }
                 }
-                .padding(16)
-                .padding(.bottom, 28)
+                .padding(settingsMode ? 18 : 16)
+                .padding(.bottom, settingsMode ? 48 : 28)
             }
             .scrollDismissesKeyboard(.interactively)
+        }
+        .sheet(isPresented: $showLanguagePicker) {
+            LanguagePickerSheet()
+                .presentationDetents([.height(370), .large])
+                .presentationDragIndicator(.visible)
         }
         .sheet(isPresented: $showSettings) { MeView(environment: environment, settingsMode: true) }
         .task {

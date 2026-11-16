@@ -89,9 +89,7 @@ type AppLanguage = 'en' | 'es' | 'pl';
           <button class="pill-button" (click)="menu.open = false; navigate.emit('about')">
             {{ t('About & Help', 'Acerca de y ayuda', 'O aplikacji i pomoc') }}
           </button>
-          <button class="pill-button" (click)="menu.open = false; openInbox.emit()">
-            {{ t('Announcements', 'Anuncios', 'Ogłoszenia') }}
-          </button>
+
         </details>
         <button
           class="pill-button"
