@@ -40,7 +40,7 @@ concurrency:
 jobs:
   validate:
     name: Validate iOS Build
-    runs-on: macos-15-intel
+    runs-on: macos-15
     outputs:
       has_ios_app_changes: ${{ steps.changes.outputs.has_ios_app_changes }}
 
@@ -180,7 +180,7 @@ jobs:
     if: >
       (github.event_name == 'push' && github.ref == 'refs/heads/dev') ||
       (github.event_name == 'workflow_dispatch' && inputs.target == 'dev')
-    runs-on: macos-15-intel
+    runs-on: macos-15
     environment: dev
     env:
       IOS_TEAM_ID: ${{ vars.IOS_TEAM_ID || 'Z9L9BZFYLS' }}
@@ -434,7 +434,7 @@ jobs:
     if: >
       (github.event_name == 'push' && github.ref == 'refs/heads/uat') ||
       (github.event_name == 'workflow_dispatch' && inputs.target == 'uat')
-    runs-on: macos-15-intel
+    runs-on: macos-15
     environment: uat
     env:
       IOS_TEAM_ID: ${{ vars.IOS_TEAM_ID || 'Z9L9BZFYLS' }}
@@ -686,7 +686,7 @@ jobs:
     if: >
       (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
       (github.event_name == 'workflow_dispatch' && inputs.target == 'prod')
-    runs-on: macos-15-intel
+    runs-on: macos-15
     environment: prod
     env:
       IOS_TEAM_ID: ${{ vars.IOS_TEAM_ID || 'Z9L9BZFYLS' }}
