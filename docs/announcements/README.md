@@ -8,7 +8,7 @@ Version 1.0.26 separates three things:
 
 ## Navigation
 
-Home has a single hamburger Menu containing Announcements, Settings, and About/Help. Its unread dot makes new announcements discoverable without a duplicate top action. Native menus use matching bottom sheets with large bordered action cards. Existing primary tabs stay unchanged. Me contains saved content, active/completed novenas, and native scheduled reminders. Settings contains language, announcement preferences, OS notification settings/details, and authenticated account actions.
+Native Me has a large bell at the top left and gear at the top right. The bell displays a red unread dot and opens Announcements; the gear opens Settings. Both destinations slide in as full pages with back navigation. Native Home has no hamburger. About remains a separate card on Me. Web keeps its existing navigation. Existing primary tabs stay unchanged. Me contains saved content, active/completed novenas, and native scheduled reminders. Settings contains language, announcement preferences, OS notification settings/details, and authenticated account actions.
 
 The inbox shows the full message without an expander (messages are limited to 500 characters). A content action appears only for an associated prayer, saint, or novena; plain app announcements have no content button. Opening the inbox marks the loaded messages as read, with clearing one/Undo and clearing all/confirmation retained. This is inbox state, not proof that a message was read. An old alert can still open its specific message even if it was cleared from the inbox, provided the administrator has not withdrawn it. This does not restore the cleared entry to the regular inbox.
 
@@ -59,7 +59,7 @@ The previous recipient fingerprint included `push_devices.updated_at` and the to
 
 Regression verification: API 100 passed / one existing audit skipped, Android 19 tests and all flavor checks passed, web 58 tests and production build passed, iOS DEV simulator build passed. UI previews in `refinement-previews` use only explicitly local QA messages; no live messages were sent.
 
-Menus and Me → Settings now share prominent navigation cards. Announcement content stays left-aligned for reading within centered, width-limited containers, with consistent heading, card-border, surface, and action styles across native platforms.
+Native Me now has prominent bell and gear controls. Announcement content stays left-aligned for reading within centered, width-limited containers, with consistent heading, card-border, surface, and action styles across native platforms.
 
 ## Unified admin list follow-up
 
