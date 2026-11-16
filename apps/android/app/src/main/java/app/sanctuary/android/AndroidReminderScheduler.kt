@@ -50,9 +50,13 @@ class AndroidReminderScheduler(
     }
 
     fun reconcile(records: List<app.sanctuary.android.data.AccountContentReminder>) {
+        val existing = itemReminders().associateBy { it.destination }
         val desired = records.map { it.destination }.toSet()
         itemReminders().filter { it.destination !in desired }.forEach { removeItem(it.destination) }
         records.forEach { record ->
+            val previous = existing[record.destination]
+            // Quiet refreshes must not replace an alarm that is about to fire.
+            if (previous?.title == record.title && previous.hour == record.hour && previous.minute == record.minute) return@forEach
             val row = org.json.JSONObject().put("title", record.title).put("hour", record.hour).put("minute", record.minute)
             check(preferences.edit().putString("item:${record.destination}", row.toString()).commit())
             scheduleItem(record.destination, record.title, record.hour, record.minute)

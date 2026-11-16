@@ -35,10 +35,12 @@ final class AccountReminders: ObservableObject {
     @Published private(set) var items: [AccountContentReminder] = []
     @Published private(set) var problem: String?
     @Published private(set) var syncing = false
+    @Published private(set) var updating = false
     @Published private(set) var legacyNotice = UserDefaults.standard.bool(forKey: "reminders.legacyNotice")
     func dismissLegacyNotice() { legacyNotice = false; UserDefaults.standard.set(false, forKey: "reminders.legacyNotice") }
     private var owner: String? = UserDefaults.standard.string(forKey: "reminders.accountOwner")
     private var generation = 0
+    private var refreshingGeneration: Int?
     private var queue: Task<Void, Error>?
 
     private init() {
@@ -68,6 +70,10 @@ final class AccountReminders: ObservableObject {
         guard account.hasBootstrapped, account.status != .loading else { return }
         guard account.isAuthenticated, let userID = account.profile?.userID else { signOut(); return }
         if owner != userID { signOut(); owner = userID; UserDefaults.standard.set(userID, forKey: "reminders.accountOwner") }
+        let refreshVersion = generation
+        guard refreshingGeneration != refreshVersion else { return }
+        refreshingGeneration = refreshVersion
+        defer { if refreshingGeneration == refreshVersion { refreshingGeneration = nil } }
         do { try await perform(account: account, mutation: nil) } catch { /* Keep last known account schedule when offline. */ }
     }
 
@@ -93,7 +99,8 @@ final class AccountReminders: ObservableObject {
             _ = await previous?.result
             guard self.generation == version, account.isAuthenticated, account.profile?.userID == userID else { throw CancellationError() }
             self.syncing = true
-            defer { self.syncing = false }
+            self.updating = mutation != nil
+            defer { self.syncing = false; self.updating = false }
             do {
                 if let mutation { try await account.reminderRequest { api, token in
                     guard self.generation == version, account.profile?.userID == userID else { throw CancellationError() }
@@ -109,7 +116,12 @@ final class AccountReminders: ObservableObject {
                 try await self.reconcile(records, owner: userID, generation: version)
                 self.problem = nil
             } catch {
-                if self.generation == version { self.problem = "Reminders could not finish syncing. Open this screen to retry. Check phone notification permission if alerts are missing." }
+                if self.generation == version {
+                    let settings = await UNUserNotificationCenter.current().notificationSettings()
+                    if self.generation == version {
+                        self.problem = settings.authorizationStatus == .denied ? "itemReminder.permission" : "reminders.manage.unavailable"
+                    }
+                }
                 throw error
             }
         }
@@ -131,6 +143,12 @@ final class AccountReminders: ObservableObject {
         }
         for record in records {
             guard self.generation == version else { throw CancellationError() }
+            // Preserve unchanged native triggers during quiet refreshes, including near their fire time.
+            if let existing = pending.first(where: { $0.identifier == record.notificationID(owner: owner) }),
+               let trigger = existing.trigger as? UNCalendarNotificationTrigger,
+               trigger.repeats, trigger.dateComponents.hour == record.hour, trigger.dateComponents.minute == record.minute,
+               existing.content.title == record.title,
+               existing.content.userInfo["destination"] as? String == "https://mydailysanctuary.com/\(record.kind)/\(record.slug)" { continue }
             let content = UNMutableNotificationContent()
             content.title = record.title
             content.body = "Take a moment to pray in Sanctuary."
@@ -175,7 +193,7 @@ struct ContentReminderButton: View {
         .onChange(of: showing) { visible in if visible { loadingTime = true; Task {
             await reminders.refresh(account: accountStore)
             time = record?.time ?? Date(timeIntervalSince1970: 8 * 3600)
-            problem = reminders.problem
+            problem = reminders.problem.map { localization.t($0) }
             loadingTime = false
         } } }
         .sheet(isPresented: $showing) {

@@ -9,7 +9,7 @@ Prayer and novena reminder definitions belong to the signed-in account. Both nat
 - Both platforms use 08:00 for a new reminder. iOS keeps time-picker values independent of today's date, so a DST transition cannot silently rewrite the stored time.
 - At spring-forward, a nonexistent time moves forward by the DST gap (02:30 becomes 03:30 for a one-hour gap); fall-back uses the first occurrence only. Android calculation matches the native Apple trigger behavior verified with `UNCalendarNotificationTrigger`.
 - The account has a maximum of 50 reminders. Updates to an existing reminder remain allowed at the limit. An account row lock prevents concurrent creates from exceeding it.
-- Both apps fetch and reconcile on sign-in and foreground/resume, and after save, edit, delete or Clear all. The Me card has a manual Refresh action. Another phone must open/resume Sanctuary to receive changes; this is not instant background synchronization. An offline/closed phone can retain its previous local schedule until it successfully syncs.
+- Both apps fetch and reconcile on sign-in and foreground/resume, and after save, edit, delete or Clear all. The reminder list updates quietly every 30 seconds while visible in the foreground; there is no manual Refresh control. Another phone must open/resume Sanctuary to receive changes; this is not instant background synchronization. An offline/closed phone can retain its previous local schedule until it successfully syncs.
 - A failed sync is visible and does not pretend a remote mutation succeeded. Existing known schedules are kept during transient network failures while the cached session remains valid. iOS waits for session bootstrap before treating an absent account as sign-out and persists the verified server account ID with its Keychain session for offline restoration. Remote writes are idempotent by account/kind/slug.
 - Native schedules are removed on logout/account switching, without deleting account definitions. They are restored when that account signs in again. In-flight old-account responses cannot install reminders for a new account.
 - Old unowned device-only reminders are cancelled rather than guessed into an account. A dismissible migration notice explains that they need to be set again.
@@ -45,3 +45,11 @@ A real paired Apple Watch and physical-device battery/Doze behavior still requir
 | iOS logout | Reminder owner/cache removed; both delivered reminder alerts removed from Notification Center |
 
 API: 106 tests, 0 failures/errors, 1 pre-existing skip (including local PostgreSQL integration). Android: 25 unit tests pass; DEV builds and UAT/production Kotlin compilation pass. iOS DEV simulator build and actual-model/native-calendar clock checks pass. Web production build and workflow isolation checks pass. No real phone/Watch test is claimed by these simulator results.
+
+## Reminder UI refinement
+
+The reminder card displays the scheduled items and removal actions without synchronization instructions. The editor uses concise daily-reminder wording in English, Spanish and Polish. Transient update failures retry automatically while the list is visible. Quiet reads do not disable removal controls or reschedule unchanged native alarms.
+
+Android navigation places the gesture inset outside the rounded navigation surface. All five items receive equal weights, centered icons and consistent outer padding; system gesture space no longer creates an oversized gap inside the bar.
+
+The refinement was checked on both native simulators with synthetic local API data: while both Me screens stayed open, changing a reminder to 07:45 and deleting another record appeared automatically on both lists within the polling interval, without any taps. Both lists displayed only reminder rows/removal actions, and Android's gesture area was visibly outside the evenly spaced tab surface.
