@@ -4,6 +4,12 @@ import UserNotifications
 @main
 struct ReminderClockChecks {
     static func main() throws {
+        let legacySession = Data(#"{"accessToken":"local","idToken":"local","refreshToken":null,"tokenType":"Bearer","expiresAt":0,"email":"qa@sanctuary.invalid","displayName":"QA"}"#.utf8)
+        let restored = try JSONDecoder().decode(AccountSession.self, from: legacySession)
+        precondition(restored.accountUserID == nil, "Legacy sessions must not guess an account ID")
+        var known = restored; known.accountUserID = "00000000-0000-4000-8000-000000000001"
+        let cached = try JSONDecoder().decode(AccountSession.self, from: JSONEncoder().encode(known))
+        precondition(cached.accountUserID == known.accountUserID, "Offline session restoration must preserve the verified account ID")
         for zone in ["America/New_York", "Europe/Warsaw", "Asia/Kolkata"] {
             NSTimeZone.default = TimeZone(identifier: zone)!
             for (hour, minute) in [(14, 55), (15, 0), (0, 0), (23, 59)] {

@@ -10,15 +10,6 @@ enum AccountSessionStatus: Sendable {
     case failed
 }
 
-struct AccountSession: Codable, Sendable {
-    let accessToken: String
-    let idToken: String
-    let refreshToken: String?
-    let tokenType: String
-    let expiresAt: Date
-    let email: String
-    let displayName: String
-}
 
 struct UserAccountProfile: Sendable {
     let userID: String
@@ -43,6 +34,7 @@ struct UserAccountProfile: Sendable {
 @MainActor
 final class AccountSessionStore: ObservableObject {
     @Published private(set) var status: AccountSessionStatus = .signedOut
+    private(set) var hasBootstrapped = false
     @Published private(set) var session: AccountSession?
     @Published private(set) var profile: UserAccountProfile?
     @Published private(set) var pendingConfirmationEmail: String?
@@ -103,6 +95,7 @@ final class AccountSessionStore: ObservableObject {
     }
 
     func bootstrap() async {
+        defer { hasBootstrapped = true }
         guard isConfigured else {
             setMessage("Authentication is not configured for this environment yet.", isError: true)
             return
@@ -124,7 +117,7 @@ final class AccountSessionStore: ObservableObject {
 
         session = restored
         status = .loading
-        await refreshProfile()
+        await refreshProfile(fallbackSession: restored)
     }
 
     func register(
@@ -293,6 +286,7 @@ final class AccountSessionStore: ObservableObject {
         do {
             let response = try await apiClient.me(token: token)
             profile = mapProfile(response, fallbackSession: activeSession)
+            rememberProfileAccountID()
             status = .authenticated
             clearMessage()
             await syncPushDevice()
@@ -306,6 +300,7 @@ final class AccountSessionStore: ObservableObject {
                 do {
                     let response = try await apiClient.me(token: refreshedToken)
                     profile = mapProfile(response, fallbackSession: session)
+                    rememberProfileAccountID()
                     status = .authenticated
                     clearMessage()
                 } catch {
@@ -494,9 +489,16 @@ final class AccountSessionStore: ObservableObject {
         return trimmed
     }
 
+    private func rememberProfileAccountID() {
+        guard var stored = session, let userID = profile?.userID else { return }
+        stored.accountUserID = userID
+        session = stored
+        try? persist(stored)
+    }
+
     private func placeholderProfile(from session: AccountSession) -> UserAccountProfile {
         UserAccountProfile(
-            userID: session.email,
+            userID: session.accountUserID ?? session.email,
             email: session.email,
             firstName: nil,
             lastName: nil,
@@ -542,7 +544,8 @@ final class AccountSessionStore: ObservableObject {
     private func refreshSessionTokens(using refreshToken: String, preserving existing: AccountSession) async -> AccountSession? {
         do {
             let response = try await apiClient.refreshSession(refreshToken: refreshToken)
-            let refreshed = buildSession(from: response, fallbackRefreshToken: existing.refreshToken)
+            var refreshed = buildSession(from: response, fallbackRefreshToken: existing.refreshToken)
+            refreshed.accountUserID = existing.accountUserID
             session = refreshed
             try persist(refreshed)
             return refreshed

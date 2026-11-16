@@ -157,7 +157,7 @@ jobs:
 
       - name: Verify reminder clock and native calendar behavior
         run: |
-          xcrun swiftc apps/ios/Sanctuary/Core/Domain/AccountContentReminder.swift apps/ios/Scripts/verify-reminder-clock.swift -o "${RUNNER_TEMP}/verify-reminder-clock"
+          xcrun swiftc apps/ios/Sanctuary/Core/Domain/AccountContentReminder.swift apps/ios/Sanctuary/Core/Domain/AccountSession.swift apps/ios/Scripts/verify-reminder-clock.swift -o "${RUNNER_TEMP}/verify-reminder-clock"
           "${RUNNER_TEMP}/verify-reminder-clock"
 
       - name: Verify iOS platform configuration

@@ -65,6 +65,7 @@ final class AccountReminders: ObservableObject {
     }
 
     func refresh(account: AccountSessionStore) async {
+        guard account.hasBootstrapped, account.status != .loading else { return }
         guard account.isAuthenticated, let userID = account.profile?.userID else { signOut(); return }
         if owner != userID { signOut(); owner = userID; UserDefaults.standard.set(userID, forKey: "reminders.accountOwner") }
         do { try await perform(account: account, mutation: nil) } catch { /* Keep last known account schedule when offline. */ }
