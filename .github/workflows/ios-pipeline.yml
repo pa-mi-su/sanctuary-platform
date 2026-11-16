@@ -51,6 +51,7 @@ jobs:
           fetch-depth: 0
 
       - name: Select latest installed Xcode
+        id: xcode
         shell: bash
         run: |
           set -euo pipefail
@@ -78,6 +79,7 @@ jobs:
 
           sudo xcode-select -s "${SELECTED_XCODE}"
           xcodebuild -version
+          echo "cache-key=$(xcodebuild -version | tr '\n ' '--' | tr -cd '[:alnum:]._+-')" >> "$GITHUB_OUTPUT"
 
       - name: Detect iOS changes
         id: changes
@@ -92,7 +94,7 @@ jobs:
 
           git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
 
-          if git diff --quiet FETCH_HEAD...HEAD -- apps/ios; then
+          if git diff --quiet FETCH_HEAD...HEAD -- apps/ios .github/workflows/ios-pipeline.yml; then
             echo "has_ios_app_changes=false" >> "$GITHUB_OUTPUT"
           else
             echo "has_ios_app_changes=true" >> "$GITHUB_OUTPUT"
@@ -138,6 +140,21 @@ jobs:
               ;;
           esac
 
+      - name: Cache Swift packages
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: ${{ runner.temp }}/SanctuarySourcePackages
+          key: ios-spm-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.xcode.outputs.cache-key }}-${{ hashFiles('apps/ios/**/Package.resolved') }}
+
+      # Xcode invalidates changed sources/project settings; release version bumps retain reusable objects.
+      - name: Cache simulator compilation
+        if: steps.changes.outputs.has_ios_app_changes == 'true'
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: ${{ runner.temp }}/SanctuarySimulatorDerivedData
+          key: ios-simulator-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.xcode.outputs.cache-key }}-${{ steps.resolve.outputs.scheme }}-${{ hashFiles('apps/ios/**/Package.resolved', 'apps/ios/**/*.xcconfig', 'apps/ios/**/*.xcscheme') }}-${{ github.sha }}
+          restore-keys: ios-simulator-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.xcode.outputs.cache-key }}-${{ steps.resolve.outputs.scheme }}-${{ hashFiles('apps/ios/**/Package.resolved', 'apps/ios/**/*.xcconfig', 'apps/ios/**/*.xcscheme') }}-
+
       - name: Verify iOS platform configuration
         run: |
           CLANG_MODULE_CACHE_PATH="${RUNNER_TEMP}/swift-module-cache" \
@@ -161,7 +178,11 @@ jobs:
               -scheme "${{ steps.resolve.outputs.scheme }}" \
               -configuration "${{ steps.resolve.outputs.configuration }}" \
               -destination 'generic/platform=iOS Simulator' \
+              -derivedDataPath "${RUNNER_TEMP}/SanctuarySimulatorDerivedData" \
+              -clonedSourcePackagesDirPath "${RUNNER_TEMP}/SanctuarySourcePackages" \
+              ARCHS="$(uname -m)" ONLY_ACTIVE_ARCH=YES \
               CODE_SIGNING_ALLOWED=NO \
+              -showBuildTimingSummary \
               build; then
               exit 0
             fi
@@ -198,6 +219,7 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Select latest installed Xcode
+        id: xcode
         shell: bash
         run: |
           set -euo pipefail
@@ -225,6 +247,23 @@ jobs:
 
           sudo xcode-select -s "${SELECTED_XCODE}"
           xcodebuild -version
+          echo "cache-key=$(xcodebuild -version | tr '\n ' '--' | tr -cd '[:alnum:]._+-')" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Swift packages
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: ${{ runner.temp }}/SanctuarySourcePackages
+          key: ios-spm-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.xcode.outputs.cache-key }}-${{ hashFiles('apps/ios/**/Package.resolved') }}
+
+      - name: Cache device compilation
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: |
+            ${{ runner.temp }}/SanctuaryDeviceDerivedData/Build/Intermediates.noindex
+            ${{ runner.temp }}/SanctuaryDeviceDerivedData/ModuleCache.noindex
+            ${{ runner.temp }}/SanctuaryDeviceDerivedData/SDKStatCaches.noindex
+          key: ios-device-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.xcode.outputs.cache-key }}-${{ github.job }}-${{ hashFiles('apps/ios/**/Package.resolved', 'apps/ios/**/*.xcconfig', 'apps/ios/**/*.xcscheme') }}-${{ github.sha }}
+          restore-keys: ios-device-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.xcode.outputs.cache-key }}-${{ github.job }}-${{ hashFiles('apps/ios/**/Package.resolved', 'apps/ios/**/*.xcconfig', 'apps/ios/**/*.xcscheme') }}-
 
       - name: Upload Sanctuary-Dev to TestFlight
         shell: bash
@@ -392,6 +431,9 @@ jobs:
             -scheme "${IOS_SCHEME}" \
             -configuration "${IOS_CONFIGURATION}" \
             -archivePath "${ARCHIVE_PATH}" \
+            -derivedDataPath "${RUNNER_TEMP}/SanctuaryDeviceDerivedData" \
+            -clonedSourcePackagesDirPath "${RUNNER_TEMP}/SanctuarySourcePackages" \
+            -showBuildTimingSummary \
             -destination "generic/platform=iOS" \
             -allowProvisioningUpdates \
             -authenticationKeyPath "${API_KEY_PATH}" \
@@ -450,6 +492,7 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Select latest installed Xcode
+        id: xcode
         shell: bash
         run: |
           set -euo pipefail
@@ -477,6 +520,23 @@ jobs:
 
           sudo xcode-select -s "${SELECTED_XCODE}"
           xcodebuild -version
+          echo "cache-key=$(xcodebuild -version | tr '\n ' '--' | tr -cd '[:alnum:]._+-')" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Swift packages
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: ${{ runner.temp }}/SanctuarySourcePackages
+          key: ios-spm-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.xcode.outputs.cache-key }}-${{ hashFiles('apps/ios/**/Package.resolved') }}
+
+      - name: Cache device compilation
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: |
+            ${{ runner.temp }}/SanctuaryDeviceDerivedData/Build/Intermediates.noindex
+            ${{ runner.temp }}/SanctuaryDeviceDerivedData/ModuleCache.noindex
+            ${{ runner.temp }}/SanctuaryDeviceDerivedData/SDKStatCaches.noindex
+          key: ios-device-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.xcode.outputs.cache-key }}-${{ github.job }}-${{ hashFiles('apps/ios/**/Package.resolved', 'apps/ios/**/*.xcconfig', 'apps/ios/**/*.xcscheme') }}-${{ github.sha }}
+          restore-keys: ios-device-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.xcode.outputs.cache-key }}-${{ github.job }}-${{ hashFiles('apps/ios/**/Package.resolved', 'apps/ios/**/*.xcconfig', 'apps/ios/**/*.xcscheme') }}-
 
       - name: Upload Sanctuary-UAT to TestFlight
         shell: bash
@@ -644,6 +704,9 @@ jobs:
             -scheme "${IOS_SCHEME}" \
             -configuration "${IOS_CONFIGURATION}" \
             -archivePath "${ARCHIVE_PATH}" \
+            -derivedDataPath "${RUNNER_TEMP}/SanctuaryDeviceDerivedData" \
+            -clonedSourcePackagesDirPath "${RUNNER_TEMP}/SanctuarySourcePackages" \
+            -showBuildTimingSummary \
             -destination "generic/platform=iOS" \
             -allowProvisioningUpdates \
             -authenticationKeyPath "${API_KEY_PATH}" \
@@ -702,6 +765,7 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Select latest installed Xcode
+        id: xcode
         shell: bash
         run: |
           set -euo pipefail
@@ -729,6 +793,23 @@ jobs:
 
           sudo xcode-select -s "${SELECTED_XCODE}"
           xcodebuild -version
+          echo "cache-key=$(xcodebuild -version | tr '\n ' '--' | tr -cd '[:alnum:]._+-')" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Swift packages
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: ${{ runner.temp }}/SanctuarySourcePackages
+          key: ios-spm-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.xcode.outputs.cache-key }}-${{ hashFiles('apps/ios/**/Package.resolved') }}
+
+      - name: Cache device compilation
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: |
+            ${{ runner.temp }}/SanctuaryDeviceDerivedData/Build/Intermediates.noindex
+            ${{ runner.temp }}/SanctuaryDeviceDerivedData/ModuleCache.noindex
+            ${{ runner.temp }}/SanctuaryDeviceDerivedData/SDKStatCaches.noindex
+          key: ios-device-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.xcode.outputs.cache-key }}-${{ github.job }}-${{ hashFiles('apps/ios/**/Package.resolved', 'apps/ios/**/*.xcconfig', 'apps/ios/**/*.xcscheme') }}-${{ github.sha }}
+          restore-keys: ios-device-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.xcode.outputs.cache-key }}-${{ github.job }}-${{ hashFiles('apps/ios/**/Package.resolved', 'apps/ios/**/*.xcconfig', 'apps/ios/**/*.xcscheme') }}-
 
       - name: Upload Sanctuary-Prod to App Store Connect
         shell: bash
@@ -896,6 +977,9 @@ jobs:
             -scheme "${IOS_SCHEME}" \
             -configuration "${IOS_CONFIGURATION}" \
             -archivePath "${ARCHIVE_PATH}" \
+            -derivedDataPath "${RUNNER_TEMP}/SanctuaryDeviceDerivedData" \
+            -clonedSourcePackagesDirPath "${RUNNER_TEMP}/SanctuarySourcePackages" \
+            -showBuildTimingSummary \
             -destination "generic/platform=iOS" \
             -allowProvisioningUpdates \
             -authenticationKeyPath "${API_KEY_PATH}" \

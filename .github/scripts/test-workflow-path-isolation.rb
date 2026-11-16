@@ -128,4 +128,44 @@ class WorkflowPathIsolationTest < Minitest::Test
     end
   end
 
+  def test_ios_caches_separate_sdk_configuration_and_preserve_runners
+    jobs = workflow('ios-pipeline.yml').fetch('jobs')
+    jobs.each do |name, job|
+      assert_equal 'macos-15-intel', job.fetch('runs-on')
+      steps = job.fetch('steps')
+      packages = steps.find { |step| step['name'] == 'Cache Swift packages' }.fetch('with')
+      assert_includes packages.fetch('key'), 'runner.arch'
+      assert_includes packages.fetch('key'), 'steps.xcode.outputs.cache-key'
+      assert_includes packages.fetch('key'), 'Package.resolved'
+      compilation = steps.find { |step| ['Cache simulator compilation', 'Cache device compilation'].include?(step['name']) }.fetch('with')
+      assert_includes compilation.fetch('key'), 'github.sha'
+      assert_includes compilation.fetch('key'), 'steps.xcode.outputs.cache-key'
+      assert_includes compilation.fetch('key'), name == 'validate' ? 'steps.resolve.outputs.scheme' : 'github.job'
+      refute_match(/keychain|private_keys|p12|mobileprovision|AuthKey/i, compilation.fetch('path'))
+    end
+  end
+
+  def test_only_simulator_validation_restricts_the_architecture
+    source = File.read(File.join(__dir__, '..', 'workflows', 'ios-pipeline.yml'))
+    assert_equal 1, source.scan('ARCHS="$(uname -m)" ONLY_ACTIVE_ARCH=YES').size
+    jobs = workflow('ios-pipeline.yml').fetch('jobs')
+    run = jobs.fetch('validate').fetch('steps').find { |step| step['name'] == 'Build iOS app for simulator' }.fetch('run')
+    assert_includes run, 'SanctuarySimulatorDerivedData'
+    assert_includes run, 'SanctuarySourcePackages'
+    assert_includes run, '-showBuildTimingSummary'
+    jobs.reject { |name, _| name == 'validate' }.each_value do |job|
+      archive = job.fetch('steps').find { |step| step.fetch('run', '').include?('-archivePath') }.fetch('run')
+      assert_includes archive, 'SanctuaryDeviceDerivedData'
+      assert_includes archive, 'SanctuarySourcePackages'
+      refute_includes archive, 'ONLY_ACTIVE_ARCH'
+    end
+  end
+
+  def test_ios_workflow_changes_validate_without_triggering_push_uploads
+    assert triggers?('ios-pipeline.yml', 'pull_request', '.github/workflows/ios-pipeline.yml')
+    refute triggers?('ios-pipeline.yml', 'push', '.github/workflows/ios-pipeline.yml')
+    detect = workflow('ios-pipeline.yml').fetch('jobs').fetch('validate').fetch('steps').find { |step| step['id'] == 'changes' }.fetch('run')
+    assert_includes detect, 'git diff --quiet FETCH_HEAD...HEAD -- apps/ios .github/workflows/ios-pipeline.yml'
+  end
+
 end
