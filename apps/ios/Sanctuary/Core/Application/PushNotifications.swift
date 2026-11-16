@@ -35,9 +35,10 @@ final class PushNotifications: ObservableObject {
     func setEnabled(_ value: Bool) async {
         var allowed = value
         if value {
-            allowed = (try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound])) ?? false
+            allowed = (try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge])) ?? false
             if allowed { UIApplication.shared.registerForRemoteNotifications() }
         }
+        if value { defaults.set(true, forKey: "sanctuary.badgeAuthorizationRequested") }
         enabled = allowed
         defaults.set(allowed, forKey: "sanctuary.announcements")
     }
@@ -48,6 +49,11 @@ final class PushNotifications: ObservableObject {
         guard FirebaseApp.app() != nil else { registrationStatus = "Notification configuration is unavailable."; return }
         let settings = await UNUserNotificationCenter.current().notificationSettings()
         let authorized = settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional
+        // Upgrade existing opt-ins once. Subsequent syncs respect the person's OS badge settings.
+        if enabled && authorized && !defaults.bool(forKey: "sanctuary.badgeAuthorizationRequested") {
+            _ = try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge])
+            defaults.set(true, forKey: "sanctuary.badgeAuthorizationRequested")
+        }
         if enabled && authorized && Messaging.messaging().apnsToken == nil { UIApplication.shared.registerForRemoteNotifications() }
         // APNs registration is asynchronous; its delegate triggers another sync once ready.
         guard Messaging.messaging().apnsToken != nil else {
@@ -61,6 +67,22 @@ final class PushNotifications: ObservableObject {
             defaults.set(true, forKey: "sanctuary.pushRegistered")
             registrationStatus = consent ? "Announcements enabled" + (token == nil ? " · no account required" : "") : "Announcements are off."
         } catch { registrationStatus = "Could not sync notifications. Try again with an internet connection." }
+    }
+    // The icon badge represents unacknowledged delivered phone alerts, not the inbox total.
+    // Only remote announcements are removed; scheduled and delivered local reminders stay intact.
+    func acknowledgeAnnouncementAlerts() async {
+        let center = UNUserNotificationCenter.current()
+        let delivered = await center.deliveredNotifications()
+        let identifiers = delivered.filter { $0.request.trigger is UNPushNotificationTrigger }.map { $0.request.identifier }
+        center.removeDeliveredNotifications(withIdentifiers: identifiers)
+        try? await center.setBadgeCount(0)
+    }
+    func clearStaleIconBadge() async {
+        let center = UNUserNotificationCenter.current()
+        let delivered = await center.deliveredNotifications()
+        if !delivered.contains(where: { $0.request.trigger is UNPushNotificationTrigger }) {
+            try? await center.setBadgeCount(0)
+        }
     }
     func signOut(api: SanctuaryAPIClient, token: String?) async {
         // Detach identity while preserving this installation's separate announcement consent.
@@ -98,7 +120,7 @@ final class SanctuaryAppDelegate: NSObject, UIApplicationDelegate, MessagingDele
     }
     func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
         let isAnnouncement = notification.request.content.userInfo["messageId"] != nil
-        Task { @MainActor in completionHandler(!isAnnouncement || PushNotifications.shared.enabled ? [.banner, .sound] : []) }
+        Task { @MainActor in completionHandler(!isAnnouncement || PushNotifications.shared.enabled ? [.banner, .sound, .badge] : []) }
     }
     func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
         if let destination = response.notification.request.content.userInfo["destination"] as? String,

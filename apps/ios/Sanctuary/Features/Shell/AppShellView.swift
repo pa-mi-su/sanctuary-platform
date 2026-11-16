@@ -84,6 +84,7 @@ struct AppShellView: View {
         .task {
             // Let first frame and taps land before background state refresh.
             try? await Task.sleep(nanoseconds: 700_000_000)
+            await PushNotifications.shared.clearStaleIconBadge()
             await accountStore.bootstrap()
             await accountStore.syncPushDevice()
         }
@@ -97,7 +98,12 @@ struct AppShellView: View {
             )
         }
         .onChange(of: scenePhase) { phase in
-            if phase == .active { Task { await accountStore.syncPushDevice() } }
+            if phase == .active {
+                Task {
+                    await PushNotifications.shared.clearStaleIconBadge()
+                    await accountStore.syncPushDevice()
+                }
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: PushNotifications.tokenChanged)) { _ in
             Task { await accountStore.syncPushDevice() }

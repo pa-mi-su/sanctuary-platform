@@ -115,6 +115,9 @@ struct AnnouncementChange: Encodable {
         }
         UserDefaults.standard.set(try JSONEncoder().encode(state), forKey: key)
       }
+      if action == "clear" || action == "clearAll" {
+        await PushNotifications.shared.acknowledgeAnnouncementAlerts()
+      }
       undoID = action == "clear" ? id : nil
       NotificationCenter.default.post(name: .announcementInboxChanged, object: nil)
     } catch { if request == generation { self.error = error.localizedDescription } }
@@ -142,6 +145,7 @@ struct AnnouncementInboxView: View {
     await store.load(
       api: environment.apiClient, token: await account.authorizationToken(), more: more)
     await markDisplayedRead()
+    if store.error == nil { await PushNotifications.shared.acknowledgeAnnouncementAlerts() }
   }
   private func markDisplayedRead() async {
     let unread = displayed.filter { !store.state.readIds.contains($0.id) }.map(\.id)
@@ -226,6 +230,7 @@ struct AnnouncementInboxView: View {
         } catch { store.error = error.localizedDescription }
       }
       await markDisplayedRead()
+      if store.error == nil { await PushNotifications.shared.acknowledgeAnnouncementAlerts() }
     }
     .confirmationDialog(localization.t("inbox.confirmClear"), isPresented: $confirmClear) {
       Button(localization.t("inbox.clearAll"), role: .destructive) {
