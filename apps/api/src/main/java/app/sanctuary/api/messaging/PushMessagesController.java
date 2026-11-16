@@ -11,4 +11,6 @@ public class PushMessagesController {
     @PostMapping public Object send(@RequestHeader(value="Authorization",required=false)String token,@RequestBody PushMessages.Send request){return messages.send(auth.authenticate(token),request);}
     @DeleteMapping("/history") public Object clearHistory(@RequestHeader(value="Authorization",required=false)String token,@RequestBody PushMessages.ClearHistory request){auth.authenticate(token);return messages.clearHistory(request);}
 
+    @GetMapping("/announcements") public Object published(@RequestHeader(value="Authorization",required=false)String token,@RequestParam(defaultValue="0")int page){auth.authenticate(token);return messages.published(page);}
+    @DeleteMapping("/announcements/{id}") public Object withdraw(@RequestHeader(value="Authorization",required=false)String token,@PathVariable java.util.UUID id){auth.authenticate(token);return messages.withdraw(id);}
 }

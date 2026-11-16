@@ -4,8 +4,12 @@ struct HomeView: View {
     let environment: AppEnvironment
     @EnvironmentObject private var localization: LocalizationManager
 
+    @EnvironmentObject private var accountStore: AccountSessionStore
+    @StateObject private var inbox = AnnouncementInboxStore()
+    @State private var showInbox = false
+    @State private var showSettings = false
+    @State private var inboxDestination: URL?
     @State private var revealContent = false
-    @State private var showLanguageDialog = false
     @State private var showAbout = false
     @State private var showPrayersSearch = false
     @State private var showRosarySearch = false
@@ -82,12 +86,13 @@ struct HomeView: View {
                     ScrollView(showsIndicators: false) {
                         VStack(spacing: 16 * scale) {
                             HStack(spacing: 10 * scale) {
-                                TopActionButton(title: localization.t("home.about"), icon: "info.circle") {
-                                    showAbout = true
-                                }
-                                TopActionButton(title: "\(localization.t("home.language")): \(localization.language.displayName)", icon: "translate") {
-                                    showLanguageDialog = true
-                                }
+                                Menu {
+                                    Button(localization.t("settings.title")) { showSettings=true }
+                                    Button(localization.t("home.about")) { showAbout=true }
+                                    Button(localization.t("inbox.title")) { showInbox=true }
+                                } label: { Label(localization.t("menu.title"),systemImage:"line.3.horizontal").frame(maxWidth:.infinity).padding(14).appGlassCard(cornerRadius:18) }
+                                Spacer()
+                                TopActionButton(title: localization.t("inbox.title") + (inbox.unread ? " •" : ""), icon: "bell") { showInbox=true }
                             }
                             .padding(.top, 8 * scale)
                             .opacity(revealContent ? 1 : 0)
@@ -177,9 +182,14 @@ struct HomeView: View {
             .task(id: localization.language) {
                 await loadDailyReadingsURL()
             }
-            .sheet(isPresented: $showLanguageDialog) {
-                LanguagePickerSheet()
-                    .presentationDetents([.medium])
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in Task { await inbox.load(api:environment.apiClient,token:await accountStore.authorizationToken()) } }
+            .onReceive(NotificationCenter.default.publisher(for: .announcementInboxChanged)) { _ in Task { await inbox.load(api:environment.apiClient,token:await accountStore.authorizationToken()) } }
+            .task(id: accountStore.profile?.userID) { await inbox.load(api: environment.apiClient, token: await accountStore.authorizationToken()) }
+            .sheet(isPresented: $showSettings) { MeView(environment:environment,settingsMode:true) }
+            .sheet(isPresented: $showInbox, onDismiss: {
+                if let destination=inboxDestination { PushNotifications.shared.destination=destination; inboxDestination=nil }
+            }) {
+                AnnouncementInboxView(environment:environment,store:inbox) { url in inboxDestination=url;showInbox=false }
             }
             .fullScreenCover(isPresented: $showAbout) {
                 AboutView()

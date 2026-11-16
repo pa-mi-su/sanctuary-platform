@@ -19,6 +19,11 @@ import java.io.IOException
 import java.util.concurrent.TimeUnit
 
 interface SanctuaryApiService {
+    @GET("announcements/{id}") suspend fun announcement(@Path("id") id:String): InboxAnnouncement
+    @GET("announcements") suspend fun announcements(@Query("page") page: Int = 0): AnnouncementFeed
+    @GET("me/announcements") suspend fun announcementState(): AnnouncementState
+    @POST("me/announcements") suspend fun changeAnnouncements(@Body change: AnnouncementChange): AnnouncementState
+
     @POST("auth/register")
     suspend fun register(@Body request: AuthRegisterRequest): AuthRegistrationResponse
 
@@ -254,3 +259,8 @@ suspend fun <T> runApiCall(block: suspend () -> T): T {
 data class PushDeviceRequest(val installationId: String,val token: String,val platform: String,val appVersion: String,val enabled: Boolean, val installationSecret: String? = null, val revision: Long? = null)
 
 data class NovenaWindowResponse(val novenaId: String, val startDate: String, val endDate: String, val feastDate: String)
+
+data class InboxAnnouncement(val id:String,val title:String,val body:String,val destination:String,val published_at:Double)
+data class AnnouncementFeed(val items:List<InboxAnnouncement>,val hasMore:Boolean)
+data class AnnouncementState(val readIds:List<String> = emptyList(),val clearedIds:List<String> = emptyList(),val clearedBefore:Double = 0.0)
+data class AnnouncementChange(val action:String,val ids:List<String> = emptyList(),val throughId:String? = null)

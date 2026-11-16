@@ -3,6 +3,9 @@ import UserNotifications
 
 struct MeView: View {
     let environment: AppEnvironment
+    @Environment(\.dismiss) private var dismiss
+    var settingsMode = false
+    @State private var showSettings = false
     @ObservedObject private var push = PushNotifications.shared
     @EnvironmentObject private var localization: LocalizationManager
     @EnvironmentObject private var accountStore: AccountSessionStore
@@ -21,24 +24,34 @@ struct MeView: View {
 
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 14) {
-                    if accountStore.isAuthenticated {
+                    if settingsMode {
+                        Button(localization.t("common.close")) { dismiss() }.buttonStyle(.bordered)
+                        Text(localization.t("settings.title")).font(AppTheme.rounded(32, weight: .bold)).foregroundStyle(.white)
+                        Picker(localization.t("home.language"), selection: $localization.language) {
+                            ForEach(AppLanguage.allCases) { language in Text(language.displayName).tag(language) }
+                        }.pickerStyle(.menu).tint(AppTheme.tabActive)
+                        reminderPreferencesCard
+                        if accountStore.isAuthenticated { accountHeader; deleteAccountCard }
+                    } else if accountStore.isAuthenticated {
                         accountHeader
+                        Button(localization.t("settings.title")) { showSettings = true }.buttonStyle(.bordered)
                         ScheduledRemindersCard()
                         inProgressCard
+                        completedNovenasCard
                         favoriteNovenasCard
                         favoriteSaintsCard
                         favoritePrayersCard
-                        deleteAccountCard
                     } else {
                         AccountAccessView()
+                        Button(localization.t("settings.title")) { showSettings = true }.buttonStyle(.bordered)
                     }
-                    reminderPreferencesCard
                 }
                 .padding(16)
                 .padding(.bottom, 28)
             }
             .scrollDismissesKeyboard(.interactively)
         }
+        .sheet(isPresented: $showSettings) { MeView(environment: environment, settingsMode: true) }
         .task {
             if accountStore.isAuthenticated {
                 await accountStore.refreshProfile()
@@ -165,6 +178,7 @@ struct MeView: View {
 
     private var accountHeader: some View {
         VStack(alignment: .leading, spacing: 14) {
+            if !settingsMode {
             Text(localization.t("tab.me"))
                 .font(AppTheme.rounded(42, weight: .bold))
                 .foregroundStyle(.white)
@@ -173,6 +187,7 @@ struct MeView: View {
                 .font(AppTheme.rounded(18, weight: .medium))
                 .foregroundStyle(AppTheme.subtitleText)
 
+            }
             VStack(alignment: .leading, spacing: 18) {
                 Text(localization.t("me.signedIn"))
                     .font(AppTheme.rounded(13, weight: .bold))
@@ -218,10 +233,12 @@ struct MeView: View {
                     Spacer(minLength: 0)
                 }
 
+                if settingsMode {
                 Button(localization.t("me.logout")) {
                     accountStore.logout()
                 }
                 .buttonStyle(SecondaryPillButtonStyle())
+                }
             }
             .padding(18)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -304,6 +321,16 @@ struct MeView: View {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    private var completedNovenasCard: some View {
+        MeCard(title: localization.t("me.completed")) {
+            let completed=progressStore.commitments.filter { $0.status == .completed }
+            if completed.isEmpty { Text(localization.t("me.noCompleted")).foregroundStyle(AppTheme.subtitleText) }
+            ForEach(completed,id:\.novenaID) { item in
+                accountLinkedRow(title: novenaTitle(for:item.novenaID), subtitle:nil) { selectedRoute = .novena(id:item.novenaID) }
             }
         }
     }
@@ -497,7 +524,7 @@ struct MeView: View {
 
 
     private var novenaLookupKey: String {
-        let allIDs = progressStore.activeCommitments.map(\.novenaID) + favoriteNovenas.map(\.itemID)
+        let allIDs = progressStore.commitments.map(\.novenaID) + favoriteNovenas.map(\.itemID)
         return ([localization.language.contentLocale.rawValue] + allIDs.sorted()).joined(separator: "|")
     }
 
@@ -646,7 +673,7 @@ struct MeView: View {
     }
 
     private func loadNovenaDetails() async {
-        let allIDs = Array(Set(progressStore.activeCommitments.map(\.novenaID) + favoriteNovenas.map(\.itemID))).sorted()
+        let allIDs = Array(Set(progressStore.commitments.map(\.novenaID) + favoriteNovenas.map(\.itemID))).sorted()
         guard !allIDs.isEmpty else {
             novenaDetailsByID = [:]
             return

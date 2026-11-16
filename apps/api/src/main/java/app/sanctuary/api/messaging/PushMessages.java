@@ -21,7 +21,11 @@ public class PushMessages {
         if (!Set.of("https://mydailysanctuary.com","https://dev.mydailysanctuary.com").contains(siteUrl)) throw new IllegalArgumentException("Invalid notification site URL");
         this.db=db; this.gateway=gateway; this.siteUrl=siteUrl;
     }
-    public record Draft(String title,String body,String kind,String contentId,String audience,UUID testDevice) {}
+    public record Draft(String title,String body,String kind,String contentId,String audience,UUID testDevice,Boolean publishToInbox,Boolean sendPush) {
+        public Draft(String title,String body,String kind,String contentId,String audience,UUID testDevice){this(title,body,kind,contentId,audience,testDevice,false,true);}
+    }
+    boolean publishes(Draft d){return d!=null && Boolean.TRUE.equals(d.publishToInbox()) && !"test".equals(d.audience());}
+    boolean alerts(Draft d){return d==null || !Boolean.FALSE.equals(d.sendPush());}
     public record Send(UUID id, Draft draft,String recipientVersion) {}
     static AuthFlowException bad(String text) { return new AuthFlowException(HttpStatus.BAD_REQUEST,text); }
     String destination(Draft d) {
@@ -49,23 +53,26 @@ public class PushMessages {
         catch(Exception e) { throw new IllegalStateException(e); }
     }
     public Object preview(Draft draft) {
-        String link=destination(draft); var devices=recipients(draft);
-        return Map.of("count",devices.size(),"recipientVersion",version(devices),"destination",link,"enabled",gateway.enabled());
+        String link=destination(draft); var devices=alerts(draft)?recipients(draft):List.<Map<String,Object>>of();
+        if(!alerts(draft)&&!publishes(draft)) throw bad("Publish an announcement or send a phone alert.");
+        return Map.of("count",devices.size(),"recipientVersion",version(devices),"destination",link,"enabled",!alerts(draft)||gateway.enabled());
     }
     @Transactional public Object send(String actor,Send request) {
         if(request==null || request.id()==null) throw bad("A send identifier is required.");
         db.queryForObject("SELECT pg_advisory_xact_lock(hashtextextended(?,0))",Object.class,request.id().toString());
-        if(Boolean.TRUE.equals(db.queryForObject("SELECT EXISTS(SELECT 1 FROM push_messages WHERE id=?)",Boolean.class,request.id()))) return Map.of("id",request.id(),"queued",true);
-        if(!gateway.enabled()) throw new AuthFlowException(HttpStatus.SERVICE_UNAVAILABLE,"Messaging is not enabled in this environment.");
-        var draft=request.draft(); String destination=destination(draft); var devices=recipients(draft);
-        if(devices.isEmpty()) throw bad("No eligible opted-in devices. Update the app and enable announcements first.");
+        if(Boolean.TRUE.equals(db.queryForObject("SELECT EXISTS(SELECT 1 FROM push_messages WHERE id=?)",Boolean.class,request.id()))) return Map.of("id",request.id(),"queued",Boolean.TRUE.equals(db.queryForObject("SELECT EXISTS(SELECT 1 FROM push_deliveries WHERE message_id=?)",Boolean.class,request.id())),"published",Boolean.TRUE.equals(db.queryForObject("SELECT EXISTS(SELECT 1 FROM announcements WHERE id=? AND withdrawn_at IS NULL)",Boolean.class,request.id())));
+        if(alerts(request.draft())&&!gateway.enabled()) throw new AuthFlowException(HttpStatus.SERVICE_UNAVAILABLE,"Messaging is not enabled in this environment.");
+        var draft=request.draft(); String destination=destination(draft); var devices=alerts(draft)?recipients(draft):List.<Map<String,Object>>of();
+        if(alerts(draft)&&devices.isEmpty()) throw bad("No eligible opted-in devices. Update the app and enable announcements first.");
         if(!version(devices).equals(request.recipientVersion())) throw new AuthFlowException(HttpStatus.CONFLICT,"The audience changed. Review the recipients again.");
         db.queryForObject("SELECT pg_advisory_xact_lock(724281039)",Object.class);
         int recent=db.queryForObject("SELECT count(*) FROM push_messages WHERE created_at>now()-interval '1 hour'",Integer.class);
         if(recent>=20) throw new AuthFlowException(HttpStatus.TOO_MANY_REQUESTS,"The hourly sending limit has been reached.");
-        db.update("INSERT INTO push_messages(id,actor_sub,title,body,destination,audience)VALUES(?,?,?,?,?,?)",request.id(),actor,draft.title().strip(),draft.body().strip(),destination,draft.audience());
+        db.update("INSERT INTO push_messages(id,actor_sub,title,body,destination,audience)VALUES(?,?,?,?,?,?)",request.id(),actor,draft.title().strip(),draft.body().strip(),publishes(draft)?siteUrl+"/announcements/"+request.id():destination,draft.audience());
+        if(!alerts(draft)&&!publishes(draft)) throw bad("Publish an announcement or send a phone alert.");
+        if(publishes(draft)) db.update("INSERT INTO announcements(id,title,body,destination)VALUES(?,?,?,?)",request.id(),draft.title().strip(),draft.body().strip(),destination);
         for(var device:devices) db.update("INSERT INTO push_deliveries(message_id,device_id,recipient_user_id)VALUES(?,?,?)",request.id(),device.get("id"),device.get("user_id"));
-        return Map.of("id",request.id(),"queued",true);
+        return Map.of("id",request.id(),"queued",alerts(request.draft()),"published",publishes(request.draft()));
     }
     public record ClearHistory(UUID throughMessageId) {}
     @Transactional public Object clearHistory(ClearHistory request) {
@@ -79,10 +86,16 @@ public class PushMessages {
             """,rows.getFirst().get("created_at"));
         return Map.of("cleared",cleared);
     }
+    public Object withdraw(UUID id){db.update("UPDATE announcements SET withdrawn_at=now() WHERE id=? AND withdrawn_at IS NULL",id);return Map.of("withdrawn",true);}
+    public Object published(int page) {
+        if(page<0||page>10000)throw bad("Invalid page.");
+        var items=db.queryForList("SELECT id,title,body,published_at FROM announcements WHERE withdrawn_at IS NULL ORDER BY published_at DESC,id DESC LIMIT 21 OFFSET ?",page*20);
+        return Map.of("items",items.stream().limit(20).toList(),"hasMore",items.size()>20);
+    }
     public Object overview(int page) {
         if(page<0||page>10000) throw bad("Invalid page.");
         var items=db.queryForList("""
-            SELECT m.*,count(d.id) AS recipients,
+            SELECT m.*,EXISTS(SELECT 1 FROM announcements a WHERE a.id=m.id AND a.withdrawn_at IS NULL) AS published,count(d.id) AS recipients,
             count(d.id)FILTER(WHERE d.state='accepted') AS accepted,
             count(d.id)FILTER(WHERE d.state='failed') AS failed,
             count(d.id)FILTER(WHERE d.state IN ('pending','sending')) AS pending,
@@ -99,6 +112,6 @@ public class PushMessages {
             WHERE lower(a.email)='pmsulikowski@icloud.com' AND a.email_verified AND a.enabled AND p.enabled AND p.valid
             AND p.updated_at>now()-interval '60 days' ORDER BY p.updated_at DESC
             """);
-        return Map.of("items",items.stream().limit(20).toList(),"hasMore",items.size()>20,"testDevices",tests,"enabled",gateway.enabled());
+        return Map.of("items",items.stream().limit(20).toList(),"hasMore",items.size()>20,"testDevices",tests,"enabled",gateway.enabled(),"announcements",published(0));
     }
 }

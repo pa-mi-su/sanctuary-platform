@@ -42,7 +42,7 @@ public class SecurityConfig {
 
         http
             .authorizeHttpRequests(requests -> requests
-                .requestMatchers("/health", "/actuator/**", "/auth/**", "/calendar/**", "/content/**").permitAll()
+                .requestMatchers("/health", "/actuator/**", "/auth/**", "/calendar/**", "/content/**", "/announcements", "/announcements/**").permitAll()
                 .requestMatchers(org.springframework.http.HttpMethod.PUT,"/push/installations").permitAll()
                 .requestMatchers("/me/**").authenticated()
                 .anyRequest().denyAll()

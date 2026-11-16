@@ -98,6 +98,7 @@
                     android:scheme="https"
                     android:host="mydailysanctuary.com"
                     android:pathPrefix="/prayers/" />
+                <data android:scheme="https" android:host="mydailysanctuary.com" android:pathPrefix="/announcements/" />
             </intent-filter>
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
@@ -109,6 +110,7 @@
                     android:scheme="https"
                     android:host="www.mydailysanctuary.com"
                     android:pathPrefix="/prayers/" />
+                <data android:scheme="https" android:host="www.mydailysanctuary.com" android:pathPrefix="/announcements/" />
             </intent-filter>
         </activity>
         <service android:name=".SanctuaryFirebaseMessagingService" android:exported="false">

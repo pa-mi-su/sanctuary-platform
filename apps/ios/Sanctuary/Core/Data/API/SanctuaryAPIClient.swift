@@ -338,6 +338,19 @@ actor SanctuaryAPIClient {
         )
     }
 
+    func announcement(id: String) async throws -> SanctuaryAnnouncement {
+        try await performRequest(path: "/announcements/\(id)", method: "GET", body: Optional<String>.none, token: nil)
+    }
+    func announcements(page: Int = 0) async throws -> AnnouncementFeed {
+        try await performRequest(path: "/announcements?page=\(page)", method: "GET", body: Optional<String>.none, token: nil)
+    }
+    func announcementState(token: String) async throws -> AnnouncementInboxState {
+        try await performRequest(path: "/me/announcements", method: "GET", body: Optional<String>.none, token: token)
+    }
+    func changeAnnouncements(_ change: AnnouncementChange, token: String) async throws -> AnnouncementInboxState {
+        try await performRequest(path: "/me/announcements", method: "POST", body: change, token: token)
+    }
+
     func me(token: String) async throws -> APIUserProfileResponse {
         try await performRequest(path: "/me", method: "GET", body: Optional<String>.none, token: token)
     }

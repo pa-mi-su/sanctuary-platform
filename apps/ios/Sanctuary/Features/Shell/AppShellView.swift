@@ -13,6 +13,10 @@ struct AppShellView: View {
     @Environment(\.scenePhase) private var scenePhase
     @ObservedObject private var push = PushNotifications.shared
     @State private var selectedTab: AppTab = .home
+    @State private var showAnnouncement = false
+    @State private var announcementID: String?
+    @State private var announcementDestination: URL?
+    @StateObject private var inbox = AnnouncementInboxStore()
     @State private var sharedContentLink: SharedContentLink?
     @StateObject private var localization: LocalizationManager
     @StateObject private var accountStore: AccountSessionStore
@@ -111,6 +115,12 @@ struct AppShellView: View {
                 openSharedContent(url)
             }
         }
+        .sheet(isPresented: $showAnnouncement, onDismiss: {
+            if let url=announcementDestination { announcementDestination=nil;openSharedContent(url) }
+        }) {
+            AnnouncementInboxView(environment:environment,store:inbox,initialID:announcementID) { url in announcementDestination=url;showAnnouncement=false }
+                .environmentObject(localization).environmentObject(accountStore)
+        }
         .fullScreenCover(item: $sharedContentLink) { link in
             sharedContentDestination(for: link)
                 .environmentObject(localization)
@@ -126,6 +136,10 @@ struct AppShellView: View {
     }
 
     private func openSharedContent(_ url: URL) {
+        if url.scheme == "https", (url.host == "mydailysanctuary.com" || (PlatformEnvironment.current() == .dev && url.host == "dev.mydailysanctuary.com")), url.pathComponents.dropFirst().first == "announcements" {
+            announcementID = url.pathComponents.count > 2 ? url.pathComponents[2].lowercased() : nil
+            showAnnouncement=true;return
+        }
         guard let link = SharedContentLink.parse(url) else {
             return
         }
