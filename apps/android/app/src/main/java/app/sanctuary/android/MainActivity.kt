@@ -1,5 +1,7 @@
 package app.sanctuary.android
 
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import android.annotation.SuppressLint
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.DropdownMenu
@@ -1127,10 +1129,8 @@ private fun AuthenticatedShell(
                 AppTab.Home -> {
                     item {
                         HomeTopActions(
-                            language = selectedLanguage,
                             onShowAbout = { showAbout = true }
                             ,
-                            onShowLanguage = onShowLanguagePicker,
                             onSettings = { showSettings = true }, onInbox = { inboxRequestedID=null; showInbox = true }, unread = inboxUnread
                         )
                     }
@@ -1278,7 +1278,7 @@ private fun AuthenticatedShell(
                         }
                     }
                     if (session.status != SessionStatus.Authenticated) {
-                        item { TextButton(onClick = { showSettings=true }) { Text(sanctuaryStrings().t("settings.title")) } }
+                        item { NavigationCardAction(sanctuaryStrings().t("settings.title"), Icons.Filled.Settings) { showSettings = true } }
                     }
                 }
             }
@@ -2016,7 +2016,7 @@ private fun MeScreen(
 
 
         if(!settingsMode) {
-        TextButton(onClick=onSettings) { Text(l10n.t("settings.title")) }
+        NavigationCardAction(l10n.t("settings.title"), Icons.Filled.Settings, onSettings)
         ScheduledRemindersCard()
 
         MeSectionCard(title = l10n.t("me.inProgress")) {
@@ -2568,34 +2568,32 @@ private fun BrandLogoMark(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun HomeTopActions(
-    language: AppLanguage,
-    onShowAbout: () -> Unit,
-    onShowLanguage: () -> Unit,
-    onSettings: () -> Unit,
-    onInbox: () -> Unit,
-    unread: Boolean
-) {
+private fun HomeTopActions(onShowAbout: () -> Unit, onSettings: () -> Unit, onInbox: () -> Unit, unread: Boolean) {
     val l10n = sanctuaryStrings()
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        var menu by remember { mutableStateOf(false) }
-        Box(Modifier.weight(1f)) {
-            TopPillButton(title=l10n.t("menu.title"),icon=Icons.Filled.Menu,onClick={menu=true})
-            if(menu) AlertDialog(
-                onDismissRequest={menu=false},
-                title={Text(l10n.t("menu.title"))},
-                text={Column(verticalArrangement=Arrangement.spacedBy(12.dp)) {
-                    OutlinedButton(modifier=Modifier.fillMaxWidth().heightIn(min=56.dp),onClick={menu=false;onSettings()}) { Text(l10n.t("settings.title")) }
-                    OutlinedButton(modifier=Modifier.fillMaxWidth().heightIn(min=56.dp),onClick={menu=false;onShowAbout()}) { Text(l10n.t("home.about")) }
-                }},
-                confirmButton={TextButton(onClick={menu=false}) { Text(l10n.t("common.close")) }}
-            )
+    var menu by remember { mutableStateOf(false) }
+    TopPillButton(modifier = Modifier.fillMaxWidth(), title = l10n.t("menu.title") + (if (unread) " •" else ""), icon = Icons.Filled.Menu, onClick = { menu = true })
+    if (menu) ModalBottomSheet(onDismissRequest = { menu = false },
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true), containerColor = SanctuaryGradientTop) {
+        Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(l10n.t("menu.title"), fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.White)
+            NavigationCardAction(l10n.t("inbox.title") + (if (unread) " •" else ""), Icons.Filled.NotificationsNone) { menu = false; onInbox() }
+            NavigationCardAction(l10n.t("settings.title"), Icons.Filled.Settings) { menu = false; onSettings() }
+            NavigationCardAction(l10n.t("home.about"), Icons.Filled.Info) { menu = false; onShowAbout() }
         }
-        TopPillButton(modifier=Modifier.weight(1f),title=l10n.t("inbox.title")+(if(unread) " •" else ""),icon=Icons.Filled.NotificationsNone,onClick=onInbox)
+    }
+}
+
+@Composable
+private fun NavigationCardAction(title: String, icon: ImageVector, onClick: () -> Unit) {
+    Card(onClick = onClick, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = SanctuaryCard), border = BorderStroke(1.dp, Color(0x997CC7DE))) {
+        Row(Modifier.fillMaxWidth().heightIn(min = 64.dp).padding(18.dp), horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(icon, contentDescription = null, tint = SanctuaryTabActive, modifier = Modifier.size(25.dp))
+            Text(title, Modifier.weight(1f), color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = SanctuaryTabActive, modifier = Modifier.size(20.dp))
+        }
     }
 }
 

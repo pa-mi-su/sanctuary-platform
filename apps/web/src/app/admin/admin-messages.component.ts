@@ -103,7 +103,7 @@ import { AdminInputComponent } from './admin-input.component';
         <div class="columns">
           <label
             >When tapped, open<select name="kind" [(ngModel)]="kind" (ngModelChange)="changeKind()">
-              <option value="home">Home / app announcement</option>
+              <option value="home">Plain announcement (no content link)</option>
               <option value="prayers">Prayer</option>
               <option value="saints">Saint / feast day</option>
               <option value="novenas">Novena invitation</option>
@@ -420,7 +420,7 @@ export class AdminMessagesComponent implements OnInit, OnDestroy {
     );
   }
   destinationLabel() {
-    if (this.kind === 'home') return 'Home';
+    if (this.kind === 'home') return 'Announcement only (no content link)';
     const name = this.choices.find((row) => row.id === this.contentId)?.title;
     const kind =
       (
@@ -620,11 +620,20 @@ export class AdminMessagesComponent implements OnInit, OnDestroy {
     if (!this.preview || !this.confirmed) return;
     await this.run(async () => {
       const sentDraft = this.draft();
-      const outcome = await this.api('POST', '/messages', {
-        id: this.requestId,
-        draft: sentDraft,
-        recipientVersion: this.preview.recipientVersion,
-      });
+      let outcome: any;
+      try {
+        outcome = await this.api('POST', '/messages', {
+          id: this.requestId,
+          draft: sentDraft,
+          recipientVersion: this.preview.recipientVersion,
+        });
+      } catch (error) {
+        if (error instanceof HttpErrorResponse && error.status === 409) {
+          this.preview = null;
+          this.confirmed = false;
+        }
+        throw error;
+      }
       this.sentSnapshot = JSON.stringify(sentDraft);
       if (JSON.stringify(this.draft()) === this.sentSnapshot) this.resetComposer();
       else this.invalidate();

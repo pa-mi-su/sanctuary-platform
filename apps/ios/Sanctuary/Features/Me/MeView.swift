@@ -49,7 +49,7 @@ struct MeView: View {
                         reminderPreferencesCard
                     } else if accountStore.isAuthenticated {
                         accountHeader
-                        Button(localization.t("settings.title")) { showSettings = true }.buttonStyle(.bordered)
+                        NavigationCardButton(title: localization.t("settings.title"), icon: "gearshape") { showSettings = true }
                         ScheduledRemindersCard()
                         inProgressCard
                         completedNovenasCard
@@ -58,7 +58,7 @@ struct MeView: View {
                         favoritePrayersCard
                     } else {
                         AccountAccessView()
-                        Button(localization.t("settings.title")) { showSettings = true }.buttonStyle(.bordered)
+                        NavigationCardButton(title: localization.t("settings.title"), icon: "gearshape") { showSettings = true }
                     }
                 }
                 .padding(settingsMode ? 18 : 16)

@@ -169,7 +169,7 @@ describe('Admin messaging', () => {
     component.choices = [{ id: 'saint-1', title: 'St. Cecilia' }];
     expect(component.destinationLabel()).toBe('Saint / feast day: St. Cecilia');
     component.kind = 'home';
-    expect(component.destinationLabel()).toBe('Home');
+    expect(component.destinationLabel()).toBe('Announcement only (no content link)');
     expect(component.submissionStatus({ pending: 11 })).toBe('Queued for sending');
     expect(component.submissionStatus({ accepted: 11 })).toBe('Submitted to Firebase');
     expect(component.submissionStatus({ failed: 11 })).toBe('Sending failed');
@@ -213,7 +213,7 @@ describe('Admin messaging', () => {
     fixture.detectChanges();
     const text = fixture.nativeElement.textContent;
     expect(text).toContain('Review');
-    expect(text).toContain('Opens: Home');
+    expect(text).toContain('Opens: Announcement only (no content link)');
     expect(text).toContain('Past announcements');
     expect(text).toContain('Submitted to Firebase');
     expect(text).not.toContain('app installations');
@@ -351,5 +351,25 @@ describe('Admin messaging', () => {
       .expectOne('https://api.example.test/admin-api/messages?page=0')
       .flush({ items: [], hasMore: false });
     expect(component.withdrawId).toBeNull();
+  });
+  it('requires a fresh review after a real audience change without discarding the draft', async () => {
+    component.title = 'Keep this message';
+    component.body = 'Full announcement';
+    component.preview = { recipientVersion: 'reviewed' };
+    component.confirmed = true;
+    component.requestId = 'same-send-id';
+    const send = component.send();
+    http
+      .expectOne('https://api.example.test/admin-api/messages')
+      .flush(
+        { message: 'Notification subscriptions changed since your review.' },
+        { status: 409, statusText: 'Conflict' },
+      );
+    await send;
+    expect(component.preview).toBeNull();
+    expect(component.confirmed).toBe(false);
+    expect(component.title).toBe('Keep this message');
+    expect(component.requestId).toBe('same-send-id');
+    expect(component.notice()).toContain('subscriptions changed');
   });
 });

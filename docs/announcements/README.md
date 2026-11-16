@@ -8,9 +8,9 @@ Version 1.0.26 separates three things:
 
 ## Navigation
 
-Home has a Menu with Settings, About/Help, and Announcements, alongside a visible bell with an unread dot. Existing primary tabs stay unchanged. Me contains saved content, active/completed novenas, and native scheduled reminders. Settings contains language, announcement preferences, OS notification settings/details, and authenticated account actions.
+Home has a single hamburger Menu containing Announcements, Settings, and About/Help. Its unread dot makes new announcements discoverable without a duplicate top action. Native menus use matching bottom sheets with large bordered action cards. Existing primary tabs stay unchanged. Me contains saved content, active/completed novenas, and native scheduled reminders. Settings contains language, announcement preferences, OS notification settings/details, and authenticated account actions.
 
-The inbox supports expanding the full message, opening its linked content, marking it read, clearing one with Undo, and clearing all after confirmation. An old alert can still open its specific message even if it was cleared from the inbox, provided the administrator has not withdrawn it. This does not restore the cleared entry to the regular inbox.
+The inbox shows the full message without an expander (messages are limited to 500 characters). A content action appears only for an associated prayer, saint, or novena; plain app announcements have no content button. Opening the inbox marks the loaded messages as read, with clearing one/Undo and clearing all/confirmation retained. This is inbox state, not proof that a message was read. An old alert can still open its specific message even if it was cleared from the inbox, provided the administrator has not withdrawn it. This does not restore the cleared entry to the regular inbox.
 
 Guest receipts are local to the installation/browser and environment. Signed-in receipts synchronize through the API and are separate from guest receipts. Clearing a message affects only that reader. Clear all uses a publication cutoff so future messages still appear. The unread dot reflects the currently loaded feed page; older announcements remain available through Load more.
 
@@ -52,3 +52,11 @@ Android includes DEV announcement deep links only in its DEV manifest. iOS handl
 - Visual previews use an explicitly labeled isolated local QA announcement, not real user content. No live announcements or phone alerts were sent for these checks.
 
 Physical-device alert handoff and signed-in native cross-device receipt synchronization still need a DEV smoke test after deployment; backend receipt isolation is integration-tested locally.
+
+## 1.0.27 follow-up: review stability and presentation
+
+The previous recipient fingerprint included `push_devices.updated_at` and the token. A routine device registration refresh between review and send could therefore reject an unchanged audience. The fingerprint now uses a sorted canonical set of installation ID/account ID pairs. Last-sync updates and token rotation do not invalidate review; actual eligibility, recipient membership, and account changes still do. The dispatcher still checks opt-in and account identity at dispatch time. Duplicate-send protections remain unchanged. A genuine audience conflict clears the stale admin review while preserving the draft and send identifier, so another explicit review is required.
+
+Regression verification: API 100 passed / one existing audit skipped, Android 19 tests and all flavor checks passed, web 58 tests and production build passed, iOS DEV simulator build passed. UI previews in `refinement-previews` use only explicitly local QA messages; no live messages were sent.
+
+Menus and Me → Settings now share prominent navigation cards. Announcement content stays left-aligned for reading within centered, width-limited containers, with consistent heading, card-border, surface, and action styles across native platforms.

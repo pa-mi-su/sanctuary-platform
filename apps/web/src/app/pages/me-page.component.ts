@@ -51,7 +51,7 @@ type AppLanguage = 'en' | 'es' | 'pl';
       </div>
 
       @if (!settingsMode) {
-        <button type="button" (click)="settings.emit()">
+        <button class="settings-action" type="button" (click)="settings.emit()">
           {{ t('Account settings', 'Ajustes de cuenta', 'Ustawienia konta') }}
         </button>
         <section class="linked-grid">

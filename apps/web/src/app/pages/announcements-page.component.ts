@@ -43,17 +43,16 @@ import { AnnouncementInboxService, Announcement } from '../core/state/announceme
     }
     @for (row of displayed(); track row.id) {
       <article class="glass-subtle">
-        <button class="heading" (click)="expand(row)" [attr.aria-expanded]="expanded() === row.id">
-          <span>{{ inbox.state().readIds.includes(row.id) ? '' : '● ' }}{{ row.title }}</span
-          ><span>{{ expanded() === row.id ? '⌃' : '⌄' }}</span>
-        </button>
+        <h3>{{ row.title }}</h3>
         <small>{{ row.published_at | date: 'mediumDate' }}</small>
-        <p [class.preview]="expanded() !== row.id">{{ row.body }}</p>
+        <p>{{ row.body }}</p>
         <div class="actions">
-          <a [href]="safeLink(row.destination)" (click)="open($event, row)">{{
-            t('Open content', 'Abrir contenido', 'Otwórz treść')
-          }}</a
-          ><button (click)="clear(row.id)" [disabled]="inbox.busy()">
+          @if (hasContent(row.destination)) {
+            <a [href]="safeLink(row.destination)" (click)="open($event, row)">{{
+              t('Open content', 'Abrir contenido', 'Otwórz treść')
+            }}</a>
+          }
+          <button (click)="clear(row.id)" [disabled]="inbox.busy()">
             {{ t('Clear', 'Borrar', 'Wyczyść') }}
           </button>
         </div>
@@ -76,10 +75,22 @@ import { AnnouncementInboxService, Announcement } from '../core/state/announceme
     `
       :host {
         display: block;
+        max-width: 680px;
+        margin: 0 auto;
+      }
+      h2 {
+        text-align: center;
+        font-size: 1.875rem;
+      }
+      h3 {
+        margin: 0;
+        font-size: 1.25rem;
+        line-height: 1.4;
       }
       article {
-        padding: 1.2rem;
-        border: 1px solid #7894a0;
+        padding: 20px;
+        background: #102738;
+        border: 1px solid #7cc7de99;
         border-radius: 22px;
         margin: 1rem 0;
       }
@@ -87,10 +98,11 @@ import { AnnouncementInboxService, Announcement } from '../core/state/announceme
       a {
         font: inherit;
         color: inherit;
-        border: 1px solid #7894a0;
-        background: #264553;
+        border: 1px solid #7cc7de99;
+        background: #2a4153;
         border-radius: 14px;
         padding: 0.8rem;
+        min-height: 48px;
         cursor: pointer;
       }
       .actions,
@@ -109,12 +121,6 @@ import { AnnouncementInboxService, Announcement } from '../core/state/announceme
         white-space: pre-wrap;
         line-height: 1.6;
       }
-      .preview {
-        display: -webkit-box;
-        -webkit-line-clamp: 3;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
-      }
       small {
         display: block;
         margin-top: 0.7rem;
@@ -125,20 +131,33 @@ import { AnnouncementInboxService, Announcement } from '../core/state/announceme
 export class AnnouncementsPageComponent {
   requestedId = input('');
   private requested = false;
+  private lastReadAttempt = '';
   constructor() {
     effect(() => {
       const id = this.requestedId();
       if (id && !this.requested && !this.inbox.busy()) {
         this.requested = true;
-        this.expanded.set(id);
         this.forcedId.set(id);
         void this.inbox.openRequested(id);
+      }
+    });
+    effect(() => {
+      if (this.inbox.busy() && !this.inbox.items().length) this.lastReadAttempt = '';
+      if (!this.inbox.busy()) {
+        const ids = this.displayed()
+          .filter((row) => !this.inbox.state().readIds.includes(row.id))
+          .map((row) => row.id)
+          .slice(0, 100);
+        const attempt = ids.join(',');
+        if (ids.length && attempt !== this.lastReadAttempt) {
+          this.lastReadAttempt = attempt;
+          void this.inbox.change('read', undefined, undefined, ids);
+        }
       }
     });
   }
   language = input('en');
   inbox = inject(AnnouncementInboxService);
-  expanded = signal<string | null>(null);
   confirm = signal(false);
   forcedId = signal<string | null>(null);
   clearThrough?: Announcement;
@@ -158,9 +177,17 @@ export class AnnouncementsPageComponent {
   t(en: string, es: string, pl: string) {
     return this.language() === 'es' ? es : this.language() === 'pl' ? pl : en;
   }
-  expand(row: Announcement) {
-    this.expanded.set(this.expanded() === row.id ? null : row.id);
-    void this.inbox.change('read', row.id);
+  hasContent(value: string) {
+    try {
+      const u = new URL(value);
+      return (
+        u.protocol === 'https:' &&
+        ['mydailysanctuary.com', 'dev.mydailysanctuary.com'].includes(u.hostname) &&
+        /^\/(prayers|saints|novenas)\/[^/]+\/?$/.test(u.pathname)
+      );
+    } catch {
+      return false;
+    }
   }
   async open(event: Event, row: Announcement) {
     event.preventDefault();

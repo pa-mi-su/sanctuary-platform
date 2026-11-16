@@ -51,6 +51,19 @@ class PushMessagingIntegrationTest {
         assertEquals(1,result.get("count"));
         assertFalse(new ObjectMapper().valueToTree(result).toString().contains("synthetic-token"));
     }
+    @Test void routineDeviceSyncAndTokenRotationDoNotInvalidateReviewedAudience() {
+        UUID id=device("ios",true);var draft=draft("all");var reviewed=preview(draft);
+        db.update("UPDATE push_devices SET updated_at=now()+interval '1 second',token='synthetic-rotated-token-for-audience-test' WHERE id=?",id);
+        assertEquals(reviewed.get("recipientVersion"),preview(draft).get("recipientVersion"));
+        transaction.execute(s->messages.send("owner",new PushMessages.Send(UUID.randomUUID(),draft,reviewed.get("recipientVersion").toString())));
+        assertEquals(1,db.queryForObject("SELECT count(*) FROM push_deliveries",Integer.class));
+    }
+    @Test void anActuallyAddedRecipientStillRequiresAnotherReview() {
+        device("ios",true);var draft=draft("all");var reviewed=preview(draft);device("android",true);
+        assertNotEquals(reviewed.get("recipientVersion"),preview(draft).get("recipientVersion"));
+        assertThrows(RuntimeException.class,()->transaction.execute(s->messages.send("owner",new PushMessages.Send(UUID.randomUUID(),draft,reviewed.get("recipientVersion").toString()))));
+        assertEquals(0,db.queryForObject("SELECT count(*) FROM push_deliveries",Integer.class));
+    }
     @Test void changedAudienceRejectsSendAndOptOutAfterQueueSkips(){
         UUID device=device("ios",true);var draft=draft("ios");var preview=preview(draft);
         db.update("UPDATE push_devices SET enabled=false WHERE id=?",device);

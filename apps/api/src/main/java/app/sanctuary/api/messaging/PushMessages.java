@@ -46,10 +46,13 @@ public class PushMessages {
             default -> "?='all'";
         };
         Object argument="test".equals(d.audience())?Objects.toString(d.testDevice(),""):d.audience();
-        return db.queryForList("SELECT p.id,p.user_id,p.token,p.updated_at FROM push_devices p WHERE p.enabled AND p.valid AND p.updated_at>now()-interval '60 days' AND "+filter+" ORDER BY p.id",argument);
+        return db.queryForList("SELECT p.id,p.user_id FROM push_devices p WHERE p.enabled AND p.valid AND p.updated_at>now()-interval '60 days' AND "+filter+" ORDER BY p.id",argument);
     }
     String version(List<Map<String,Object>> rows) {
-        try { return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(rows.toString().getBytes(StandardCharsets.UTF_8))); }
+        // Audience identity is the installation/account pair, not its mutable sync time or token.
+        String identity=rows.stream().map(row -> row.get("id")+":"+Objects.toString(row.get("user_id"),"guest"))
+            .sorted().collect(java.util.stream.Collectors.joining("\n","audience-v2\n",""));
+        try { return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(identity.getBytes(StandardCharsets.UTF_8))); }
         catch(Exception e) { throw new IllegalStateException(e); }
     }
     public Object preview(Draft draft) {
@@ -64,7 +67,7 @@ public class PushMessages {
         if(alerts(request.draft())&&!gateway.enabled()) throw new AuthFlowException(HttpStatus.SERVICE_UNAVAILABLE,"Messaging is not enabled in this environment.");
         var draft=request.draft(); String destination=destination(draft); var devices=alerts(draft)?recipients(draft):List.<Map<String,Object>>of();
         if(alerts(draft)&&devices.isEmpty()) throw bad("No eligible opted-in devices. Update the app and enable announcements first.");
-        if(!version(devices).equals(request.recipientVersion())) throw new AuthFlowException(HttpStatus.CONFLICT,"The audience changed. Review the recipients again.");
+        if(!version(devices).equals(request.recipientVersion())) throw new AuthFlowException(HttpStatus.CONFLICT,"Notification subscriptions changed since your review. Review again before sending.");
         db.queryForObject("SELECT pg_advisory_xact_lock(724281039)",Object.class);
         int recent=db.queryForObject("SELECT count(*) FROM push_messages WHERE created_at>now()-interval '1 hour'",Integer.class);
         if(recent>=20) throw new AuthFlowException(HttpStatus.TOO_MANY_REQUESTS,"The hourly sending limit has been reached.");

@@ -3,12 +3,17 @@ import android.content.Context
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.ui.platform.LocalContext
 import app.sanctuary.android.data.*
 import app.sanctuary.android.ui.sanctuaryStrings
@@ -31,7 +36,7 @@ suspend fun announcementUnread(context:Context,authenticated:Boolean):Boolean {
  var clearThrough by remember { mutableStateOf<InboxAnnouncement?>(null) }
  var generation by remember { mutableIntStateOf(0) }
  var page by remember { mutableIntStateOf(0) };var more by remember { mutableStateOf(false) };var busy by remember { mutableStateOf(false) }
- var error by remember { mutableStateOf("") };var expanded by remember { mutableStateOf<String?>(null) };var undo by remember { mutableStateOf<String?>(null) };var confirm by remember { mutableStateOf(false) }
+ var error by remember { mutableStateOf("") };var undo by remember { mutableStateOf<String?>(null) };var confirm by remember { mutableStateOf(false) }
  val displayed=visibleAnnouncements(rows,state).let { visible -> rows.firstOrNull { it.id==forcedID && visible.none { row->row.id==it.id } }?.let { listOf(it)+visible } ?: visible }
  fun badge(){onUnread(visibleAnnouncements(rows,state).any { it.id !in state.readIds })}
  fun load(next: Int = 0) {
@@ -54,14 +59,14 @@ suspend fun announcementUnread(context:Context,authenticated:Boolean):Boolean {
     if (requested != null) rows = listOf(requested) + rows
     page = next
     more = feed.hasMore
-    if (next == 0 && !initialID.isNullOrBlank()) {
-     expanded = initialID
+    val unread = (visibleAnnouncements(rows, state).map { it.id } + listOfNotNull(initialID)).distinct().filter { it !in state.readIds }.take(100)
+    if (unread.isNotEmpty()) {
      if (member) {
-      val loaded = repository.changeAnnouncements(AnnouncementChange("read", listOf(initialID)))
+      val loaded = repository.changeAnnouncements(AnnouncementChange("read", unread))
       if (request != generation) return@launch
       state = loaded
      } else {
-      state = state.copy(readIds = (state.readIds + initialID).distinct())
+      state = state.copy(readIds = (state.readIds + unread).distinct())
       context.getSharedPreferences("announcement-inbox-" + BuildConfig.ENVIRONMENT, 0).edit().putString("state", Gson().toJson(state)).apply()
      }
     }
@@ -88,27 +93,49 @@ suspend fun announcementUnread(context:Context,authenticated:Boolean):Boolean {
   undo=if(action=="clear")id else null;badge()
  }catch(e:Exception){error=e.message ?: "Could not update inbox"}finally{if(request==generation){busy=false;after()}} } }
  LaunchedEffect(authenticated){confirm=false;clearThrough=null;undo=null;load()}
- Column(Modifier.padding(horizontal=18.dp),verticalArrangement=Arrangement.spacedBy(14.dp)) {
-  Text(l10n.t("inbox.title"),color=Color.White,fontSize=30.sp)
-  Row { OutlinedButton(onClick={load()},enabled=!busy){Text(l10n.t("inbox.refresh"))};Spacer(Modifier.weight(1f));OutlinedButton(onClick={clearThrough=rows.maxByOrNull { it.published_at };confirm=true},enabled=!busy&&visibleAnnouncements(rows,state).isNotEmpty()){Text(l10n.t("inbox.clearAll"))} }
+ Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
+ Column(Modifier.widthIn(max = 680.dp).fillMaxWidth().padding(horizontal = 18.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
+  Text(l10n.t("inbox.title"), modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center, color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold)
+  Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+   InboxAction(l10n.t("inbox.refresh"), Modifier.weight(1f), !busy) { load() }
+   InboxAction(l10n.t("inbox.clearAll"), Modifier.weight(1f), !busy && visibleAnnouncements(rows,state).isNotEmpty()) { clearThrough=rows.maxByOrNull { it.published_at };confirm=true }
+  }
   if(busy)CircularProgressIndicator()
   if(error.isNotEmpty())Text(error,color=Color(0xFFFFB4AB))
-  undo?.let { id->OutlinedButton(onClick={change("restore",id)},enabled=!busy){Text(l10n.t("inbox.undo"))} }
-  if(!busy&&displayed.isEmpty())Text(l10n.t("inbox.empty"),color=Color.White)
-  displayed.forEach { row->
-   Card(colors=CardDefaults.cardColors(containerColor=SanctuaryCard),shape=RoundedCornerShape(24.dp),border=BorderStroke(1.dp,SanctuaryCardBorder)) {
-    Column(Modifier.padding(18.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
-     TextButton(onClick={expanded=if(expanded==row.id)null else row.id;change("read",row.id)},enabled=!busy){Row(Modifier.fillMaxWidth()){Text((if(row.id !in state.readIds)"• " else "")+row.title,color=Color.White,fontSize=20.sp,modifier=Modifier.weight(1f));Text(if(expanded==row.id)"⌃" else "⌄",color=Color.White,fontSize=20.sp)}}
-     Text(java.text.DateFormat.getDateInstance().format(java.util.Date(row.published_at.toLong())),color=Color.LightGray)
-     Text(row.body,color=Color.White,maxLines=if(expanded==row.id)Int.MAX_VALUE else 3)
-     Row {
-      OutlinedButton(onClick={change("read",row.id) { if(isSanctuaryNotificationLink(row.destination,BuildConfig.ENVIRONMENT))onOpen(row.destination) }},enabled=!busy){Text(l10n.t("inbox.open"))}
-      Spacer(Modifier.weight(1f));TextButton(onClick={forcedID=null;change("clear",row.id)},enabled=!busy){Text(l10n.t("inbox.clear"))}
+  undo?.let { id -> InboxAction(l10n.t("inbox.undo"), enabled = !busy) { change("restore",id) } }
+  if(!busy && displayed.isEmpty())Text(l10n.t("inbox.empty"),color=Color.White,modifier=Modifier.fillMaxWidth().padding(20.dp),textAlign=TextAlign.Center)
+  displayed.forEach { row ->
+   Card(modifier=Modifier.fillMaxWidth(),colors=CardDefaults.cardColors(containerColor=SanctuaryCard),shape=RoundedCornerShape(24.dp),border=BorderStroke(1.dp,Color(0x997CC7DE))) {
+    Column(Modifier.padding(20.dp),verticalArrangement=Arrangement.spacedBy(14.dp)) {
+     Text(row.title,color=Color.White,fontSize=20.sp,fontWeight=FontWeight.Bold)
+     Text(java.text.DateFormat.getDateInstance().format(java.util.Date(row.published_at.toLong())),color=Color(0xFFB8CCD6),fontSize=14.sp)
+     Text(row.body,color=Color.White,fontSize=17.sp,lineHeight=24.sp)
+     HorizontalDivider(color=Color(0x667CC7DE))
+     Row(horizontalArrangement=Arrangement.spacedBy(12.dp)) {
+      if(announcementHasContentLink(row.destination)) {
+       InboxAction(l10n.t("inbox.open"),Modifier.weight(1f),!busy,primary=true) { onOpen(row.destination) }
+      }
+      InboxAction(l10n.t("inbox.clear"),Modifier.weight(1f),!busy) { forcedID=null;change("clear",row.id) }
      }
     }
    }
   }
-  if(more)OutlinedButton(onClick={load(page+1)},enabled=!busy){Text(l10n.t("inbox.more"))}
+  if(more)InboxAction(l10n.t("inbox.more"),enabled=!busy){load(page+1)}
  }
+ }
+
  if(confirm)AlertDialog(onDismissRequest={confirm=false},title={Text(l10n.t("inbox.confirmClear"))},confirmButton={TextButton(onClick={confirm=false;forcedID=null;change("clearAll")}){Text(l10n.t("inbox.clearAll"))}},dismissButton={TextButton(onClick={confirm=false}){Text(l10n.t("common.cancel"))}})
+}
+
+internal fun announcementHasContentLink(value: String): Boolean = runCatching {
+ val uri = java.net.URI(value)
+ val parts = uri.path.trim('/').split('/')
+ uri.scheme == "https" && (uri.host == "mydailysanctuary.com" || (BuildConfig.ENVIRONMENT == "dev" && uri.host == "dev.mydailysanctuary.com")) && parts.size == 2 && parts[0] in listOf("saints", "prayers", "novenas") && parts[1].isNotBlank()
+}.getOrDefault(false)
+
+@Composable
+private fun InboxAction(title: String, modifier: Modifier = Modifier, enabled: Boolean = true, primary: Boolean = false, action: () -> Unit) {
+ OutlinedButton(onClick=action,enabled=enabled,modifier=modifier.fillMaxWidth().heightIn(min=48.dp).background(Brush.linearGradient(if(primary)listOf(Color(0xFF3E9FC1),Color(0xFF195E78)) else listOf(Color(0xFF2A4153),Color(0xFF2A4153))),RoundedCornerShape(20.dp)),shape=RoundedCornerShape(20.dp),border=BorderStroke(1.dp,Color(0x997CC7DE)),colors=ButtonDefaults.outlinedButtonColors(containerColor=Color.Transparent,contentColor=Color.White)) {
+  Text(title,fontSize=16.sp,fontWeight=FontWeight.SemiBold)
+ }
 }

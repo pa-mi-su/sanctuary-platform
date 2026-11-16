@@ -7,6 +7,8 @@ struct HomeView: View {
     @EnvironmentObject private var accountStore: AccountSessionStore
     @StateObject private var inbox = AnnouncementInboxStore()
     @State private var showInbox = false
+    @State private var showMenu = false
+    @State private var menuDestination: String?
     @State private var showSettings = false
     @State private var inboxDestination: URL?
     @State private var revealContent = false
@@ -86,12 +88,8 @@ struct HomeView: View {
                     ScrollView(showsIndicators: false) {
                         VStack(spacing: 16 * scale) {
                             HStack(spacing: 10 * scale) {
-                                Menu {
-                                    Button(localization.t("settings.title")) { showSettings=true }
-                                    Button(localization.t("home.about")) { showAbout=true }
-                                } label: { Label(localization.t("menu.title"),systemImage:"line.3.horizontal").frame(maxWidth:.infinity).padding(14).appGlassCard(cornerRadius:18) }
-                                Spacer()
-                                TopActionButton(title: localization.t("inbox.title") + (inbox.unread ? " •" : ""), icon: "bell") { showInbox=true }
+                                TopActionButton(title: localization.t("menu.title") + (inbox.unread ? " •" : ""), icon: "line.3.horizontal") { showMenu = true }
+
                             }
                             .padding(.top, 8 * scale)
                             .opacity(revealContent ? 1 : 0)
@@ -184,6 +182,24 @@ struct HomeView: View {
             .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in Task { await inbox.load(api:environment.apiClient,token:await accountStore.authorizationToken()) } }
             .onReceive(NotificationCenter.default.publisher(for: .announcementInboxChanged)) { _ in Task { await inbox.load(api:environment.apiClient,token:await accountStore.authorizationToken()) } }
             .task(id: accountStore.profile?.userID) { await inbox.load(api: environment.apiClient, token: await accountStore.authorizationToken()) }
+            .sheet(isPresented: $showMenu, onDismiss: {
+                let destination = menuDestination; menuDestination = nil
+                if destination == "inbox" { showInbox = true }
+                if destination == "settings" { showSettings = true }
+                if destination == "about" { showAbout = true }
+            }) {
+                ZStack {
+                    AppBackdrop()
+                    ScrollView {
+                        VStack(spacing: 12) {
+                            Text(localization.t("menu.title")).font(AppTheme.rounded(24, weight: .bold)).foregroundStyle(.white).frame(maxWidth: .infinity, alignment: .leading)
+                            NavigationCardButton(title: localization.t("inbox.title") + (inbox.unread ? " •" : ""), icon: "bell") { menuDestination = "inbox"; showMenu = false }
+                            NavigationCardButton(title: localization.t("settings.title"), icon: "gearshape") { menuDestination = "settings"; showMenu = false }
+                            NavigationCardButton(title: localization.t("home.about"), icon: "info.circle") { menuDestination = "about"; showMenu = false }
+                        }.padding(18).padding(.top, 10)
+                    }
+                }.presentationDetents([.height(340), .large]).presentationDragIndicator(.visible)
+            }
             .sheet(isPresented: $showSettings) { MeView(environment:environment,settingsMode:true) }
             .sheet(isPresented: $showInbox, onDismiss: {
                 if let destination=inboxDestination { PushNotifications.shared.destination=destination; inboxDestination=nil }

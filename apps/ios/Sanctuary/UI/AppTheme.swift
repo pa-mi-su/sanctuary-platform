@@ -232,3 +232,27 @@ struct TopActionButton: View {
         .buttonStyle(.plain)
     }
 }
+
+/// Shared, clearly bounded navigation action used by Menu and Me.
+struct NavigationCardButton: View {
+    let title: String
+    let icon: String
+    var subtitle: String? = nil
+    let action: () -> Void
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 14) {
+                Image(systemName: icon).font(.system(size: 25)).foregroundStyle(AppTheme.tabActive)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title).font(AppTheme.rounded(18, weight: .semibold)).foregroundStyle(.white)
+                    if let subtitle { Text(subtitle).font(AppTheme.rounded(15, weight: .medium)).foregroundStyle(AppTheme.subtitleText) }
+                }
+                Spacer(minLength: 8)
+                Image(systemName: "chevron.right").foregroundStyle(AppTheme.tabActive)
+            }
+            .padding(18).frame(maxWidth: .infinity, minHeight: 64, alignment: .leading)
+            .background(AppTheme.cardBackground).clipShape(RoundedRectangle(cornerRadius: 20))
+            .overlay(RoundedRectangle(cornerRadius: 20).stroke(AppTheme.purpleOutline.opacity(0.6), lineWidth: 1))
+        }.buttonStyle(.plain)
+    }
+}
