@@ -68,7 +68,28 @@ struct AnnouncementChange: Encodable {
         items = []
         undoID = nil
         if let token {
-          let loaded = try await api.announcementState(token: token)
+          // Claim guest receipts for this identity before I/O; another account cannot inherit a failed transfer.
+          let parts = token.split(separator: ".")
+          var payload = parts.count > 1 ? String(parts[1]).replacingOccurrences(of: "-", with: "+").replacingOccurrences(of: "_", with: "/") : ""
+          payload += String(repeating: "=", count: (4 - payload.count % 4) % 4)
+          let subject = Data(base64Encoded: payload).flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }?["sub"] as? String
+          guard let subject else { throw URLError(.userAuthenticationRequired) }
+          let pending = key + "-pending-" + subject
+          if let fresh = UserDefaults.standard.data(forKey: key), let guest = try? JSONDecoder().decode(AnnouncementInboxState.self, from: fresh) {
+            var combined = UserDefaults.standard.data(forKey: pending).flatMap { try? JSONDecoder().decode(AnnouncementInboxState.self, from: $0) } ?? AnnouncementInboxState()
+            combined.readIds = Array(Set(combined.readIds + guest.readIds))
+            combined.clearedIds = Array(Set(combined.clearedIds + guest.clearedIds))
+            combined.clearedBefore = max(combined.clearedBefore, guest.clearedBefore)
+            UserDefaults.standard.set(try JSONEncoder().encode(combined), forKey: pending)
+            UserDefaults.standard.removeObject(forKey: key)
+          }
+          let guest = UserDefaults.standard.data(forKey: pending).flatMap { try? JSONDecoder().decode(AnnouncementInboxState.self, from: $0) }
+          let loaded: AnnouncementInboxState
+          if let guest, !guest.readIds.isEmpty || !guest.clearedIds.isEmpty || guest.clearedBefore > 0 {
+            loaded = try await api.mergeGuestAnnouncements(guest, token: token)
+            guard request == generation else { return }
+            UserDefaults.standard.removeObject(forKey: pending)
+          } else { loaded = try await api.announcementState(token: token) }
           guard request == generation else { return }
           state = loaded
         } else {

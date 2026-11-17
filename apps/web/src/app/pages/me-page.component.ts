@@ -1,3 +1,4 @@
+import { AccountRemindersComponent } from './account-reminders.component';
 import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output } from '@angular/core';
 
 import { UserProfile } from '../core/api/sanctuary-api.service';
@@ -8,10 +9,12 @@ type AppLanguage = 'en' | 'es' | 'pl';
 @Component({
   selector: 'app-me-page',
   standalone: true,
+  imports: [AccountRemindersComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './me-page.component.scss',
   template: `
     <section class="screen-card me-screen glass-card">
+      @if (settingsMode) {
       <div class="me-header">
         <div class="identity-block">
           <p class="eyebrow">{{ t('Signed in', 'Sesión iniciada', 'Zalogowano') }}</p>
@@ -50,7 +53,9 @@ type AppLanguage = 'en' | 'es' | 'pl';
         </div>
       </div>
 
+      }
       @if (!settingsMode) {
+        <app-account-reminders [currentLanguage]="currentLanguage" />
         <button class="settings-action" type="button" (click)="settings.emit()">
           {{ t('Account settings', 'Ajustes de cuenta', 'Ustawienia konta') }}
         </button>
@@ -271,38 +276,6 @@ type AppLanguage = 'en' | 'es' | 'pl';
           {{ t('Sign out', 'Cerrar sesión', 'Wyloguj') }}
         </button>
         <section class="detail-grid">
-          <article class="panel-card glass-subtle profile-card">
-            <div class="panel-heading">
-              <div>
-                <h3>{{ t('Profile', 'Perfil', 'Profil') }}</h3>
-                <p>
-                  {{
-                    t(
-                      'Identity details that make your Sanctuary account feel human.',
-                      'Detalles de identidad que hacen que tu cuenta de Sanctuary se sienta humana.',
-                      'Szczegóły tożsamości, dzięki którym konto Sanctuary jest naprawdę twoje.'
-                    )
-                  }}
-                </p>
-              </div>
-            </div>
-
-            <dl class="info-list">
-              <div>
-                <dt>{{ t('Name', 'Nombre', 'Imię i nazwisko') }}</dt>
-                <dd>
-                  {{
-                    userName || t('Sanctuary member', 'Miembro de Sanctuary', 'Członek Sanctuary')
-                  }}
-                </dd>
-              </div>
-              <div>
-                <dt>{{ t('Email', 'Correo', 'Email') }}</dt>
-                <dd>{{ profile?.email ?? '—' }}</dd>
-              </div>
-            </dl>
-          </article>
-
           <article class="panel-card glass-subtle danger-card">
             <div class="panel-heading">
               <div>

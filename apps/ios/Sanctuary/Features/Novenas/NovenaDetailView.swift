@@ -18,7 +18,7 @@ struct NovenaDetailView: View {
     @EnvironmentObject private var progressStore: UserProgressStore
 
     @State private var selectedDay = 1
-    @State private var isFavorite = false
+    private var isFavorite: Bool { progressStore.isFavorite(itemType: .novena, itemID: effectiveNovena.id) }
     @State private var hydratedNovena: Novena?
     @State private var showCompletionModal = false
     @State private var isShowingAccountRequired = false
@@ -135,9 +135,9 @@ struct NovenaDetailView: View {
                             Button {
                                 if progressStore.isAuthenticated {
                                     Task {
-                                        isFavorite.toggle()
-                                        await progressStore.setFavorite(isFavorite, itemType: .novena, itemID: effectiveNovena.id)
-                                        isFavorite = progressStore.isFavorite(itemType: .novena, itemID: effectiveNovena.id)
+
+                                        await progressStore.setFavorite(!isFavorite, itemType: .novena, itemID: effectiveNovena.id)
+
                                     }
                                 } else {
                                     pendingAccountAction = .favorite
@@ -339,6 +339,7 @@ struct NovenaDetailView: View {
                                     novenaID: effectiveNovena.id,
                                     totalDays: total
                                 )
+                                guard progressStore.actionError == nil else { return }
                                 if justCompletedFinalDay {
                                     selectedDay = total
                                     showCompletionModal = true
@@ -350,7 +351,7 @@ struct NovenaDetailView: View {
                             }
                         }
                         .buttonStyle(PrimaryPillButtonStyle())
-                        .disabled(latestCommitment?.status == .completed)
+                        .disabled(latestCommitment?.status == .completed || progressStore.completingDays.contains(effectiveNovena.id))
                         .padding(.top, 4)
                     }
                 }
@@ -371,7 +372,7 @@ struct NovenaDetailView: View {
                 switch pendingAccountAction {
                 case .favorite:
                     await progressStore.setFavorite(true, itemType: .novena, itemID: effectiveNovena.id)
-                    isFavorite = progressStore.isFavorite(itemType: .novena, itemID: effectiveNovena.id)
+
                 case .start:
                     await progressStore.startNovena(novenaID: effectiveNovena.id)
                     selectedDay = 1
@@ -384,8 +385,14 @@ struct NovenaDetailView: View {
                 pendingAccountAction = nil
             }
         )
+        .onChange(of: currentCommitment?.currentDay) { day in
+            if let day { selectedDay = min(max(1, day), max(1, effectiveNovena.durationDays)) }
+        }
+        .alert("Sanctuary", isPresented: Binding(get: { progressStore.actionError != nil }, set: { if !$0 { progressStore.actionError = nil } })) {
+            Button("OK") { progressStore.actionError = nil }
+        } message: { Text(localization.t(progressStore.actionError ?? "")) }
         .onAppear {
-            isFavorite = progressStore.isFavorite(itemType: .novena, itemID: novena.id)
+
             if let day = currentCommitment?.currentDay {
                 selectedDay = min(max(1, day), max(1, effectiveNovena.durationDays))
             }

@@ -8,7 +8,7 @@ import { SanctuaryAuthService } from '../core/auth/sanctuary-auth.service';
 describe('Account form lifecycle', () => {
   const auth = {
     state: signal({ status: 'anonymous', message: null }),
-    forgotPassword: vi.fn(), register: vi.fn(), login: vi.fn(),
+    forgotPassword: vi.fn(), register: vi.fn(), login: vi.fn(), confirmRegistration: vi.fn(),
   };
   beforeEach(() => {
     vi.resetAllMocks();
@@ -96,4 +96,30 @@ describe('Account form lifecycle', () => {
     expect(form.resetCode).toBe('');
     expect(form.resetPassword).toBe('');
   });
+  it('signs in automatically after verification without persisting the registration password', async () => {
+    auth.register.mockResolvedValue({ email: 'synthetic@sanctuary.invalid' });
+    auth.confirmRegistration.mockResolvedValue('Confirmed');
+    auth.login.mockImplementation(async () => { auth.state.set({ status: 'authenticated', message: null }); });
+    const { form } = setup('register');
+    form.registerFirstName = 'Test'; form.registerLastName = 'Account';
+    form.registerEmail = 'synthetic@sanctuary.invalid';
+    form.registerPassword = form.registerPasswordConfirmation = 'Synthetic-password-123';
+    await form.submitRegister();
+    expect(form.step()).toBe('confirm');
+    expect(form.registerPassword).toBe('Synthetic-password-123');
+    expect(form.registerPasswordConfirmation).toBe('');
+    form.confirmationCode = '123456';
+    await form.submitConfirmation();
+    expect(auth.login).toHaveBeenCalledWith({email: 'synthetic@sanctuary.invalid', password: 'Synthetic-password-123'});
+    expect(form.registerPassword).toBe('');
+  });
+  it('drops the temporary registration password when verification is abandoned', async () => {
+    auth.register.mockResolvedValue({ email: 'synthetic@sanctuary.invalid' });
+    const { form } = setup('register');
+    form.registerFirstName = 'Test'; form.registerLastName = 'Account'; form.registerEmail = 'synthetic@sanctuary.invalid';
+    form.registerPassword = form.registerPasswordConfirmation = 'Synthetic-password-123';
+    await form.submitRegister(); form.goBack();
+    expect(form.registerPassword).toBe(''); expect(auth.login).not.toHaveBeenCalled();
+  });
+
 });

@@ -33,6 +33,17 @@ public class AnnouncementInboxController {
   var before=db.queryForList("SELECT (extract(epoch from cleared_before)*1000) FROM announcement_inbox_preferences WHERE user_id=?",Double.class,user);
   return Map.of("readIds",read,"clearedIds",clear,"clearedBefore",before.isEmpty()||before.getFirst()==null?0:before.getFirst());
  }
+ public record GuestState(List<UUID> readIds,List<UUID> clearedIds,double clearedBefore){}
+ @PostMapping("/me/announcements/guest") @Transactional
+ public Object mergeGuest(@AuthenticationPrincipal Jwt jwt,@RequestBody GuestState guest){
+  UUID user=user(jwt);
+  if(guest==null||guest.readIds()==null||guest.clearedIds()==null||guest.readIds().stream().anyMatch(Objects::isNull)||guest.clearedIds().stream().anyMatch(Objects::isNull)||guest.readIds().size()>10000||guest.clearedIds().size()>10000||!Double.isFinite(guest.clearedBefore())||guest.clearedBefore()<0||guest.clearedBefore()>System.currentTimeMillis())
+   throw new AuthFlowException(HttpStatus.BAD_REQUEST,"Invalid inbox state");
+  for(UUID id:guest.readIds()) db.update("INSERT INTO announcement_receipts(user_id,announcement_id,read_at) SELECT ?,id,now() FROM announcements WHERE id=? ON CONFLICT(user_id,announcement_id) DO UPDATE SET read_at=COALESCE(announcement_receipts.read_at,excluded.read_at)",user,id);
+  for(UUID id:guest.clearedIds()) db.update("INSERT INTO announcement_receipts(user_id,announcement_id,cleared_at) SELECT ?,id,now() FROM announcements WHERE id=? ON CONFLICT(user_id,announcement_id) DO UPDATE SET cleared_at=COALESCE(announcement_receipts.cleared_at,excluded.cleared_at)",user,id);
+  if(guest.clearedBefore()>0) db.update("INSERT INTO announcement_inbox_preferences(user_id,cleared_before)VALUES(?,to_timestamp(?/1000.0)) ON CONFLICT(user_id)DO UPDATE SET cleared_before=GREATEST(announcement_inbox_preferences.cleared_before,excluded.cleared_before)",user,guest.clearedBefore());
+  return state(jwt);
+ }
  public record Change(String action,List<UUID> ids,UUID throughId){}
  @PostMapping("/me/announcements") @Transactional public Object change(@AuthenticationPrincipal Jwt jwt,@RequestBody Change change){
   UUID user=user(jwt);

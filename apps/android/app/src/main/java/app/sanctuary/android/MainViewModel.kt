@@ -100,6 +100,7 @@ data class NovenaProgressUiState(
     val commitments: List<UserNovenaCommitment> = emptyList(),
     val favorites: List<UserFavorite> = emptyList(),
     val pendingNovenaStarts: Set<String> = emptySet(),
+    val pendingNovenaCompletions: Set<String> = emptySet(),
     val saintNames: Map<String, String> = emptyMap(),
     val saintSlugs: Map<String, String> = emptyMap(),
     val novenaTitles: Map<String, String> = emptyMap(),
@@ -910,6 +911,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
 
+        val owner = _session.value.profile?.userId
+        val revision = progressRevision
         _novenaProgress.update { it.copy(isLoading = true, error = null) }
         viewModelScope.launch {
             runCatching { repository.listNovenaCommitments() }
@@ -947,11 +950,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                                 activeCommitmentCount = activeCommitmentCount
                             )
 
+                            if (_session.value.profile?.userId != owner) return@onSuccess
+                            if (progressRevision != revision) { _novenaProgress.update { it.copy(isLoading=false) }; return@onSuccess }
                             val existing = _novenaProgress.value
                             _novenaProgress.value = NovenaProgressUiState(
                                 commitments = commitments,
                                 favorites = favorites,
                                 pendingNovenaStarts = existing.pendingNovenaStarts,
+                                pendingNovenaCompletions = existing.pendingNovenaCompletions,
                                 saintNames = existing.saintNames + saintNames,
                                 saintSlugs = existing.saintSlugs + saintSlugs,
                                 novenaTitles = existing.novenaTitles + novenaDetails.mapNotNull { (id, detail) -> detail?.let { id to it.title } }.toMap(),
@@ -966,6 +972,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                                 commitments = commitments,
                                 favorites = existing.favorites,
                                 pendingNovenaStarts = existing.pendingNovenaStarts,
+                                pendingNovenaCompletions = existing.pendingNovenaCompletions,
                                 saintNames = existing.saintNames,
                                 saintSlugs = existing.saintSlugs,
                                 novenaTitles = existing.novenaTitles,
@@ -982,6 +989,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         commitments = existing.commitments,
                         favorites = existing.favorites,
                         pendingNovenaStarts = existing.pendingNovenaStarts,
+                                pendingNovenaCompletions = existing.pendingNovenaCompletions,
                         saintNames = existing.saintNames,
                         saintSlugs = existing.saintSlugs,
                         novenaTitles = existing.novenaTitles,
@@ -1000,6 +1008,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (!pendingNovenaStarts.add(novenaId)) {
             return
         }
+        progressRevision++
         val previousProgress = _novenaProgress.value
         val previousProfile = _session.value.profile
         val wasAlreadyActive = previousProgress.commitments.any {
@@ -1067,6 +1076,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (!pendingNovenaStops.add(novenaId)) {
             return
         }
+        progressRevision++
         val previousProgress = _novenaProgress.value
         val previousProfile = _session.value.profile
         val hadActiveCommitment = previousProgress.commitments.any {
@@ -1097,14 +1107,29 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    private var progressRevision = 0
+    private val completingDays = mutableSetOf<String>()
     fun completeNovenaDay(novenaId: String, totalDays: Int) {
+        if (_session.value.status != SessionStatus.Authenticated || !completingDays.add(novenaId)) return
+        progressRevision++
+        val owner = _session.value.profile?.userId
+        val current = _novenaProgress.value.commitments.firstOrNull { it.novenaId == novenaId && it.status == CommitmentStatus.Active }
+        if (current == null) { completingDays.remove(novenaId); return }
+        val end = current.currentDay >= maxOf(1, totalDays)
+        val optimistic = current.copy(currentDay = if (end) maxOf(1, totalDays) else current.currentDay + 1,
+            completedDays = (current.completedDays + current.currentDay).distinct().sorted(),
+            status = if (end) CommitmentStatus.Completed else CommitmentStatus.Active)
+        _novenaProgress.update { it.copy(commitments = it.commitments.map { row -> if (row.novenaId == novenaId) optimistic else row }, pendingNovenaCompletions = it.pendingNovenaCompletions + novenaId, error = null) }
         viewModelScope.launch {
-            runCatching { repository.completeCurrentNovenaDay(novenaId, totalDays) }
-                .onSuccess {
-                    refreshNovenaProgress()
-                }.onFailure { failure ->
-                    _novenaProgress.update { it.copy(error = failure.message) }
-                }
+            try {
+                val saved = repository.completeCurrentNovenaDay(novenaId, totalDays, current)
+                if (_session.value.profile?.userId == owner) _novenaProgress.update { it.copy(commitments = it.commitments.map { row -> if (row.novenaId == novenaId) saved else row }) }
+            } catch (failure: Exception) {
+                if (_session.value.profile?.userId == owner) _novenaProgress.update { it.copy(commitments = it.commitments.map { row -> if (row.novenaId == novenaId) current else row }, error = failure.message) }
+            } finally {
+                completingDays.remove(novenaId)
+                if (_session.value.profile?.userId == owner) _novenaProgress.update { it.copy(pendingNovenaCompletions = it.pendingNovenaCompletions - novenaId) }
+            }
         }
     }
 
@@ -1120,6 +1145,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (!pendingFavoriteToggles.add(mutationKey)) {
             return
         }
+        progressRevision++
         val previousProgress = _novenaProgress.value
         val previousProfile = _session.value.profile
         val currentlyFavorite = previousProgress.favorites.any { it.itemType == itemType && it.itemId == itemId }

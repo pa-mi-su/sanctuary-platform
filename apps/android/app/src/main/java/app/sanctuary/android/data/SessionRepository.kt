@@ -44,6 +44,7 @@ class SessionRepository(
         loadProfile(stored)
     }
 
+    suspend fun mergeGuestAnnouncements(state: AnnouncementState): AnnouncementState = authenticatedCall { it.mergeGuestAnnouncements(state) }
     suspend fun announcementState(): AnnouncementState = authenticatedCall { it.announcementState() }
     suspend fun changeAnnouncements(change: AnnouncementChange): AnnouncementState = authenticatedCall { it.changeAnnouncements(change) }
 
@@ -383,9 +384,10 @@ class SessionRepository(
 
     suspend fun completeCurrentNovenaDay(
         novenaId: String,
-        totalDays: Int
+        totalDays: Int,
+        known: UserNovenaCommitment? = null
     ): UserNovenaCommitment = withContext(Dispatchers.IO) {
-        val existing = listNovenaCommitments()
+        val existing = known ?: listNovenaCommitments()
             .firstOrNull { it.novenaId == novenaId && it.status == CommitmentStatus.Active }
             ?: throw SanctuaryApiException("No active novena was found to update.")
 

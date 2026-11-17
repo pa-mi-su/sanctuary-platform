@@ -633,7 +633,7 @@ export class AuthPageComponent implements OnDestroy {
       this.confirmationEmail = result.email;
       this.confirmationCode = '';
       this.message.set(this.t('Your account is almost ready. Enter the confirmation code we emailed you.', 'Tu cuenta casi está lista. Ingresa el código de confirmación que te enviamos por correo.', 'Twoje konto jest prawie gotowe. Wpisz kod potwierdzający wysłany e-mailem.'));
-      this.clearSecrets();
+      this.clearSecrets(true);
       this.step.set('confirm');
     } catch {
       if (this.destroyed || generation !== this.formGeneration) return;
@@ -864,8 +864,9 @@ export class AuthPageComponent implements OnDestroy {
     this.clearForm();
   }
 
-  private clearSecrets(): void {
-    this.loginPassword = this.registerPassword = this.registerPasswordConfirmation = '';
+  private clearSecrets(preserveRegistration = false): void {
+    this.loginPassword = this.registerPasswordConfirmation = '';
+    if (!preserveRegistration) this.registerPassword = '';
     this.confirmationCode = this.resetCode = this.resetPassword = this.resetPasswordConfirmation = '';
     this.showLoginPassword = this.showRegisterPassword = this.showRegisterPasswordConfirmation = false;
     this.showResetPassword = this.showResetPasswordConfirmation = false;

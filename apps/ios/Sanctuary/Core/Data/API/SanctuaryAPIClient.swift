@@ -344,6 +344,9 @@ actor SanctuaryAPIClient {
     func announcements(page: Int = 0) async throws -> AnnouncementFeed {
         try await performRequest(path: "/announcements?page=\(page)", method: "GET", body: Optional<String>.none, token: nil)
     }
+    func mergeGuestAnnouncements(_ state: AnnouncementInboxState, token: String) async throws -> AnnouncementInboxState {
+        try await performRequest(path: "/me/announcements/guest", method: "POST", body: state, token: token)
+    }
     func announcementState(token: String) async throws -> AnnouncementInboxState {
         try await performRequest(path: "/me/announcements", method: "GET", body: Optional<String>.none, token: token)
     }
