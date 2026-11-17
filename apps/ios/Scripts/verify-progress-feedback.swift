@@ -7,18 +7,20 @@ actor NovenaReminderScheduler {
 }
 actor ProgressRepositoryDouble: UserProgressRepository {
     var calls = 0
+    var upserts = 0
     var fail = false
     let initial = UserNovenaCommitment(userID: "first", novenaID: "novena", startedAt: Date(), currentDay: 4,
         completedDays: [1,2,3], reminder: ReminderConfig(enabled: false, morningHour: nil, eveningHour: nil, timeZoneID: "UTC"), status: .active, updatedAt: Date())
     func setFailure() { fail = true }
     func clearFailure() { fail = false }
     func count() -> Int { calls }
+    func upsertCount() -> Int { upserts }
     func listFavorites(userID: String) async throws -> [UserFavorite] { [] }
     func addFavorite(userID: String, itemType: FavoriteItemType, itemID: String) async throws {}
     func removeFavorite(userID: String, itemType: FavoriteItemType, itemID: String) async throws {}
     func listNovenaCommitments(userID: String) async throws -> [UserNovenaCommitment] { userID == "first" ? [initial] : [] }
-    func upsertNovenaCommitment(_ commitment: UserNovenaCommitment) async throws {}
-    func removeNovenaCommitment(userID: String, novenaID: String) async throws {}
+    func upsertNovenaCommitment(_ commitment: UserNovenaCommitment) async throws { upserts += 1 }
+    func removeNovenaCommitment(userID: String, novenaID: String) async throws { try await Task.sleep(nanoseconds:200_000_000) }
     func completeNovenaDay(userID: String, novenaID: String, day: Int, completedAt: Date) async throws -> UserNovenaCommitment {
         calls += 1
         try await Task.sleep(nanoseconds: 200_000_000)
@@ -54,6 +56,16 @@ actor ProgressRepositoryDouble: UserProgressRepository {
         await store.completeCurrentDay(novenaID:"novena",totalDays:4)
         precondition(store.commitments.first?.status == .completed, "Final day must complete the novena")
         precondition(store.actionError == nil, "Successful retry must clear the old error")
+        await store.setAuthenticatedUser(id:"second")
+        await store.setAuthenticatedUser(id:"first")
+        let beforeStop = await repository.upsertCount()
+        let stop = Task { await store.stopNovena(novenaID:"novena") }
+        try? await Task.sleep(nanoseconds:30_000_000)
+        precondition(store.activeCommitment(for:"novena") == nil, "Stop must update immediately")
+        await store.startNovena(novenaID:"novena")
+        await stop.value
+        let afterStop = await repository.upsertCount()
+        precondition(beforeStop == afterStop, "Start must not race an in-flight stop")
         print("Progress feedback: immediate update, double-tap protection, rollback and account isolation passed")
     }
 }

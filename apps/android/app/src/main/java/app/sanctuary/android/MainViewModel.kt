@@ -1005,7 +1005,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun startNovena(novenaId: String) {
         if (_session.value.status != SessionStatus.Authenticated) return
-        if (!pendingNovenaStarts.add(novenaId)) {
+        if (novenaId in pendingNovenaStops || novenaId in completingDays || !pendingNovenaStarts.add(novenaId)) {
             return
         }
         progressRevision++
@@ -1073,7 +1073,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun stopNovena(novenaId: String) {
         if (_session.value.status != SessionStatus.Authenticated) return
-        if (!pendingNovenaStops.add(novenaId)) {
+        if (novenaId in pendingNovenaStarts || novenaId in completingDays || !pendingNovenaStops.add(novenaId)) {
             return
         }
         progressRevision++
@@ -1110,7 +1110,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private var progressRevision = 0
     private val completingDays = mutableSetOf<String>()
     fun completeNovenaDay(novenaId: String, totalDays: Int) {
-        if (_session.value.status != SessionStatus.Authenticated || !completingDays.add(novenaId)) return
+        if (_session.value.status != SessionStatus.Authenticated || novenaId in pendingNovenaStarts || novenaId in pendingNovenaStops || !completingDays.add(novenaId)) return
         progressRevision++
         val owner = _session.value.profile?.userId
         val current = _novenaProgress.value.commitments.firstOrNull { it.novenaId == novenaId && it.status == CommitmentStatus.Active }

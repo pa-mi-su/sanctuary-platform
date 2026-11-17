@@ -268,6 +268,7 @@ struct NovenaDetailView: View {
                             }
                         }
                         .buttonStyle(SecondaryPillButtonStyle())
+                        .disabled(progressStore.novenaMutations.contains(effectiveNovena.id) || progressStore.completingDays.contains(effectiveNovena.id))
                         .padding(.top, 4)
                     } else if canStartNovena {
                         Button(localization.t("novena.start")) {
@@ -277,6 +278,7 @@ struct NovenaDetailView: View {
                             }
                         }
                         .buttonStyle(PrimaryPillButtonStyle())
+                        .disabled(progressStore.novenaMutations.contains(effectiveNovena.id))
                         .padding(.top, 4)
                     }
 

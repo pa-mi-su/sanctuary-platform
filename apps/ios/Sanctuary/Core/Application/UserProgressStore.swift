@@ -15,6 +15,7 @@ final class UserProgressStore: ObservableObject {
     private var isRefreshing = false
     @Published private(set) var completingDays: Set<String> = []
     private var favoriteUpdates: Set<String> = []
+    @Published private(set) var novenaMutations: Set<String> = []
     @Published var actionError: String?
 
     init(
@@ -161,7 +162,9 @@ final class UserProgressStore: ObservableObject {
     }
 
     func startNovena(novenaID: String) async {
-        guard let userID else { return }
+        guard let userID, !novenaMutations.contains(novenaID), !completingDays.contains(novenaID) else { return }
+        novenaMutations.insert(novenaID)
+        defer { novenaMutations.remove(novenaID) }
         guard !commitments.contains(where: {
             $0.novenaID == novenaID && ($0.status == .active || $0.status == .completed)
         }) else { return }
@@ -193,7 +196,7 @@ final class UserProgressStore: ObservableObject {
     }
 
     func completeCurrentDay(novenaID: String, totalDays: Int) async {
-        guard let userID, !completingDays.contains(novenaID), let current = activeCommitment(for: novenaID) else { return }
+        guard let userID, !completingDays.contains(novenaID), !novenaMutations.contains(novenaID), let current = activeCommitment(for: novenaID) else { return }
         revision += 1
         completingDays.insert(novenaID)
         defer { completingDays.remove(novenaID) }
@@ -218,7 +221,9 @@ final class UserProgressStore: ObservableObject {
     }
 
     func stopNovena(novenaID: String) async {
-        guard let userID, let previous = activeCommitment(for: novenaID) else { return }
+        guard let userID, !novenaMutations.contains(novenaID), !completingDays.contains(novenaID), let previous = activeCommitment(for: novenaID) else { return }
+        novenaMutations.insert(novenaID)
+        defer { novenaMutations.remove(novenaID) }
         revision += 1
         actionError = nil
         commitments.removeAll { $0.novenaID == novenaID }
