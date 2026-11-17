@@ -157,6 +157,8 @@ jobs:
 
       - name: Verify reminder clock and native calendar behavior
         run: |
+          xcrun swiftc apps/ios/Sanctuary/Core/Domain/AnnouncementConsent.swift apps/ios/Scripts/verify-announcement-consent.swift -o "${RUNNER_TEMP}/verify-announcement-consent"
+          "${RUNNER_TEMP}/verify-announcement-consent"
           xcrun swiftc apps/ios/Sanctuary/Core/Domain/AccountContentReminder.swift apps/ios/Sanctuary/Core/Domain/AccountSession.swift apps/ios/Scripts/verify-reminder-clock.swift -o "${RUNNER_TEMP}/verify-reminder-clock"
           "${RUNNER_TEMP}/verify-reminder-clock"
           xcrun swiftc apps/ios/Sanctuary/Core/Domain/Entities.swift apps/ios/Sanctuary/Core/Domain/RepositoryProtocols.swift apps/ios/Sanctuary/Core/Application/UserProgressStore.swift apps/ios/Scripts/verify-progress-feedback.swift -o "${RUNNER_TEMP}/verify-progress-feedback"

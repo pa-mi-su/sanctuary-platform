@@ -68,26 +68,38 @@ import { AdminInputComponent } from './admin-input.component';
         <p>Sending is disabled in this environment. You can still prepare and preview a message.</p>
       }
       <form (ngSubmit)="review()">
-        <label class="check"
-          ><input
-            type="checkbox"
-            name="publish"
-            [(ngModel)]="publishToInbox"
-            (ngModelChange)="invalidate()"
-          />
-          Publish in Announcements (visible to everyone; test messages are never published)</label
-        >
-        <label class="check"
-          ><input
-            type="checkbox"
-            name="alert"
-            [(ngModel)]="sendPush"
-            (ngModelChange)="deliveryChanged()"
-          />
-          Also send a phone alert</label
-        >
+        <div class="actions" role="group" aria-label="Message type">
+          <button
+            type="button"
+            [attr.aria-pressed]="audience !== 'test'"
+            (click)="setTestMode(false)"
+          >
+            Announcement
+          </button>
+          <button
+            type="button"
+            [attr.aria-pressed]="audience === 'test'"
+            (click)="setTestMode(true)"
+          >
+            Test phone alert
+          </button>
+        </div>
         @if (audience === 'test') {
-          <p>Owner test only: this will not appear in anyone’s Announcements inbox.</p>
+          <p>Only your chosen device receives this test. It is not published in Announcements.</p>
+        } @else {
+          <p>
+            Every announcement is published in the app inbox for everyone, including people without
+            phone alerts.
+          </p>
+          <label class="check"
+            ><input
+              type="checkbox"
+              name="alert"
+              [(ngModel)]="sendPush"
+              (ngModelChange)="deliveryChanged()"
+            />
+            Also notify phones</label
+          >
         }
         <admin-input
           #composerTitle
@@ -126,7 +138,9 @@ import { AdminInputComponent } from './admin-input.component';
               [(ngModel)]="audience"
               (ngModelChange)="invalidate()"
             >
-              <option value="test">Send test to my device</option>
+              @if (audience === 'test') {
+                <option value="test">My test device only</option>
+              }
               <option value="all">All opted-in devices</option>
               <option value="members">Signed-in users</option>
               <option value="guests">Signed-out devices (including unregistered people)</option>
@@ -409,13 +423,15 @@ export class AdminMessagesComponent implements OnInit, OnDestroy {
   @ViewChild('composerTitle') composerTitle?: AdminInputComponent;
   enabled = false;
   withdrawId: string | null = null;
-  publishToInbox = true;
+  get publishToInbox() {
+    return this.audience !== 'test';
+  }
   sendPush = true;
   title = '';
   body = '';
   kind = 'home';
   contentId = '';
-  audience = 'test';
+  audience = 'all';
   testDevice = '';
   query = '';
   choices: any[] = [];
@@ -491,13 +507,12 @@ export class AdminMessagesComponent implements OnInit, OnDestroy {
     return 'Submission recorded';
   }
   private resetComposer() {
-    this.publishToInbox = true;
     this.sendPush = true;
     this.title = '';
     this.body = '';
     this.kind = 'home';
     this.contentId = '';
-    this.audience = 'test';
+    this.audience = 'all';
     this.testDevice = '';
     this.query = '';
     this.choices = [];
@@ -517,7 +532,7 @@ export class AdminMessagesComponent implements OnInit, OnDestroy {
       contentId: this.contentId,
       audience: this.audience,
       testDevice: this.testDevice || null,
-      publishToInbox: this.publishToInbox && this.audience !== 'test',
+      publishToInbox: this.audience !== 'test',
       sendPush: this.sendPush,
     };
   }
@@ -608,10 +623,15 @@ export class AdminMessagesComponent implements OnInit, OnDestroy {
       void this.load(0);
     });
   }
+  setTestMode(test: boolean) {
+    this.audience = test ? 'test' : 'all';
+    this.sendPush = true;
+    this.testDevice = '';
+    this.invalidate();
+  }
   deliveryChanged() {
     if (!this.sendPush) {
       this.audience = 'all';
-      this.publishToInbox = true;
     }
     this.invalidate();
   }

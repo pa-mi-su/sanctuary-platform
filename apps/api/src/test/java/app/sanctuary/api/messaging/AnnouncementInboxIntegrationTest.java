@@ -24,13 +24,13 @@ class AnnouncementInboxIntegrationTest {
   UUID id=publish();assertEquals(1,feed().size());assertEquals(0,db.queryForObject("SELECT count(*) FROM push_deliveries",Integer.class));
   var entry=(Map<?,?>)inbox.detail(id);assertEquals("Full announcement text",entry.get("body"));assertEquals("https://dev.mydailysanctuary.com/",entry.get("destination"));verify(gateway,never()).send(anyString(),anyString(),anyString(),anyString(),anyString());
  }
- @Test void legacyAlertsAndTestsNeverBecomePublicAnnouncements(){
+ @Test void ordinaryAlertsAlwaysPublishButOwnerTestsStayPrivate(){
   UUID user=UUID.randomUUID(),device=UUID.randomUUID();String sub=UUID.randomUUID().toString();
   db.update("INSERT INTO users(id,cognito_sub,email,last_sign_in_at)VALUES(?,?,'pmsulikowski@icloud.com',now())",user,sub);
   db.update("INSERT INTO admin_user_directory(cognito_sub,email,email_verified,enabled,status,sync_id,registered_at)VALUES(?,'pmsulikowski@icloud.com',true,true,'CONFIRMED',?,now())",sub,UUID.randomUUID());
   db.update("INSERT INTO push_devices(id,user_id,installation_id,token,platform,app_version,enabled)VALUES(?,?,?,'synthetic-inbox-token','ios','test',true)",device,user,UUID.randomUUID());when(gateway.enabled()).thenReturn(true);
   for(var d:List.of(new PushMessages.Draft("Legacy","Message","home",null,"all",null),new PushMessages.Draft("Test","Private test","home",null,"test",device,true,true))){var p=(Map<?,?>)messages.preview(d);tx.execute(s->messages.send("owner",new PushMessages.Send(UUID.randomUUID(),d,p.get("recipientVersion").toString())));}
-  assertTrue(feed().isEmpty());assertEquals(2,db.queryForObject("SELECT count(*) FROM push_deliveries",Integer.class));
+  assertEquals(1,feed().size());assertEquals(2,db.queryForObject("SELECT count(*) FROM push_deliveries",Integer.class));
  }
  @Test void publishedAlertsOpenTheAnnouncementWhileItsContentLinkStaysStable(){
   UUID user=UUID.randomUUID();db.update("INSERT INTO users(id,cognito_sub,last_sign_in_at)VALUES(?,?,now())",user,UUID.randomUUID().toString());

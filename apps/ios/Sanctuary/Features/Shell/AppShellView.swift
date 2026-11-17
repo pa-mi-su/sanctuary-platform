@@ -121,6 +121,20 @@ struct AppShellView: View {
                 openSharedContent(url)
             }
         }
+        .sheet(isPresented: Binding(get: { push.needsInvitation && !showAnnouncement && sharedContentLink == nil }, set: { _ in })) {
+            VStack(spacing: 24) {
+                Image(systemName: "bell.badge.fill").font(.system(size: 44)).foregroundStyle(AppTheme.tabActive)
+                Text(localization.t("alerts.invitation.title")).font(AppTheme.rounded(28, weight: .bold)).multilineTextAlignment(.center)
+                Text(localization.t("alerts.invitation.body")).font(AppTheme.rounded(17, weight: .medium)).multilineTextAlignment(.center)
+                Button(localization.t("alerts.invitation.enable")) {
+                    Task { await push.setEnabled(true); await accountStore.syncPushDevice() }
+                }.buttonStyle(PrimaryPillButtonStyle())
+                Button(localization.t("alerts.invitation.later")) { push.declineInvitation() }.buttonStyle(SecondaryPillButtonStyle())
+                if let problem = push.registrationProblem { Text(problem).font(.footnote) }
+            }.padding(28).frame(maxWidth: .infinity, maxHeight: .infinity)
+                .foregroundStyle(.white).background(AppTheme.cardBackground)
+                .interactiveDismissDisabled().presentationDetents([.medium, .large])
+        }
         .sheet(isPresented: $showAnnouncement, onDismiss: {
             if let url=announcementDestination { announcementDestination=nil;openSharedContent(url) }
         }) {

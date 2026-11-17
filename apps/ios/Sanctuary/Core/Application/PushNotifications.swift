@@ -4,6 +4,7 @@ import FirebaseCore
 import FirebaseMessaging
 import UIKit
 import UserNotifications
+import OSLog
 
 @MainActor
 final class PushNotifications: ObservableObject {
@@ -11,13 +12,37 @@ final class PushNotifications: ObservableObject {
     @Published var destination: URL?
     @Published var registrationStatus = ""
     private let credentialStore = KeychainStore(service: "sanctuary.push." + (Bundle.main.bundleIdentifier ?? "app"))
-    @Published var enabled = UserDefaults.standard.bool(forKey: "sanctuary.announcements")
+    @Published private(set) var enabled = false
+    @Published private(set) var needsInvitation = false
+    @Published var registrationProblem: String?
+    private let consent: AnnouncementConsent
+    private static let logger = Logger(subsystem: "app.sanctuary.push", category: "registration")
+    private init() {
+        let store = KeychainStore(service: "sanctuary.push." + (Bundle.main.bundleIdentifier ?? "app"))
+        consent = AnnouncementConsent(defaults: .standard, backup: try? store.load(account: "announcement-consent")) {
+            try store.save($0, for: "announcement-consent")
+        }
+        enabled = consent.choice == true
+        needsInvitation = consent.needsInvitation
+    }
+    func declineInvitation() {
+        do { try consent.choose(false); enabled = false; needsInvitation = false }
+        catch { registrationProblem = "Your notification choice could not be saved. Please try again." }
+    }
     static let tokenChanged = Notification.Name("sanctuary.pushTokenChanged")
     private let defaults = UserDefaults.standard
     var installationID: String {
-        if let id = defaults.string(forKey: "sanctuary.installation") { return id }
+        if let id = defaults.string(forKey: "sanctuary.installation") {
+            try? credentialStore.save(Data(id.utf8), for: "installation-id")
+            return id
+        }
+        if let data = try? credentialStore.load(account: "installation-id"), let id = String(data: data, encoding: .utf8) {
+            defaults.set(id, forKey: "sanctuary.installation")
+            return id
+        }
         let id = UUID().uuidString
         defaults.set(id, forKey: "sanctuary.installation")
+        try? credentialStore.save(Data(id.utf8), for: "installation-id")
         return id
     }
     private func installationSecret() throws -> String {
@@ -28,7 +53,8 @@ final class PushNotifications: ObservableObject {
     }
     func resetConsent() {
         enabled = false
-        defaults.set(false, forKey: "sanctuary.announcements")
+        try? consent.choose(false)
+        needsInvitation = false
         defaults.set(false, forKey: "sanctuary.pushRegistered")
         if FirebaseApp.app() != nil { Messaging.messaging().deleteToken { _ in } }
     }
@@ -39,11 +65,20 @@ final class PushNotifications: ObservableObject {
             if allowed { UIApplication.shared.registerForRemoteNotifications() }
         }
         if value { defaults.set(true, forKey: "sanctuary.badgeAuthorizationRequested") }
-        enabled = allowed
-        defaults.set(allowed, forKey: "sanctuary.announcements")
+        do {
+            try consent.choose(allowed)
+            enabled = allowed
+            needsInvitation = false
+            registrationProblem = value && !allowed ? "Allow notifications in phone settings to receive Sanctuary alerts." : nil
+        } catch {
+            enabled = consent.choice == true
+            registrationProblem = "Your notification choice could not be saved. Please try again."
+        }
     }
     func sync(api: SanctuaryAPIClient, token: String?) async {
-        let revision = defaults.integer(forKey: "sanctuary.pushRevision") + 1
+        let savedRevision = (try? credentialStore.load(account: "registration-revision")).flatMap { String(data: $0, encoding: .utf8) }.flatMap(Int.init) ?? 0
+        let revision = max(defaults.integer(forKey: "sanctuary.pushRevision"), savedRevision) + 1
+        try? credentialStore.save(Data(String(revision).utf8), for: "registration-revision")
         defaults.set(revision, forKey: "sanctuary.pushRevision")
         if !enabled && !defaults.bool(forKey: "sanctuary.pushRegistered") { registrationStatus = "Announcements are off."; return }
         guard FirebaseApp.app() != nil else { registrationStatus = "Notification configuration is unavailable."; return }
@@ -66,7 +101,14 @@ final class PushNotifications: ObservableObject {
             try await api.registerPushDevice(request: .init(installationId: installationID, token: fcm, platform: "ios", appVersion: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "unknown", enabled: consent, installationSecret: try installationSecret(), revision: revision), token: token)
             defaults.set(true, forKey: "sanctuary.pushRegistered")
             registrationStatus = consent ? "Announcements enabled" + (token == nil ? " · no account required" : "") : "Announcements are off."
-        } catch { registrationStatus = "Could not sync notifications. Try again with an internet connection." }
+            registrationProblem = enabled && !authorized ? "Allow notifications in phone settings to receive Sanctuary alerts." : nil
+        } catch {
+            registrationStatus = "Could not sync notifications. Try again with an internet connection."
+            registrationProblem = "Alerts could not connect. We’ll try again automatically when you return to the app."
+            let status: Int
+            if case SanctuaryAPIError.serverStatus(let code, _) = error { status = code } else { status = 0 }
+            Self.logger.error("Push registration failed: \(String(describing: type(of: error)), privacy: .public) status=\(status)")
+        }
     }
     // The icon badge represents unacknowledged delivered phone alerts, not the inbox total.
     // Only remote announcements are removed; scheduled and delivered local reminders stay intact.

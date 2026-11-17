@@ -152,6 +152,23 @@ class PushMessagingIntegrationTest {
         db.update("UPDATE push_deliveries SET state='sending',updated_at=now()-interval '11 minutes'");new PushDispatcher(db,gateway).dispatch();
         verify(gateway,never()).send(anyString(),anyString(),anyString(),anyString(),anyString());assertEquals("unknown",db.queryForObject("SELECT state FROM push_deliveries",String.class));
     }
+    @Test void lostInstallationIdRecoversOnlyWithMatchingCredentialAndToken() {
+        var registry=new PushInstallationRegistry(db);
+        String secret="a".repeat(64), token="synthetic-recovery-token-long";
+        UUID original=UUID.randomUUID(), recovered=UUID.randomUUID();
+        transaction.execute(s->registry.register(new PushDevicesController.Device(original,token,"ios","1.0.32",true,secret,100L),null,true));
+        UUID stableId=db.queryForObject("SELECT id FROM push_devices WHERE installation_id=?",UUID.class,original);
+        assertThrows(RuntimeException.class,()->transaction.execute(s->registry.register(new PushDevicesController.Device(recovered,token,"ios","1.0.33",true,"b".repeat(64),1L),null,true)));
+        assertEquals(original,db.queryForObject("SELECT installation_id FROM push_devices WHERE id=?",UUID.class,stableId));
+        transaction.execute(s->registry.register(new PushDevicesController.Device(recovered,token,"ios","1.0.33",true,secret,1L),null,true));
+        assertEquals(1,db.queryForObject("SELECT count(*) FROM push_devices",Integer.class));
+        assertEquals(recovered,db.queryForObject("SELECT installation_id FROM push_devices WHERE id=?",UUID.class,stableId));
+        assertEquals("1.0.33",db.queryForObject("SELECT app_version FROM push_devices WHERE id=?",String.class,stableId));
+        assertEquals(1L,db.queryForObject("SELECT registration_version FROM push_devices WHERE id=?",Long.class,stableId));
+        transaction.execute(s->registry.register(new PushDevicesController.Device(recovered,token,"ios","1.0.33",false,secret,2L),null,true));
+        assertFalse(db.queryForObject("SELECT enabled FROM push_devices WHERE id=?",Boolean.class,stableId));
+    }
+
     @Test void clearingHistoryPreservesPendingSendsNewerEntriesAndIdempotency() {
         device("ios",true); var draft=draft("all");
         UUID old=UUID.randomUUID(), pending=UUID.randomUUID(), newer=UUID.randomUUID();
@@ -161,6 +178,8 @@ class PushMessagingIntegrationTest {
         db.update("UPDATE push_messages SET created_at='2026-01-01T00:00:00Z' WHERE id=?",pending);
         db.update("UPDATE push_messages SET created_at='2026-01-03T00:00:00Z' WHERE id=?",newer);
         db.update("UPDATE push_deliveries SET state='accepted' WHERE message_id IN (?,?)",old,newer);
+        assertEquals(0,((Map<?,?>)transaction.execute(s->messages.clearHistory(new PushMessages.ClearHistory(old)))).get("cleared"));
+        transaction.execute(s->messages.withdraw(old));
         var result=(Map<?,?>)transaction.execute(s->messages.clearHistory(new PushMessages.ClearHistory(old)));
         assertEquals(1,result.get("cleared"));
         assertNotNull(db.queryForObject("SELECT history_cleared_at FROM push_messages WHERE id=?",java.sql.Timestamp.class,old));

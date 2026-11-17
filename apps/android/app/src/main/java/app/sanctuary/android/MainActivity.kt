@@ -165,6 +165,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.material3.SheetValue
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.core.content.ContextCompat
 import coil3.compose.AsyncImage
@@ -443,6 +444,7 @@ private fun SanctuaryApp(viewModel: MainViewModel) {
                 .fillMaxSize()
         ) {
             SanctuaryBackdrop()
+            if (!session.isBootstrapping) AnnouncementInvitation(onSync = viewModel::syncPushDevice)
             if (session.isBootstrapping && session.status == SessionStatus.Loading && session.session == null) {
                 BrandedLaunchScreen()
             } else {
@@ -5512,12 +5514,45 @@ private fun headerTitle(mode: CalendarMode, anchor: LocalDate, language: AppLang
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AnnouncementInvitation(onSync: () -> Unit) {
+    val context = LocalContext.current
+    val strings = sanctuaryStrings()
+    var visible by remember { mutableStateOf(AndroidPushNotifications.consent(context).needsInvitation) }
+    val problem by AndroidPushNotifications.registrationProblem.collectAsState()
+    val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (AndroidPushNotifications.setEnabled(context, granted)) { visible = false; onSync() }
+    }
+    if (visible) ModalBottomSheet(
+        onDismissRequest = {},
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true, confirmValueChange = { it != SheetValue.Hidden }),
+        containerColor = Color(0xFF102738), contentColor = Color.White
+    ) {
+        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(28.dp),
+            horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(24.dp)) {
+            Icon(Icons.Filled.NotificationsNone, contentDescription = null, tint = SanctuaryTabActive, modifier = Modifier.size(44.dp))
+            Text(strings.t("alerts.invitation.title"), fontSize = 28.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+            Text(strings.t("alerts.invitation.body"), fontSize = 17.sp, textAlign = TextAlign.Center, color = SanctuaryTabInactive)
+            Button(modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp), onClick = {
+                if (Build.VERSION.SDK_INT >= 33 && !AndroidPushNotifications.allowed(context)) permission.launch(Manifest.permission.POST_NOTIFICATIONS)
+                else if (AndroidPushNotifications.setEnabled(context, true)) { visible = false; onSync() }
+            }) { Text(strings.t("alerts.invitation.enable")) }
+            OutlinedButton(modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp), onClick = {
+                if (AndroidPushNotifications.setEnabled(context, false)) visible = false
+            }) { Text(strings.t("alerts.invitation.later")) }
+            problem?.let { Text(it, fontSize = 14.sp) }
+        }
+    }
+}
+
 @Composable
 private fun AnnouncementPreference() {
     val l10n = sanctuaryStrings()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var enabled by remember { mutableStateOf(AndroidPushNotifications.enabled(context)) }
+    val registrationProblem by AndroidPushNotifications.registrationProblem.collectAsState()
     fun sync() {
         scope.launch {
             runCatching { AndroidPushNotifications.sync(context, app.sanctuary.android.data.SessionRepository(context, app.sanctuary.android.data.SanctuaryApiFactory.create { null })) }
@@ -5542,6 +5577,7 @@ private fun AnnouncementPreference() {
                 sync()
             }
         })
+        registrationProblem?.let { Text(it, color = SanctuaryTabInactive, fontSize = 14.sp) }
         NotificationActionCard(
             title = l10n.t("notifications.settings"), subtitle = l10n.t("notifications.settingsBody"),
             icon = Icons.Filled.OpenInNew, trailingIcon = Icons.Filled.OpenInNew
