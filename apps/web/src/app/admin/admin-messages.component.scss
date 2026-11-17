@@ -251,3 +251,13 @@ article {
     padding: 1rem;
   }
 }
+
+[role='group'][aria-label='Message type'] {
+  margin-block: 1rem;
+  button[aria-pressed='true'] {
+    border-color: #e5c476;
+    background: #e5c476;
+    color: #193240;
+    font-weight: 800;
+  }
+}

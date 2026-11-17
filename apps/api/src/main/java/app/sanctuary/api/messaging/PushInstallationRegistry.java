@@ -32,7 +32,15 @@ public class PushInstallationRegistry {
             db.update("DELETE FROM push_devices WHERE user_id IS NULL AND updated_at<now()-interval '60 days'");
             if(db.queryForObject("SELECT count(*) FROM push_devices WHERE user_id IS NULL",Integer.class)>=10000)throw new AuthFlowException(HttpStatus.SERVICE_UNAVAILABLE,"New registrations are temporarily unavailable.");
         }
-        if(Boolean.TRUE.equals(db.queryForObject("SELECT EXISTS(SELECT 1 FROM push_devices WHERE token=? AND installation_id<>?)",Boolean.class,device.token(),device.installationId())))throw new AuthFlowException(HttpStatus.CONFLICT,"This device token belongs to another installation. Refresh notification registration.");
+        var duplicate=db.queryForList("SELECT id,installation_secret_hash FROM push_devices WHERE token=? AND installation_id<>? FOR UPDATE",device.token(),device.installationId());
+        if(!duplicate.isEmpty()) {
+            var stored=duplicate.getFirst().get("installation_secret_hash");
+            // Recover a lost local ID only with the original secret AND token. Never trust a token alone.
+            if(!rows.isEmpty() || stored==null || secret==null || !MessageDigest.isEqual(stored.toString().getBytes(StandardCharsets.UTF_8),hash(secret).getBytes(StandardCharsets.UTF_8)))
+                throw new AuthFlowException(HttpStatus.CONFLICT,"This device token belongs to another installation. Refresh notification registration.");
+            // Keep the internal device ID and delivery history. A recovered local revision starts afresh.
+            db.update("UPDATE push_devices SET installation_id=?,registration_version=0 WHERE id=?",device.installationId(),duplicate.getFirst().get("id"));
+        }
         db.update("""
             INSERT INTO push_devices(user_id,installation_id,installation_secret_hash,token,platform,app_version,enabled,registration_version)VALUES(?,?,?,?,?,?,?,?)
             ON CONFLICT(installation_id)DO UPDATE SET user_id=excluded.user_id,

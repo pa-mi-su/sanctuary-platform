@@ -24,7 +24,7 @@ public class PushMessages {
     public record Draft(String title,String body,String kind,String contentId,String audience,UUID testDevice,Boolean publishToInbox,Boolean sendPush) {
         public Draft(String title,String body,String kind,String contentId,String audience,UUID testDevice){this(title,body,kind,contentId,audience,testDevice,false,true);}
     }
-    boolean publishes(Draft d){return d!=null && Boolean.TRUE.equals(d.publishToInbox()) && !"test".equals(d.audience());}
+    boolean publishes(Draft d){return d!=null && !"test".equals(d.audience());}
     boolean alerts(Draft d){return d==null || !Boolean.FALSE.equals(d.sendPush());}
     public record Send(UUID id, Draft draft,String recipientVersion) {}
     static AuthFlowException bad(String text) { return new AuthFlowException(HttpStatus.BAD_REQUEST,text); }

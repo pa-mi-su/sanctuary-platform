@@ -218,6 +218,9 @@ struct MeView: View {
                         Task { await push.setEnabled(value); await accountStore.syncPushDevice() }
                     })
                 )
+                if let problem = push.registrationProblem {
+                    Text(problem).font(AppTheme.rounded(14, weight: .medium)).foregroundStyle(AppTheme.subtitleText)
+                }
                 notificationActionCard(
                     title: localization.t("notifications.settings"),
                     subtitle: localization.t("notifications.settingsBody"),

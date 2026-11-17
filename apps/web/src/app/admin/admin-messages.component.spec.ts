@@ -49,8 +49,20 @@ describe('Admin messaging', () => {
     fixture.destroy();
   });
 
-  it('defaults to owner test only and invalidates review after editing', async () => {
-    expect(component.audience).toBe('test');
+  it('switches between public announcements and private device tests with a fresh review', () => {
+    component.preview = { recipientVersion: 'old' };
+    component.confirmed = true;
+    component.setTestMode(true);
+    expect(component.draft().publishToInbox).toBe(false);
+    expect(component.draft().sendPush).toBe(true);
+    expect(component.preview).toBeNull();
+    expect(component.confirmed).toBe(false);
+    component.setTestMode(false);
+    expect(component.draft().publishToInbox).toBe(true);
+    expect(component.audience).toBe('all');
+  });
+  it('defaults to an inbox announcement and invalidates review after editing', async () => {
+    expect(component.audience).toBe('all');
     component.title = 'Prayer';
     component.body = 'Take a moment';
     component.testDevice = 'device';
@@ -154,7 +166,7 @@ describe('Admin messaging', () => {
     expect(component.title).toBe('');
     expect(component.body).toBe('');
     expect(component.kind).toBe('home');
-    expect(component.audience).toBe('test');
+    expect(component.audience).toBe('all');
     expect(component.testDevice).toBe('');
     expect(component.contentId).toBe('');
     expect(component.query).toBe('');
@@ -338,6 +350,7 @@ describe('Admin messaging', () => {
     fixture.destroy();
   });
   it('publishes without a phone alert and never publishes an owner test', async () => {
+    component.setTestMode(true);
     expect(component.draft().publishToInbox).toBe(false);
     component.sendPush = false;
     component.deliveryChanged();

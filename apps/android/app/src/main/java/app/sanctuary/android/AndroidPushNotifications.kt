@@ -24,11 +24,35 @@ import kotlinx.coroutines.tasks.await
 
 object AndroidPushNotifications {
     private fun preferences(context: Context) = context.getSharedPreferences("sanctuary_push", Context.MODE_PRIVATE)
-    fun enabled(context: Context) = preferences(context).getBoolean("announcements", false)
-    fun setEnabled(context: Context, enabled: Boolean) { preferences(context).edit().putBoolean("announcements", enabled).apply() }
+    val registrationProblem = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
+    private fun recovery(context: Context) = context.getSharedPreferences("sanctuary_announcement_choice", Context.MODE_PRIVATE)
+    fun consent(context: Context): AnnouncementConsent {
+        val main = preferences(context); val backup = recovery(context)
+        val result = AnnouncementConsent.restore(
+            if (main.contains("announcements")) main.getBoolean("announcements", false) else null,
+            if (backup.contains("announcements")) backup.getBoolean("announcements", false) else null)
+        result.choice?.let {
+            if (!main.contains("announcements")) main.edit().putBoolean("announcements", it).commit()
+            if (!backup.contains("announcements")) backup.edit().putBoolean("announcements", it).commit()
+        }
+        return result
+    }
+    fun enabled(context: Context) = consent(context).enabled
+    fun setEnabled(context: Context, enabled: Boolean): Boolean = try {
+        if (!enabled) check(preferences(context).edit().putBoolean("announcements", false).commit())
+        check(recovery(context).edit().putBoolean("announcements", enabled).commit())
+        check(preferences(context).edit().putBoolean("announcements", enabled).commit())
+        true
+    } catch (error: Exception) {
+        registrationProblem.value = "Your notification choice could not be saved. Please try again."
+        false
+    }
     @Synchronized fun installation(context: Context): String {
         val prefs = preferences(context)
-        return prefs.getString("installation", null) ?: UUID.randomUUID().toString().also { check(prefs.edit().putString("installation", it).commit()) }
+        val id = prefs.getString("installation", null) ?: recovery(context).getString("installation", null) ?: UUID.randomUUID().toString()
+        check(recovery(context).edit().putString("installation", id).commit())
+        check(prefs.edit().putString("installation", id).commit())
+        return id
     }
     fun allowed(context: Context): Boolean =
         (Build.VERSION.SDK_INT < 33 || ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) &&
@@ -56,22 +80,35 @@ object AndroidPushNotifications {
         return store.getString("secret",null) ?: (UUID.randomUUID().toString().replace("-","")+UUID.randomUUID().toString().replace("-","")).also { store.edit().putString("secret",it).commit() }
     }
     @Synchronized private fun nextRevision(context: Context): Long {
-        val store=preferences(context);val revision=store.getLong("revision",0)+1
-        store.edit().putLong("revision",revision).commit();return revision
+        val store=preferences(context);val revision=maxOf(store.getLong("revision",0),recovery(context).getLong("revision",0))+1
+        check(recovery(context).edit().putLong("revision",revision).commit())
+        check(store.edit().putLong("revision",revision).commit());return revision
     }
     suspend fun sync(context: Context, repository: SessionRepository) {
+        try { syncRegistration(context, repository)
+            registrationProblem.value = if (enabled(context) && !allowed(context)) "Allow notifications in phone settings to receive Sanctuary alerts." else null
+        } catch (cancelled: CancellationException) { throw cancelled }
+        catch (error: Exception) {
+            registrationProblem.value = "Alerts could not connect. We’ll try again automatically when you return to the app."
+            android.util.Log.w("SanctuaryPush", "Registration failed: " + error.javaClass.simpleName + " status=" + ((error as? SanctuaryApiException)?.statusCode ?: 0))
+            throw error
+        }
+    }
+    private suspend fun syncRegistration(context: Context, repository: SessionRepository) {
         // Play pre-launch crawlers must not become real announcement subscribers.
         if (android.provider.Settings.System.getString(context.contentResolver, "firebase.test.lab") == "true") return
         val revision=nextRevision(context)
-        if (!enabled(context) && !preferences(context).getBoolean("registered",false)) return
+        if (!enabled(context) && !preferences(context).getBoolean("registered",false) && !recovery(context).getBoolean("registered",false)) return
         channel(context)
         val token = FirebaseMessaging.getInstance().token.await()
         repository.registerPushDevice(PushDeviceRequest(installation(context),token,"android",BuildConfig.VERSION_NAME,enabled(context) && allowed(context),secret(context),revision))
-        preferences(context).edit().putBoolean("registered",true).apply()
+        check(recovery(context).edit().putBoolean("registered",true).commit())
+        check(preferences(context).edit().putBoolean("registered",true).commit())
     }
     fun forget(context: Context) {
         setEnabled(context,false)
-        preferences(context).edit().putBoolean("registered",false).apply()
+        preferences(context).edit().putBoolean("registered",false).commit()
+        recovery(context).edit().putBoolean("registered",false).commit()
         FirebaseMessaging.getInstance().deleteToken()
     }
     fun show(context: Context, message: RemoteMessage) {
