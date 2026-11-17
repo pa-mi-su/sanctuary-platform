@@ -8,7 +8,6 @@ struct MeView: View {
     @State private var showSettings = false
     @State private var settingsSection: String?
     @State private var showInbox = false
-    @State private var showAbout = false
     @StateObject private var inbox = AnnouncementInboxStore()
     @State private var showLanguagePicker = false
     @ObservedObject private var push = PushNotifications.shared
@@ -36,23 +35,27 @@ struct MeView: View {
                             PushNotifications.shared.destination = url
                         }.toolbar(.hidden, for: .tabBar).toolbar(.hidden, for: .navigationBar)
                     }
-                    .navigationDestination(isPresented: $showAbout) { AboutView().toolbar(.hidden, for: .tabBar).toolbar(.hidden, for: .navigationBar) }
                     .toolbar(.hidden, for: .navigationBar)
             }
         }
     }
 
+    private func settingsRowLabel(_ key: String, symbol: String = "chevron.right") -> some View {
+        HStack(spacing: 16) {
+            Text(localization.t(key)).font(AppTheme.rounded(18, weight: .semibold))
+                .multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 12)
+            Image(systemName: symbol).font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(AppTheme.tabActive)
+        }
+        .foregroundStyle(.white).padding(16).frame(maxWidth: .infinity, minHeight: 64, alignment: .leading)
+        .background(AppTheme.cardBackgroundSoft, in: RoundedRectangle(cornerRadius: 18))
+        .overlay(RoundedRectangle(cornerRadius: 18).stroke(AppTheme.tabBorder, lineWidth: 1))
+        .contentShape(RoundedRectangle(cornerRadius: 18))
+    }
+
     private func settingsRow(_ key: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            HStack {
-                Text(localization.t(key)).font(AppTheme.rounded(18, weight: .semibold))
-                Spacer()
-                Image(systemName: "chevron.right")
-            }
-            .foregroundStyle(.white).padding(16).frame(maxWidth: .infinity, minHeight: 56, alignment: .leading)
-            .background(AppTheme.cardBackgroundSoft, in: RoundedRectangle(cornerRadius: 18))
-            .overlay(RoundedRectangle(cornerRadius: 18).stroke(AppTheme.tabBorder, lineWidth: 1))
-        }.buttonStyle(.plain)
+        Button(action: action) { settingsRowLabel(key) }.buttonStyle(.plain)
     }
 
     private func headerAction(_ title: String, icon: String, unread: Bool = false, action: @escaping () -> Void) -> some View {
@@ -98,15 +101,24 @@ struct MeView: View {
                             case "settings.general":
                                 NavigationCardButton(title: localization.t("home.language") + " · " + localization.language.displayName, icon: "globe") { showLanguagePicker = true }
                             case "notifications.title": reminderPreferencesCard
-                            case "settings.support":
-                                Link(localization.t("about.link.emailSupport"), destination: URL(string: "mailto:info@mydailysanctuary.com")!).font(AppTheme.rounded(18, weight: .semibold)).padding(18).appGlassCard(cornerRadius: 20)
                             default:
-                                Link(localization.t("about.privacyTitle"), destination: URL(string: "https://mydailysanctuary.com/privacy")!).font(AppTheme.rounded(18, weight: .semibold)).padding(18).appGlassCard(cornerRadius: 20)
+                                Link(destination: URL(string: "mailto:info@mydailysanctuary.com")!) {
+                                    settingsRowLabel("about.link.emailSupport", symbol: "arrow.up.right")
+                                }.buttonStyle(.plain)
+                                NavigationLink { AboutDocumentView(destination: .support).toolbar(.hidden, for: .navigationBar) } label: {
+                                    settingsRowLabel("about.link.support")
+                                }.buttonStyle(.plain)
+                                NavigationLink { AboutDocumentView(destination: .privacy).toolbar(.hidden, for: .navigationBar) } label: {
+                                    settingsRowLabel("about.link.privacy")
+                                }.buttonStyle(.plain)
                             }
                         } else {
-                            ForEach(["settings.account", "settings.general", "notifications.title", "settings.support", "settings.legal"], id: \.self) { section in
+                            ForEach(["settings.account", "settings.general", "notifications.title", "settings.support"], id: \.self) { section in
                                 settingsRow(section) { settingsSection = section }
                             }
+                            NavigationLink { AboutView().toolbar(.hidden, for: .tabBar).toolbar(.hidden, for: .navigationBar) } label: {
+                                settingsRowLabel("home.about")
+                            }.buttonStyle(.plain)
                             Text(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "")
                                 .font(AppTheme.rounded(14, weight: .medium)).foregroundStyle(AppTheme.subtitleText).frame(maxWidth: .infinity).padding()
                         }
@@ -120,10 +132,8 @@ struct MeView: View {
                     } else {
                         AccountAccessView()
                     }
-                    if !settingsMode {
-                        NavigationCardButton(title: localization.t("home.about"), icon: "info.circle") { showAbout = true }
-                    }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(settingsMode ? 18 : 16)
                 .padding(.bottom, settingsMode ? 48 : 28)
             }
