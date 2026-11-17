@@ -126,13 +126,8 @@ struct AccountAccessView: View {
                 formBody
             }
 
-            VStack(alignment: .leading, spacing: 10) {
-                benefitLine(copy("Track novenas in progress", "Rastrea novenas en curso", "Śledź nowenny w toku"))
-                benefitLine(copy("Save favorite saints, novenas, and prayers", "Guarda santos, novenas y oraciones favoritas", "Zapisuj ulubionych świętych, nowenny i modlitwy"))
-                benefitLine(copy("Resume later on web, iOS, and Android", "Continúa luego en web, iOS y Android", "Wracaj później na web, iOS i Android"))
-            }
-            .padding(.top, 6)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(18)
         .appGlassCard(cornerRadius: 28)
         .onReceive(accountStore.$pendingConfirmationEmail) { newValue in

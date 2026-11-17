@@ -127,7 +127,7 @@ struct AboutView: View {
   }
 }
 
-private enum AboutDestination: Hashable {
+enum AboutDestination: Hashable {
   case support
   case privacy
 }
@@ -186,7 +186,7 @@ private struct AboutActionStyle: ButtonStyle {
   }
 }
 
-private struct AboutDocumentView: View {
+struct AboutDocumentView: View {
   let destination: AboutDestination
   @EnvironmentObject private var localization: LocalizationManager
   @Environment(\.dismiss) private var dismiss
@@ -213,7 +213,8 @@ private struct AboutDocumentView: View {
             .font(AppTheme.rounded(14, weight: .medium)).foregroundStyle(AppTheme.subtitleText)
             .frame(maxWidth: .infinity).padding(.top, 6)
         }
-        .padding(.horizontal, 24).padding(.top, 76).padding(.bottom, 48)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 18).padding(.top, 76).padding(.bottom, 48)
       }
       Button {
         dismiss()

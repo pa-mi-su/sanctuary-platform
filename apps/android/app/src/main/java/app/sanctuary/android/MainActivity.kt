@@ -1289,7 +1289,6 @@ private fun AuthenticatedShell(
                             )
                         }
                     }
-                    item { NavigationCardAction(sanctuaryStrings().t("home.about"), Icons.Filled.Info) { showAbout = true } }
                 }
             }
         }
@@ -1317,15 +1316,19 @@ private fun AuthenticatedShell(
                 ) {
                     item { Text(sanctuaryStrings().t(settingsSection ?: "settings.title"), fontSize = 32.sp, color = Color.White, fontWeight = FontWeight.Bold) }
                     if (settingsSection == null) {
-                        listOf("settings.account", "settings.general", "notifications.title", "settings.support", "settings.legal").forEach { section ->
-                            item { LinkedMeRow(title = sanctuaryStrings().t(section), subtitle = null) { settingsSection=section } }
+                        listOf("settings.account", "settings.general", "notifications.title", "settings.support").forEach { section ->
+                            item { SettingsNavigationRow(title = sanctuaryStrings().t(section)) { settingsSection=section } }
                         }
+                        item { SettingsNavigationRow(title = sanctuaryStrings().t("home.about")) { showAbout = true } }
                         item { Text(BuildConfig.VERSION_NAME, color=Color(0xFFBAD9E4), modifier=Modifier.fillMaxWidth(), textAlign=TextAlign.Center) }
                     } else when (settingsSection) {
                         "settings.general" -> item { LanguageSettingsButton(language = selectedLanguage, onClick = onShowLanguagePicker) }
                         "notifications.title" -> item { MeSectionCard(title = sanctuaryStrings().t("notifications.title")) { AnnouncementPreference() } }
-                        "settings.support" -> item { LinkedMeRow(title=sanctuaryStrings().t("about.link.emailSupport"),subtitle=null) { openSupportEmail() } }
-                        "settings.legal" -> item { LinkedMeRow(title=sanctuaryStrings().t("about.privacyTitle"),subtitle=null) { aboutDocument=AboutDocument.Privacy } }
+                        "settings.support", "settings.legal" -> {
+                            item { SettingsNavigationRow(sanctuaryStrings().t("about.emailSupport")) { openSupportEmail() } }
+                            item { SettingsNavigationRow(sanctuaryStrings().t("about.link.support")) { aboutDocument=AboutDocument.Support } }
+                            item { SettingsNavigationRow(sanctuaryStrings().t("about.link.privacy")) { aboutDocument=AboutDocument.Privacy } }
+                        }
                         "settings.account" -> item {
                             if (session.status == SessionStatus.Authenticated) MeScreen(session, novenaProgress, onOpenNovena, onOpenSaint, onOpenPrayer, onLogout, onDeleteAccount, settingsMode = true)
                             else LinkedMeRow(title=sanctuaryStrings().t("auth.login"),subtitle=null) { showSettings=false }
@@ -2242,6 +2245,20 @@ private fun ReminderToggleRow(
                 disabledUncheckedTrackColor = Color.White.copy(alpha = 0.10f)
             )
         )
+    }
+}
+
+@Composable
+private fun SettingsNavigationRow(title: String, onClick: () -> Unit) {
+    Card(onClick = onClick, modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp), border = BorderStroke(1.dp, SanctuaryCardBorder),
+        colors = CardDefaults.cardColors(containerColor = SanctuaryCardSoft)) {
+        Row(Modifier.fillMaxWidth().heightIn(min = 64.dp).padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            Text(title, Modifier.weight(1f), color = Color.White, fontSize = 18.sp,
+                fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Start)
+            Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = SanctuaryTabActive, modifier = Modifier.size(22.dp))
+        }
     }
 }
 
