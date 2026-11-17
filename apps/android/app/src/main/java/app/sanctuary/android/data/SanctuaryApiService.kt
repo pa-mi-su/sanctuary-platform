@@ -21,6 +21,9 @@ import java.util.concurrent.TimeUnit
 interface SanctuaryApiService {
     @GET("announcements/{id}") suspend fun announcement(@Path("id") id:String): InboxAnnouncement
     @GET("announcements") suspend fun announcements(@Query("page") page: Int = 0): AnnouncementFeed
+    @POST("me/announcements/guest")
+    suspend fun mergeGuestAnnouncements(@Body state: AnnouncementState): AnnouncementState
+
     @GET("me/announcements") suspend fun announcementState(): AnnouncementState
     @POST("me/announcements") suspend fun changeAnnouncements(@Body change: AnnouncementChange): AnnouncementState
 

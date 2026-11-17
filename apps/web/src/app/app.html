@@ -123,7 +123,7 @@
         [currentLanguage]="facade.language()"
         [isAuthenticated]="facade.isAuthenticated()"
         (navigate)="overlay.set(null); facade.handlePrimaryNavigate($event)"
-        (openSettings)="overlay.set('settings')"
+        (openSettings)="settingsSection.set(null); overlay.set('settings')"
         (openInbox)="requestedAnnouncement = ''; overlay.set('announcements')"
         [unread]="inbox.unread()"
         (selectLanguage)="facade.setLanguage($event)"
@@ -137,45 +137,22 @@
         />
       } @else if (overlay() === 'settings') {
         <section class="screen-card glass-card">
-          <h2>
-            {{
-              facade.language() === 'es'
-                ? 'Ajustes'
-                : facade.language() === 'pl'
-                  ? 'Ustawienia'
-                  : 'Settings'
-            }}
-          </h2>
-          <label
-            >Language / Idioma / Język
-            <select
-              [value]="facade.language()"
-              (change)="facade.setLanguage($any($event.target).value)"
-            >
-              <option value="en">English</option>
-              <option value="es">Español</option>
-              <option value="pl">Polski</option>
-            </select></label
-          >
-          <p>
-            {{
-              facade.language() === 'es'
-                ? 'Lee los anuncios aquí. Configura las alertas del teléfono en Ajustes de la app móvil.'
-                : facade.language() === 'pl'
-                  ? 'Czytaj ogłoszenia tutaj. Alertami telefonu zarządzasz w ustawieniach aplikacji mobilnej.'
-                  : 'Read announcements here. Manage phone alerts and device notification permissions in Settings in the mobile app.'
-            }}
-          </p>
-          <button type="button" (click)="overlay.set('announcements')">
-            {{
-              facade.language() === 'es'
-                ? 'Anuncios'
-                : facade.language() === 'pl'
-                  ? 'Ogłoszenia'
-                  : 'Announcements'
-            }}
-          </button>
+          <h2>{{ settingsLabel(settingsSection() || 'Settings') }}</h2>
+          @if (settingsSection()) { <button type="button" (click)="settingsSection.set(null)">← {{ settingsLabel('Settings') }}</button> }
+          @else {
+            @for (section of ['Account', 'General', 'Notifications', 'Contact & Support', 'Legal']; track section) {
+              <button class="settings-nav" type="button" (click)="settingsSection.set(section)">{{ settingsLabel(section) }} →</button>
+            }
+          }
+          @if (settingsSection() === 'General') {
+            <label>Language / Idioma / Język <select [value]="facade.language()" (change)="facade.setLanguage($any($event.target).value)"><option value="en">English</option><option value="es">Español</option><option value="pl">Polski</option></select></label>
+          }
+          @if (settingsSection() === 'Notifications') { <p>{{ settingsText('Phone notification permissions and announcement preferences are available in the mobile app’s Settings.', 'Los permisos y las preferencias de notificaciones están en los ajustes de la app móvil.', 'Uprawnienia i preferencje powiadomień znajdziesz w ustawieniach aplikacji mobilnej.') }}</p> }
+          @if (settingsSection() === 'Contact & Support') { <a href="mailto:info@mydailysanctuary.com">{{ settingsText('Contact Sanctuary', 'Contactar con Sanctuary', 'Kontakt z Sanctuary') }}</a> }
+          @if (settingsSection() === 'Legal') { <a href="/privacy">{{ settingsText('Privacy policy', 'Política de privacidad', 'Polityka prywatności') }}</a> }
         </section>
+        @if (settingsSection() === 'Account') {
+        @if (!facade.isAuthenticated()) { <button type="button" (click)="overlay.set(null); facade.openAuth()">{{ settingsText('Sign up or log in', 'Regístrate o inicia sesión', 'Zarejestruj się lub zaloguj') }}</button> }
         @if (facade.isAuthenticated()) {
           <app-me-page
             [settingsMode]="true"
@@ -188,6 +165,7 @@
             (logout)="facade.logout()"
             (deleteAccount)="facade.deleteAccount()"
           />
+        }
         }
       } @else {
         @if (facade.currentTab() === 'home') {
@@ -442,7 +420,7 @@
             [deleteAccountPending]="facade.deleteAccountPending()"
             [deleteAccountMessage]="facade.deleteAccountMessage()"
             [deleteAccountError]="facade.deleteAccountError()"
-            (settings)="overlay.set('settings')"
+            (settings)="settingsSection.set(null); overlay.set('settings')"
             (logout)="facade.logout()"
             (deleteAccount)="facade.deleteAccount()"
             (openActiveNovena)="facade.openMeActiveNovena($event)"

@@ -21,7 +21,7 @@ describe('Announcement inbox state', () => {
   let auth: any;
   beforeEach(() => {
     localStorage.removeItem(key);
-    auth = { state: signal({ status: 'anonymous' }) };
+    auth = { state: signal({ status: 'anonymous', email: null }) };
     TestBed.configureTestingModule({
       providers: [
         provideHttpClient(),
@@ -54,25 +54,31 @@ describe('Announcement inbox state', () => {
     expect(JSON.parse(localStorage.getItem(key)!).readIds).toEqual(['one']);
     http.expectNone(base + '/me/announcements');
   });
-  it('syncs signed-in receipts without replacing the separate guest state', async () => {
-    await initial();
-    await inbox.change('clear', 'one');
-    auth.state.set({ status: 'authenticated' });
-    TestBed.tick();
-    http
-      .expectOne(base + '/me/announcements')
-      .flush({ readIds: [], clearedIds: [], clearedBefore: 0 });
-    await settle();
-    http.expectOne(base + '/announcements?page=0').flush({ items: [row()], hasMore: false });
-    await settle();
+  it('transfers guest dismissals to the first account, not the next account', async () => {
+    await initial(); await inbox.change('clear', 'one');
+    auth.state.set({status:'authenticated',email:'first@sanctuary.invalid'}); TestBed.tick();
+    const merge = http.expectOne(base+'/me/announcements/guest');
+    expect(merge.request.body.clearedIds).toEqual(['one']);
+    merge.flush({readIds:[],clearedIds:['one'],clearedBefore:0}); await settle();
+    http.expectOne(base+'/announcements?page=0').flush({items:[row()],hasMore:false}); await settle();
+    expect(inbox.visible()).toHaveLength(0); expect(localStorage.getItem(key)).toBeNull();
+    auth.state.set({status:'authenticated',email:'second@sanctuary.invalid'}); TestBed.tick();
+    http.expectOne(base+'/me/announcements').flush({readIds:[],clearedIds:[],clearedBefore:0}); await settle();
+    http.expectOne(base+'/announcements?page=0').flush({items:[row()],hasMore:false}); await settle();
     expect(inbox.visible()).toHaveLength(1);
-    const change = inbox.change('read', 'one');
-    const request = http.expectOne(base + '/me/announcements');
-    expect(request.request.body.ids).toEqual(['one']);
-    expect(request.request.withCredentials).toBe(true);
-    request.flush({ readIds: ['one'], clearedIds: [], clearedBefore: 0 });
-    await change;
-    expect(JSON.parse(localStorage.getItem(key)!).clearedIds).toEqual(['one']);
+  });
+  it('retains a failed transfer only for the account that claimed it', async () => {
+    await initial(); await inbox.change('clear','one');
+    auth.state.set({status:'authenticated',email:'first@sanctuary.invalid'}); TestBed.tick();
+    http.expectOne(base+'/me/announcements/guest').flush({}, {status:503,statusText:'Offline'}); await settle();
+    auth.state.set({status:'authenticated',email:'second@sanctuary.invalid'}); TestBed.tick();
+    http.expectOne(base+'/me/announcements').flush({readIds:[],clearedIds:[],clearedBefore:0}); await settle();
+    http.expectOne(base+'/announcements?page=0').flush({items:[row()],hasMore:false}); await settle();
+    expect(inbox.visible()).toHaveLength(1);
+    auth.state.set({status:'authenticated',email:'first@sanctuary.invalid'}); TestBed.tick();
+    http.expectOne(base+'/me/announcements/guest').flush({readIds:[],clearedIds:['one'],clearedBefore:0}); await settle();
+    http.expectOne(base+'/announcements?page=0').flush({items:[row()],hasMore:false}); await settle();
+    expect(inbox.visible()).toHaveLength(0);
   });
   it('ignores a late account receipt response after sign-out', async () => {
     await initial();

@@ -6,6 +6,7 @@ struct MeView: View {
     @Environment(\.dismiss) private var dismiss
     var settingsMode = false
     @State private var showSettings = false
+    @State private var settingsSection: String?
     @State private var showInbox = false
     @State private var showAbout = false
     @StateObject private var inbox = AnnouncementInboxStore()
@@ -20,7 +21,6 @@ struct MeView: View {
     @State private var prayerDetailsByID: [String: Prayer] = [:]
     @State private var isShowingDeleteAccountConfirmation = false
     @State private var isDeletingAccount = false
-    @State private var showingDeliveryDetails = false
 
     var body: some View {
         if settingsMode { page }
@@ -40,6 +40,19 @@ struct MeView: View {
                     .toolbar(.hidden, for: .navigationBar)
             }
         }
+    }
+
+    private func settingsRow(_ key: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack {
+                Text(localization.t(key)).font(AppTheme.rounded(18, weight: .semibold))
+                Spacer()
+                Image(systemName: "chevron.right")
+            }
+            .foregroundStyle(.white).padding(16).frame(maxWidth: .infinity, minHeight: 56, alignment: .leading)
+            .background(AppTheme.cardBackgroundSoft, in: RoundedRectangle(cornerRadius: 18))
+            .overlay(RoundedRectangle(cornerRadius: 18).stroke(AppTheme.tabBorder, lineWidth: 1))
+        }.buttonStyle(.plain)
     }
 
     private func headerAction(_ title: String, icon: String, unread: Bool = false, action: @escaping () -> Void) -> some View {
@@ -70,30 +83,35 @@ struct MeView: View {
                         }
                     }
                     if settingsMode {
-                        Button { dismiss() } label: {
+                        Button { if settingsSection != nil { settingsSection = nil } else { dismiss() } } label: {
                             Image(systemName: "arrow.left").font(.system(size: 20, weight: .medium))
                                 .foregroundStyle(.white).frame(width: 42, height: 42)
                                 .background(AppTheme.cardBackground).clipShape(Circle())
                                 .overlay(Circle().stroke(AppTheme.tabBorder, lineWidth: 1))
                         }.accessibilityLabel(localization.t("common.close"))
-                        Text(localization.t("settings.title")).font(AppTheme.rounded(32, weight: .bold)).foregroundStyle(.white)
-                        Button { showLanguagePicker = true } label: {
-                            HStack(spacing: 14) {
-                                Image(systemName: "globe").font(.system(size: 26)).foregroundStyle(AppTheme.tabActive)
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(localization.t("home.language")).font(AppTheme.rounded(18, weight: .semibold)).foregroundStyle(.white)
-                                    Text(localization.language.displayName).font(AppTheme.rounded(16, weight: .medium)).foregroundStyle(AppTheme.subtitleText)
-                                }
-                                Spacer()
-                                Image(systemName: "chevron.down").foregroundStyle(.white)
+                        Text(localization.t(settingsSection ?? "settings.title")).font(AppTheme.rounded(32, weight: .bold)).foregroundStyle(.white)
+                        if let section = settingsSection {
+                            switch section {
+                            case "settings.account":
+                                if accountStore.isAuthenticated { accountHeader; deleteAccountCard }
+                                else { AccountAccessView() }
+                            case "settings.general":
+                                NavigationCardButton(title: localization.t("home.language") + " · " + localization.language.displayName, icon: "globe") { showLanguagePicker = true }
+                            case "notifications.title": reminderPreferencesCard
+                            case "settings.support":
+                                Link(localization.t("about.link.emailSupport"), destination: URL(string: "mailto:info@mydailysanctuary.com")!).font(AppTheme.rounded(18, weight: .semibold)).padding(18).appGlassCard(cornerRadius: 20)
+                            default:
+                                Link(localization.t("about.privacyTitle"), destination: URL(string: "https://mydailysanctuary.com/privacy")!).font(AppTheme.rounded(18, weight: .semibold)).padding(18).appGlassCard(cornerRadius: 20)
                             }
-                            .padding(18).frame(maxWidth: .infinity, alignment: .leading).appGlassCard(cornerRadius: 20)
-                        }.buttonStyle(.plain)
-                        if accountStore.isAuthenticated { accountHeader; deleteAccountCard }
-                        reminderPreferencesCard
+                        } else {
+                            ForEach(["settings.account", "settings.general", "notifications.title", "settings.support", "settings.legal"], id: \.self) { section in
+                                settingsRow(section) { settingsSection = section }
+                            }
+                            Text(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "")
+                                .font(AppTheme.rounded(14, weight: .medium)).foregroundStyle(AppTheme.subtitleText).frame(maxWidth: .infinity).padding()
+                        }
                     } else if accountStore.isAuthenticated {
-                        accountHeader
-                        ScheduledRemindersCard()
+                        ScheduledRemindersCard(environment: environment)
                         inProgressCard
                         completedNovenasCard
                         favoriteNovenasCard
@@ -118,7 +136,7 @@ struct MeView: View {
         }
         .task(id: accountStore.profile?.userID) { if !settingsMode { await refreshInbox() } }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
-            if !settingsMode { Task { await refreshInbox() } }
+            Task { await accountStore.syncPushDevice(); if !settingsMode { await refreshInbox() } }
         }
         .onReceive(NotificationCenter.default.publisher(for: .announcementInboxChanged)) { _ in
             if !settingsMode { Task { await refreshInbox() } }
@@ -197,31 +215,10 @@ struct MeView: View {
                 ) {
                     if let url = URL(string: UIApplication.openNotificationSettingsURLString) { UIApplication.shared.open(url) }
                 }
-                notificationActionCard(
-                    title: localization.t("notifications.details"),
-                    subtitle: localization.t(showingDeliveryDetails ? "notifications.hideDetails" : "notifications.showDetails"),
-                    icon: "iphone.radiowaves.left.and.right",
-                    trailingIcon: showingDeliveryDetails ? "chevron.up" : "chevron.down"
-                ) {
-                    withAnimation { showingDeliveryDetails.toggle() }
-                }
-                .accessibilityValue(localization.t(showingDeliveryDetails ? "notifications.hideDetails" : "notifications.showDetails"))
-                if showingDeliveryDetails {
-                    VStack(alignment: .leading, spacing: 12) {
-                        if !push.registrationStatus.isEmpty {
-                            Text(push.registrationStatus).font(AppTheme.rounded(14, weight: .medium))
-                        }
-                        Button(localization.t("notifications.refresh")) { Task { await accountStore.syncPushDevice() } }
-                            .font(AppTheme.rounded(15, weight: .semibold))
-                            .buttonStyle(.bordered)
-                    }
-                    .foregroundStyle(AppTheme.subtitleText)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(14)
-                    .background(AppTheme.cardBackgroundSoft, in: RoundedRectangle(cornerRadius: 18))
-                }
+
             }
         }
+        .task { await accountStore.syncPushDevice() }
     }
 
     private func notificationActionCard(title: String, subtitle: String, icon: String, trailingIcon: String, action: @escaping () -> Void) -> some View {
@@ -296,10 +293,7 @@ struct MeView: View {
                                 .textSelection(.enabled)
                         }
 
-                        Text(localization.t("me.identitySupport"))
-                            .font(AppTheme.rounded(15, weight: .medium))
-                            .foregroundStyle(AppTheme.subtitleText)
-                            .fixedSize(horizontal: false, vertical: true)
+
                     }
 
                     Spacer(minLength: 0)
@@ -880,6 +874,8 @@ private struct NotificationSwitchStyle: ToggleStyle {
 }
 
 private struct ScheduledRemindersCard: View {
+    let environment: AppEnvironment
+    @State private var images: [String: URL] = [:]
     @EnvironmentObject private var localization: LocalizationManager
     @EnvironmentObject private var accountStore: AccountSessionStore
     @Environment(\.scenePhase) private var scenePhase
@@ -900,12 +896,18 @@ private struct ScheduledRemindersCard: View {
                 }
                 ForEach(reminders.items) { record in
                     HStack(spacing: 12) {
+                        Button { open(record) } label: {
+                            AsyncImage(url: images[record.id]) { image in image.resizable().scaledToFill() } placeholder: {
+                                Image(systemName: "book.closed.fill").foregroundStyle(AppTheme.tabActive)
+                            }.frame(width: 56, height: 64).background(AppTheme.cardBackgroundSoft).clipShape(RoundedRectangle(cornerRadius: 12))
+                        }.buttonStyle(.plain).accessibilityLabel(record.title)
                         VStack(alignment: .leading, spacing: 5) {
-                            Text(record.title).font(AppTheme.rounded(16, weight: .semibold)).foregroundStyle(.white)
+                            Button { open(record) } label: { Text(record.title) }.buttonStyle(.plain).font(AppTheme.rounded(16, weight: .semibold)).foregroundStyle(.white)
                             Text(localization.t("reminders.manage.daily") + " · " + record.formattedTime)
                                 .font(AppTheme.rounded(13, weight: .medium)).foregroundStyle(AppTheme.subtitleText)
                         }
                         Spacer(minLength: 0)
+                        ContentReminderButton(kind: record.kind, slug: record.slug, title: record.title, compact: true)
                         Button(role: .destructive) { mutate { try await reminders.remove(record, account: accountStore) } } label: {
                             Image(systemName: "trash").frame(width: 44, height: 44).foregroundStyle(Color(red: 1, green: 0.65, blue: 0.65))
                         }.accessibilityLabel(localization.t("itemReminder.remove") + ": " + record.title)
@@ -926,9 +928,19 @@ private struct ScheduledRemindersCard: View {
                 catch { return }
             }
         }
+        .task(id: reminders.items.map(\.id)) {
+            for record in reminders.items where images[record.id] == nil {
+                let locale = localization.language.contentLocale
+                if record.kind == "novenas" { images[record.id] = try? await environment.contentRepository.fetchNovena(slug: record.slug, locale: locale)?.imageURL }
+                else { images[record.id] = try? await environment.contentRepository.fetchPrayer(slug: record.slug, locale: locale)?.imageURL }
+            }
+        }
         .confirmationDialog(localization.t("reminders.manage.confirm"), isPresented: $confirmingClear, titleVisibility: .visible) {
             Button(localization.t("reminders.manage.clear"), role: .destructive) { mutate { try await reminders.clear(account: accountStore) } }
         } message: { Text(localization.t("reminders.manage.body")) }
+    }
+    private func open(_ record: AccountContentReminder) {
+        PushNotifications.shared.destination = URL(string: "https://mydailysanctuary.com/\(record.kind)/\(record.slug)")
     }
     private func mutate(_ action: @escaping () async throws -> Void) {
         Task { @MainActor in

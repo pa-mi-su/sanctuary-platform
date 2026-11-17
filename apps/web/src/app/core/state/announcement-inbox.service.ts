@@ -66,7 +66,29 @@ export class AnnouncementInboxService {
         this.page = 0;
         this.undo.set(null);
         if (member) {
-          const loaded = await this.request<InboxState>('GET', '/me/announcements');
+          const pendingKey = this.key + ':pending:' + this.auth.state().email;
+          let guest: InboxState | null = null;
+          try {
+            const fresh = JSON.parse(localStorage.getItem(this.key) || 'null') as InboxState | null;
+            const prior = JSON.parse(
+              localStorage.getItem(pendingKey) || 'null',
+            ) as InboxState | null;
+            guest = fresh
+              ? {
+                  readIds: [...new Set([...(prior?.readIds || []), ...fresh.readIds])],
+                  clearedIds: [...new Set([...(prior?.clearedIds || []), ...fresh.clearedIds])],
+                  clearedBefore: Math.max(prior?.clearedBefore || 0, fresh.clearedBefore),
+                }
+              : prior;
+            if (guest) localStorage.setItem(pendingKey, JSON.stringify(guest));
+            localStorage.removeItem(this.key);
+          } catch {}
+          const hasGuest =
+            guest && (guest.readIds?.length || guest.clearedIds?.length || guest.clearedBefore > 0);
+          const loaded = hasGuest
+            ? await this.request<InboxState>('POST', '/me/announcements/guest', guest)
+            : await this.request<InboxState>('GET', '/me/announcements');
+          if (generation === this.generation && hasGuest) localStorage.removeItem(pendingKey);
           if (generation !== this.generation) return;
           this.state.set(loaded);
         } else {

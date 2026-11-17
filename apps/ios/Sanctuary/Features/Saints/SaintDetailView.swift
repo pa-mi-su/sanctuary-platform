@@ -10,7 +10,7 @@ struct SaintDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var localization: LocalizationManager
     @EnvironmentObject private var progressStore: UserProgressStore
-    @State private var isFavorite = false
+    private var isFavorite: Bool { progressStore.isFavorite(itemType: .saint, itemID: saint.id) }
     @State private var isShowingAccountRequired = false
     @State private var detailedSaint: Saint?
 
@@ -91,9 +91,9 @@ struct SaintDetailView: View {
                             Button {
                                 if progressStore.isAuthenticated {
                                     Task {
-                                        isFavorite.toggle()
-                                        await progressStore.setFavorite(isFavorite, itemType: .saint, itemID: saint.id)
-                                        isFavorite = progressStore.isFavorite(itemType: .saint, itemID: saint.id)
+
+                                        await progressStore.setFavorite(!isFavorite, itemType: .saint, itemID: saint.id)
+
                                     }
                                 } else {
                                     isShowingAccountRequired = true
@@ -201,14 +201,17 @@ struct SaintDetailView: View {
         .toolbar(.hidden, for: .navigationBar)
         .accountRequiredPrompt(isPresented: $isShowingAccountRequired) {
             await progressStore.setFavorite(true, itemType: .saint, itemID: saint.id)
-            isFavorite = progressStore.isFavorite(itemType: .saint, itemID: saint.id)
+
         }
+        .alert("Sanctuary", isPresented: Binding(get: { progressStore.actionError != nil }, set: { if !$0 { progressStore.actionError = nil } })) {
+            Button("OK") { progressStore.actionError = nil }
+        } message: { Text(localization.t(progressStore.actionError ?? "")) }
         .task {
             async let loadedSaint: Saint? = Task.detached(priority: .userInitiated) {
                 try? await contentRepository.fetchSaint(slug: saint.slug, locale: locale)
             }.value
             detailedSaint = await loadedSaint
-            isFavorite = progressStore.isFavorite(itemType: .saint, itemID: saint.id)
+
         }
     }
 

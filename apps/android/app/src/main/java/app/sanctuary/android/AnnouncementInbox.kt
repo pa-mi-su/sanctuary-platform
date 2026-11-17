@@ -22,10 +22,32 @@ import com.google.gson.Gson
 import kotlinx.coroutines.launch
 
 private fun guestState(context:Context):AnnouncementState = runCatching { Gson().fromJson(context.getSharedPreferences("announcement-inbox-"+BuildConfig.ENVIRONMENT,0).getString("state",null),AnnouncementState::class.java) }.getOrNull()?.takeIf { it.readIds != null && it.clearedIds != null && it.clearedBefore.isFinite() } ?: AnnouncementState()
+private val guestMergeMutex = kotlinx.coroutines.sync.Mutex()
+private suspend fun memberState(context: Context, repository: SessionRepository): AnnouncementState {
+ guestMergeMutex.lock()
+ try {
+  val prefs = context.getSharedPreferences("announcement-inbox-" + BuildConfig.ENVIRONMENT,0)
+  val owner = checkNotNull(repository.currentSession()).email.lowercase()
+  val pending = "pending:" + owner
+  val fresh = prefs.getString("state",null)
+  if (fresh != null) {
+   val prior = runCatching { Gson().fromJson(prefs.getString(pending,null), AnnouncementState::class.java) }.getOrNull() ?: AnnouncementState()
+   val now = guestState(context)
+   prefs.edit().putString(pending,Gson().toJson(AnnouncementState((prior.readIds+now.readIds).distinct(), (prior.clearedIds+now.clearedIds).distinct(), maxOf(prior.clearedBefore,now.clearedBefore)))).remove("state").commit()
+  }
+  val guest = runCatching { Gson().fromJson(prefs.getString(pending,null),AnnouncementState::class.java) }.getOrNull() ?: AnnouncementState()
+  if (guest.readIds.isNotEmpty() || guest.clearedIds.isNotEmpty() || guest.clearedBefore > 0) {
+   val merged = repository.mergeGuestAnnouncements(guest)
+   prefs.edit().remove(pending).apply()
+   return merged
+  }
+  return repository.announcementState()
+ } finally { guestMergeMutex.unlock() }
+}
 internal fun visibleAnnouncements(rows:List<InboxAnnouncement>,state:AnnouncementState)=rows.filter { it.id !in state.clearedIds && it.published_at>state.clearedBefore }
 suspend fun announcementUnread(context:Context,authenticated:Boolean):Boolean {
  val api=SanctuaryApiFactory.create { null }; val repository=SessionRepository(context,api)
- val state=if(authenticated) repository.announcementState() else guestState(context)
+ val state=if(authenticated) memberState(context,repository) else guestState(context)
  return visibleAnnouncements(api.announcements().items,state).any { it.id !in state.readIds }
 }
 @Composable fun AnnouncementInboxSheet(initialID:String?=null,authenticated:Boolean,onUnread:(Boolean)->Unit,onOpen:(String)->Unit) {
@@ -48,7 +70,7 @@ suspend fun announcementUnread(context:Context,authenticated:Boolean):Boolean {
    error = ""
    try {
     if (next == 0) {
-     val loaded = if (member) repository.announcementState() else guestState(context)
+     val loaded = if (member) memberState(context,repository) else guestState(context)
      if (request != generation) return@launch
      state = loaded
     }

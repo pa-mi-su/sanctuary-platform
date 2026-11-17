@@ -1,5 +1,6 @@
 package app.sanctuary.android
 
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import android.annotation.SuppressLint
@@ -606,7 +607,7 @@ private fun AccountAccessScreen(
         onDispose { onAction.abandonAccountForm() }
     }
     LaunchedEffect(step) {
-        loginPassword = ""; registerPassword = ""; registerPasswordConfirmation = ""
+        loginPassword = ""; if (step != AuthStep.Confirm) registerPassword = ""; registerPasswordConfirmation = ""
         newPassword = ""; resetPasswordConfirmation = ""; resetCode = ""; confirmationCode = ""
     }
     LaunchedEffect(session.status, session.pendingConfirmationEmail, session.pendingPasswordResetEmail) {
@@ -983,6 +984,7 @@ private fun AuthenticatedShell(
     val l10n = sanctuaryStrings()
     val context = LocalContext.current
     var showSettings by rememberSaveable { mutableStateOf(false) }
+    var settingsSection by rememberSaveable { mutableStateOf<String?>(null) }
     var showInbox by rememberSaveable { mutableStateOf(false) }
     var inboxRequestedID by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(requestedAnnouncement) { if(requestedAnnouncement!=null){inboxRequestedID=requestedAnnouncement.lowercase();showInbox=true;consumeAnnouncement()} }
@@ -1260,7 +1262,7 @@ private fun AuthenticatedShell(
                         Row(Modifier.fillMaxWidth(), verticalAlignment=Alignment.CenterVertically, horizontalArrangement=Arrangement.SpaceBetween) {
                             MeHeaderAction(sanctuaryStrings().t("inbox.title"), Icons.Filled.NotificationsNone, inboxUnread) { inboxRequestedID=null; showInbox=true }
                             Text(sanctuaryStrings().t("me.title"), color=Color.White, fontSize=32.sp, fontWeight=FontWeight.Bold)
-                            MeHeaderAction(sanctuaryStrings().t("settings.title"), Icons.Filled.Settings) { showSettings=true }
+                            MeHeaderAction(sanctuaryStrings().t("settings.title"), Icons.Filled.Settings) { settingsSection=null; showSettings=true }
                         }
                     }
                     if (session.status == SessionStatus.Authenticated) {
@@ -1307,19 +1309,26 @@ private fun AuthenticatedShell(
                 })
             }
         }
-        SanctuarySlidePage(visible=showSettings, onBack={showSettings=false}) {
+        SanctuarySlidePage(visible=showSettings, onBack={if (settingsSection != null) settingsSection=null else showSettings=false}) {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(start = 18.dp, end = 18.dp, top = 76.dp, bottom = 96.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    item { Text(sanctuaryStrings().t("settings.title"), fontSize = 32.sp, color = Color.White, fontWeight = FontWeight.Bold) }
-                    item { LanguageSettingsButton(language = selectedLanguage, onClick = onShowLanguagePicker) }
-                    item {
-                        if (session.status == SessionStatus.Authenticated) {
-                            MeScreen(session, novenaProgress, onOpenNovena, onOpenSaint, onOpenPrayer, onLogout, onDeleteAccount, settingsMode = true)
-                        } else {
-                            MeSectionCard(title = sanctuaryStrings().t("notifications.title")) { AnnouncementPreference() }
+                    item { Text(sanctuaryStrings().t(settingsSection ?: "settings.title"), fontSize = 32.sp, color = Color.White, fontWeight = FontWeight.Bold) }
+                    if (settingsSection == null) {
+                        listOf("settings.account", "settings.general", "notifications.title", "settings.support", "settings.legal").forEach { section ->
+                            item { LinkedMeRow(title = sanctuaryStrings().t(section), subtitle = null) { settingsSection=section } }
+                        }
+                        item { Text(BuildConfig.VERSION_NAME, color=Color(0xFFBAD9E4), modifier=Modifier.fillMaxWidth(), textAlign=TextAlign.Center) }
+                    } else when (settingsSection) {
+                        "settings.general" -> item { LanguageSettingsButton(language = selectedLanguage, onClick = onShowLanguagePicker) }
+                        "notifications.title" -> item { MeSectionCard(title = sanctuaryStrings().t("notifications.title")) { AnnouncementPreference() } }
+                        "settings.support" -> item { LinkedMeRow(title=sanctuaryStrings().t("about.link.emailSupport"),subtitle=null) { openSupportEmail() } }
+                        "settings.legal" -> item { LinkedMeRow(title=sanctuaryStrings().t("about.privacyTitle"),subtitle=null) { aboutDocument=AboutDocument.Privacy } }
+                        "settings.account" -> item {
+                            if (session.status == SessionStatus.Authenticated) MeScreen(session, novenaProgress, onOpenNovena, onOpenSaint, onOpenPrayer, onLogout, onDeleteAccount, settingsMode = true)
+                            else LinkedMeRow(title=sanctuaryStrings().t("auth.login"),subtitle=null) { showSettings=false }
                         }
                     }
                 }
@@ -1961,6 +1970,7 @@ private fun MeScreen(
             Text(l10n.t("me.subtitle"),color=Color(0xFFD0DFEA),fontSize=18.sp)
         }
 
+        if (settingsMode) {
         Card(
         border = BorderStroke(1.dp, SanctuaryCardBorder),
             colors = CardDefaults.cardColors(containerColor = SanctuaryCard),
@@ -1998,11 +2008,7 @@ private fun MeScreen(
                             profile?.email ?: session.session?.email.orEmpty(),
                             color = Color(0xFFD0DFEA)
                         )
-                        Text(
-                            l10n.t("me.accountSummary"),
-                            color = Color(0xFFD0DFEA),
-                            lineHeight = 20.sp
-                        )
+
                     }
                 }
                 if(settingsMode) {
@@ -2018,10 +2024,11 @@ private fun MeScreen(
                 }
             }
         }
+        }
 
 
         if(!settingsMode) {
-        ScheduledRemindersCard()
+        ScheduledRemindersCard(onOpenNovena = onOpenNovena, onOpenPrayer = onOpenPrayer)
 
         MeSectionCard(title = l10n.t("me.inProgress")) {
             if (progress.commitments.none { it.status == CommitmentStatus.Active }) {
@@ -2131,10 +2138,6 @@ private fun MeScreen(
                 )
             }
         }
-        MeSectionCard(title = l10n.t("notifications.title")) {
-            AnnouncementPreference()
-        }
-
         }
     }
 
@@ -3780,6 +3783,7 @@ private fun NovenaDetailSheet(
     ) {
         if (!detail.imageUrl.isNullOrBlank()) ContentHeroImage(detail.imageUrl, detail.title)
         DetailSectionCard(title = detail.title, prominentTitle = true) {
+        progress.error?.let { Banner(it, true) }
 
 
 
@@ -3944,7 +3948,7 @@ private fun NovenaDetailSheet(
             Button(
                 border = BorderStroke(1.dp, SanctuaryCardBorder),
                 onClick = { onCompleteDay(detail.id, detail.durationDays) },
-                enabled = latestCommitment?.status != CommitmentStatus.Completed,
+                enabled = latestCommitment?.status != CommitmentStatus.Completed && detail.id !in progress.pendingNovenaCompletions,
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2B728D)),
                 shape = RoundedCornerShape(18.dp),
                 modifier = Modifier.fillMaxWidth()
@@ -5497,18 +5501,20 @@ private fun AnnouncementPreference() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var enabled by remember { mutableStateOf(AndroidPushNotifications.enabled(context)) }
-    var status by remember { mutableStateOf("") }
     fun sync() {
         scope.launch {
             runCatching { AndroidPushNotifications.sync(context, app.sanctuary.android.data.SessionRepository(context, app.sanctuary.android.data.SanctuaryApiFactory.create { null })) }
-                .onSuccess { status = if (enabled) "Announcement preference synced." else "Announcements are off." }
-                .onFailure { status = "Could not sync notifications. Check your connection and try again." }
+
         }
     }
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         enabled = granted
         AndroidPushNotifications.setEnabled(context, granted)
         sync()
+    }
+    val lifecycle = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    LaunchedEffect(lifecycle) {
+        lifecycle.lifecycle.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.RESUMED) { sync(); kotlinx.coroutines.awaitCancellation() }
     }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         ReminderToggleRow(title = l10n.t("announcements.title"), subtitle = l10n.t("announcements.body"), checked = enabled, enabled = true, onCheckedChange = { value ->
@@ -5528,19 +5534,7 @@ private fun AnnouncementPreference() {
             else Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + context.packageName))
             context.startActivity(intent)
         }
-        var expanded by rememberSaveable { mutableStateOf(false) }
-        NotificationActionCard(
-            title = l10n.t("notifications.details"),
-            subtitle = l10n.t(if (expanded) "notifications.hideDetails" else "notifications.showDetails"),
-            icon = Icons.Filled.NotificationsNone,
-            trailingIcon = if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore
-        ) { expanded = !expanded }
-        if (expanded) {
-            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(SanctuaryCardSoft).padding(14.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                if (status.isNotBlank()) Text(status, color = Color(0xFFD0DFEA), fontSize = 14.sp)
-                OutlinedButton(onClick = { sync() }) { Text(l10n.t("notifications.refresh"), color = Color(0xFF9ADFEB)) }
-            }
-        }
+
     }
 }
 
@@ -5579,7 +5573,11 @@ private fun ContentReminderControl(destination: String, title: String, authentic
         val unsubscribe = scheduler.observeItems { time = scheduler.itemTime(destination) }
         onDispose { unsubscribe() }
     }
+    var timingExplained by remember { mutableStateOf(false) }
+    var explainTiming by remember { mutableStateOf(false) }
     fun chooseTime() {
+        if (!currentAuthenticated) { onRequireAccount(); return }
+        if (!scheduler.preciseTimingAllowed() && !timingExplained) { explainTiming = true; return }
         val current = time ?: (8 to 0)
         android.app.TimePickerDialog(context, { _, hour, minute ->
             if (!currentAuthenticated) { onRequireAccount(); return@TimePickerDialog }
@@ -5594,6 +5592,15 @@ private fun ContentReminderControl(destination: String, title: String, authentic
             setButton(android.content.DialogInterface.BUTTON_NEGATIVE, l10n.t("common.cancel"), this)
         }.show()
     }
+    val timingSettings = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { chooseTime() }
+    if (explainTiming) AlertDialog(onDismissRequest = { explainTiming = false },
+        title = { Text(l10n.t("itemReminder.title")) },
+        text = { Text(l10n.t("itemReminder.approximate")) },
+        confirmButton = { TextButton(onClick = {
+            explainTiming = false; timingExplained = true
+            if (Build.VERSION.SDK_INT >= 31) timingSettings.launch(Intent(android.provider.Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:${context.packageName}")))
+        }) { Text(l10n.t("notifications.settings")) } },
+        dismissButton = { TextButton(onClick = { explainTiming = false; timingExplained = true; chooseTime() }) { Text(l10n.t("common.continue")) } })
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (!currentAuthenticated) onRequireAccount()
         else if (granted) chooseTime() else problem = l10n.t("itemReminder.permission")
@@ -5632,13 +5639,6 @@ private fun ContentReminderControl(destination: String, title: String, authentic
             Text(l10n.t("itemReminder.remove"), color = Color(0xFFFFA6A6))
         } }
     )
-    if (authenticated && !scheduler.preciseTimingAllowed()) Column {
-        Text(l10n.t("itemReminder.approximate"), color = Color(0xFFBAD9E4), fontSize = 13.sp)
-        OutlinedButton(onClick = {
-            if (Build.VERSION.SDK_INT >= 31) context.startActivity(Intent(android.provider.Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
-                android.net.Uri.parse("package:${context.packageName}")))
-        }) { Text(l10n.t("itemReminder.precise"), color = Color.White) }
-    }
     if (problem != null) AlertDialog(onDismissRequest = { problem = null },
         title = { Text(l10n.t("itemReminder.title")) }, text = { Text(problem.orEmpty()) },
         confirmButton = { TextButton(onClick = { problem = null }) { Text("OK") } })
@@ -5646,7 +5646,7 @@ private fun ContentReminderControl(destination: String, title: String, authentic
 
 
 @Composable
-private fun ScheduledRemindersCard() {
+private fun ScheduledRemindersCard(onOpenNovena: (String) -> Unit, onOpenPrayer: (String) -> Unit) {
     val context = LocalContext.current
     val l10n = sanctuaryStrings()
     val scope = rememberCoroutineScope()
@@ -5682,11 +5682,27 @@ private fun ScheduledRemindersCard() {
         }
         reminders.forEach { reminder ->
             Row(modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Color(0xFF243D4D)).padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                var image by remember(reminder.destination) { mutableStateOf<String?>(null) }
+                val key = AccountReminderSync.contentKey(reminder.destination)
+                LaunchedEffect(reminder.destination) {
+                    val api = app.sanctuary.android.data.SanctuaryApiFactory.create { null }
+                    image = runCatching { if (key.first == "novenas") api.getNovenaDetail(key.second).imageUrl else api.getPrayerDetail(key.second).imageUrl }.getOrNull()
+                }
+                val open = { if (key.first == "novenas") onOpenNovena(key.second) else onOpenPrayer(key.second) }
+                Box(Modifier.clickable(onClick = open)) { ThumbnailImage(image, reminder.title, Modifier.size(56.dp), RoundedCornerShape(12.dp)) }
+                Column(Modifier.weight(1f).clickable(onClick = open), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                     Text(reminder.title, color = Color.White, fontWeight = FontWeight.SemiBold)
                     val calendar = java.util.Calendar.getInstance().apply { set(java.util.Calendar.HOUR_OF_DAY, reminder.hour); set(java.util.Calendar.MINUTE, reminder.minute) }
                     Text(l10n.t("reminders.manage.daily") + " · " + android.text.format.DateFormat.getTimeFormat(context).format(calendar.time), color = Color(0xFFBAD9E4), fontSize = 13.sp)
                 }
+                IconButton(enabled = !busy, onClick = {
+                    android.app.TimePickerDialog(context, { _, hour, minute -> scope.launch {
+                        runCatching { AccountReminderSync.save(reminder.destination, reminder.title, hour, minute) }
+                            .onSuccess { problem = null }.onFailure { problem = it.message }
+                    } }, reminder.hour, reminder.minute, android.text.format.DateFormat.is24HourFormat(context)).apply {
+                        setTitle(l10n.t("itemReminder.edit"))
+                    }.show()
+                }) { Icon(Icons.Filled.Edit, contentDescription = l10n.t("itemReminder.edit"), tint = Color(0xFF9ADFEB)) }
                 IconButton(enabled = !busy, onClick = { scope.launch {
                     runCatching { AccountReminderSync.remove(reminder.destination) }.onSuccess { problem = null }.onFailure { problem = it.message }
                 } }) {

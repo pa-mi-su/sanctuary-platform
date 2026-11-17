@@ -165,6 +165,7 @@ struct ContentReminderButton: View {
     let kind: String
     let slug: String
     let title: String
+    var compact = false
     @EnvironmentObject private var localization: LocalizationManager
     @EnvironmentObject private var accountStore: AccountSessionStore
     @ObservedObject private var reminders = AccountReminders.shared
@@ -180,13 +181,15 @@ struct ContentReminderButton: View {
         Button {
             if accountStore.isAuthenticated { showing = true } else { accountRequired = true }
         } label: {
-            Label(localization.t(record != nil ? "itemReminder.edit" : "itemReminder.add"), systemImage: record != nil ? "bell.badge.fill" : "bell")
+            Label(localization.t(record != nil ? "itemReminder.edit" : "itemReminder.add"), systemImage: compact ? "pencil" : (record != nil ? "bell.badge.fill" : "bell"))
+                .labelStyle(ReminderButtonLabelStyle(compact: compact))
                 .font(AppTheme.rounded(16, weight: .semibold)).foregroundStyle(.white)
                 .padding(.horizontal, 18).padding(.vertical, 12)
                 .background(AppTheme.cardBackgroundSoft, in: Capsule())
                 .overlay(Capsule().stroke(Color.white.opacity(0.25), lineWidth: 1))
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(localization.t(record != nil ? "itemReminder.edit" : "itemReminder.add"))
         .accountRequiredPrompt(isPresented: $accountRequired, onAuthenticated: { showing = true })
         .onChange(of: accountStore.isAuthenticated) { authenticated in if !authenticated { showing = false } }
         .task { await reminders.refresh(account: accountStore) }
@@ -256,5 +259,13 @@ struct ReminderActionButton: View {
                 .overlay(RoundedRectangle(cornerRadius: 14).stroke(destructive ? Color.red.opacity(0.65) : Color.white.opacity(0.35), lineWidth: 1))
         }
         .buttonStyle(.plain)
+    }
+}
+
+private struct ReminderButtonLabelStyle: LabelStyle {
+    let compact: Bool
+    func makeBody(configuration: Configuration) -> some View {
+        if compact { configuration.icon }
+        else { HStack { configuration.icon; configuration.title } }
     }
 }

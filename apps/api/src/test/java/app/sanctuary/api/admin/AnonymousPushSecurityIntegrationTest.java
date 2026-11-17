@@ -33,6 +33,7 @@ class AnonymousPushSecurityIntegrationTest {
         mvc.perform(put("/push/installations").contentType("application/json").content(body)).andExpect(status().isOk()).andExpect(jsonPath("$.registered").value(true));
         assertNull(db.queryForObject("SELECT user_id FROM push_devices WHERE installation_id=?",UUID.class,id));
         mvc.perform(get("/me")).andExpect(status().isUnauthorized());
+        mvc.perform(post("/me/announcements/guest").contentType("application/json").content("{\"readIds\":[],\"clearedIds\":[],\"clearedBefore\":0}")).andExpect(status().isUnauthorized());
         mvc.perform(get("/push/installations")).andExpect(status().is4xxClientError());
         mvc.perform(get("/admin-api/messages")).andExpect(status().isForbidden());
         db.update("DELETE FROM push_devices WHERE installation_id=?",id);

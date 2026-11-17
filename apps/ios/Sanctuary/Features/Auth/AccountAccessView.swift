@@ -149,7 +149,7 @@ struct AccountAccessView: View {
             }
         }
         .onChange(of: step) { _ in
-            clearSecrets()
+            clearSecrets(preserveRegistration: step == .confirm)
             focusedField = nil
         }
         .onDisappear {
@@ -867,9 +867,9 @@ struct AccountAccessView: View {
         }
     }
 
-    private func clearSecrets() {
+    private func clearSecrets(preserveRegistration: Bool = false) {
         loginPassword = ""
-        registerPassword = ""
+        if !preserveRegistration { registerPassword = "" }
         registerPasswordConfirmation = ""
         confirmationCode = ""
         resetPasswordCode = ""
