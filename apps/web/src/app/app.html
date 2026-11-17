@@ -138,7 +138,7 @@
       } @else if (overlay() === 'settings') {
         <section class="screen-card glass-card">
           <h2>{{ settingsLabel(settingsSection() || 'Settings') }}</h2>
-          @if (settingsSection()) { <button type="button" (click)="settingsSection.set(null)">← Settings</button> }
+          @if (settingsSection()) { <button type="button" (click)="settingsSection.set(null)">← {{ settingsLabel('Settings') }}</button> }
           @else {
             @for (section of ['Account', 'General', 'Notifications', 'Contact & Support', 'Legal']; track section) {
               <button class="settings-nav" type="button" (click)="settingsSection.set(section)">{{ settingsLabel(section) }} →</button>
@@ -147,12 +147,12 @@
           @if (settingsSection() === 'General') {
             <label>Language / Idioma / Język <select [value]="facade.language()" (change)="facade.setLanguage($any($event.target).value)"><option value="en">English</option><option value="es">Español</option><option value="pl">Polski</option></select></label>
           }
-          @if (settingsSection() === 'Notifications') { <p>Phone notification permissions and announcement preferences are available in the mobile app’s Settings.</p> }
-          @if (settingsSection() === 'Contact & Support') { <a href="mailto:info@mydailysanctuary.com">Contact Sanctuary</a> }
-          @if (settingsSection() === 'Legal') { <a href="/privacy">Privacy policy</a> }
+          @if (settingsSection() === 'Notifications') { <p>{{ settingsText('Phone notification permissions and announcement preferences are available in the mobile app’s Settings.', 'Los permisos y las preferencias de notificaciones están en los ajustes de la app móvil.', 'Uprawnienia i preferencje powiadomień znajdziesz w ustawieniach aplikacji mobilnej.') }}</p> }
+          @if (settingsSection() === 'Contact & Support') { <a href="mailto:info@mydailysanctuary.com">{{ settingsText('Contact Sanctuary', 'Contactar con Sanctuary', 'Kontakt z Sanctuary') }}</a> }
+          @if (settingsSection() === 'Legal') { <a href="/privacy">{{ settingsText('Privacy policy', 'Política de privacidad', 'Polityka prywatności') }}</a> }
         </section>
         @if (settingsSection() === 'Account') {
-        @if (!facade.isAuthenticated()) { <button type="button" (click)="overlay.set(null); facade.openAuth()">Sign up or log in</button> }
+        @if (!facade.isAuthenticated()) { <button type="button" (click)="overlay.set(null); facade.openAuth()">{{ settingsText('Sign up or log in', 'Regístrate o inicia sesión', 'Zarejestruj się lub zaloguj') }}</button> }
         @if (facade.isAuthenticated()) {
           <app-me-page
             [settingsMode]="true"

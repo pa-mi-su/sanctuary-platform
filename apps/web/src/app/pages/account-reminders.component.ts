@@ -40,7 +40,7 @@ interface Reminder {
           type="button"
           (click)="remove(item)"
           [disabled]="busy()"
-          [attr.aria-label]="'Delete reminder: ' + item.title"
+          [attr.aria-label]="t('Delete reminder', 'Eliminar recordatorio', 'Usuń przypomnienie') + ': ' + item.title"
         >
           {{ t('Delete', 'Eliminar', 'Usuń') }}
         </button>

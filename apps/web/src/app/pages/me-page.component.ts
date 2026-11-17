@@ -57,7 +57,7 @@ type AppLanguage = 'en' | 'es' | 'pl';
       @if (!settingsMode) {
         <app-account-reminders [currentLanguage]="currentLanguage" />
         <button class="settings-action" type="button" (click)="settings.emit()">
-          {{ t('Account settings', 'Ajustes de cuenta', 'Ustawienia konta') }}
+          {{ t('Settings', 'Ajustes', 'Ustawienia') }}
         </button>
         <section class="linked-grid">
           <article class="panel-card glass-subtle linked-card">
