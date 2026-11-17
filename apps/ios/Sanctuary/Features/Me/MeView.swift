@@ -924,13 +924,15 @@ private struct ScheduledRemindersCard: View {
             guard scenePhase == .active && visible else { return }
             while !Task.isCancelled {
                 await reminders.refresh(account: accountStore)
-                for record in reminders.items where images[record.id] == nil {
-                    let locale = localization.language.contentLocale
-                    if record.kind == "novenas" { images[record.id] = try? await environment.contentRepository.fetchNovena(slug: record.slug, locale: locale)?.imageURL }
-                    else { images[record.id] = try? await environment.contentRepository.fetchPrayer(slug: record.slug, locale: locale)?.imageURL }
-                }
                 do { try await Task.sleep(nanoseconds: 30_000_000_000) }
                 catch { return }
+            }
+        }
+        .task(id: reminders.items.map(\.id)) {
+            for record in reminders.items where images[record.id] == nil {
+                let locale = localization.language.contentLocale
+                if record.kind == "novenas" { images[record.id] = try? await environment.contentRepository.fetchNovena(slug: record.slug, locale: locale)?.imageURL }
+                else { images[record.id] = try? await environment.contentRepository.fetchPrayer(slug: record.slug, locale: locale)?.imageURL }
             }
         }
         .confirmationDialog(localization.t("reminders.manage.confirm"), isPresented: $confirmingClear, titleVisibility: .visible) {
