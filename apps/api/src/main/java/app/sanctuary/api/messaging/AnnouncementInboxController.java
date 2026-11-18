@@ -30,7 +30,9 @@ public class AnnouncementInboxController {
   UUID user=user(jwt);
   var read=db.queryForList("SELECT announcement_id FROM announcement_receipts WHERE user_id=? AND read_at IS NOT NULL",UUID.class,user);
   var clear=db.queryForList("SELECT announcement_id FROM announcement_receipts WHERE user_id=? AND cleared_at IS NOT NULL",UUID.class,user);
-  var before=db.queryForList("SELECT (extract(epoch from cleared_before)*1000) FROM announcement_inbox_preferences WHERE user_id=?",Double.class,user);
+  // Every client applies this cutoff before rendering or calculating unread state.
+  // Use the immutable profile creation time, never the current login/load time.
+  var before=db.queryForList("SELECT extract(epoch from GREATEST(u.created_at,p.cleared_before))*1000 FROM users u LEFT JOIN announcement_inbox_preferences p ON p.user_id=u.id WHERE u.id=?",Double.class,user);
   return Map.of("readIds",read,"clearedIds",clear,"clearedBefore",before.isEmpty()||before.getFirst()==null?0:before.getFirst());
  }
  public record GuestState(List<UUID> readIds,List<UUID> clearedIds,double clearedBefore){}

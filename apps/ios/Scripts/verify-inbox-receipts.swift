@@ -1,6 +1,12 @@
 import Foundation
 @main struct VerifyInboxReceipts {
  static func main() throws {
+  let baseline = AnnouncementInboxState(clearedBefore: 200)
+  assert(!baseline.isVisible(id: "historical", publishedAt: 100))
+  assert(!baseline.isVisible(id: "boundary", publishedAt: 200))
+  assert(!baseline.isVisible(id: "older-page", publishedAt: 50))
+  assert(baseline.isVisible(id: "future", publishedAt: 201))
+  assert(!baseline.applying("clear", ids: ["future"]).isVisible(id: "future", publishedAt: 201))
   let suite="sanctuary-inbox-test-"+UUID().uuidString
   let defaults=UserDefaults(suiteName:suite)!
   defer { defaults.removePersistentDomain(forName:suite) }

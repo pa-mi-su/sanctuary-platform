@@ -4,6 +4,9 @@ struct AnnouncementInboxState: Codable, Equatable {
     var readIds: [String] = []
     var clearedIds: [String] = []
     var clearedBefore: Double = 0
+    func isVisible(id: String, publishedAt: Double) -> Bool {
+        !clearedIds.contains(id) && publishedAt > clearedBefore
+    }
     func merging(_ other: Self) -> Self {
         .init(readIds: Array(Set(readIds + other.readIds)), clearedIds: Array(Set(clearedIds + other.clearedIds)), clearedBefore: max(clearedBefore, other.clearedBefore))
     }

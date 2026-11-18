@@ -51,7 +51,7 @@ class AnnouncementInboxIntegrationTest {
  }
  @Test void clearAllIsAccountScopedAndDoesNotAffectNewerAnnouncements(){
   UUID id=publish();var a=member();var b=member();tx.execute(s->inbox.change(a,new AnnouncementInboxController.Change("clearAll",List.of(),id)));
-  double cutoff=((Number)((Map<?,?>)inbox.state(a)).get("clearedBefore")).doubleValue();assertTrue(cutoff>0);assertEquals(0,((Number)((Map<?,?>)inbox.state(b)).get("clearedBefore")).intValue());
+  double cutoff=((Number)((Map<?,?>)inbox.state(a)).get("clearedBefore")).doubleValue();assertTrue(cutoff>0);assertTrue(((Number)((Map<?,?>)inbox.state(b)).get("clearedBefore")).doubleValue()>0);
   UUID newer=publish();db.update("UPDATE announcements SET published_at=now()+interval '1 second' WHERE id=?",newer);assertTrue(((Number)((Map<?,?>)inbox.detail(newer)).get("published_at")).doubleValue()>cutoff);
  }
  @Test void clearingAdminHistoryDoesNotWithdrawAnAnnouncement(){
@@ -81,6 +81,21 @@ class AnnouncementInboxIntegrationTest {
   new PushDispatcher(db,gateway).dispatch();
   verify(gateway).send(eq("synthetic-legacy-inbox-token"),anyString(),anyString(),eq("https://dev.mydailysanctuary.com/"),eq(id.toString()));
   verify(gateway).send(eq("synthetic-current-inbox-token"),anyString(),anyString(),eq("https://dev.mydailysanctuary.com/announcements/"+id),eq(id.toString()));
+ }
+
+ @Test void newAccountStartsAfterHistoricalAnnouncementsAndKeepsItsBaselineAcrossLoads(){
+  UUID old=publish();db.update("UPDATE announcements SET published_at=now()-interval '1 day' WHERE id=?",old);
+  var account=member();
+  double baseline=((Number)((Map<?,?>)inbox.state(account)).get("clearedBefore")).doubleValue();
+  assertTrue(((Number)((Map<?,?>)inbox.detail(old)).get("published_at")).doubleValue()<baseline);
+  UUID fresh=publish();db.update("UPDATE announcements SET published_at=now()+interval '1 second' WHERE id=?",fresh);
+  assertTrue(((Number)((Map<?,?>)inbox.detail(fresh)).get("published_at")).doubleValue()>baseline);
+  assertEquals(baseline,((Number)((Map<?,?>)inbox.state(account)).get("clearedBefore")).doubleValue());
+  var transferred=(Map<?,?>)inbox.mergeGuest(account,new AnnouncementInboxController.GuestState(List.of(old),List.of(),0));
+  assertEquals(baseline,((Number)transferred.get("clearedBefore")).doubleValue());
+  tx.execute(s->inbox.change(account,new AnnouncementInboxController.Change("clearAll",List.of(),fresh)));
+  assertTrue(((Number)((Map<?,?>)inbox.state(account)).get("clearedBefore")).doubleValue()>baseline);
+  assertEquals(0,db.queryForObject("SELECT count(*) FROM push_deliveries",Integer.class));
  }
 
 }
