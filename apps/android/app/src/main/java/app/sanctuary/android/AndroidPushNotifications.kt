@@ -105,12 +105,6 @@ object AndroidPushNotifications {
         check(recovery(context).edit().putBoolean("registered",true).commit())
         check(preferences(context).edit().putBoolean("registered",true).commit())
     }
-    fun forget(context: Context) {
-        setEnabled(context,false)
-        preferences(context).edit().putBoolean("registered",false).commit()
-        recovery(context).edit().putBoolean("registered",false).commit()
-        FirebaseMessaging.getInstance().deleteToken()
-    }
     fun show(context: Context, message: RemoteMessage) {
         if (!enabled(context) || !allowed(context)) return
         val destination = message.data["destination"] ?: "https://mydailysanctuary.com/"

@@ -323,9 +323,8 @@ final class AccountSessionStore: ObservableObject {
     }
 
     func logout() {
-        let token = session.map { $0.idToken.isEmpty ? $0.accessToken : $0.idToken }
         clearStoredSession()
-        Task { await PushNotifications.shared.signOut(api: apiClient, token: token) }
+        Task { await PushNotifications.shared.signOut(api: apiClient) }
     }
 
     func reminderRequest<T>(_ request: (SanctuaryAPIClient, String) async throws -> T) async throws -> T {
@@ -355,12 +354,13 @@ final class AccountSessionStore: ObservableObject {
 
         do {
             try await apiClient.deleteMe(token: activeSession.idToken)
-            PushNotifications.shared.resetConsent()
             clearStoredSession()
+            await PushNotifications.shared.signOut(api: apiClient)
             return true
         } catch {
             if isSessionRejected(error) {
                 clearStoredSession()
+                await PushNotifications.shared.signOut(api: apiClient)
                 return true
             }
 

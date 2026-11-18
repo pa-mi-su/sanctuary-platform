@@ -160,7 +160,13 @@ public class UserAccountRepository {
         );
     }
 
+    @org.springframework.transaction.annotation.Transactional
     public void deleteById(UUID userId) {
+        // Announcement consent belongs to the installation, not the deleted account.
+        // Detach every device before the users foreign-key cascade can remove it.
+        // Do not turn a pending member-targeted send into a guest send when its FK becomes null.
+        jdbcTemplate.update("UPDATE push_deliveries SET state='skipped',updated_at=now() WHERE recipient_user_id=? AND state='pending'", userId);
+        jdbcTemplate.update("UPDATE push_devices SET user_id=NULL WHERE user_id=?", userId);
         deleteOwnedUserData(userId);
         jdbcTemplate.update(
             """
