@@ -475,7 +475,6 @@ class SessionRepository(
                 throw exception
             }
         }
-        app.sanctuary.android.AndroidPushNotifications.forget(appContext)
         clearSession()
     }
 

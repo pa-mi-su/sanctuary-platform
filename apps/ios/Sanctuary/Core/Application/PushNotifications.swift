@@ -51,13 +51,6 @@ final class PushNotifications: ObservableObject {
         try credentialStore.save(Data(secret.utf8), for: "installation-secret")
         return secret
     }
-    func resetConsent() {
-        enabled = false
-        try? consent.choose(false)
-        needsInvitation = false
-        defaults.set(false, forKey: "sanctuary.pushRegistered")
-        if FirebaseApp.app() != nil { Messaging.messaging().deleteToken { _ in } }
-    }
     func setEnabled(_ value: Bool) async {
         var allowed = value
         if value {
@@ -126,7 +119,7 @@ final class PushNotifications: ObservableObject {
             try? await center.setBadgeCount(0)
         }
     }
-    func signOut(api: SanctuaryAPIClient, token: String?) async {
+    func signOut(api: SanctuaryAPIClient) async {
         // Detach identity while preserving this installation's separate announcement consent.
         await sync(api: api, token: nil)
     }

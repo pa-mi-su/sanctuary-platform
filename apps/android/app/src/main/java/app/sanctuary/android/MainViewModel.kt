@@ -511,6 +511,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }.onSuccess {
                 cancelAccountReminders()
                 _session.value = SessionUiState(status = SessionStatus.SignedOut)
+                syncPushDevice()
                 _novenaProgress.value = NovenaProgressUiState()
                 loadInitialContent()
             }.onFailure { failure ->
