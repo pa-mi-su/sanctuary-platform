@@ -5564,12 +5564,19 @@ private fun headerTitle(mode: CalendarMode, anchor: LocalDate, language: AppLang
 private fun AnnouncementInvitation(onSync: () -> Unit) {
     val context = LocalContext.current
     val strings = sanctuaryStrings()
-    var visible by remember { mutableStateOf(AndroidPushNotifications.consent(context).needsInvitation) }
+    val restored = remember { AndroidPushNotifications.consent(context) }
+    var visible by remember { mutableStateOf(restored.needsInvitation || restored.needsPermissionRecovery(AndroidPushNotifications.allowed(context))) }
     var needsSettings by remember { mutableStateOf(false) }
     val problem by AndroidPushNotifications.registrationProblem.collectAsState()
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (granted) { if (AndroidPushNotifications.setEnabled(context, true)) { visible = false; onSync() } }
         else needsSettings = true
+    }
+    LaunchedEffect(Unit) {
+        if (restored.needsPermissionRecovery(AndroidPushNotifications.allowed(context))) {
+            if (!AndroidPushNotifications.runtimePermissionGranted(context)) permission.launch(Manifest.permission.POST_NOTIFICATIONS)
+            else needsSettings=true
+        }
     }
     androidx.lifecycle.compose.LifecycleResumeEffect(needsSettings,visible) {
         if (visible && needsSettings && AndroidPushNotifications.allowed(context) && AndroidPushNotifications.setEnabled(context,true)) { visible=false; onSync() }
@@ -5587,7 +5594,7 @@ private fun AnnouncementInvitation(onSync: () -> Unit) {
             Text(strings.t("alerts.invitation.body"), fontSize = 17.sp, textAlign = TextAlign.Center, color = SanctuaryTabInactive)
             Button(modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp), onClick = {
                 if (needsSettings) context.startActivity(Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(android.provider.Settings.EXTRA_APP_PACKAGE,context.packageName))
-                else if (Build.VERSION.SDK_INT >= 33 && !AndroidPushNotifications.allowed(context)) permission.launch(Manifest.permission.POST_NOTIFICATIONS)
+                else if (!AndroidPushNotifications.runtimePermissionGranted(context)) permission.launch(Manifest.permission.POST_NOTIFICATIONS)
                 else if (!AndroidPushNotifications.allowed(context)) needsSettings=true
                 else if (AndroidPushNotifications.setEnabled(context, true)) { visible = false; onSync() }
             }) { Text(strings.t(if(needsSettings) "notifications.settings" else "alerts.invitation.enable")) }
@@ -5613,8 +5620,8 @@ private fun AnnouncementPreference() {
         }
     }
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        enabled = granted
-        AndroidPushNotifications.setEnabled(context, granted)
+        // System denial does not overwrite the separate app preference.
+        enabled = AndroidPushNotifications.enabled(context)
         sync()
     }
     val lifecycle = androidx.lifecycle.compose.LocalLifecycleOwner.current
@@ -5623,7 +5630,9 @@ private fun AnnouncementPreference() {
     }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         ReminderToggleRow(title = l10n.t("announcements.title"), subtitle = l10n.t("announcements.body"), checked = enabled, enabled = true, onCheckedChange = { value ->
-            if (value && Build.VERSION.SDK_INT >= 33 && !AndroidPushNotifications.allowed(context)) permission.launch(Manifest.permission.POST_NOTIFICATIONS)
+            if (value && !AndroidPushNotifications.runtimePermissionGranted(context)) {
+                if (AndroidPushNotifications.setEnabled(context,true)) { enabled=true; permission.launch(Manifest.permission.POST_NOTIFICATIONS) }
+            }
             else {
                 enabled = value
                 AndroidPushNotifications.setEnabled(context,value)

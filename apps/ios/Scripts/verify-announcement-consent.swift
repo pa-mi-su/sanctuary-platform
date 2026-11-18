@@ -1,6 +1,6 @@
 import Foundation
 @main struct VerifyConsent {
- static func main() throws {
+ @MainActor static func main() async throws {
   let name = "sanctuary-consent-test-" + UUID().uuidString
   let defaults = UserDefaults(suiteName: name)!
   defer { defaults.removePersistentDomain(forName: name) }
@@ -30,6 +30,32 @@ import Foundation
   assert(failed.choice == false && !defaults.bool(forKey: "sanctuary.announcements"))
   do { try failed.choose(true); fatalError("Failed opt-in must not enable alerts") } catch {}
   assert(failed.choice == false && !defaults.bool(forKey: "sanctuary.announcements"))
+  let recovery = AnnouncementPermissionRecovery()
+  var requests = 0
+  let off = await recovery.resolve(enabled:false,state:.request) { requests += 1; return true }
+  assert(!off && requests == 0)
+  let permitted = await recovery.resolve(enabled:true,state:.allowed) { requests += 1; return false }
+  assert(permitted && requests == 0)
+  let denied = await recovery.resolve(enabled:true,state:.blocked) { requests += 1; return true }
+  assert(!denied && requests == 0)
+  let restored = await recovery.resolve(enabled:true,state:.request) { requests += 1; return true }
+  assert(restored && requests == 1)
+  let refused = await recovery.resolve(enabled:true,state:.request) { requests += 1; return false }
+  assert(!refused && requests == 2)
+  var resume: CheckedContinuation<Bool,Never>?
+  let first = Task { await recovery.resolve(enabled:true,state:.request) {
+    requests += 1
+    return await withCheckedContinuation { resume = $0 }
+  } }
+  while resume == nil { await Task.yield() }
+  var secondStarted = false
+  let second = Task { secondStarted = true; return await recovery.resolve(enabled:true,state:.request) { fatalError("Concurrent sync requested permission twice") } }
+  while !secondStarted { await Task.yield() }
+  resume?.resume(returning:true)
+  let firstResult = await first.value
+  let secondResult = await second.value
+  assert(firstResult && secondResult && requests == 3)
+  print("Permission recovery: restored ON, OFF, allowed, denied and concurrent requests passed")
   print("Announcement consent: unknown, migration, update, recovery, opt-out and storage failure checks passed")
  }
 }

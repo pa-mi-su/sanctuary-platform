@@ -55,9 +55,8 @@ object AndroidPushNotifications {
         check(prefs.edit().putString("installation", id).commit())
         return id
     }
-    fun allowed(context: Context): Boolean =
-        (Build.VERSION.SDK_INT < 33 || ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) &&
-            NotificationManagerCompat.from(context).areNotificationsEnabled()
+    fun runtimePermissionGranted(context: Context): Boolean = Build.VERSION.SDK_INT < 33 || ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+    fun allowed(context: Context): Boolean = runtimePermissionGranted(context) && NotificationManagerCompat.from(context).areNotificationsEnabled()
     fun channel(context: Context) {
         val manager = context.getSystemService(NotificationManager::class.java)
         val channel = NotificationChannel("sanctuary-announcements", "Sanctuary announcements", NotificationManager.IMPORTANCE_DEFAULT).apply {

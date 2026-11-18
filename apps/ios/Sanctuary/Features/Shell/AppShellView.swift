@@ -130,7 +130,7 @@ struct AppShellView: View {
                 Text(localization.t("alerts.invitation.body")).font(AppTheme.rounded(17, weight: .medium)).multilineTextAlignment(.center)
                 Button(localization.t(push.invitationNeedsSettings ? "notifications.settings" : "alerts.invitation.enable")) {
                     if push.invitationNeedsSettings {
-                        if let url = URL(string: UIApplication.openNotificationSettingsURLString) { UIApplication.shared.open(url) }
+                        Task { await push.openPhoneNotificationSettings() }
                     } else { Task { await push.enableFromInvitation(); await accountStore.syncPushDevice() } }
                 }.buttonStyle(PrimaryPillButtonStyle())
                 Button(localization.t("alerts.invitation.later")) { push.declineInvitation(); Task { await accountStore.syncPushDevice() } }.buttonStyle(SecondaryPillButtonStyle())

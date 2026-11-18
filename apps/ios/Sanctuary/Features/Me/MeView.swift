@@ -248,7 +248,7 @@ struct MeView: View {
                     subtitle: localization.t("notifications.settingsBody"),
                     icon: "gearshape.fill", trailingIcon: "arrow.up.right.square"
                 ) {
-                    if let url = URL(string: UIApplication.openNotificationSettingsURLString) { UIApplication.shared.open(url) }
+                    Task { await push.openPhoneNotificationSettings() }
                 }
 
             }

@@ -13,4 +13,13 @@ class AnnouncementConsentTest {
   assertFalse(AnnouncementConsent.restore(true,null,"1.0.38",null).needsInvitation)
   assertTrue(AnnouncementConsent.restore(null,null,"1.0.37",null).needsInvitation)
  }
+ @Test fun restoredOnRequiresSystemPermissionButAnOptOutNeverDoes() {
+  assertTrue(AnnouncementConsent.restore(null,true).needsPermissionRecovery(false))
+  assertFalse(AnnouncementConsent.restore(null,true).needsPermissionRecovery(true))
+  assertFalse(AnnouncementConsent.restore(false,true).needsPermissionRecovery(false))
+  assertFalse(AnnouncementConsent.restore(null,null).needsPermissionRecovery(false))
+  val restored=AnnouncementConsent.restore(null,true)
+  assertTrue(restored.needsPermissionRecovery(false))
+  assertTrue(restored.enabled) // Missing/denied OS permission never rewrites consent.
+ }
 }
