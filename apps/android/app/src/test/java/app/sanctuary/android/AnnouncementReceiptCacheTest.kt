@@ -36,4 +36,32 @@ class AnnouncementReceiptCacheTest {
   cache().changeGuest("clear",listOf("new"))
   assertFalse(cache().changeGuest("restore",listOf("new")).clearedIds.contains("new"))
  }
+ @Test fun freshInstallationHidesHistoryWithoutUploadingItsBaselineToAccounts() {
+  val storage=mutableMapOf<String,String>()
+  fun cache()=AnnouncementReceiptCache({storage[it]},{key,value->storage[key]=value})
+  assertTrue(cache().needsFreshStart)
+  cache().initializeInstallation(200.0,cache().needsFreshStart)
+  assertEquals(200.0,cache().guestForDisplay.clearedBefore,0.0)
+  assertEquals(0.0,cache().guestForUpload.clearedBefore,0.0)
+  cache().initializeInstallation(300.0,false)
+  assertEquals(200.0,cache().guestForDisplay.clearedBefore,0.0)
+  cache().rememberMember(AnnouncementState())
+  assertEquals(200.0,cache().forDisplay(AnnouncementState()).clearedBefore,0.0)
+  assertTrue(visibleAnnouncements(listOf(app.sanctuary.android.data.InboxAnnouncement("new","New","Body","https://mydailysanctuary.com/",201.0)),cache().guestForDisplay).isNotEmpty())
+ }
+ @Test fun existingReceiptsAndEmptyFirstFeedDoNotLoseFutureMessages() {
+  val storage=mutableMapOf<String,String>()
+  val cache=AnnouncementReceiptCache({storage[it]},{key,value->storage[key]=value})
+  cache.initializeInstallation(0.0,true)
+  assertFalse(cache.needsFreshStart)
+  cache.initializeInstallation(500.0,false)
+  assertEquals(0.0,cache.guestForDisplay.clearedBefore,0.0)
+ }
+ @Test fun existingInstallationDoesNotHideItsUnclearedHistoryOnUpgrade() {
+  cache().changeGuest("read",listOf("already-read"))
+  assertFalse(cache().needsFreshStart)
+  cache().initializeInstallation(500.0,cache().needsFreshStart)
+  assertEquals(0.0,cache().guestForDisplay.clearedBefore,0.0)
+  assertEquals(listOf("already-read"),cache().guestForDisplay.readIds)
+ }
 }

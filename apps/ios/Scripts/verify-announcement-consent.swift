@@ -17,6 +17,13 @@ import Foundation
   assert(open().choice == false) // Recovery also preserves opt-out.
   defaults.set(true, forKey: "sanctuary.announcements")
   assert(open().choice == true) // Legacy choice migrates ahead of old recovery state.
+  let upgrade = AnnouncementConsent(defaults:defaults,backup:backup,version:"1.0.37") { backup = $0 }
+  try upgrade.choose(false)
+  assert(!upgrade.needsInvitation)
+  assert(!AnnouncementConsent(defaults:defaults,backup:backup,version:"1.0.37") { backup = $0 }.needsInvitation)
+  assert(AnnouncementConsent(defaults:defaults,backup:backup,version:"1.0.38") { backup = $0 }.needsInvitation)
+  try upgrade.choose(true)
+  assert(!AnnouncementConsent(defaults:defaults,backup:backup,version:"1.0.38") { backup = $0 }.needsInvitation)
   enum Failed: Error { case storage }
   let failed = AnnouncementConsent(defaults: defaults, backup: backup) { _ in throw Failed.storage }
   do { try failed.choose(false); fatalError("Storage failure must not appear successful") } catch {}

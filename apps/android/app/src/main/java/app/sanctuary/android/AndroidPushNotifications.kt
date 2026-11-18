@@ -30,7 +30,8 @@ object AndroidPushNotifications {
         val main = preferences(context); val backup = recovery(context)
         val result = AnnouncementConsent.restore(
             if (main.contains("announcements")) main.getBoolean("announcements", false) else null,
-            if (backup.contains("announcements")) backup.getBoolean("announcements", false) else null)
+            if (backup.contains("announcements")) backup.getBoolean("announcements", false) else null,
+            BuildConfig.VERSION_NAME, main.getString("invitation_version",null) ?: backup.getString("invitation_version",null))
         result.choice?.let {
             if (!main.contains("announcements")) main.edit().putBoolean("announcements", it).commit()
             if (!backup.contains("announcements")) backup.edit().putBoolean("announcements", it).commit()
@@ -40,8 +41,8 @@ object AndroidPushNotifications {
     fun enabled(context: Context) = consent(context).enabled
     fun setEnabled(context: Context, enabled: Boolean): Boolean = try {
         if (!enabled) check(preferences(context).edit().putBoolean("announcements", false).commit())
-        check(recovery(context).edit().putBoolean("announcements", enabled).commit())
-        check(preferences(context).edit().putBoolean("announcements", enabled).commit())
+        check(recovery(context).edit().putBoolean("announcements", enabled).putString("invitation_version",BuildConfig.VERSION_NAME).commit())
+        check(preferences(context).edit().putBoolean("announcements", enabled).putString("invitation_version",BuildConfig.VERSION_NAME).commit())
         true
     } catch (error: Exception) {
         registrationProblem.value = "Your notification choice could not be saved. Please try again."

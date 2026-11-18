@@ -21,6 +21,9 @@ describe('Announcement inbox state', () => {
   let auth: any;
   beforeEach(() => {
     localStorage.removeItem(key);
+    localStorage.removeItem(key + ':installation-before');
+    // Most tests represent an existing browser with a previously initialized guest state.
+    localStorage.setItem(key, JSON.stringify({readIds:[],clearedIds:[],clearedBefore:0}));
     auth = { state: signal({ status: 'anonymous', email: null }) };
     TestBed.configureTestingModule({
       providers: [
@@ -37,11 +40,33 @@ describe('Announcement inbox state', () => {
   afterEach(() => {
     http.verify();
     localStorage.removeItem(key);
+    localStorage.removeItem(key + ':installation-before');
   });
   async function initial(items = [row()]) {
     http.expectOne(base + '/announcements?page=0').flush({ items, hasMore: false });
     await settle();
   }
+  it('starts a fresh installation empty and preserves future messages without uploading the device baseline', async () => {
+    await initial();
+    localStorage.removeItem(key);
+    localStorage.removeItem(key + ':installation-before');
+    const fresh = inbox.load();
+    http.expectOne(base + '/announcements?page=0').flush({items:[row('old',100)],hasMore:false});
+    await fresh;
+    expect(inbox.visible()).toEqual([]); expect(inbox.unread()).toBe(false);
+    const refresh = inbox.load();
+    http.expectOne(base + '/announcements?page=0').flush({items:[row('new',101),row('old',100)],hasMore:false});
+    await refresh;
+    expect(inbox.visible().map(x=>x.id)).toEqual(['new']);
+    await inbox.change('read','new');
+    expect(JSON.parse(localStorage.getItem(key)!).clearedBefore).toBe(0);
+    auth.state.set({status:'authenticated',email:'existing@sanctuary.invalid'});TestBed.tick();
+    const transfer=http.expectOne(base+'/me/announcements/guest');
+    expect(transfer.request.body.clearedBefore).toBe(0);
+    transfer.flush({readIds:['new'],clearedIds:[],clearedBefore:0});await settle();
+    http.expectOne(base+'/announcements?page=0').flush({items:[row('new',101),row('old',100)],hasMore:false});await settle();
+    expect(inbox.visible().map(x=>x.id)).toEqual(['new']);
+  });
   it('starts a new account after the historical backlog and keeps newer messages unread', async () => {
     await initial([row('old', 100)]);
     auth.state.set({ status: 'authenticated', email: 'new@sanctuary.invalid' });

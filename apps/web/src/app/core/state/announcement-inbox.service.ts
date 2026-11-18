@@ -30,6 +30,10 @@ export class AnnouncementInboxService {
   private page = 0;
   private generation = 0;
   private key = 'sanctuary-announcements-guest:' + this.base;
+  private baselineKey = this.key + ':installation-before';
+  private displayState(state: InboxState): InboxState {
+    return { ...state, clearedBefore: Math.max(state.clearedBefore, Number(localStorage.getItem(this.baselineKey)) || 0) };
+  }
   visible = computed(() =>
     this.items().filter(
       (x) => !this.state().clearedIds.includes(x.id) && x.published_at > this.state().clearedBefore,
@@ -57,6 +61,7 @@ export class AnnouncementInboxService {
   }
   async load(next = false, member = this.auth.state().status === 'authenticated') {
     const generation = ++this.generation;
+    const freshInstallation = localStorage.getItem(this.baselineKey) === null && localStorage.getItem(this.key) === null;
     this.busy.set(true);
     this.error.set('');
     try {
@@ -90,7 +95,7 @@ export class AnnouncementInboxService {
             : await this.request<InboxState>('GET', '/me/announcements');
           if (generation === this.generation && hasGuest) localStorage.removeItem(pendingKey);
           if (generation !== this.generation) return;
-          this.state.set(loaded);
+          this.state.set(this.displayState(loaded));
         } else {
           try {
             const stored = JSON.parse(localStorage.getItem(this.key) || 'null');
@@ -115,6 +120,10 @@ export class AnnouncementInboxService {
         '/announcements?page=' + page,
       );
       if (generation !== this.generation) return;
+      if (localStorage.getItem(this.baselineKey) === null) {
+        localStorage.setItem(this.baselineKey, String(freshInstallation ? Math.max(0, ...feed.items.map(x => x.published_at)) : 0));
+      }
+      this.state.set(this.displayState(this.state()));
       this.items.set(
         next
           ? [
@@ -166,6 +175,8 @@ export class AnnouncementInboxService {
           throughId: action === 'clearAll' ? (through ?? this.latest())?.id : null,
         });
       else {
+        // Device freshness is display-only; never upload it as another account's clear-all.
+        state = JSON.parse(localStorage.getItem(this.key) || 'null') || empty();
         if (action === 'read')
           state = {
             ...state,
@@ -186,7 +197,7 @@ export class AnnouncementInboxService {
         localStorage.setItem(this.key, JSON.stringify(state));
       }
       if (generation !== this.generation) return;
-      this.state.set(state);
+      this.state.set(this.displayState(state));
       this.undo.set(action === 'clear' ? id || null : null);
     } catch {
       if (generation === this.generation)

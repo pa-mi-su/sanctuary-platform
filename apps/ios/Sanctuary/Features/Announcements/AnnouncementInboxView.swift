@@ -56,6 +56,7 @@ struct AnnouncementChange: Encodable {
     generation += 1
     let request = generation
     let receiptRevision = receiptCache.revision
+    let freshInstallation = receiptCache.needsFreshStart
     self.api = api
     self.token = token
     defer { if request == generation { busy = false } }
@@ -88,7 +89,7 @@ struct AnnouncementChange: Encodable {
             UserDefaults.standard.removeObject(forKey: pending)
           } else { loaded = try await api.announcementState(token: token) }
           guard request == generation else { return }
-          state = loaded
+          state = receiptCache.forDisplay(loaded)
           try receiptCache.rememberMember(loaded, expectedRevision: receiptRevision)
         } else {
           state = receiptCache.guestForDisplay
@@ -97,6 +98,8 @@ struct AnnouncementChange: Encodable {
       let next = more ? page + 1 : 0
       let feed = try await api.announcements(page: next)
       guard request == generation else { return }
+      receiptCache.initializeInstallation(latest: feed.items.map(\.published_at).max() ?? 0, fresh: freshInstallation)
+      state = receiptCache.forDisplay(state)
       items =
         more ? items + feed.items.filter { row in !items.contains { $0.id == row.id } } : feed.items
       page = next
@@ -120,7 +123,7 @@ struct AnnouncementChange: Encodable {
       if let token {
         let loaded = try await api.changeAnnouncements(change, token: token)
         guard request == generation else { return }
-        state = loaded
+        state = receiptCache.forDisplay(loaded)
         try receiptCache.rememberMember(loaded, expectedRevision: action == "read" ? receiptRevision : nil)
       } else {
         state = try receiptCache.changeGuest(action, ids: change.ids,

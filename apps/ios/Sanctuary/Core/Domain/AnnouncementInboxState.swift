@@ -33,7 +33,17 @@ final class AnnouncementReceiptCache {
     }
     private func write(_ value: AnnouncementInboxState, to name: String) throws { defaults.set(try JSONEncoder().encode(value), forKey: name) }
     var guestForUpload: AnnouncementInboxState { read(key) }
-    var guestForDisplay: AnnouncementInboxState { guestForUpload.merging(read(key + "-member-display")) }
+    var guestForDisplay: AnnouncementInboxState { forDisplay(guestForUpload.merging(read(key + "-member-display"))) }
+    var needsFreshStart: Bool { defaults.object(forKey: key + "-installation-before") == nil && defaults.data(forKey: key) == nil && defaults.data(forKey: key + "-member-display") == nil }
+    func initializeInstallation(latest: Double, fresh: Bool) {
+        guard defaults.object(forKey: key + "-installation-before") == nil else { return }
+        defaults.set(fresh ? max(0, latest) : 0, forKey: key + "-installation-before")
+    }
+    func forDisplay(_ state: AnnouncementInboxState) -> AnnouncementInboxState {
+        var result = state
+        result.clearedBefore = max(result.clearedBefore, defaults.double(forKey: key + "-installation-before"))
+        return result
+    }
     var revision: Int { defaults.integer(forKey: key + "-member-revision") }
     func rememberMember(_ state: AnnouncementInboxState, expectedRevision: Int? = nil) throws {
         if let expectedRevision, expectedRevision != revision { return }
