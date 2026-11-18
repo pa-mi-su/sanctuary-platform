@@ -312,7 +312,7 @@ struct PrayerDetailView: View {
     @EnvironmentObject private var localization: LocalizationManager
     @EnvironmentObject private var progressStore: UserProgressStore
     @State private var currentPrayer: Prayer
-    @State private var isFavorite = false
+    private var isFavorite: Bool { progressStore.isFavorite(itemType: .prayer, itemID: prayer.id) }
     @State private var isShowingExpandedHeroImage = false
     @State private var isShowingAccountRequired = false
 
@@ -408,9 +408,9 @@ struct PrayerDetailView: View {
                             Button {
                                 if progressStore.isAuthenticated {
                                     Task {
-                                        isFavorite.toggle()
-                                        await progressStore.setFavorite(isFavorite, itemType: .prayer, itemID: currentPrayer.id)
-                                        isFavorite = progressStore.isFavorite(itemType: .prayer, itemID: currentPrayer.id)
+
+                                        await progressStore.setFavorite(!isFavorite, itemType: .prayer, itemID: currentPrayer.id)
+
                                     }
                                 } else {
                                     isShowingAccountRequired = true
@@ -436,6 +436,8 @@ struct PrayerDetailView: View {
 
                             Spacer()
                         }
+
+                        ContentReminderButton(kind: "prayers", slug: currentPrayer.slug, title: title)
 
                         ShareLink(item: SharedContentLink(kind: .prayer, slug: currentPrayer.slug).shareText(title: title)) {
                             HStack(spacing: 10) {
@@ -486,7 +488,7 @@ struct PrayerDetailView: View {
         .toolbar(.hidden, for: .navigationBar)
         .accountRequiredPrompt(isPresented: $isShowingAccountRequired) {
             await progressStore.setFavorite(true, itemType: .prayer, itemID: currentPrayer.id)
-            isFavorite = progressStore.isFavorite(itemType: .prayer, itemID: currentPrayer.id)
+
         }
         .fullScreenCover(isPresented: $isShowingExpandedHeroImage) {
             if let imageURL {
@@ -499,16 +501,16 @@ struct PrayerDetailView: View {
             do {
                 if let loaded = try await contentRepository.fetchPrayer(slug: prayer.slug, locale: locale) {
                     currentPrayer = loaded
-                    isFavorite = progressStore.isFavorite(itemType: .prayer, itemID: loaded.id)
+
                 }
             } catch {
                 currentPrayer = prayer
-                isFavorite = progressStore.isFavorite(itemType: .prayer, itemID: prayer.id)
+
             }
         }
-        .onAppear {
-            isFavorite = progressStore.isFavorite(itemType: .prayer, itemID: currentPrayer.id)
-        }
+        .alert("Sanctuary", isPresented: Binding(get: { progressStore.actionError != nil }, set: { if !$0 { progressStore.actionError = nil } })) {
+            Button("OK") { progressStore.actionError = nil }
+        } message: { Text(localization.t(progressStore.actionError ?? "")) }
     }
 
     private func detailMetaChip(icon: String, text: String) -> some View {

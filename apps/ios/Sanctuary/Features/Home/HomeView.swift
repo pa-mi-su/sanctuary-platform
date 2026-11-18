@@ -5,8 +5,6 @@ struct HomeView: View {
     @EnvironmentObject private var localization: LocalizationManager
 
     @State private var revealContent = false
-    @State private var showLanguageDialog = false
-    @State private var showAbout = false
     @State private var showPrayersSearch = false
     @State private var showRosarySearch = false
     @State private var showIntentionsSearch = false
@@ -81,18 +79,6 @@ struct HomeView: View {
 
                     ScrollView(showsIndicators: false) {
                         VStack(spacing: 16 * scale) {
-                            HStack(spacing: 10 * scale) {
-                                TopActionButton(title: localization.t("home.about"), icon: "info.circle") {
-                                    showAbout = true
-                                }
-                                TopActionButton(title: "\(localization.t("home.language")): \(localization.language.displayName)", icon: "translate") {
-                                    showLanguageDialog = true
-                                }
-                            }
-                            .padding(.top, 8 * scale)
-                            .opacity(revealContent ? 1 : 0)
-                            .offset(y: revealContent ? 0 : -8)
-
                             VStack(spacing: 16 * scale) {
                                 Text(localization.t("home.eyebrow"))
                                     .font(AppTheme.rounded(13 * scale, weight: .bold))
@@ -177,13 +163,6 @@ struct HomeView: View {
             .task(id: localization.language) {
                 await loadDailyReadingsURL()
             }
-            .sheet(isPresented: $showLanguageDialog) {
-                LanguagePickerSheet()
-                    .presentationDetents([.medium])
-            }
-            .fullScreenCover(isPresented: $showAbout) {
-                AboutView()
-            }
             .fullScreenCover(isPresented: $showPrayersSearch) {
                 PrayersSearchView(environment: environment)
             }
@@ -219,39 +198,37 @@ struct HomeView: View {
     }
 }
 
-private struct LanguagePickerSheet: View {
+struct LanguagePickerSheet: View {
     @EnvironmentObject private var localization: LocalizationManager
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         ZStack {
             AppBackdrop()
-            VStack(alignment: .leading, spacing: 16) {
-                Text(localization.t("home.chooseLanguage"))
-                    .font(AppTheme.rounded(22, weight: .semibold))
-                    .foregroundStyle(AppTheme.cardText)
-
-                ForEach(AppLanguage.allCases) { language in
-                    Button(language.displayName) {
-                        localization.language = language
-                        dismiss()
+            ScrollView {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text(localization.t("home.chooseLanguage"))
+                        .font(AppTheme.rounded(24, weight: .bold)).foregroundStyle(.white)
+                        .padding(.bottom, 4)
+                    ForEach(AppLanguage.allCases) { language in
+                        Button {
+                            localization.language = language
+                            dismiss()
+                        } label: {
+                            HStack {
+                                Text(language.displayName).font(AppTheme.rounded(17, weight: .semibold))
+                                Spacer()
+                                if language == localization.language { Image(systemName: "checkmark").foregroundStyle(AppTheme.tabActive) }
+                            }
+                            .foregroundStyle(.white).padding(.horizontal, 18).padding(.vertical, 16)
+                            .frame(maxWidth: .infinity, minHeight: 56)
+                            .background(language == localization.language ? Color(hex: "#245C73") : AppTheme.cardBackground)
+                            .clipShape(RoundedRectangle(cornerRadius: 18))
+                            .overlay(RoundedRectangle(cornerRadius: 18).stroke(AppTheme.tabBorder, lineWidth: 1))
+                        }.buttonStyle(.plain)
                     }
-                    .buttonStyle(PrimaryPillButtonStyle())
-                }
-
-                HStack {
-                    Spacer()
-                    Button(localization.t("common.close")) {
-                        dismiss()
-                    }
-                    .font(AppTheme.rounded(16, weight: .semibold))
-                    .foregroundStyle(AppTheme.purpleOutline)
-                }
-                .padding(.top, 8)
+                }.padding(.horizontal, 16).padding(.top, 24).padding(.bottom, 24)
             }
-            .padding(24)
-            .appGlassCard()
-            .padding(16)
         }
     }
 }

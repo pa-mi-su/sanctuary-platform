@@ -413,3 +413,8 @@ data class LiturgicalDay(
     val readingsUrl: String?,
     val rankType: String
 )
+
+// Daily wall-clock time on each signed-in device; no UTC conversion or minute rounding.
+data class AccountContentReminder(val kind: String, val slug: String, val title: String, val hour: Int, val minute: Int) {
+    val destination: String get() = "https://mydailysanctuary.com/$kind/$slug"
+}

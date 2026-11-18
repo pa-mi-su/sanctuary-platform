@@ -25,48 +25,9 @@ class AndroidReminderScheduler(
         novenaEnabled: Boolean,
         generalDailyEnabled: Boolean
     ) {
-        preferences.edit()
-            .putInt(KEY_ACTIVE_COUNT, activeCommitmentCount)
-            .putBoolean(KEY_NOVENA_ENABLED, novenaEnabled)
-            .putBoolean(KEY_GENERAL_ENABLED, generalDailyEnabled)
-            .apply()
-
-        cancelAll()
-
-        if (!novenaEnabled && !generalDailyEnabled) return
-        if (!areNotificationsAllowed()) return
-
-        createNotificationChannel()
-
-        if (activeCommitmentCount > 0 && novenaEnabled) {
-            val body = if (activeCommitmentCount == 1) {
-                "You have a novena in progress. Take a calm moment to continue your prayer in Sanctuary."
-            } else {
-                "You have $activeCommitmentCount novenas in progress. Take a calm moment to continue your prayer in Sanctuary."
-            }
-            scheduleAlarm(
-                kind = KIND_MORNING,
-                title = "Continue your novena",
-                body = body,
-                hour = MORNING_HOUR
-            )
-            scheduleAlarm(
-                kind = KIND_EVENING,
-                title = "Continue your novena",
-                body = body,
-                hour = EVENING_HOUR
-            )
-            return
-        }
-
-        if (generalDailyEnabled) {
-            scheduleAlarm(
-                kind = KIND_MORNING,
-                title = "Your sanctuary is calling",
-                body = "Spend a peaceful moment exploring saints, prayer, and perhaps beginning a novena today.",
-                hour = MORNING_HOUR
-            )
-        }
+        // Retire legacy morning/evening digests; per-item reminders are independent.
+        preferences.edit().putBoolean(KEY_NOVENA_ENABLED, false).putBoolean(KEY_GENERAL_ENABLED, false).apply()
+        cancelLegacyDigests()
     }
 
     fun resyncFromStoredPreferences() {
@@ -77,7 +38,126 @@ class AndroidReminderScheduler(
         )
     }
 
+    fun setAccount(owner: String?) {
+        if (preferences.getString("account_owner", null) == null && itemReminders().isNotEmpty()) {
+            preferences.edit().putBoolean("legacy_notice", true).commit()
+        }
+        if (preferences.getString("account_owner", null) != owner || owner == null) {
+            clearItemReminders()
+            preferences.edit().putString("account_owner", owner).commit()
+        }
+        // Old, unowned schedules are deliberately not imported into a different account.
+    }
+
+    fun reconcile(records: List<app.sanctuary.android.data.AccountContentReminder>) {
+        val existing = itemReminders().associateBy { it.destination }
+        val desired = records.map { it.destination }.toSet()
+        itemReminders().filter { it.destination !in desired }.forEach { removeItem(it.destination) }
+        records.forEach { record ->
+            val previous = existing[record.destination]
+            // Quiet refreshes must not replace an alarm that is about to fire.
+            if (previous?.title == record.title && previous.hour == record.hour && previous.minute == record.minute) return@forEach
+            val row = org.json.JSONObject().put("title", record.title).put("hour", record.hour).put("minute", record.minute)
+            check(preferences.edit().putString("item:${record.destination}", row.toString()).commit())
+            scheduleItem(record.destination, record.title, record.hour, record.minute)
+        }
+    }
+
+    fun resyncItem(destination: String) {
+        val item = itemReminders().firstOrNull { it.destination == destination } ?: return
+        scheduleItem(item.destination, item.title, item.hour, item.minute)
+    }
+
+    fun legacyNotice(): Boolean = preferences.getBoolean("legacy_notice", false)
+    fun dismissLegacyNotice() { preferences.edit().putBoolean("legacy_notice", false).apply() }
+
+    fun preciseTimingAllowed(): Boolean = Build.VERSION.SDK_INT < 31 || alarmManager.canScheduleExactAlarms()
+    fun notificationsAllowed(): Boolean = areNotificationsAllowed()
+
+    data class ItemReminder(val destination: String, val title: String, val hour: Int, val minute: Int)
+
+    fun itemReminders(): List<ItemReminder> = preferences.all.entries.filter { it.key.startsWith("item:") }.mapNotNull { (key, raw) ->
+        runCatching {
+            val row = org.json.JSONObject(raw as String)
+            ItemReminder(key.removePrefix("item:"), row.getString("title"), row.getInt("hour"), row.getInt("minute"))
+        }.getOrNull()
+    }.sortedBy { it.title.lowercase() }
+
+    fun observeItems(onChange: () -> Unit): () -> Unit {
+        val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+            if (key?.startsWith("item:") == true) onChange()
+        }
+        preferences.registerOnSharedPreferenceChangeListener(listener)
+        return { preferences.unregisterOnSharedPreferenceChangeListener(listener) }
+    }
+
+    fun clearItemReminders() { itemReminders().forEach { removeItem(it.destination) } }
+
+    fun itemTime(destination: String): Pair<Int, Int>? {
+        val raw = preferences.getString("item:$destination", null) ?: return null
+        val row = org.json.JSONObject(raw)
+        return row.getInt("hour") to row.getInt("minute")
+    }
+
+    fun removeItem(destination: String) {
+        preferences.edit().remove("item:$destination").commit()
+        alarmManager.cancel(itemIntent(destination, ""))
+        (context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).cancel(destination, 4402)
+    }
+
+    fun resyncItems() {
+        if (preferences.getString("account_owner", null) == null) { setAccount(null); return }
+        preferences.all.filterKeys { it.startsWith("item:") }.forEach { (key, raw) ->
+            runCatching {
+                val row = org.json.JSONObject(raw as String)
+                scheduleItem(key.removePrefix("item:"), row.getString("title"), row.getInt("hour"), row.getInt("minute"))
+            }
+        }
+    }
+
+    private fun itemIntent(destination: String, title: String): PendingIntent {
+        val intent = Intent(context, ReminderNotificationReceiver::class.java).apply {
+            action = ACTION_SHOW_REMINDER
+            data = android.net.Uri.parse(destination)
+            putExtra(EXTRA_TITLE, title)
+            putExtra("itemDestination", destination)
+            putExtra("reminderOwner", preferences.getString("account_owner", null))
+        }
+        return PendingIntent.getBroadcast(context, 4402, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+    }
+
+    private fun scheduleItem(destination: String, title: String, hour: Int, minute: Int) {
+        val next = nextItemReminderTime(ZonedDateTime.now(), hour, minute)
+        val operation = itemIntent(destination, title)
+        if (preciseTimingAllowed()) {
+            try {
+                alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, next.toInstant().toEpochMilli(), operation)
+                return
+            } catch (_: SecurityException) { /* Access can be revoked between checking and scheduling. */ }
+        }
+        alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, next.toInstant().toEpochMilli(), operation)
+    }
+
+    fun showItem(destination: String, title: String, expectedOwner: String?) {
+        if (expectedOwner == null || preferences.getString("account_owner", null) != expectedOwner || itemTime(destination) == null || !areNotificationsAllowed()) return
+        createNotificationChannel()
+        val open = Intent(context, MainActivity::class.java).apply {
+            data = android.net.Uri.parse(destination)
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val content = PendingIntent.getActivity(context, 4402, open, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(R.mipmap.ic_launcher_round).setContentTitle(title)
+            .setContentText("Take a moment to pray in Sanctuary.").setAutoCancel(true).setContentIntent(content).build()
+        try { NotificationManagerCompat.from(context).notify(destination, 4402, notification) } catch (_: SecurityException) {}
+    }
+
     fun cancelAll() {
+        setAccount(null)
+        cancelLegacyDigests()
+    }
+
+    private fun cancelLegacyDigests() {
         alarmManager.cancel(pendingIntentFor(KIND_MORNING, "", ""))
         alarmManager.cancel(pendingIntentFor(KIND_EVENING, "", ""))
     }
@@ -188,9 +268,13 @@ class AndroidReminderScheduler(
 class ReminderNotificationReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val scheduler = AndroidReminderScheduler(context)
-        val title = intent.getStringExtra(AndroidReminderScheduler.EXTRA_TITLE).orEmpty()
-        val body = intent.getStringExtra(AndroidReminderScheduler.EXTRA_BODY).orEmpty()
-        scheduler.showReminderNotification(title, body)
+        val destination = intent.getStringExtra("itemDestination")
+        if (destination != null) {
+            scheduler.showItem(destination, intent.getStringExtra(AndroidReminderScheduler.EXTRA_TITLE).orEmpty(), intent.getStringExtra("reminderOwner"))
+            scheduler.resyncItem(destination)
+            return
+        }
+        // Ignore a legacy digest broadcast that was already queued during upgrade.
         scheduler.resyncFromStoredPreferences()
     }
 }
@@ -199,9 +283,27 @@ class ReminderBootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         if (
             intent.action == Intent.ACTION_BOOT_COMPLETED ||
-            intent.action == Intent.ACTION_MY_PACKAGE_REPLACED
+            intent.action == Intent.ACTION_MY_PACKAGE_REPLACED || intent.action == Intent.ACTION_TIMEZONE_CHANGED || intent.action == Intent.ACTION_TIME_CHANGED || intent.action == AlarmManager.ACTION_SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED
         ) {
             AndroidReminderScheduler(context).resyncFromStoredPreferences()
+            AndroidReminderScheduler(context).resyncItems()
         }
     }
+}
+
+
+internal fun nextItemReminderTime(now: ZonedDateTime, hour: Int, minute: Int): ZonedDateTime {
+    require(hour in 0..23 && minute in 0..59)
+    var date = now.toLocalDate()
+    repeat(370) {
+        val local = date.atTime(hour, minute)
+        val offsets = now.zone.rules.getValidOffsets(local)
+        // Match iOS: a spring-forward gap moves by the gap (02:30 -> 03:30).
+        // During fall-back use the first occurrence, never notify twice that day.
+        val candidate = if (offsets.isEmpty()) local.atZone(now.zone)
+            else ZonedDateTime.ofLocal(local, now.zone, offsets.first())
+        if (candidate.isAfter(now)) return candidate
+        date = date.plusDays(1)
+    }
+    error("No valid reminder date found.")
 }

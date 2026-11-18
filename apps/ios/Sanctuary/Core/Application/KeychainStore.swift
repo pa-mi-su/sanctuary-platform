@@ -15,8 +15,10 @@ final class KeychainStore: @unchecked Sendable {
             kSecAttrAccount as String: account,
         ]
 
-        SecItemDelete(query as CFDictionary)
-
+        // Preserve the previous value if updating secure storage fails.
+        let updated = SecItemUpdate(query as CFDictionary, [kSecValueData as String: data] as CFDictionary)
+        if updated == errSecSuccess { return }
+        guard updated == errSecItemNotFound else { throw KeychainStoreError.unexpectedStatus(updated) }
         var item = query
         item[kSecValueData as String] = data
         item[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
