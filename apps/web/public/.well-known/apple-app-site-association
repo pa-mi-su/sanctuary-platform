@@ -7,7 +7,8 @@
         "paths": [
           "/saints/*",
           "/novenas/*",
-          "/prayers/*"
+          "/prayers/*",
+          "/announcements/*"
         ]
       },
       {
@@ -15,7 +16,8 @@
         "paths": [
           "/saints/*",
           "/novenas/*",
-          "/prayers/*"
+          "/prayers/*",
+          "/announcements/*"
         ]
       },
       {
@@ -23,7 +25,8 @@
         "paths": [
           "/saints/*",
           "/novenas/*",
-          "/prayers/*"
+          "/prayers/*",
+          "/announcements/*"
         ]
       }
     ]

@@ -4,6 +4,7 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
 
     <queries>
         <intent>
@@ -30,7 +31,10 @@
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED" />
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+                <action android:name="android.intent.action.TIME_SET" />
             </intent-filter>
         </receiver>
         <activity
@@ -96,6 +100,7 @@
                     android:scheme="https"
                     android:host="mydailysanctuary.com"
                     android:pathPrefix="/prayers/" />
+                <data android:scheme="https" android:host="mydailysanctuary.com" android:pathPrefix="/announcements/" />
             </intent-filter>
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
@@ -107,8 +112,13 @@
                     android:scheme="https"
                     android:host="www.mydailysanctuary.com"
                     android:pathPrefix="/prayers/" />
+                <data android:scheme="https" android:host="www.mydailysanctuary.com" android:pathPrefix="/announcements/" />
             </intent-filter>
         </activity>
+        <service android:name=".SanctuaryFirebaseMessagingService" android:exported="false">
+            <intent-filter><action android:name="com.google.firebase.MESSAGING_EVENT" /></intent-filter>
+        </service>
+        <meta-data android:name="com.google.firebase.messaging.default_notification_channel_id" android:value="sanctuary-announcements" />
     </application>
 
 </manifest>

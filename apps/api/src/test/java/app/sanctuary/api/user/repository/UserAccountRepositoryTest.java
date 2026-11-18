@@ -26,6 +26,8 @@ class UserAccountRepositoryTest {
         repository.deleteById(userId);
 
         InOrder inOrder = inOrder(jdbcTemplate);
+        inOrder.verify(jdbcTemplate).update(eq("UPDATE push_deliveries SET state='skipped',updated_at=now() WHERE recipient_user_id=? AND state='pending'"), eq(userId));
+        inOrder.verify(jdbcTemplate).update(eq("UPDATE push_devices SET user_id=NULL WHERE user_id=?"), eq(userId));
         inOrder.verify(jdbcTemplate).update(eq("""
                 DELETE FROM user_activity_events
                 WHERE user_id = ?

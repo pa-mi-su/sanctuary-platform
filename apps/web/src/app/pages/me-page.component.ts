@@ -1,3 +1,4 @@
+import { AccountRemindersComponent } from './account-reminders.component';
 import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output } from '@angular/core';
 
 import { UserProfile } from '../core/api/sanctuary-api.service';
@@ -8,10 +9,12 @@ type AppLanguage = 'en' | 'es' | 'pl';
 @Component({
   selector: 'app-me-page',
   standalone: true,
+  imports: [AccountRemindersComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './me-page.component.scss',
   template: `
     <section class="screen-card me-screen glass-card">
+      @if (settingsMode) {
       <div class="me-header">
         <div class="identity-block">
           <p class="eyebrow">{{ t('Signed in', 'Sesión iniciada', 'Zalogowano') }}</p>
@@ -26,181 +29,290 @@ type AppLanguage = 'en' | 'es' | 'pl';
 
             <div>
               <h2>{{ userName || t('Me', 'Yo', 'Ja') }}</h2>
-              <p class="identity-email">{{ profile?.email ?? t('Authenticated with Sanctuary account', 'Autenticado con tu cuenta de Sanctuary', 'Zalogowano do konta Sanctuary') }}</p>
-              <p>{{ t('Your favorites, active novenas, and future account settings live here.', 'Aquí viven tus favoritos, novenas activas y la futura configuración de tu cuenta.', 'Tutaj znajdują się ulubione, aktywne nowenny i przyszłe ustawienia konta.') }}</p>
+              <p class="identity-email">
+                {{
+                  profile?.email ??
+                    t(
+                      'Authenticated with Sanctuary account',
+                      'Autenticado con tu cuenta de Sanctuary',
+                      'Zalogowano do konta Sanctuary'
+                    )
+                }}
+              </p>
+              <p>
+                {{
+                  t(
+                    'Your saved content and prayer progress.',
+                    'Aquí viven tus favoritos, novenas activas y la futura configuración de tu cuenta.',
+                    'Tutaj znajdują się ulubione, aktywne nowenny i przyszłe ustawienia konta.'
+                  )
+                }}
+              </p>
             </div>
           </div>
         </div>
       </div>
 
-      <section class="linked-grid">
-        <article class="panel-card glass-subtle linked-card">
-          <div class="panel-heading">
-            <div>
-              <h3>{{ t('Active novenas', 'Novenas activas', 'Aktywne nowenny') }}</h3>
-              <p>{{ t('Pick up right where you left off.', 'Retoma justo donde lo dejaste.', 'Wroc dokladnie tam, gdzie przerwales.') }}</p>
+      }
+      @if (!settingsMode) {
+        <app-account-reminders [currentLanguage]="currentLanguage" />
+        <button class="settings-action" type="button" (click)="settings.emit()">
+          {{ t('Settings', 'Ajustes', 'Ustawienia') }}
+        </button>
+        <section class="linked-grid">
+          <article class="panel-card glass-subtle linked-card">
+            <div class="panel-heading">
+              <div>
+                <h3>{{ t('Active novenas', 'Novenas activas', 'Aktywne nowenny') }}</h3>
+                <p>
+                  {{
+                    t(
+                      'Pick up right where you left off.',
+                      'Retoma justo donde lo dejaste.',
+                      'Wroc dokladnie tam, gdzie przerwales.'
+                    )
+                  }}
+                </p>
+              </div>
             </div>
-          </div>
 
-          @if (activeNovenas.length) {
-            <div class="linked-list">
-              @for (item of activeNovenas; track item.id) {
-                <button class="linked-row" type="button" (click)="openActiveNovena.emit(item)">
-                  <span class="linked-thumb" [class.linked-thumb--empty]="!item.imageUrl">
-                    @if (item.imageUrl) {
-                      <img [src]="item.imageUrl" [alt]="item.title" />
-                    } @else {
-                      <span>{{ item.title.charAt(0) }}</span>
-                    }
-                  </span>
-                  <span class="linked-copy">
-                    <strong>{{ item.title }}</strong>
-                    <small>{{ item.subtitle }}</small>
-                  </span>
-                  <span class="linked-arrow">→</span>
-                </button>
-              }
+            @if (activeNovenas.length) {
+              <div class="linked-list">
+                @for (item of activeNovenas; track item.id) {
+                  <button class="linked-row" type="button" (click)="openActiveNovena.emit(item)">
+                    <span class="linked-thumb" [class.linked-thumb--empty]="!item.imageUrl">
+                      @if (item.imageUrl) {
+                        <img [src]="item.imageUrl" [alt]="item.title" />
+                      } @else {
+                        <span>{{ item.title.charAt(0) }}</span>
+                      }
+                    </span>
+                    <span class="linked-copy">
+                      <strong>{{ item.title }}</strong>
+                      <small>{{ item.subtitle }}</small>
+                    </span>
+                    <span class="linked-arrow">→</span>
+                  </button>
+                }
+              </div>
+            } @else {
+              <p class="empty-copy">
+                {{
+                  t(
+                    'No novenas in progress yet.',
+                    'Todavía no hay novenas en progreso.',
+                    'Nie masz jeszcze nowenn w toku.'
+                  )
+                }}
+              </p>
+            }
+          </article>
+
+          <article class="panel-card glass-subtle linked-card">
+            <div class="panel-heading">
+              <div>
+                <h3>{{ t('Favorite novenas', 'Novenas favoritas', 'Ulubione nowenny') }}</h3>
+                <p>
+                  {{
+                    t(
+                      'Jump back into the novenas you want close at hand.',
+                      'Vuelve rápido a las novenas que quieres tener a mano.',
+                      'Szybko wracaj do nowenn, ktore chcesz miec pod reka.'
+                    )
+                  }}
+                </p>
+              </div>
             </div>
-          } @else {
-            <p class="empty-copy">{{ t('No novenas in progress yet.', 'Todavía no hay novenas en progreso.', 'Nie masz jeszcze nowenn w toku.') }}</p>
-          }
-        </article>
 
-        <article class="panel-card glass-subtle linked-card">
-          <div class="panel-heading">
-            <div>
-              <h3>{{ t('Favorite novenas', 'Novenas favoritas', 'Ulubione nowenny') }}</h3>
-              <p>{{ t('Jump back into the novenas you want close at hand.', 'Vuelve rápido a las novenas que quieres tener a mano.', 'Szybko wracaj do nowenn, ktore chcesz miec pod reka.') }}</p>
+            @if (favoriteNovenas.length) {
+              <div class="linked-list">
+                @for (item of favoriteNovenas; track item.id) {
+                  <button class="linked-row" type="button" (click)="openFavoriteNovena.emit(item)">
+                    <span class="linked-thumb" [class.linked-thumb--empty]="!item.imageUrl">
+                      @if (item.imageUrl) {
+                        <img [src]="item.imageUrl" [alt]="item.title" />
+                      } @else {
+                        <span>{{ item.title.charAt(0) }}</span>
+                      }
+                    </span>
+                    <span class="linked-copy">
+                      <strong>{{ item.title }}</strong>
+                      <small>{{ item.subtitle }}</small>
+                    </span>
+                    <span class="linked-arrow">→</span>
+                  </button>
+                }
+              </div>
+            } @else {
+              <p class="empty-copy">
+                {{
+                  t(
+                    'No favorite novenas yet.',
+                    'Todavía no hay novenas favoritas.',
+                    'Nie masz jeszcze ulubionych nowenn.'
+                  )
+                }}
+              </p>
+            }
+          </article>
+
+          <article class="panel-card glass-subtle linked-card">
+            <div class="panel-heading">
+              <div>
+                <h3>{{ t('Favorite saints', 'Santos favoritos', 'Ulubieni święci') }}</h3>
+                <p>
+                  {{
+                    t(
+                      'Keep the saints you return to most in one place.',
+                      'Mantén en un solo lugar a los santos a los que más vuelves.',
+                      'Zachowaj swietych, do ktorych wracasz najczesciej, w jednym miejscu.'
+                    )
+                  }}
+                </p>
+              </div>
             </div>
-          </div>
 
-          @if (favoriteNovenas.length) {
-            <div class="linked-list">
-              @for (item of favoriteNovenas; track item.id) {
-                <button class="linked-row" type="button" (click)="openFavoriteNovena.emit(item)">
-                  <span class="linked-thumb" [class.linked-thumb--empty]="!item.imageUrl">
-                    @if (item.imageUrl) {
-                      <img [src]="item.imageUrl" [alt]="item.title" />
-                    } @else {
-                      <span>{{ item.title.charAt(0) }}</span>
-                    }
-                  </span>
-                  <span class="linked-copy">
-                    <strong>{{ item.title }}</strong>
-                    <small>{{ item.subtitle }}</small>
-                  </span>
-                  <span class="linked-arrow">→</span>
-                </button>
-              }
+            @if (favoriteSaints.length) {
+              <div class="linked-list">
+                @for (item of favoriteSaints; track item.id) {
+                  <button class="linked-row" type="button" (click)="openFavoriteSaint.emit(item)">
+                    <span class="linked-thumb" [class.linked-thumb--empty]="!item.imageUrl">
+                      @if (item.imageUrl) {
+                        <img [src]="item.imageUrl" [alt]="item.title" />
+                      } @else {
+                        <span>{{ item.title.charAt(0) }}</span>
+                      }
+                    </span>
+                    <span class="linked-copy">
+                      <strong>{{ item.title }}</strong>
+                      <small>{{ item.subtitle }}</small>
+                    </span>
+                    <span class="linked-arrow">→</span>
+                  </button>
+                }
+              </div>
+            } @else {
+              <p class="empty-copy">
+                {{
+                  t(
+                    'No favorite saints yet.',
+                    'Todavía no hay santos favoritos.',
+                    'Nie masz jeszcze ulubionych swietych.'
+                  )
+                }}
+              </p>
+            }
+          </article>
+
+          <article class="panel-card glass-subtle linked-card">
+            <div class="panel-heading">
+              <div>
+                <h3>{{ t('Favorite prayers', 'Oraciones favoritas', 'Ulubione modlitwy') }}</h3>
+                <p>
+                  {{
+                    t(
+                      'Keep the prayers you return to most in one place.',
+                      'Mantén en un solo lugar las oraciones a las que más vuelves.',
+                      'Zachowaj modlitwy, do ktorych wracasz najczesciej, w jednym miejscu.'
+                    )
+                  }}
+                </p>
+              </div>
             </div>
-          } @else {
-            <p class="empty-copy">{{ t('No favorite novenas yet.', 'Todavía no hay novenas favoritas.', 'Nie masz jeszcze ulubionych nowenn.') }}</p>
-          }
-        </article>
 
-        <article class="panel-card glass-subtle linked-card">
-          <div class="panel-heading">
-            <div>
-              <h3>{{ t('Favorite saints', 'Santos favoritos', 'Ulubieni święci') }}</h3>
-              <p>{{ t('Keep the saints you return to most in one place.', 'Mantén en un solo lugar a los santos a los que más vuelves.', 'Zachowaj swietych, do ktorych wracasz najczesciej, w jednym miejscu.') }}</p>
+            @if (favoritePrayers.length) {
+              <div class="linked-list">
+                @for (item of favoritePrayers; track item.id) {
+                  <button class="linked-row" type="button" (click)="openFavoritePrayer.emit(item)">
+                    <span class="linked-thumb" [class.linked-thumb--empty]="!item.imageUrl">
+                      @if (item.imageUrl) {
+                        <img [src]="item.imageUrl" [alt]="item.title" />
+                      } @else {
+                        <span>{{ item.title.charAt(0) }}</span>
+                      }
+                    </span>
+                    <span class="linked-copy">
+                      <strong>{{ item.title }}</strong>
+                      <small>{{ item.subtitle }}</small>
+                    </span>
+                    <span class="linked-arrow">→</span>
+                  </button>
+                }
+              </div>
+            } @else {
+              <p class="empty-copy">
+                {{
+                  t(
+                    'No favorite prayers yet.',
+                    'Todavía no hay oraciones favoritas.',
+                    'Nie masz jeszcze ulubionych modlitw.'
+                  )
+                }}
+              </p>
+            }
+          </article>
+          <article class="panel-card glass-subtle linked-card">
+            <h3>{{ t('Completed novenas', 'Novenas completadas', 'Ukończone nowenny') }}</h3>
+            @for (item of completedNovenas; track item.id) {
+              <button class="linked-row" (click)="openActiveNovena.emit(item)">
+                {{ item.title }}
+              </button>
+            } @empty {
+              <p>
+                {{
+                  t(
+                    'No completed novenas yet.',
+                    'Todavía no hay novenas completadas.',
+                    'Nie ma jeszcze ukończonych nowenn.'
+                  )
+                }}
+              </p>
+            }
+          </article>
+        </section>
+      }
+      @if (settingsMode) {
+        <button type="button" (click)="logout.emit()">
+          {{ t('Sign out', 'Cerrar sesión', 'Wyloguj') }}
+        </button>
+        <section class="detail-grid">
+          <article class="panel-card glass-subtle danger-card">
+            <div class="panel-heading">
+              <div>
+                <h3>{{ t('Delete account', 'Eliminar cuenta', 'Usuń konto') }}</h3>
+                <p>
+                  {{
+                    t(
+                      'Permanently remove your Sanctuary account, favorites, novena progress, and saved preferences.',
+                      'Elimina permanentemente tu cuenta de Sanctuary, favoritos, progreso de novenas y preferencias guardadas.',
+                      'Trwale usuń swoje konto Sanctuary, ulubione, postęp nowenn i zapisane preferencje.'
+                    )
+                  }}
+                </p>
+              </div>
             </div>
-          </div>
 
-          @if (favoriteSaints.length) {
-            <div class="linked-list">
-              @for (item of favoriteSaints; track item.id) {
-                <button class="linked-row" type="button" (click)="openFavoriteSaint.emit(item)">
-                  <span class="linked-thumb" [class.linked-thumb--empty]="!item.imageUrl">
-                    @if (item.imageUrl) {
-                      <img [src]="item.imageUrl" [alt]="item.title" />
-                    } @else {
-                      <span>{{ item.title.charAt(0) }}</span>
-                    }
-                  </span>
-                  <span class="linked-copy">
-                    <strong>{{ item.title }}</strong>
-                    <small>{{ item.subtitle }}</small>
-                  </span>
-                  <span class="linked-arrow">→</span>
-                </button>
-              }
-            </div>
-          } @else {
-            <p class="empty-copy">{{ t('No favorite saints yet.', 'Todavía no hay santos favoritos.', 'Nie masz jeszcze ulubionych swietych.') }}</p>
-          }
-        </article>
+            <button
+              class="danger-action"
+              type="button"
+              [disabled]="deleteAccountPending"
+              (click)="confirmDeleteAccount()"
+            >
+              {{
+                deleteAccountPending
+                  ? t('Deleting account...', 'Eliminando cuenta...', 'Usuwanie konta...')
+                  : t('Delete my account', 'Eliminar mi cuenta', 'Usuń moje konto')
+              }}
+            </button>
 
-        <article class="panel-card glass-subtle linked-card">
-          <div class="panel-heading">
-            <div>
-              <h3>{{ t('Favorite prayers', 'Oraciones favoritas', 'Ulubione modlitwy') }}</h3>
-              <p>{{ t('Keep the prayers you return to most in one place.', 'Mantén en un solo lugar las oraciones a las que más vuelves.', 'Zachowaj modlitwy, do ktorych wracasz najczesciej, w jednym miejscu.') }}</p>
-            </div>
-          </div>
-
-          @if (favoritePrayers.length) {
-            <div class="linked-list">
-              @for (item of favoritePrayers; track item.id) {
-                <button class="linked-row" type="button" (click)="openFavoritePrayer.emit(item)">
-                  <span class="linked-thumb" [class.linked-thumb--empty]="!item.imageUrl">
-                    @if (item.imageUrl) {
-                      <img [src]="item.imageUrl" [alt]="item.title" />
-                    } @else {
-                      <span>{{ item.title.charAt(0) }}</span>
-                    }
-                  </span>
-                  <span class="linked-copy">
-                    <strong>{{ item.title }}</strong>
-                    <small>{{ item.subtitle }}</small>
-                  </span>
-                  <span class="linked-arrow">→</span>
-                </button>
-              }
-            </div>
-          } @else {
-            <p class="empty-copy">{{ t('No favorite prayers yet.', 'Todavía no hay oraciones favoritas.', 'Nie masz jeszcze ulubionych modlitw.') }}</p>
-          }
-        </article>
-      </section>
-
-      <section class="detail-grid">
-        <article class="panel-card glass-subtle profile-card">
-          <div class="panel-heading">
-            <div>
-              <h3>{{ t('Profile', 'Perfil', 'Profil') }}</h3>
-              <p>{{ t('Identity details that make your Sanctuary account feel human.', 'Detalles de identidad que hacen que tu cuenta de Sanctuary se sienta humana.', 'Szczegóły tożsamości, dzięki którym konto Sanctuary jest naprawdę twoje.') }}</p>
-            </div>
-          </div>
-
-          <dl class="info-list">
-            <div>
-              <dt>{{ t('Name', 'Nombre', 'Imię i nazwisko') }}</dt>
-              <dd>{{ userName || t('Sanctuary member', 'Miembro de Sanctuary', 'Członek Sanctuary') }}</dd>
-            </div>
-            <div>
-              <dt>{{ t('Email', 'Correo', 'Email') }}</dt>
-              <dd>{{ profile?.email ?? '—' }}</dd>
-            </div>
-          </dl>
-        </article>
-
-        <article class="panel-card glass-subtle danger-card">
-          <div class="panel-heading">
-            <div>
-              <h3>{{ t('Delete account', 'Eliminar cuenta', 'Usuń konto') }}</h3>
-              <p>{{ t('Permanently remove your Sanctuary account, favorites, novena progress, and saved preferences.', 'Elimina permanentemente tu cuenta de Sanctuary, favoritos, progreso de novenas y preferencias guardadas.', 'Trwale usuń swoje konto Sanctuary, ulubione, postęp nowenn i zapisane preferencje.') }}</p>
-            </div>
-          </div>
-
-          <button class="danger-action" type="button" [disabled]="deleteAccountPending" (click)="confirmDeleteAccount()">
-            {{ deleteAccountPending ? t('Deleting account...', 'Eliminando cuenta...', 'Usuwanie konta...') : t('Delete my account', 'Eliminar mi cuenta', 'Usuń moje konto') }}
-          </button>
-
-          @if (deleteAccountMessage) {
-            <p class="status-copy" [class.status-copy--error]="deleteAccountError">{{ deleteAccountMessage }}</p>
-          }
-        </article>
-      </section>
+            @if (deleteAccountMessage) {
+              <p class="status-copy" [class.status-copy--error]="deleteAccountError">
+                {{ deleteAccountMessage }}
+              </p>
+            }
+          </article>
+        </section>
+      }
     </section>
   `,
 })
@@ -212,6 +324,9 @@ export class MePageComponent {
   @Input() favoriteNovenas: MeLinkedItem[] = [];
   @Input() favoriteSaints: MeLinkedItem[] = [];
   @Input() favoritePrayers: MeLinkedItem[] = [];
+  @Input() completedNovenas: MeLinkedItem[] = [];
+  @Input() settingsMode = false;
+  @Output() readonly settings = new EventEmitter<void>();
   @Input() deleteAccountPending = false;
   @Input() deleteAccountMessage: string | null = null;
   @Input() deleteAccountError = false;
@@ -259,8 +374,8 @@ export class MePageComponent {
       this.t(
         'Delete your Sanctuary account permanently? This removes your saved favorites, novena progress, and preferences.',
         '¿Eliminar tu cuenta de Sanctuary permanentemente? Esto elimina tus favoritos guardados, progreso de novenas y preferencias.',
-        'Czy trwale usunąć konto Sanctuary? Spowoduje to usunięcie ulubionych, postępu nowenn i preferencji.'
-      )
+        'Czy trwale usunąć konto Sanctuary? Spowoduje to usunięcie ulubionych, postępu nowenn i preferencji.',
+      ),
     );
 
     if (confirmed) {

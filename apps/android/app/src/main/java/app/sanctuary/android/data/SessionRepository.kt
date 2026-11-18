@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import java.time.Instant
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -11,6 +13,7 @@ class SessionRepository(
     context: Context,
     private val api: SanctuaryApiService
 ) {
+    private val appContext = context.applicationContext
     private val preferences = EncryptedSharedPreferences.create(
         context,
         "sanctuary_session",
@@ -41,10 +44,15 @@ class SessionRepository(
         loadProfile(stored)
     }
 
+    suspend fun mergeGuestAnnouncements(state: AnnouncementState): AnnouncementState = authenticatedCall { it.mergeGuestAnnouncements(state) }
+    suspend fun announcementState(): AnnouncementState = authenticatedCall { it.announcementState() }
+    suspend fun changeAnnouncements(change: AnnouncementChange): AnnouncementState = authenticatedCall { it.changeAnnouncements(change) }
+
     suspend fun login(email: String, password: String): SessionBootstrapResult = withContext(Dispatchers.IO) {
         val response = runApiCall {
             api.login(AuthLoginRequest(email = email, password = password))
         }
+        currentCoroutineContext().ensureActive()
         val session = response.toStoredSession()
         persistSession(session)
         loadProfile(session)
@@ -120,6 +128,7 @@ class SessionRepository(
                     )
                 )
             }
+            currentCoroutineContext().ensureActive()
             val session = response.toStoredSession()
             persistSession(session)
             loadProfile(session)
@@ -296,6 +305,11 @@ class SessionRepository(
             }
     }
 
+    suspend fun contentReminders(): List<AccountContentReminder> = authenticatedCall { it.contentReminders() }
+    suspend fun saveContentReminder(reminder: AccountContentReminder) = authenticatedCall { it.saveContentReminder(reminder) }
+    suspend fun deleteContentReminder(kind: String, slug: String) = authenticatedCall { it.deleteContentReminder(kind, slug) }
+    suspend fun clearContentReminders() = authenticatedCall { it.clearContentReminders() }
+
     suspend fun listFavorites(): List<UserFavorite> = withContext(Dispatchers.IO) {
         authenticatedCall { it.listFavorites() }
             .mapNotNull { response ->
@@ -370,9 +384,10 @@ class SessionRepository(
 
     suspend fun completeCurrentNovenaDay(
         novenaId: String,
-        totalDays: Int
+        totalDays: Int,
+        known: UserNovenaCommitment? = null
     ): UserNovenaCommitment = withContext(Dispatchers.IO) {
-        val existing = listNovenaCommitments()
+        val existing = known ?: listNovenaCommitments()
             .firstOrNull { it.novenaId == novenaId && it.status == CommitmentStatus.Active }
             ?: throw SanctuaryApiException("No active novena was found to update.")
 
@@ -439,6 +454,12 @@ class SessionRepository(
                 )
             }
     }
+
+    suspend fun registerPushDevice(request: PushDeviceRequest) {
+        if(loadSession()==null) SanctuaryApiFactory.create { null }.registerAnonymousPushDevice(request)
+        else authenticatedCall { it.registerPushDevice(request) }
+    }
+    suspend fun unregisterPushDevice(installationId: String) { authenticatedCall { it.unregisterPushDevice(installationId) } }
 
     fun currentSession(): StoredSession? = loadSession()
 
@@ -581,9 +602,10 @@ class SessionRepository(
             val response = runApiCall {
                 api.refresh(AuthRefreshRequest(refreshToken = refreshToken))
             }
+            if (loadSession()?.idToken != previous.idToken) return null
             response.toStoredSession(previous.refreshToken).also(::persistSession)
         } catch (_: Exception) {
-            clearSession()
+            if (loadSession()?.idToken == previous.idToken) clearSession()
             null
         }
     }

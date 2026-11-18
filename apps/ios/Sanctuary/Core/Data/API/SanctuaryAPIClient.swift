@@ -262,6 +262,17 @@ private struct APIErrorEnvelope: Decodable {
     let message: String
 }
 
+struct APIPushDeviceRequest: Encodable, Sendable {
+    let installationId: String
+    let token: String
+    let platform: String
+    let appVersion: String
+    let enabled: Bool
+    let installationSecret: String?
+    let revision: Int
+}
+struct APIPushRegistered: Decodable, Sendable { let registered: Bool }
+
 actor SanctuaryAPIClient {
     private let baseURL: URL
     private let session: URLSession
@@ -327,6 +338,22 @@ actor SanctuaryAPIClient {
         )
     }
 
+    func announcement(id: String) async throws -> SanctuaryAnnouncement {
+        try await performRequest(path: "/announcements/\(id)", method: "GET", body: Optional<String>.none, token: nil)
+    }
+    func announcements(page: Int = 0) async throws -> AnnouncementFeed {
+        try await performRequest(path: "/announcements?page=\(page)", method: "GET", body: Optional<String>.none, token: nil)
+    }
+    func mergeGuestAnnouncements(_ state: AnnouncementInboxState, token: String) async throws -> AnnouncementInboxState {
+        try await performRequest(path: "/me/announcements/guest", method: "POST", body: state, token: token)
+    }
+    func announcementState(token: String) async throws -> AnnouncementInboxState {
+        try await performRequest(path: "/me/announcements", method: "GET", body: Optional<String>.none, token: token)
+    }
+    func changeAnnouncements(_ change: AnnouncementChange, token: String) async throws -> AnnouncementInboxState {
+        try await performRequest(path: "/me/announcements", method: "POST", body: change, token: token)
+    }
+
     func me(token: String) async throws -> APIUserProfileResponse {
         try await performRequest(path: "/me", method: "GET", body: Optional<String>.none, token: token)
     }
@@ -340,6 +367,25 @@ actor SanctuaryAPIClient {
         token: String
     ) async throws -> APIUserProfileResponse {
         try await performRequest(path: "/me/preferences", method: "PUT", body: request, token: token)
+    }
+
+    func registerPushDevice(request: APIPushDeviceRequest, token: String?) async throws {
+        let _: APIPushRegistered = try await performRequest(path: token == nil ? "/push/installations" : "/me/push-devices", method: "PUT", body: request, token: token)
+    }
+    func unregisterPushDevice(installationId: String, token: String) async throws {
+        try await performVoidRequest(path: "/me/push-devices/" + installationId, method: "DELETE", body: Optional<String>.none, token: token)
+    }
+    func contentReminders(token: String) async throws -> [AccountContentReminder] {
+        try await performRequest(path: "/me/reminders", method: "GET", body: Optional<String>.none, token: token)
+    }
+    func saveContentReminder(_ reminder: AccountContentReminder, token: String) async throws {
+        try await performVoidRequest(path: "/me/reminders", method: "PUT", body: reminder, token: token)
+    }
+    func deleteContentReminder(kind: String, slug: String, token: String) async throws {
+        try await performVoidRequest(path: "/me/reminders/\(kind)/\(slug)", method: "DELETE", body: Optional<String>.none, token: token)
+    }
+    func clearContentReminders(token: String) async throws {
+        try await performVoidRequest(path: "/me/reminders", method: "DELETE", body: Optional<String>.none, token: token)
     }
 
     func favorites(token: String) async throws -> [APIUserFavoriteResponse] {

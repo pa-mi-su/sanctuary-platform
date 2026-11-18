@@ -12,6 +12,7 @@ import UIKit
 
 @main
 struct SanctuaryApp: App {
+    @UIApplicationDelegateAdaptor(SanctuaryAppDelegate.self) private var appDelegate
     private let environment = AppEnvironment.current()
 
     init() {

@@ -8,6 +8,7 @@ import {
   inject,
   signal,
 } from '@angular/core';
+import { AdminMessagesComponent } from './admin-messages.component';
 import { FormsModule } from '@angular/forms';
 import { DatePipe } from '@angular/common';
 import { HttpBackend, HttpClient, HttpErrorResponse } from '@angular/common/http';
@@ -25,7 +26,7 @@ export const ADMIN_IDLE_MS = 8 * 60 * 60_000;
 @Component({
   selector: 'app-admin-page',
   standalone: true,
-  imports: [FormsModule, DatePipe, AdminInputComponent],
+  imports: [FormsModule, DatePipe, AdminInputComponent, AdminMessagesComponent],
   templateUrl: './admin-page.component.html',
   styleUrl: './admin-page.component.scss',
 })
@@ -117,6 +118,7 @@ export class AdminPageComponent implements OnInit, OnDestroy {
     ['intentions', 'Intentions'],
     ['patronages', 'Patronages'],
   ];
+  @ViewChild(AdminMessagesComponent) messagesComposer?: AdminMessagesComponent;
   @ViewChild('editorHeading') editorHeading?: ElementRef<HTMLElement>;
   @ViewChild('dialogPanel') set dialogElement(value: ElementRef<HTMLElement> | undefined) {
     if (value)
@@ -454,6 +456,7 @@ export class AdminPageComponent implements OnInit, OnDestroy {
     );
   }
   isDirty() {
+    if (this.section === 'messages') return this.messagesComposer?.hasDraft() ?? false;
     return !!this.values && this.original !== this.snapshot();
   }
   private capture() {
@@ -527,6 +530,7 @@ export class AdminPageComponent implements OnInit, OnDestroy {
   }
   private async load(refresh = false) {
     const generation = this.generation;
+    if (this.section === 'messages') return;
     if (this.section === 'content') {
       const [result, fields, dayFields] = await Promise.all([
         this.api(
