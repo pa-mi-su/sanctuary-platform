@@ -80,10 +80,18 @@ struct MeView: View {
                         HStack {
                             headerAction(localization.t("inbox.title"), icon: "bell.fill", unread: inbox.unread) { showInbox = true }
                             Spacer()
-                            Text(localization.t("tab.me")).font(AppTheme.rounded(32, weight: .bold)).foregroundStyle(.white)
+                            if accountStore.isAuthenticated {
+                                HStack(spacing: 10) {
+                                    SanctuaryHaloAvatar().frame(width: 44, height: 44)
+                                    Text(resolvedDisplayName).font(AppTheme.rounded(24, weight: .bold)).foregroundStyle(.white).fixedSize(horizontal: false, vertical: true)
+                                }.padding(.horizontal, 10)
+                            } else { Text(localization.t("tab.me")).font(AppTheme.rounded(32, weight: .bold)).foregroundStyle(.white) }
                             Spacer()
                             headerAction(localization.t("settings.title"), icon: "gearshape.fill") { showSettings = true }
                         }
+                    }
+                    if !settingsMode && !accountStore.isAuthenticated {
+                        SanctuaryHaloAvatar().frame(width: 112, height: 112).frame(maxWidth: .infinity).padding(.vertical, 12)
                     }
                     if settingsMode {
                         Button { if settingsSection != nil { settingsSection = nil } else { dismiss() } } label: {
@@ -113,12 +121,26 @@ struct MeView: View {
                                 }.buttonStyle(.plain)
                             }
                         } else {
-                            ForEach(["settings.account", "settings.general", "notifications.title", "settings.support"], id: \.self) { section in
+                            if accountStore.isAuthenticated {
+                                Button { settingsSection = "settings.account" } label: {
+                                    HStack(spacing: 14) {
+                                        SanctuaryHaloAvatar().frame(width: 60, height: 60)
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text(resolvedDisplayName).font(AppTheme.rounded(22, weight: .bold)).foregroundStyle(.white)
+                                            if let email = resolvedEmail { Text(email).font(AppTheme.rounded(14, weight: .medium)).foregroundStyle(AppTheme.subtitleText) }
+                                        }
+                                        Spacer(minLength: 0)
+                                        Image(systemName: "chevron.right").foregroundStyle(AppTheme.tabActive)
+                                    }.padding(18).frame(maxWidth: .infinity, alignment: .leading).appGlassCard(cornerRadius: 20)
+                                }.buttonStyle(.plain)
+                            } else { settingsRow("settings.account") { settingsSection = "settings.account" } }
+                            ForEach(["settings.general", "notifications.title", "settings.support"], id: \.self) { section in
                                 settingsRow(section) { settingsSection = section }
                             }
                             NavigationLink { AboutView().toolbar(.hidden, for: .tabBar).toolbar(.hidden, for: .navigationBar) } label: {
                                 settingsRowLabel("home.about")
                             }.buttonStyle(.plain)
+                            if accountStore.isAuthenticated { settingsRow("me.logout") { accountStore.logout() } }
                             Text(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "")
                                 .font(AppTheme.rounded(14, weight: .medium)).foregroundStyle(AppTheme.subtitleText).frame(maxWidth: .infinity).padding()
                         }
@@ -959,5 +981,29 @@ private struct ScheduledRemindersCard: View {
         Task { @MainActor in
             do { try await action(); problem = nil } catch { problem = error.localizedDescription }
         }
+    }
+}
+
+/// Sanctuary's own shared visual: a simple person under a gold halo.
+private struct SanctuaryHaloAvatar: View {
+    var body: some View {
+        GeometryReader { geometry in
+            let w = geometry.size.width
+            let h = geometry.size.height
+            ZStack(alignment: .topLeading) {
+                Circle().fill(Color(red: 36/255, green: 72/255, blue: 84/255)).frame(width: w * 0.96, height: w * 0.96).position(x: w * 0.5, y: h * 0.5)
+                Ellipse().stroke(Color(red: 230/255, green: 197/255, blue: 117/255), lineWidth: w * 0.035).frame(width: w * 0.42, height: h * 0.10).position(x: w * 0.5, y: h * 0.20)
+                Ellipse().fill(Color(red: 74/255, green: 159/255, blue: 174/255)).frame(width: w * 0.44, height: h * 0.39).position(x: w * 0.5, y: h * 0.485)
+                Circle().fill(Color(red: 1, green: 233/255, blue: 184/255)).frame(width: w * 0.27, height: w * 0.27).position(x: w * 0.5, y: h * 0.46)
+                ForEach([0.455, 0.545], id: \.self) { x in
+                    Circle().fill(Color(red: 25/255, green: 59/255, blue: 71/255)).frame(width: w * 0.032, height: w * 0.032).position(x: w * x, y: h * 0.45)
+                }
+                Ellipse().fill(Color(red: 74/255, green: 159/255, blue: 174/255)).frame(width: w * 0.5, height: h * 0.23).position(x: w * 0.5, y: h * 0.755)
+                Path { path in
+                    path.move(to: CGPoint(x: w * 0.5, y: h * 0.68)); path.addLine(to: CGPoint(x: w * 0.5, y: h * 0.79))
+                    path.move(to: CGPoint(x: w * 0.46, y: h * 0.72)); path.addLine(to: CGPoint(x: w * 0.54, y: h * 0.72))
+                }.stroke(Color(red: 230/255, green: 197/255, blue: 117/255), style: StrokeStyle(lineWidth: w * 0.025, lineCap: .round))
+            }
+        }.accessibilityHidden(true)
     }
 }
