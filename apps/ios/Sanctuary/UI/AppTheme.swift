@@ -165,7 +165,7 @@ struct PrimaryPillButtonStyle: ButtonStyle {
             .frame(maxWidth: .infinity)
             .padding(.vertical, 14)
             .background(
-                AppTheme.primaryButtonGradient
+                Rectangle().fill(AppTheme.primaryButtonGradient)
                     .opacity(configuration.isPressed ? 0.82 : 1.0)
             )
             .overlay(

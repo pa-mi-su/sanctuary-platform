@@ -1,0 +1,34 @@
+import Foundation
+@main struct VerifyInboxReceipts {
+ static func main() throws {
+  let suite="sanctuary-inbox-test-"+UUID().uuidString
+  let defaults=UserDefaults(suiteName:suite)!
+  defer { defaults.removePersistentDomain(forName:suite) }
+  let key="guest-dev"
+  func cache() -> AnnouncementReceiptCache { .init(defaults:defaults,key:key) }
+  _ = try cache().changeGuest("clear",ids:["guest-old"],through:0)
+  let uploaded=cache().guestForUpload
+  try cache().rememberMember(uploaded.merging(.init(readIds:["member-read"],clearedIds:["member-old"])))
+  defaults.removeObject(forKey:key) // Guest activity was claimed during sign-in.
+  assert(cache().guestForUpload == .init())
+  assert(Set(cache().guestForDisplay.clearedIds)==Set(["guest-old","member-old"]))
+  // A successful signed-in clear-all remains effective after logout and process recreation.
+  try cache().rememberMember(.init(readIds:["member-read"],clearedIds:["member-old"],clearedBefore:200))
+  assert(cache().guestForDisplay.clearedBefore==200)
+  assert(201>cache().guestForDisplay.clearedBefore) // Newer announcements remain visible.
+  let olderRevision = cache().revision
+  try cache().rememberMember(.init(clearedBefore:300))
+  try cache().rememberMember(.init(), expectedRevision:olderRevision)
+  assert(cache().guestForDisplay.clearedBefore==300) // Delayed reads cannot undo a clear.
+  assert(cache().guestForUpload == .init()) // No member receipts leak into the next account.
+  _ = try cache().changeGuest("clear",ids:["guest-new"],through:0)
+  assert(cache().guestForUpload.clearedIds == ["guest-new"])
+  _ = try cache().changeGuest("restore",ids:["guest-new"],through:0)
+  assert(!cache().guestForDisplay.clearedIds.contains("guest-new"))
+  // Signing into a different account uses its own server state, not the last member snapshot.
+  try cache().rememberMember(.init())
+  assert(!cache().guestForDisplay.clearedIds.contains("member-old"))
+  assert(cache().guestForDisplay.clearedBefore==0)
+  print("Inbox receipts: guest → member → clear → logout, relaunch, undo, new messages and account isolation passed")
+ }
+}
