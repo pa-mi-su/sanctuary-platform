@@ -1263,10 +1263,16 @@ private fun AuthenticatedShell(
                     item {
                         Row(Modifier.fillMaxWidth(), verticalAlignment=Alignment.CenterVertically, horizontalArrangement=Arrangement.SpaceBetween) {
                             MeHeaderAction(sanctuaryStrings().t("inbox.title"), Icons.Filled.NotificationsNone, inboxUnread) { inboxRequestedID=null; showInbox=true }
-                            Text(sanctuaryStrings().t("me.title"), color=Color.White, fontSize=32.sp, fontWeight=FontWeight.Bold)
+                            if (session.status == SessionStatus.Authenticated) {
+                                Row(Modifier.weight(1f).padding(horizontal=10.dp), verticalAlignment=Alignment.CenterVertically, horizontalArrangement=Arrangement.spacedBy(10.dp)) {
+                                    SanctuaryHaloAvatar(Modifier.size(44.dp))
+                                    Text(session.profile?.displayName ?: session.session?.displayName ?: sanctuaryStrings().t("me.title"), color=Color.White, fontSize=24.sp, fontWeight=FontWeight.Bold, modifier=Modifier.weight(1f))
+                                }
+                            } else Text(sanctuaryStrings().t("me.title"), color=Color.White, fontSize=32.sp, fontWeight=FontWeight.Bold)
                             MeHeaderAction(sanctuaryStrings().t("settings.title"), Icons.Filled.Settings) { settingsSection=null; showSettings=true }
                         }
                     }
+                    if (session.status != SessionStatus.Authenticated) { item { MeIdentityHero() } }
                     if (session.status == SessionStatus.Authenticated) {
                         item {
                             MeScreen(
@@ -1318,10 +1324,18 @@ private fun AuthenticatedShell(
                 ) {
                     item { Text(sanctuaryStrings().t(settingsSection ?: "settings.title"), fontSize = 32.sp, color = Color.White, fontWeight = FontWeight.Bold) }
                     if (settingsSection == null) {
-                        listOf("settings.account", "settings.general", "notifications.title", "settings.support").forEach { section ->
+                        if (session.status == SessionStatus.Authenticated) {
+                            item { SettingsProfileCard(session) { settingsSection="settings.account" } }
+                        } else {
+                            item { SettingsNavigationRow(title=sanctuaryStrings().t("settings.account")) { settingsSection="settings.account" } }
+                        }
+                        listOf("settings.general", "notifications.title", "settings.support").forEach { section ->
                             item { SettingsNavigationRow(title = sanctuaryStrings().t(section)) { settingsSection=section } }
                         }
                         item { SettingsNavigationRow(title = sanctuaryStrings().t("home.about")) { showAbout = true } }
+                        if (session.status == SessionStatus.Authenticated) {
+                            item { SettingsNavigationRow(title=sanctuaryStrings().t("me.logout"), onClick=onLogout) }
+                        }
                         item { Text(BuildConfig.VERSION_NAME, color=Color(0xFFBAD9E4), modifier=Modifier.fillMaxWidth(), textAlign=TextAlign.Center) }
                     } else when (settingsSection) {
                         "settings.general" -> item { LanguageSettingsButton(language = selectedLanguage, onClick = onShowLanguagePicker) }
@@ -1333,7 +1347,7 @@ private fun AuthenticatedShell(
                         }
                         "settings.account" -> item {
                             if (session.status == SessionStatus.Authenticated) MeScreen(session, novenaProgress, onOpenNovena, onOpenSaint, onOpenPrayer, onLogout, onDeleteAccount, settingsMode = true)
-                            else LinkedMeRow(title=sanctuaryStrings().t("auth.login"),subtitle=null) { showSettings=false }
+                            else AccountAccessScreen(session=session, onAction=onAction, embedded=true, initialStep=AuthStep.Landing)
                         }
                     }
                 }
@@ -1952,6 +1966,41 @@ private fun HomeCard(session: SessionUiState) {
 }
 
 @Composable
+private fun SanctuaryHaloAvatar(modifier: Modifier = Modifier) {
+    Canvas(modifier) {
+        val w=size.width; val h=size.height
+        drawCircle(Color(0xFF244854), radius=w*.48f, center=Offset(w*.5f,h*.5f))
+        drawOval(Color(0xFFE6C575), topLeft=Offset(w*.29f,h*.15f), size=Size(w*.42f,h*.10f), style=Stroke(width=w*.035f))
+        drawOval(Color(0xFF4A9FAE), topLeft=Offset(w*.28f,h*.29f), size=Size(w*.44f,h*.39f))
+        drawCircle(Color(0xFFFFE9B8), radius=w*.135f, center=Offset(w*.5f,h*.46f))
+        drawCircle(Color(0xFF193B47), radius=w*.016f, center=Offset(w*.455f,h*.45f))
+        drawCircle(Color(0xFF193B47), radius=w*.016f, center=Offset(w*.545f,h*.45f))
+        drawOval(Color(0xFF4A9FAE), topLeft=Offset(w*.25f,h*.64f), size=Size(w*.5f,h*.23f))
+        drawLine(Color(0xFFE6C575),Offset(w*.5f,h*.68f),Offset(w*.5f,h*.79f),strokeWidth=w*.025f,cap=StrokeCap.Round)
+        drawLine(Color(0xFFE6C575),Offset(w*.46f,h*.72f),Offset(w*.54f,h*.72f),strokeWidth=w*.025f,cap=StrokeCap.Round)
+    }
+}
+
+@Composable
+private fun MeIdentityHero() {
+    Column(Modifier.fillMaxWidth().padding(vertical=12.dp), horizontalAlignment=Alignment.CenterHorizontally, verticalArrangement=Arrangement.spacedBy(12.dp)) {
+        SanctuaryHaloAvatar(Modifier.size(112.dp))
+    }
+}
+
+@Composable
+private fun SettingsProfileCard(session: SessionUiState, onClick: () -> Unit) {
+    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(SanctuaryCard).border(1.dp,SanctuaryCardBorder,RoundedCornerShape(20.dp)).clickable(onClick=onClick).padding(18.dp), verticalAlignment=Alignment.CenterVertically, horizontalArrangement=Arrangement.spacedBy(14.dp)) {
+        SanctuaryHaloAvatar(Modifier.size(60.dp))
+        Column(Modifier.weight(1f), verticalArrangement=Arrangement.spacedBy(4.dp)) {
+            Text(session.profile?.displayName ?: session.session?.displayName ?: sanctuaryStrings().t("settings.account"), color=Color.White, fontSize=22.sp, fontWeight=FontWeight.Bold)
+            Text(session.profile?.email ?: session.session?.email.orEmpty(), color=Color(0xFFBAD9E4), fontSize=14.sp)
+        }
+        Icon(Icons.Filled.ChevronRight, contentDescription=null, tint=Color(0xFF91DEEA))
+    }
+}
+
+@Composable
 private fun MeScreen(
     session: SessionUiState,
     progress: NovenaProgressUiState,
@@ -1971,10 +2020,6 @@ private fun MeScreen(
     var showDeleteAccountDialog by rememberSaveable { mutableStateOf(false) }
 
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        if(!settingsMode) {
-            Text(l10n.t("me.subtitle"),color=Color(0xFFD0DFEA),fontSize=18.sp)
-        }
-
         if (settingsMode) {
         Card(
         border = BorderStroke(1.dp, SanctuaryCardBorder),
