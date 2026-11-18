@@ -30,3 +30,23 @@ final class AnnouncementConsent {
         if let version { defaults.set(version, forKey: Self.key + ".invitation-version") }
     }
 }
+
+/// Coalesce concurrent lifecycle/token syncs into one system permission request.
+enum AnnouncementPermissionState: Equatable { case request, allowed, blocked }
+@MainActor final class AnnouncementPermissionRecovery {
+    private var pending: Task<Bool, Never>?
+    func resolve(enabled: Bool, state: AnnouncementPermissionState, request: @escaping @MainActor () async -> Bool) async -> Bool {
+        guard enabled else { return false }
+        switch state {
+        case .allowed: return true
+        case .blocked: return false
+        case .request:
+            if let pending { return await pending.value }
+            let task = Task { await request() }
+            pending = task
+            let allowed = await task.value
+            pending = nil
+            return allowed
+        }
+    }
+}

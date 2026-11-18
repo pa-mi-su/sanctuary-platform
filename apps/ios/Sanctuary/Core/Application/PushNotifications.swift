@@ -17,6 +17,8 @@ final class PushNotifications: ObservableObject {
     @Published private(set) var invitationNeedsSettings = false
     @Published var registrationProblem: String?
     private let consent: AnnouncementConsent
+    private let permissionRecovery = AnnouncementPermissionRecovery()
+    private var choiceRevision = 0
     private static let logger = Logger(subsystem: "app.sanctuary.push", category: "registration")
     private init() {
         let store = KeychainStore(service: "sanctuary.push." + (Bundle.main.bundleIdentifier ?? "app"))
@@ -27,8 +29,9 @@ final class PushNotifications: ObservableObject {
         needsInvitation = consent.needsInvitation
     }
     func declineInvitation() {
+        choiceRevision += 1
         do { try consent.choose(false); enabled = false; needsInvitation = false }
-        catch { registrationProblem = "Your notification choice could not be saved. Please try again." }
+        catch { enabled = consent.choice == true; registrationProblem = "Your notification choice could not be saved. Please try again." }
     }
     static let tokenChanged = Notification.Name("sanctuary.pushTokenChanged")
     private let defaults = UserDefaults.standard
@@ -52,8 +55,45 @@ final class PushNotifications: ObservableObject {
         try credentialStore.save(Data(secret.utf8), for: "installation-secret")
         return secret
     }
+    private func authorizationState(_ status: UNAuthorizationStatus) -> AnnouncementPermissionState {
+        switch status {
+        case .notDetermined: return .request
+        case .authorized, .provisional, .ephemeral: return .allowed
+        default: return .blocked
+        }
+    }
+    private func recoverPermission(for choice: Bool) async -> Bool {
+        let settings = await UNUserNotificationCenter.current().notificationSettings()
+        var state = authorizationState(settings.authorizationStatus)
+        // Include badge permission once for existing opt-ins, without changing OS preferences afterward.
+        if state == .allowed && !defaults.bool(forKey: "sanctuary.badgeAuthorizationRequested") { state = .request }
+        if state == .request && UIApplication.shared.applicationState != .active { return false }
+        return await permissionRecovery.resolve(enabled: choice, state: state) { [self] in
+            do {
+                let allowed = try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge])
+                defaults.set(true, forKey: "sanctuary.badgeAuthorizationRequested")
+                return allowed
+            } catch { return false }
+        }
+    }
+    func openPhoneNotificationSettings() async {
+        _ = await recoverPermission(for: enabled)
+        // Request missing authorization first. With permission blocked, open this app's
+        // Settings page rather than the global notification list (which may omit it).
+        let settings = await UNUserNotificationCenter.current().notificationSettings()
+        let target = authorizationState(settings.authorizationStatus) == .allowed
+            ? UIApplication.openNotificationSettingsURLString : UIApplication.openSettingsURLString
+        if let url = URL(string: target) {
+            let opened = await UIApplication.shared.open(url)
+            if !opened, let fallback = URL(string: UIApplication.openSettingsURLString) {
+                await UIApplication.shared.open(fallback)
+            }
+        }
+    }
     func enableFromInvitation() async {
-        let allowed = (try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge])) ?? false
+        let revision = choiceRevision
+        let allowed = await recoverPermission(for: true)
+        guard revision == choiceRevision else { return }
         guard allowed else {
             invitationNeedsSettings = true
             registrationProblem = "Allow notifications in phone settings to receive Sanctuary alerts."
@@ -62,17 +102,18 @@ final class PushNotifications: ObservableObject {
         await setEnabled(true)
     }
     func setEnabled(_ value: Bool) async {
-        var allowed = value
-        if value {
-            allowed = (try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge])) ?? false
-            if allowed { UIApplication.shared.registerForRemoteNotifications() }
-        }
-        if value { defaults.set(true, forKey: "sanctuary.badgeAuthorizationRequested") }
+        choiceRevision += 1
+        let revision = choiceRevision
+        let authorized = await recoverPermission(for: value)
+        guard revision == choiceRevision else { return }
         do {
-            try consent.choose(allowed)
-            enabled = allowed
+            // App consent and OS permission are separate. Denial must not erase an opt-in.
+            try consent.choose(value)
+            enabled = value
             needsInvitation = false
-            registrationProblem = value && !allowed ? "Allow notifications in phone settings to receive Sanctuary alerts." : nil
+            invitationNeedsSettings = false
+            registrationProblem = value && !authorized ? "Allow notifications in phone settings to receive Sanctuary alerts." : nil
+            if value && authorized { UIApplication.shared.registerForRemoteNotifications() }
         } catch {
             enabled = consent.choice == true
             registrationProblem = "Your notification choice could not be saved. Please try again."
@@ -84,18 +125,21 @@ final class PushNotifications: ObservableObject {
         try? credentialStore.save(Data(String(revision).utf8), for: "registration-revision")
         defaults.set(revision, forKey: "sanctuary.pushRevision")
         if !enabled && !defaults.bool(forKey: "sanctuary.pushRegistered") { registrationStatus = "Announcements are off."; return }
-        guard FirebaseApp.app() != nil else { registrationStatus = "Notification configuration is unavailable."; return }
-        let settings = await UNUserNotificationCenter.current().notificationSettings()
-        let authorized = settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional
-        // Upgrade existing opt-ins once. Subsequent syncs respect the person's OS badge settings.
-        if enabled && authorized && !defaults.bool(forKey: "sanctuary.badgeAuthorizationRequested") {
-            _ = try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge])
-            defaults.set(true, forKey: "sanctuary.badgeAuthorizationRequested")
+        let authorized = await recoverPermission(for: enabled)
+        registrationProblem = enabled && !authorized ? "Allow notifications in phone settings to receive Sanctuary alerts." : nil
+        guard FirebaseApp.app() != nil else {
+            registrationStatus = "Notification configuration is unavailable."
+            registrationProblem = "Phone alerts are unavailable in this app build."
+            return
         }
         if enabled && authorized && Messaging.messaging().apnsToken == nil { UIApplication.shared.registerForRemoteNotifications() }
-        // APNs registration is asynchronous; its delegate triggers another sync once ready.
+        // Permission recovery happens BEFORE this guard, including restored ON installations.
         guard Messaging.messaging().apnsToken != nil else {
-            registrationStatus = enabled ? "Waiting for Apple notification registration…" : "Announcements are off."
+            if enabled && !authorized { registrationStatus = "Phone notification permission is required." }
+            else {
+                registrationStatus = enabled ? "Waiting for Apple notification registration…" : "Announcements are off."
+                if enabled { registrationProblem = "Phone alerts are not ready yet. Please try again shortly." }
+            }
             return
         }
         let consent = enabled && authorized
@@ -158,7 +202,12 @@ final class SanctuaryAppDelegate: NSObject, UIApplicationDelegate, MessagingDele
         NotificationCenter.default.post(name: PushNotifications.tokenChanged, object: nil)
     }
     func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
-        Task { @MainActor in PushNotifications.shared.registrationStatus = "Apple notification registration failed. Check notification settings and try refreshing." }
+        let failure = error as NSError
+        Logger(subsystem: "app.sanctuary.push", category: "registration").error("Apple registration failed domain=\(failure.domain, privacy: .public) code=\(failure.code)")
+        Task { @MainActor in
+            PushNotifications.shared.registrationStatus = "Apple notification registration failed."
+            PushNotifications.shared.registrationProblem = "Phone alerts could not register. Please try again shortly."
+        }
     }
     func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
         NotificationCenter.default.post(name: PushNotifications.tokenChanged, object: nil)
