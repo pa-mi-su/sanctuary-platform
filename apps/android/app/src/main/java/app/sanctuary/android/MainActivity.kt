@@ -5565,9 +5565,15 @@ private fun AnnouncementInvitation(onSync: () -> Unit) {
     val context = LocalContext.current
     val strings = sanctuaryStrings()
     var visible by remember { mutableStateOf(AndroidPushNotifications.consent(context).needsInvitation) }
+    var needsSettings by remember { mutableStateOf(false) }
     val problem by AndroidPushNotifications.registrationProblem.collectAsState()
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (AndroidPushNotifications.setEnabled(context, granted)) { visible = false; onSync() }
+        if (granted) { if (AndroidPushNotifications.setEnabled(context, true)) { visible = false; onSync() } }
+        else needsSettings = true
+    }
+    androidx.lifecycle.compose.LifecycleResumeEffect(needsSettings,visible) {
+        if (visible && needsSettings && AndroidPushNotifications.allowed(context) && AndroidPushNotifications.setEnabled(context,true)) { visible=false; onSync() }
+        onPauseOrDispose { }
     }
     if (visible) ModalBottomSheet(
         onDismissRequest = {},
@@ -5580,11 +5586,13 @@ private fun AnnouncementInvitation(onSync: () -> Unit) {
             Text(strings.t("alerts.invitation.title"), fontSize = 28.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
             Text(strings.t("alerts.invitation.body"), fontSize = 17.sp, textAlign = TextAlign.Center, color = SanctuaryTabInactive)
             Button(modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp), onClick = {
-                if (Build.VERSION.SDK_INT >= 33 && !AndroidPushNotifications.allowed(context)) permission.launch(Manifest.permission.POST_NOTIFICATIONS)
+                if (needsSettings) context.startActivity(Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(android.provider.Settings.EXTRA_APP_PACKAGE,context.packageName))
+                else if (Build.VERSION.SDK_INT >= 33 && !AndroidPushNotifications.allowed(context)) permission.launch(Manifest.permission.POST_NOTIFICATIONS)
+                else if (!AndroidPushNotifications.allowed(context)) needsSettings=true
                 else if (AndroidPushNotifications.setEnabled(context, true)) { visible = false; onSync() }
-            }) { Text(strings.t("alerts.invitation.enable")) }
+            }) { Text(strings.t(if(needsSettings) "notifications.settings" else "alerts.invitation.enable")) }
             OutlinedButton(modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp), onClick = {
-                if (AndroidPushNotifications.setEnabled(context, false)) visible = false
+                if (AndroidPushNotifications.setEnabled(context, false)) { visible = false; onSync() }
             }) { Text(strings.t("alerts.invitation.later")) }
             problem?.let { Text(it, fontSize = 14.sp) }
         }

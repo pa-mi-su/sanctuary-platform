@@ -101,6 +101,7 @@ struct AppShellView: View {
             if phase == .active {
                 Task {
                     await PushNotifications.shared.clearStaleIconBadge()
+                    if push.needsInvitation && push.invitationNeedsSettings { await push.enableFromInvitation() }
                     await accountStore.syncPushDevice()
                 }
             }
@@ -122,16 +123,20 @@ struct AppShellView: View {
             }
         }
         .sheet(isPresented: Binding(get: { push.needsInvitation && !showAnnouncement && sharedContentLink == nil }, set: { _ in })) {
+            ScrollView {
             VStack(spacing: 24) {
                 Image(systemName: "bell.badge.fill").font(.system(size: 44)).foregroundStyle(AppTheme.tabActive)
                 Text(localization.t("alerts.invitation.title")).font(AppTheme.rounded(28, weight: .bold)).multilineTextAlignment(.center)
                 Text(localization.t("alerts.invitation.body")).font(AppTheme.rounded(17, weight: .medium)).multilineTextAlignment(.center)
-                Button(localization.t("alerts.invitation.enable")) {
-                    Task { await push.setEnabled(true); await accountStore.syncPushDevice() }
+                Button(localization.t(push.invitationNeedsSettings ? "notifications.settings" : "alerts.invitation.enable")) {
+                    if push.invitationNeedsSettings {
+                        if let url = URL(string: UIApplication.openNotificationSettingsURLString) { UIApplication.shared.open(url) }
+                    } else { Task { await push.enableFromInvitation(); await accountStore.syncPushDevice() } }
                 }.buttonStyle(PrimaryPillButtonStyle())
-                Button(localization.t("alerts.invitation.later")) { push.declineInvitation() }.buttonStyle(SecondaryPillButtonStyle())
+                Button(localization.t("alerts.invitation.later")) { push.declineInvitation(); Task { await accountStore.syncPushDevice() } }.buttonStyle(SecondaryPillButtonStyle())
                 if let problem = push.registrationProblem { Text(problem).font(.footnote) }
-            }.padding(28).frame(maxWidth: .infinity, maxHeight: .infinity)
+            }.padding(28).frame(maxWidth: .infinity)
+            }.frame(maxWidth: .infinity, maxHeight: .infinity)
                 .foregroundStyle(.white).background(AppTheme.cardBackground)
                 .interactiveDismissDisabled().presentationDetents([.medium, .large])
         }

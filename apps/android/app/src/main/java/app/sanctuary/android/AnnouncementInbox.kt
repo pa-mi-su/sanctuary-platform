@@ -46,19 +46,22 @@ private suspend fun memberState(context: Context, repository: SessionRepository)
    prefs.edit().remove(pending).apply()
    check(repository.currentSession()?.email?.lowercase() == owner)
    receiptCache(context).rememberMember(merged, revision)
-   return merged
+   return receiptCache(context).forDisplay(merged)
   }
   return repository.announcementState().also {
    check(repository.currentSession()?.email?.lowercase() == owner)
    receiptCache(context).rememberMember(it, revision)
-  }
+  }.let { receiptCache(context).forDisplay(it) }
  } finally { guestMergeMutex.unlock() }
 }
 internal fun visibleAnnouncements(rows:List<InboxAnnouncement>,state:AnnouncementState)=rows.filter { it.id !in state.clearedIds && it.published_at>state.clearedBefore }
 suspend fun announcementUnread(context:Context,authenticated:Boolean):Boolean {
  val api=SanctuaryApiFactory.create { null }; val repository=SessionRepository(context,api)
+ val fresh=receiptCache(context).needsFreshStart
  val state=if(authenticated) memberState(context,repository) else guestState(context)
- return visibleAnnouncements(api.announcements().items,state).any { it.id !in state.readIds }
+ val feed=api.announcements()
+ receiptCache(context).initializeInstallation(feed.items.maxOfOrNull { it.published_at } ?: 0.0,fresh)
+ return visibleAnnouncements(feed.items,receiptCache(context).forDisplay(state)).any { it.id !in state.readIds }
 }
 @Composable fun AnnouncementInboxSheet(initialID:String?=null,authenticated:Boolean,onUnread:(Boolean)->Unit,onOpen:(String)->Unit) {
  val context=LocalContext.current;val l10n=sanctuaryStrings();val scope=rememberCoroutineScope()
@@ -79,14 +82,17 @@ suspend fun announcementUnread(context:Context,authenticated:Boolean):Boolean {
    busy = true
    error = ""
    try {
+    val fresh=receiptCache(context).needsFreshStart
     if (next == 0) {
      val loaded = if (member) memberState(context,repository) else guestState(context)
      if (request != generation) return@launch
-     state = loaded
+     state = receiptCache(context).forDisplay(loaded)
     }
     val feed = api.announcements(next)
     val requested = if (next == 0 && !initialID.isNullOrBlank() && feed.items.none { it.id == initialID }) api.announcement(initialID) else null
     if (request != generation) return@launch
+    receiptCache(context).initializeInstallation(feed.items.maxOfOrNull { it.published_at } ?: 0.0,fresh)
+    state=receiptCache(context).forDisplay(state)
     rows = if (next == 0) feed.items else (rows + feed.items).distinctBy { it.id }
     if (requested != null) rows = listOf(requested) + rows
     page = next
@@ -97,7 +103,7 @@ suspend fun announcementUnread(context:Context,authenticated:Boolean):Boolean {
       val revision = receiptCache(context).revision
       val loaded = repository.changeAnnouncements(AnnouncementChange("read", unread))
       if (request != generation) return@launch
-      state = loaded
+      state = receiptCache(context).forDisplay(loaded)
       receiptCache(context).rememberMember(loaded, revision)
      } else {
       state = receiptCache(context).changeGuest("read", unread)
@@ -113,7 +119,7 @@ suspend fun announcementUnread(context:Context,authenticated:Boolean):Boolean {
   }
  }
  fun change(action:String,id:String?=null,after:()->Unit={}) { if(busy)return;val request=generation;val through=clearThrough ?: rows.maxByOrNull { it.published_at };scope.launch { busy=true;error="";try {
-  if(authenticated) { val loaded=repository.changeAnnouncements(AnnouncementChange(action,id?.let { listOf(it) } ?: emptyList(),if(action=="clearAll")through?.id else null));if(request!=generation)return@launch;state=loaded;receiptCache(context).rememberMember(loaded) }
+  if(authenticated) { val loaded=repository.changeAnnouncements(AnnouncementChange(action,id?.let { listOf(it) } ?: emptyList(),if(action=="clearAll")through?.id else null));if(request!=generation)return@launch;state=receiptCache(context).forDisplay(loaded);receiptCache(context).rememberMember(loaded) }
   else { state=receiptCache(context).changeGuest(action,listOfNotNull(id),through?.published_at ?: 0.0) }
   if(action=="clear" || action=="clearAll") AndroidPushNotifications.acknowledgeAnnouncementAlerts(context)
   undo=if(action=="clear")id else null;badge()

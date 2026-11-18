@@ -9,7 +9,12 @@ internal class AnnouncementReceiptCache(private val read: (String) -> String?, p
     private fun state(key: String): AnnouncementState = runCatching { gson.fromJson(read(key), AnnouncementState::class.java) }
         .getOrNull()?.takeIf { it.readIds != null && it.clearedIds != null && it.clearedBefore.isFinite() } ?: AnnouncementState()
     val guestForUpload get() = state("state")
-    val guestForDisplay get() = merge(guestForUpload, state("member-display"))
+    val guestForDisplay get() = forDisplay(merge(guestForUpload, state("member-display")))
+    val needsFreshStart get() = read("installation-before") == null && read("state") == null && read("member-display") == null
+    fun initializeInstallation(latest: Double, fresh: Boolean) {
+        if(read("installation-before") == null) write("installation-before", (if(fresh) maxOf(0.0,latest) else 0.0).toString())
+    }
+    fun forDisplay(value: AnnouncementState) = value.copy(clearedBefore=maxOf(value.clearedBefore,read("installation-before")?.toDoubleOrNull() ?: 0.0))
     val revision get() = read("member-revision")?.toLongOrNull() ?: 0L
     fun rememberMember(value: AnnouncementState, expectedRevision: Long? = null) {
         if (expectedRevision != null && expectedRevision != revision) return

@@ -10,9 +10,26 @@ import Foundation
   let suite="sanctuary-inbox-test-"+UUID().uuidString
   let defaults=UserDefaults(suiteName:suite)!
   defer { defaults.removePersistentDomain(forName:suite) }
+  let fresh = AnnouncementReceiptCache(defaults:defaults,key:"fresh")
+  assert(fresh.needsFreshStart)
+  fresh.initializeInstallation(latest:200,fresh:fresh.needsFreshStart)
+  assert(fresh.guestForDisplay.clearedBefore==200 && fresh.guestForUpload.clearedBefore==0)
+  assert(!fresh.guestForDisplay.isVisible(id:"old",publishedAt:199))
+  assert(fresh.guestForDisplay.isVisible(id:"new",publishedAt:201))
+  fresh.initializeInstallation(latest:300,fresh:false)
+  try fresh.rememberMember(.init())
+  assert(fresh.forDisplay(.init()).clearedBefore==200)
+  assert(fresh.guestForUpload.clearedBefore==0)
+  let blank = AnnouncementReceiptCache(defaults:defaults,key:"blank")
+  blank.initializeInstallation(latest:0,fresh:true)
+  blank.initializeInstallation(latest:500,fresh:false)
+  assert(!blank.needsFreshStart && blank.guestForDisplay.clearedBefore==0)
   let key="guest-dev"
   func cache() -> AnnouncementReceiptCache { .init(defaults:defaults,key:key) }
   _ = try cache().changeGuest("clear",ids:["guest-old"],through:0)
+  assert(!cache().needsFreshStart)
+  cache().initializeInstallation(latest:500,fresh:cache().needsFreshStart)
+  assert(cache().guestForDisplay.clearedBefore==0)
   let uploaded=cache().guestForUpload
   try cache().rememberMember(uploaded.merging(.init(readIds:["member-read"],clearedIds:["member-old"])))
   defaults.removeObject(forKey:key) // Guest activity was claimed during sign-in.

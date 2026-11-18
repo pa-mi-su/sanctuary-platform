@@ -14,12 +14,13 @@ final class PushNotifications: ObservableObject {
     private let credentialStore = KeychainStore(service: "sanctuary.push." + (Bundle.main.bundleIdentifier ?? "app"))
     @Published private(set) var enabled = false
     @Published private(set) var needsInvitation = false
+    @Published private(set) var invitationNeedsSettings = false
     @Published var registrationProblem: String?
     private let consent: AnnouncementConsent
     private static let logger = Logger(subsystem: "app.sanctuary.push", category: "registration")
     private init() {
         let store = KeychainStore(service: "sanctuary.push." + (Bundle.main.bundleIdentifier ?? "app"))
-        consent = AnnouncementConsent(defaults: .standard, backup: try? store.load(account: "announcement-consent")) {
+        consent = AnnouncementConsent(defaults: .standard, backup: try? store.load(account: "announcement-consent"), version: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) {
             try store.save($0, for: "announcement-consent")
         }
         enabled = consent.choice == true
@@ -50,6 +51,15 @@ final class PushNotifications: ObservableObject {
         let secret = UUID().uuidString.replacingOccurrences(of: "-", with: "") + UUID().uuidString.replacingOccurrences(of: "-", with: "")
         try credentialStore.save(Data(secret.utf8), for: "installation-secret")
         return secret
+    }
+    func enableFromInvitation() async {
+        let allowed = (try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge])) ?? false
+        guard allowed else {
+            invitationNeedsSettings = true
+            registrationProblem = "Allow notifications in phone settings to receive Sanctuary alerts."
+            return
+        }
+        await setEnabled(true)
     }
     func setEnabled(_ value: Bool) async {
         var allowed = value
