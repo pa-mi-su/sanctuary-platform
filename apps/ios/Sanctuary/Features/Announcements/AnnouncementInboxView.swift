@@ -25,11 +25,6 @@ struct AnnouncementFeed: Decodable {
   let items: [SanctuaryAnnouncement]
   let hasMore: Bool
 }
-struct AnnouncementInboxState: Codable {
-  var readIds: [String] = []
-  var clearedIds: [String] = []
-  var clearedBefore: Double = 0
-}
 struct AnnouncementChange: Encodable {
   let action: String
   var ids: [String] = []
@@ -49,6 +44,7 @@ struct AnnouncementChange: Encodable {
   private var key: String {
     "announcement-guest-" + String(describing: PlatformEnvironment.current())
   }
+  private var receiptCache: AnnouncementReceiptCache { .init(key: key) }
   var visible: [SanctuaryAnnouncement] {
     items.filter { !state.clearedIds.contains($0.id) && $0.published_at > state.clearedBefore }
   }
@@ -59,6 +55,7 @@ struct AnnouncementChange: Encodable {
     error = nil
     generation += 1
     let request = generation
+    let receiptRevision = receiptCache.revision
     self.api = api
     self.token = token
     defer { if request == generation { busy = false } }
@@ -92,11 +89,9 @@ struct AnnouncementChange: Encodable {
           } else { loaded = try await api.announcementState(token: token) }
           guard request == generation else { return }
           state = loaded
+          try receiptCache.rememberMember(loaded, expectedRevision: receiptRevision)
         } else {
-          state =
-            (UserDefaults.standard.data(forKey: key).flatMap {
-              try? JSONDecoder().decode(AnnouncementInboxState.self, from: $0)
-            }) ?? AnnouncementInboxState()
+          state = receiptCache.guestForDisplay
         }
       }
       let next = more ? page + 1 : 0
@@ -113,6 +108,7 @@ struct AnnouncementChange: Encodable {
   ) async {
     guard !busy, let api else { return }
     let request = generation
+    let receiptRevision = receiptCache.revision
     busy = true
     error = nil
     defer { if request == generation { busy = false } }
@@ -125,16 +121,10 @@ struct AnnouncementChange: Encodable {
         let loaded = try await api.changeAnnouncements(change, token: token)
         guard request == generation else { return }
         state = loaded
+        try receiptCache.rememberMember(loaded, expectedRevision: action == "read" ? receiptRevision : nil)
       } else {
-        if action == "read" { state.readIds = Array(Set(state.readIds + change.ids)) }
-        if action == "clear", let id { state.clearedIds = Array(Set(state.clearedIds + [id])) }
-        if action == "restore", let id { state.clearedIds.removeAll { $0 == id } }
-        if action == "clearAll" {
-          state.clearedBefore = max(
-            state.clearedBefore,
-            (through ?? items.max(by: { $0.published_at < $1.published_at }))?.published_at ?? 0)
-        }
-        UserDefaults.standard.set(try JSONEncoder().encode(state), forKey: key)
+        state = try receiptCache.changeGuest(action, ids: change.ids,
+          through: (through ?? items.max(by: { $0.published_at < $1.published_at }))?.published_at ?? 0)
       }
       if action == "clear" || action == "clearAll" {
         await PushNotifications.shared.acknowledgeAnnouncementAlerts()
@@ -253,11 +243,12 @@ struct AnnouncementInboxView: View {
       await markDisplayedRead()
       if store.error == nil { await PushNotifications.shared.acknowledgeAnnouncementAlerts() }
     }
-    .confirmationDialog(localization.t("inbox.confirmClear"), isPresented: $confirmClear) {
+    .alert(localization.t("inbox.confirmClear"), isPresented: $confirmClear) {
       Button(localization.t("inbox.clearAll"), role: .destructive) {
         forcedID = nil
         Task { await store.change("clearAll", through: clearThrough) }
       }
+      Button(localization.t("common.cancel"), role: .cancel) {}
     }
   }
 }

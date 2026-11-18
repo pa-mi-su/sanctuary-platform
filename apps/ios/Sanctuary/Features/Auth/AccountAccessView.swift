@@ -765,7 +765,7 @@ struct AccountAccessView: View {
                 }
             }
                 .padding(.horizontal, 14)
-                .padding(.vertical, 12)
+                .frame(minHeight: 52)
                 .background(
                     RoundedRectangle(cornerRadius: 18, style: .continuous)
                         .fill(AppTheme.cardBackgroundSoft)
@@ -838,7 +838,7 @@ struct AccountAccessView: View {
                 )
             }
             .padding(.horizontal, 14)
-            .padding(.vertical, 12)
+            .frame(minHeight: 52)
             .background(
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
                     .fill(AppTheme.cardBackgroundSoft)

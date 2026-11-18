@@ -21,27 +21,37 @@ import app.sanctuary.android.ui.theme.*
 import com.google.gson.Gson
 import kotlinx.coroutines.launch
 
-private fun guestState(context:Context):AnnouncementState = runCatching { Gson().fromJson(context.getSharedPreferences("announcement-inbox-"+BuildConfig.ENVIRONMENT,0).getString("state",null),AnnouncementState::class.java) }.getOrNull()?.takeIf { it.readIds != null && it.clearedIds != null && it.clearedBefore.isFinite() } ?: AnnouncementState()
+private fun receiptCache(context: Context): AnnouncementReceiptCache {
+ val prefs = context.getSharedPreferences("announcement-inbox-" + BuildConfig.ENVIRONMENT,0)
+ return AnnouncementReceiptCache({ prefs.getString(it,null) }, { key,value -> check(prefs.edit().putString(key,value).commit()) })
+}
+private fun guestState(context: Context) = receiptCache(context).guestForDisplay
 private val guestMergeMutex = kotlinx.coroutines.sync.Mutex()
 private suspend fun memberState(context: Context, repository: SessionRepository): AnnouncementState {
  guestMergeMutex.lock()
  try {
   val prefs = context.getSharedPreferences("announcement-inbox-" + BuildConfig.ENVIRONMENT,0)
   val owner = checkNotNull(repository.currentSession()).email.lowercase()
+  val revision = receiptCache(context).revision
   val pending = "pending:" + owner
   val fresh = prefs.getString("state",null)
   if (fresh != null) {
    val prior = runCatching { Gson().fromJson(prefs.getString(pending,null), AnnouncementState::class.java) }.getOrNull() ?: AnnouncementState()
-   val now = guestState(context)
+   val now = receiptCache(context).guestForUpload
    prefs.edit().putString(pending,Gson().toJson(AnnouncementState((prior.readIds+now.readIds).distinct(), (prior.clearedIds+now.clearedIds).distinct(), maxOf(prior.clearedBefore,now.clearedBefore)))).remove("state").commit()
   }
   val guest = runCatching { Gson().fromJson(prefs.getString(pending,null),AnnouncementState::class.java) }.getOrNull() ?: AnnouncementState()
   if (guest.readIds.isNotEmpty() || guest.clearedIds.isNotEmpty() || guest.clearedBefore > 0) {
    val merged = repository.mergeGuestAnnouncements(guest)
    prefs.edit().remove(pending).apply()
+   check(repository.currentSession()?.email?.lowercase() == owner)
+   receiptCache(context).rememberMember(merged, revision)
    return merged
   }
-  return repository.announcementState()
+  return repository.announcementState().also {
+   check(repository.currentSession()?.email?.lowercase() == owner)
+   receiptCache(context).rememberMember(it, revision)
+  }
  } finally { guestMergeMutex.unlock() }
 }
 internal fun visibleAnnouncements(rows:List<InboxAnnouncement>,state:AnnouncementState)=rows.filter { it.id !in state.clearedIds && it.published_at>state.clearedBefore }
@@ -84,12 +94,13 @@ suspend fun announcementUnread(context:Context,authenticated:Boolean):Boolean {
     val unread = (visibleAnnouncements(rows, state).map { it.id } + listOfNotNull(initialID)).distinct().filter { it !in state.readIds }.take(100)
     if (unread.isNotEmpty()) {
      if (member) {
+      val revision = receiptCache(context).revision
       val loaded = repository.changeAnnouncements(AnnouncementChange("read", unread))
       if (request != generation) return@launch
       state = loaded
+      receiptCache(context).rememberMember(loaded, revision)
      } else {
-      state = state.copy(readIds = (state.readIds + unread).distinct())
-      context.getSharedPreferences("announcement-inbox-" + BuildConfig.ENVIRONMENT, 0).edit().putString("state", Gson().toJson(state)).apply()
+      state = receiptCache(context).changeGuest("read", unread)
      }
     }
     badge()
@@ -102,17 +113,8 @@ suspend fun announcementUnread(context:Context,authenticated:Boolean):Boolean {
   }
  }
  fun change(action:String,id:String?=null,after:()->Unit={}) { if(busy)return;val request=generation;val through=clearThrough ?: rows.maxByOrNull { it.published_at };scope.launch { busy=true;error="";try {
-  if(authenticated) { val loaded=repository.changeAnnouncements(AnnouncementChange(action,id?.let { listOf(it) } ?: emptyList(),if(action=="clearAll")through?.id else null));if(request!=generation)return@launch;state=loaded }
-  else {
-   state=when(action){
-    "read"->state.copy(readIds=(state.readIds+listOfNotNull(id)).distinct())
-    "clear"->state.copy(clearedIds=(state.clearedIds+listOfNotNull(id)).distinct())
-    "restore"->state.copy(clearedIds=state.clearedIds.filter { it!=id })
-    "clearAll"->state.copy(clearedBefore=maxOf(state.clearedBefore,through?.published_at ?: 0.0))
-    else->state
-   }
-   context.getSharedPreferences("announcement-inbox-"+BuildConfig.ENVIRONMENT,0).edit().putString("state",Gson().toJson(state)).apply()
-  }
+  if(authenticated) { val loaded=repository.changeAnnouncements(AnnouncementChange(action,id?.let { listOf(it) } ?: emptyList(),if(action=="clearAll")through?.id else null));if(request!=generation)return@launch;state=loaded;receiptCache(context).rememberMember(loaded) }
+  else { state=receiptCache(context).changeGuest(action,listOfNotNull(id),through?.published_at ?: 0.0) }
   if(action=="clear" || action=="clearAll") AndroidPushNotifications.acknowledgeAnnouncementAlerts(context)
   undo=if(action=="clear")id else null;badge()
  }catch(e:Exception){error=e.message ?: "Could not update inbox"}finally{if(request==generation){busy=false;after()}} } }
