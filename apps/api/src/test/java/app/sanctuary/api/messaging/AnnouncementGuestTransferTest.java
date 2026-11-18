@@ -40,6 +40,7 @@ class AnnouncementGuestTransferTest {
     }
     @Test void mergesClearAllAndIgnoresDeletedAnnouncementIds() {
         double before=System.currentTimeMillis()-1000;
+        db.update("UPDATE users SET created_at=now()-interval '1 day' WHERE id=?",first);
         controller.mergeGuest(jwt(first.toString()),new AnnouncementInboxController.GuestState(List.of(UUID.randomUUID()),List.of(),before));
         var state=(Map<?,?>)controller.state(jwt(first.toString()));
         assertEquals(before,((Number)state.get("clearedBefore")).doubleValue(),1);

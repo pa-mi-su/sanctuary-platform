@@ -42,6 +42,28 @@ describe('Announcement inbox state', () => {
     http.expectOne(base + '/announcements?page=0').flush({ items, hasMore: false });
     await settle();
   }
+  it('starts a new account after the historical backlog and keeps newer messages unread', async () => {
+    await initial([row('old', 100)]);
+    auth.state.set({ status: 'authenticated', email: 'new@sanctuary.invalid' });
+    TestBed.tick();
+    http.expectOne(base + '/me/announcements').flush({ readIds: [], clearedIds: [], clearedBefore: 200 });
+    await settle();
+    http.expectOne(base + '/announcements?page=0').flush({ items: [row('old', 100), row('boundary', 200)], hasMore: true });
+    await settle();
+    expect(inbox.visible()).toEqual([]);
+    expect(inbox.unread()).toBe(false);
+    const next = inbox.load(true);
+    http.expectOne(base + '/announcements?page=1').flush({ items: [row('older-page', 50)], hasMore: false });
+    await next;
+    expect(inbox.visible()).toEqual([]);
+    const refresh = inbox.load();
+    http.expectOne(base + '/me/announcements').flush({ readIds: [], clearedIds: [], clearedBefore: 200 });
+    await settle();
+    http.expectOne(base + '/announcements?page=0').flush({ items: [row('new', 201), row('old', 100)], hasMore: false });
+    await refresh;
+    expect(inbox.visible().map(x => x.id)).toEqual(['new']);
+    expect(inbox.unread()).toBe(true);
+  });
   it('lets a guest read, clear and undo without signing in or enabling push', async () => {
     await initial();
     expect(inbox.unread()).toBe(true);

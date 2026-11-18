@@ -46,7 +46,7 @@ struct AnnouncementChange: Encodable {
   }
   private var receiptCache: AnnouncementReceiptCache { .init(key: key) }
   var visible: [SanctuaryAnnouncement] {
-    items.filter { !state.clearedIds.contains($0.id) && $0.published_at > state.clearedBefore }
+    items.filter { state.isVisible(id: $0.id, publishedAt: $0.published_at) }
   }
   var unread: Bool { visible.contains { !state.readIds.contains($0.id) } }
   func load(api: SanctuaryAPIClient, token: String?, more: Bool = false) async {
