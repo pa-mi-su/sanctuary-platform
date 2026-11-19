@@ -10,7 +10,13 @@ enum AppTab: Hashable {
 
 struct AppShellView: View {
     let environment: AppEnvironment
+    @Environment(\.scenePhase) private var scenePhase
+    @ObservedObject private var push = PushNotifications.shared
     @State private var selectedTab: AppTab = .home
+    @State private var showAnnouncement = false
+    @State private var announcementID: String?
+    @State private var announcementDestination: URL?
+    @StateObject private var inbox = AnnouncementInboxStore()
     @State private var sharedContentLink: SharedContentLink?
     @StateObject private var localization: LocalizationManager
     @StateObject private var accountStore: AccountSessionStore
@@ -78,7 +84,9 @@ struct AppShellView: View {
         .task {
             // Let first frame and taps land before background state refresh.
             try? await Task.sleep(nanoseconds: 700_000_000)
+            await PushNotifications.shared.clearStaleIconBadge()
             await accountStore.bootstrap()
+            await accountStore.syncPushDevice()
         }
         .task(id: accountStore.profile?.userID) {
             await progressStore.setAuthenticatedUser(id: accountStore.profile?.userID)
@@ -89,6 +97,23 @@ struct AppShellView: View {
                 generalDailyEnabled: accountStore.profile?.feastRemindersEnabled ?? false
             )
         }
+        .onChange(of: scenePhase) { phase in
+            if phase == .active {
+                Task {
+                    await PushNotifications.shared.clearStaleIconBadge()
+                    if push.needsInvitation && push.invitationNeedsSettings { await push.enableFromInvitation() }
+                    await accountStore.syncPushDevice()
+                }
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: PushNotifications.tokenChanged)) { _ in
+            Task { await accountStore.syncPushDevice() }
+        }
+        .onReceive(push.$destination) { url in
+            guard let url else { return }
+            if url.path == "/" { sharedContentLink = nil; selectedTab = .home } else { openSharedContent(url) }
+            push.destination = nil
+        }
         .onOpenURL { url in
             openSharedContent(url)
         }
@@ -96,6 +121,30 @@ struct AppShellView: View {
             if let url = activity.webpageURL {
                 openSharedContent(url)
             }
+        }
+        .sheet(isPresented: Binding(get: { push.needsInvitation && !showAnnouncement && sharedContentLink == nil }, set: { _ in })) {
+            ScrollView {
+            VStack(spacing: 24) {
+                Image(systemName: "bell.badge.fill").font(.system(size: 44)).foregroundStyle(AppTheme.tabActive)
+                Text(localization.t("alerts.invitation.title")).font(AppTheme.rounded(28, weight: .bold)).multilineTextAlignment(.center)
+                Text(localization.t("alerts.invitation.body")).font(AppTheme.rounded(17, weight: .medium)).multilineTextAlignment(.center)
+                Button(localization.t(push.invitationNeedsSettings ? "notifications.settings" : "alerts.invitation.enable")) {
+                    if push.invitationNeedsSettings {
+                        Task { await push.openPhoneNotificationSettings() }
+                    } else { Task { await push.enableFromInvitation(); await accountStore.syncPushDevice() } }
+                }.buttonStyle(PrimaryPillButtonStyle())
+                Button(localization.t("alerts.invitation.later")) { push.declineInvitation(); Task { await accountStore.syncPushDevice() } }.buttonStyle(SecondaryPillButtonStyle())
+                if let problem = push.registrationProblem { Text(problem).font(.footnote) }
+            }.padding(28).frame(maxWidth: .infinity)
+            }.frame(maxWidth: .infinity, maxHeight: .infinity)
+                .foregroundStyle(.white).background(AppTheme.cardBackground)
+                .interactiveDismissDisabled().presentationDetents([.medium, .large])
+        }
+        .sheet(isPresented: $showAnnouncement, onDismiss: {
+            if let url=announcementDestination { announcementDestination=nil;openSharedContent(url) }
+        }) {
+            AnnouncementInboxView(environment:environment,store:inbox,initialID:announcementID) { url in announcementDestination=url;showAnnouncement=false }
+                .environmentObject(localization).environmentObject(accountStore)
         }
         .fullScreenCover(item: $sharedContentLink) { link in
             sharedContentDestination(for: link)
@@ -112,6 +161,10 @@ struct AppShellView: View {
     }
 
     private func openSharedContent(_ url: URL) {
+        if url.scheme == "https", (url.host == "mydailysanctuary.com" || (PlatformEnvironment.current() == .dev && url.host == "dev.mydailysanctuary.com")), url.pathComponents.dropFirst().first == "announcements" {
+            announcementID = url.pathComponents.count > 2 ? url.pathComponents[2].lowercased() : nil
+            showAnnouncement=true;return
+        }
         guard let link = SharedContentLink.parse(url) else {
             return
         }

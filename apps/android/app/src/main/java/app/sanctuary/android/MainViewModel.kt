@@ -100,6 +100,7 @@ data class NovenaProgressUiState(
     val commitments: List<UserNovenaCommitment> = emptyList(),
     val favorites: List<UserFavorite> = emptyList(),
     val pendingNovenaStarts: Set<String> = emptySet(),
+    val pendingNovenaCompletions: Set<String> = emptySet(),
     val saintNames: Map<String, String> = emptyMap(),
     val saintSlugs: Map<String, String> = emptyMap(),
     val novenaTitles: Map<String, String> = emptyMap(),
@@ -243,8 +244,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 )
                 loadInitialContent()
                 refreshNovenaProgress()
+                syncPushDevice()
             } else {
-                reminderScheduler.cancelAll()
+                cancelAccountReminders()
                 _appLanguage.value = AppLanguage.fromCode(repository.currentLanguage())
                 _session.value = SessionUiState(
                     status = SessionStatus.SignedOut,
@@ -253,18 +255,36 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 )
                 loadInitialContent()
                 _novenaProgress.value = NovenaProgressUiState()
+                syncPushDevice()
             }
+        }
+    }
+
+    private var accountFormGeneration = 0
+    private var accountFormJob: kotlinx.coroutines.Job? = null
+
+    fun abandonAccountForm() {
+        accountFormGeneration++
+        accountFormJob?.cancel()
+        _session.update { current ->
+            current.copy(
+                status = if (current.session != null) current.status else SessionStatus.SignedOut,
+                pendingConfirmationEmail = null, pendingPasswordResetEmail = null,
+                message = null, isErrorMessage = false
+            )
         }
     }
 
     fun register(firstName: String, lastName: String, email: String, password: String) {
         if (!beginAuthRequest()) return
-        viewModelScope.launch {
+        val generation = accountFormGeneration
+        accountFormJob = viewModelScope.launch {
             runCatching {
                 withTimeoutOrNull(15_000) {
                     repository.register(firstName, lastName, email, password)
                 } ?: throw IllegalStateException(l10n().t("status.registerTimeout"))
             }.onSuccess { response: AuthRegistrationResponse ->
+                if (generation != accountFormGeneration) return@onSuccess
                 _session.value = SessionUiState(
                     status = SessionStatus.AwaitingConfirmation,
                     pendingConfirmationEmail = response.email,
@@ -272,6 +292,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     isErrorMessage = false
                 )
             }.onFailure { failure ->
+                if (generation != accountFormGeneration) return@onFailure
                 _session.value = SessionUiState(
                     status = SessionStatus.Failed,
                     pendingConfirmationEmail = email,
@@ -285,7 +306,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun confirmRegistration(code: String, password: String? = null) {
         val email = _session.value.pendingConfirmationEmail ?: return
         if (!beginAuthRequest()) return
-        viewModelScope.launch {
+        val generation = accountFormGeneration
+        accountFormJob = viewModelScope.launch {
             var confirmationMessage: String? = null
             runCatching {
                 val confirmation = withTimeoutOrNull(15_000) {
@@ -301,6 +323,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     null
                 }
             }.onSuccess { loginResult ->
+                if (generation != accountFormGeneration) return@onSuccess
                 if (loginResult?.authenticated == true) {
                     applyAuthenticatedSession(loginResult)
                 } else {
@@ -312,6 +335,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     )
                 }
             }.onFailure { failure ->
+                if (generation != accountFormGeneration) return@onFailure
                 _session.value = _session.value.copy(
                     status = SessionStatus.Failed,
                     message = failure.message,
@@ -324,19 +348,22 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun resendConfirmation() {
         val email = _session.value.pendingConfirmationEmail ?: return
         if (!beginAuthRequest()) return
-        viewModelScope.launch {
+        val generation = accountFormGeneration
+        accountFormJob = viewModelScope.launch {
             runCatching {
                 withTimeoutOrNull(15_000) {
                     repository.resendConfirmation(email)
                 } ?: throw IllegalStateException(l10n().t("status.resendTimeout"))
             }
                 .onSuccess { response ->
+                    if (generation != accountFormGeneration) return@onSuccess
                     _session.value = _session.value.copy(
                         status = SessionStatus.AwaitingConfirmation,
                         message = response.message,
                         isErrorMessage = false
                     )
                 }.onFailure { failure ->
+                    if (generation != accountFormGeneration) return@onFailure
                     _session.value = _session.value.copy(
                         status = SessionStatus.Failed,
                         message = failure.message,
@@ -348,13 +375,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun forgotPassword(email: String) {
         if (!beginAuthRequest()) return
-        viewModelScope.launch {
+        val generation = accountFormGeneration
+        accountFormJob = viewModelScope.launch {
             runCatching {
                 withTimeoutOrNull(15_000) {
                     repository.forgotPassword(email)
                 } ?: throw IllegalStateException(l10n().t("status.forgotTimeout"))
             }
                 .onSuccess { response ->
+                    if (generation != accountFormGeneration) return@onSuccess
                     _session.value = SessionUiState(
                         status = SessionStatus.SignedOut,
                         pendingPasswordResetEmail = email,
@@ -362,6 +391,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         isErrorMessage = false
                     )
                 }.onFailure { failure ->
+                    if (generation != accountFormGeneration) return@onFailure
                     _session.value = SessionUiState(
                         status = SessionStatus.Failed,
                         pendingPasswordResetEmail = email,
@@ -374,13 +404,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun resetPassword(email: String, code: String, newPassword: String) {
         if (!beginAuthRequest()) return
-        viewModelScope.launch {
+        val generation = accountFormGeneration
+        accountFormJob = viewModelScope.launch {
             runCatching {
                 withTimeoutOrNull(15_000) {
                     repository.resetPassword(email, code, newPassword)
                 } ?: throw IllegalStateException(l10n().t("status.resetTimeout"))
             }
                 .onSuccess { result ->
+                    if (generation != accountFormGeneration) return@onSuccess
                     if (result.authenticated) {
                         applyAuthenticatedSession(result)
                     } else {
@@ -392,6 +424,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         )
                     }
                 }.onFailure { failure ->
+                    if (generation != accountFormGeneration) return@onFailure
                     _session.value = SessionUiState(
                         status = SessionStatus.Failed,
                         pendingPasswordResetEmail = email,
@@ -404,17 +437,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun login(email: String, password: String) {
         if (!beginAuthRequest()) return
-        viewModelScope.launch {
+        val generation = accountFormGeneration
+        accountFormJob = viewModelScope.launch {
             runCatching {
                 withTimeoutOrNull(15_000) {
                     repository.login(email, password)
                 } ?: throw IllegalStateException(l10n().t("status.loginTimeout"))
             }
                 .onSuccess { result ->
+                    if (generation != accountFormGeneration) return@onSuccess
                     if (result.authenticated) {
                         applyAuthenticatedSession(result)
                     } else {
-                        reminderScheduler.cancelAll()
+                        cancelAccountReminders()
                         _session.value = SessionUiState(
                             status = SessionStatus.Failed,
                             message = result.errorMessage ?: l10n().t("status.loginFailed"),
@@ -422,6 +457,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         )
                     }
                 }.onFailure { failure ->
+                    if (generation != accountFormGeneration) return@onFailure
                     _session.value = SessionUiState(
                         status = SessionStatus.Failed,
                         message = failure.message,
@@ -431,10 +467,26 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    private val _homeNavigation = MutableStateFlow(0)
+    val homeNavigation: StateFlow<Int> = _homeNavigation.asStateFlow()
+    val announcementRequest = MutableStateFlow<String?>(null)
+    fun openAnnouncement(id:String){announcementRequest.value=id}
+    fun consumeAnnouncement(){announcementRequest.value=null}
+    fun openHome() { closeSaintDetail(); closeNovenaDetail(); closePrayerDetail(); _homeNavigation.value += 1 }
+
+    fun syncPushDevice() {
+        if (_session.value.status != SessionStatus.Loading) {
+            AccountReminderSync.configure(getApplication(), repository, _session.value.profile?.userId)
+            if (_session.value.status == SessionStatus.Authenticated) viewModelScope.launch { AccountReminderSync.refresh() }
+        }
+        viewModelScope.launch { runCatching { AndroidPushNotifications.sync(getApplication(), repository) } }
+    }
+
     fun logout() {
         repository.logout()
-        reminderScheduler.cancelAll()
+        cancelAccountReminders()
         _session.value = SessionUiState(status = SessionStatus.SignedOut, isSavingReminderPreferences = false)
+        syncPushDevice()
         _novenaProgress.value = NovenaProgressUiState()
         loadInitialContent()
     }
@@ -457,8 +509,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     repository.deleteAccount()
                 } ?: throw IllegalStateException(l10n().t("status.deleteAccountTimeout"))
             }.onSuccess {
-                reminderScheduler.cancelAll()
+                cancelAccountReminders()
                 _session.value = SessionUiState(status = SessionStatus.SignedOut)
+                syncPushDevice()
                 _novenaProgress.value = NovenaProgressUiState()
                 loadInitialContent()
             }.onFailure { failure ->
@@ -489,6 +542,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         )
         loadInitialContent()
         refreshNovenaProgress()
+        syncPushDevice()
     }
 
     fun updateLanguage(language: AppLanguage) {
@@ -853,11 +907,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun refreshNovenaProgress() {
         if (_session.value.status != SessionStatus.Authenticated) {
-            reminderScheduler.cancelAll()
+            cancelAccountReminders()
             _novenaProgress.value = NovenaProgressUiState()
             return
         }
 
+        val owner = _session.value.profile?.userId
+        val revision = progressRevision
         _novenaProgress.update { it.copy(isLoading = true, error = null) }
         viewModelScope.launch {
             runCatching { repository.listNovenaCommitments() }
@@ -895,11 +951,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                                 activeCommitmentCount = activeCommitmentCount
                             )
 
+                            if (_session.value.profile?.userId != owner) return@onSuccess
+                            if (progressRevision != revision) { _novenaProgress.update { it.copy(isLoading=false) }; return@onSuccess }
                             val existing = _novenaProgress.value
                             _novenaProgress.value = NovenaProgressUiState(
                                 commitments = commitments,
                                 favorites = favorites,
                                 pendingNovenaStarts = existing.pendingNovenaStarts,
+                                pendingNovenaCompletions = existing.pendingNovenaCompletions,
                                 saintNames = existing.saintNames + saintNames,
                                 saintSlugs = existing.saintSlugs + saintSlugs,
                                 novenaTitles = existing.novenaTitles + novenaDetails.mapNotNull { (id, detail) -> detail?.let { id to it.title } }.toMap(),
@@ -914,6 +973,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                                 commitments = commitments,
                                 favorites = existing.favorites,
                                 pendingNovenaStarts = existing.pendingNovenaStarts,
+                                pendingNovenaCompletions = existing.pendingNovenaCompletions,
                                 saintNames = existing.saintNames,
                                 saintSlugs = existing.saintSlugs,
                                 novenaTitles = existing.novenaTitles,
@@ -930,6 +990,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         commitments = existing.commitments,
                         favorites = existing.favorites,
                         pendingNovenaStarts = existing.pendingNovenaStarts,
+                                pendingNovenaCompletions = existing.pendingNovenaCompletions,
                         saintNames = existing.saintNames,
                         saintSlugs = existing.saintSlugs,
                         novenaTitles = existing.novenaTitles,
@@ -945,9 +1006,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun startNovena(novenaId: String) {
         if (_session.value.status != SessionStatus.Authenticated) return
-        if (!pendingNovenaStarts.add(novenaId)) {
+        if (novenaId in pendingNovenaStops || novenaId in completingDays || !pendingNovenaStarts.add(novenaId)) {
             return
         }
+        progressRevision++
         val previousProgress = _novenaProgress.value
         val previousProfile = _session.value.profile
         val wasAlreadyActive = previousProgress.commitments.any {
@@ -1012,9 +1074,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun stopNovena(novenaId: String) {
         if (_session.value.status != SessionStatus.Authenticated) return
-        if (!pendingNovenaStops.add(novenaId)) {
+        if (novenaId in pendingNovenaStarts || novenaId in completingDays || !pendingNovenaStops.add(novenaId)) {
             return
         }
+        progressRevision++
         val previousProgress = _novenaProgress.value
         val previousProfile = _session.value.profile
         val hadActiveCommitment = previousProgress.commitments.any {
@@ -1045,14 +1108,29 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    private var progressRevision = 0
+    private val completingDays = mutableSetOf<String>()
     fun completeNovenaDay(novenaId: String, totalDays: Int) {
+        if (_session.value.status != SessionStatus.Authenticated || novenaId in pendingNovenaStarts || novenaId in pendingNovenaStops || !completingDays.add(novenaId)) return
+        progressRevision++
+        val owner = _session.value.profile?.userId
+        val current = _novenaProgress.value.commitments.firstOrNull { it.novenaId == novenaId && it.status == CommitmentStatus.Active }
+        if (current == null) { completingDays.remove(novenaId); return }
+        val end = current.currentDay >= maxOf(1, totalDays)
+        val optimistic = current.copy(currentDay = if (end) maxOf(1, totalDays) else current.currentDay + 1,
+            completedDays = (current.completedDays + current.currentDay).distinct().sorted(),
+            status = if (end) CommitmentStatus.Completed else CommitmentStatus.Active)
+        _novenaProgress.update { it.copy(commitments = it.commitments.map { row -> if (row.novenaId == novenaId) optimistic else row }, pendingNovenaCompletions = it.pendingNovenaCompletions + novenaId, error = null) }
         viewModelScope.launch {
-            runCatching { repository.completeCurrentNovenaDay(novenaId, totalDays) }
-                .onSuccess {
-                    refreshNovenaProgress()
-                }.onFailure { failure ->
-                    _novenaProgress.update { it.copy(error = failure.message) }
-                }
+            try {
+                val saved = repository.completeCurrentNovenaDay(novenaId, totalDays, current)
+                if (_session.value.profile?.userId == owner) _novenaProgress.update { it.copy(commitments = it.commitments.map { row -> if (row.novenaId == novenaId) saved else row }) }
+            } catch (failure: Exception) {
+                if (_session.value.profile?.userId == owner) _novenaProgress.update { it.copy(commitments = it.commitments.map { row -> if (row.novenaId == novenaId) current else row }, error = failure.message) }
+            } finally {
+                completingDays.remove(novenaId)
+                if (_session.value.profile?.userId == owner) _novenaProgress.update { it.copy(pendingNovenaCompletions = it.pendingNovenaCompletions - novenaId) }
+            }
         }
     }
 
@@ -1068,6 +1146,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (!pendingFavoriteToggles.add(mutationKey)) {
             return
         }
+        progressRevision++
         val previousProgress = _novenaProgress.value
         val previousProfile = _session.value.profile
         val currentlyFavorite = previousProgress.favorites.any { it.itemType == itemType && it.itemId == itemId }
@@ -1139,9 +1218,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         loadRosaries()
     }
 
+    private fun cancelAccountReminders() {
+        AccountReminderSync.configure(getApplication(), repository, null)
+        reminderScheduler.cancelAll()
+    }
+
     private fun syncReminderScheduler(profile: UserProfile?, activeCommitmentCount: Int) {
         if (profile == null) {
-            reminderScheduler.cancelAll()
+            cancelAccountReminders()
             return
         }
         reminderScheduler.syncDigestReminder(

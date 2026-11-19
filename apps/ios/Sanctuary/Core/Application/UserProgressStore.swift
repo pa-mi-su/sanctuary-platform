@@ -11,7 +11,12 @@ final class UserProgressStore: ObservableObject {
 
     private let repository: any UserProgressRepository
     private let reminderScheduler: NovenaReminderScheduler
+    private var revision = 0
     private var isRefreshing = false
+    @Published private(set) var completingDays: Set<String> = []
+    private var favoriteUpdates: Set<String> = []
+    @Published private(set) var novenaMutations: Set<String> = []
+    @Published var actionError: String?
 
     init(
         userProgressRepository: any UserProgressRepository,
@@ -31,6 +36,8 @@ final class UserProgressStore: ObservableObject {
             return
         }
 
+        revision += 1
+        actionError = nil
         userID = id
         commitments = []
         favorites = []
@@ -71,11 +78,15 @@ final class UserProgressStore: ObservableObject {
             return
         }
 
+        let snapshot = revision
         do {
             async let loadedCommitments = repository.listNovenaCommitments(userID: userID)
             async let loadedFavorites = repository.listFavorites(userID: userID)
-            commitments = try await loadedCommitments
-            favorites = try await loadedFavorites
+            let rows = try await loadedCommitments
+            let saved = try await loadedFavorites
+            guard self.userID == userID, revision == snapshot else { return }
+            commitments = rows
+            favorites = saved
         } catch {}
         await syncDigestReminders()
     }
@@ -105,6 +116,12 @@ final class UserProgressStore: ObservableObject {
         itemID: String
     ) async {
         guard let userID else { return }
+        revision += 1
+        let mutationKey = itemType.rawValue + ":" + itemID
+        guard !favoriteUpdates.contains(mutationKey) else { return }
+        favoriteUpdates.insert(mutationKey)
+        actionError = nil
+        defer { favoriteUpdates.remove(mutationKey) }
         let previousFavorites = favorites
         let favoriteKeyMatches: (UserFavorite) -> Bool = { favorite in
             favorite.itemType == itemType && favorite.itemID == itemID
@@ -131,9 +148,11 @@ final class UserProgressStore: ObservableObject {
             } else {
                 try await repository.removeFavorite(userID: userID, itemType: itemType, itemID: itemID)
             }
-            await refresh()
         } catch {
-            favorites = previousFavorites
+            if self.userID == userID {
+                favorites = favorites.filter { !favoriteKeyMatches($0) } + previousFavorites.filter(favoriteKeyMatches)
+                actionError = "progress.saveError"
+            }
         }
     }
 
@@ -143,10 +162,14 @@ final class UserProgressStore: ObservableObject {
     }
 
     func startNovena(novenaID: String) async {
-        guard let userID else { return }
+        guard let userID, !novenaMutations.contains(novenaID), !completingDays.contains(novenaID) else { return }
+        novenaMutations.insert(novenaID)
+        defer { novenaMutations.remove(novenaID) }
         guard !commitments.contains(where: {
             $0.novenaID == novenaID && ($0.status == .active || $0.status == .completed)
         }) else { return }
+        revision += 1
+        actionError = nil
         let previousCommitments = commitments
         let now = Date()
         let started = UserNovenaCommitment(
@@ -165,45 +188,47 @@ final class UserProgressStore: ObservableObject {
             try await repository.upsertNovenaCommitment(started)
             await refresh()
         } catch {
-            commitments = previousCommitments
+            if self.userID == userID {
+                commitments = commitments.filter { $0.novenaID != novenaID } + previousCommitments.filter { $0.novenaID == novenaID }
+                actionError = "progress.saveError"
+            }
         }
     }
 
     func completeCurrentDay(novenaID: String, totalDays: Int) async {
-        guard let userID else { return }
-        guard let current = activeCommitment(for: novenaID) else { return }
-        let dayToComplete = current.currentDay
+        guard let userID, !completingDays.contains(novenaID), !novenaMutations.contains(novenaID), let current = activeCommitment(for: novenaID) else { return }
+        revision += 1
+        completingDays.insert(novenaID)
+        defer { completingDays.remove(novenaID) }
+        actionError = nil
+        let day = current.currentDay
+        let end = day >= max(1, totalDays)
+        let optimistic = UserNovenaCommitment(userID: userID, novenaID: novenaID,
+            startedAt: current.startedAt, currentDay: end ? max(1, totalDays) : day + 1,
+            completedDays: Array(Set(current.completedDays + [day])).sorted(), reminder: current.reminder,
+            status: end ? .completed : .active, updatedAt: Date())
+        commitments = commitments.map { $0.novenaID == novenaID ? optimistic : $0 }
         do {
-            var updated = try await repository.completeNovenaDay(
-                userID: userID,
-                novenaID: novenaID,
-                day: dayToComplete,
-                completedAt: Date()
-            )
-
-            if dayToComplete >= max(1, totalDays) {
-                updated = UserNovenaCommitment(
-                    userID: updated.userID,
-                    novenaID: updated.novenaID,
-                    startedAt: updated.startedAt,
-                    currentDay: max(1, totalDays),
-                    completedDays: Array(1...max(1, totalDays)),
-                    reminder: updated.reminder,
-                    status: .completed,
-                    updatedAt: Date()
-                )
-                try await repository.upsertNovenaCommitment(updated)
-            }
-            await refresh()
-        } catch {}
+            var saved = try await repository.completeNovenaDay(userID: userID, novenaID: novenaID, day: day, completedAt: Date())
+            if end { saved = optimistic; try await repository.upsertNovenaCommitment(saved) }
+            guard self.userID == userID else { return }
+            commitments = commitments.map { $0.novenaID == novenaID ? saved : $0 }
+        } catch {
+            guard self.userID == userID else { return }
+            commitments = commitments.map { $0.novenaID == novenaID ? current : $0 }
+            actionError = "progress.saveError"
+        }
     }
 
     func stopNovena(novenaID: String) async {
-        guard let userID else { return }
-        do {
-            try await repository.removeNovenaCommitment(userID: userID, novenaID: novenaID)
-            await refresh()
-        } catch {}
+        guard let userID, !novenaMutations.contains(novenaID), !completingDays.contains(novenaID), let previous = activeCommitment(for: novenaID) else { return }
+        novenaMutations.insert(novenaID)
+        defer { novenaMutations.remove(novenaID) }
+        revision += 1
+        actionError = nil
+        commitments.removeAll { $0.novenaID == novenaID }
+        do { try await repository.removeNovenaCommitment(userID: userID, novenaID: novenaID) }
+        catch { if self.userID == userID { commitments.append(previous); actionError = "progress.saveError" } }
     }
 
     private func syncDigestReminders() async {

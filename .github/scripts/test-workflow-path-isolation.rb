@@ -68,6 +68,46 @@ class WorkflowPathIsolationTest < Minitest::Test
     end
   end
 
+  def test_push_credential_is_injected_only_when_enabled
+    %w[api-dev-deploy.yml api-prod-deploy.yml].each do |name|
+      run = workflow(name).fetch('jobs').fetch('deploy').fetch('steps').find { |step| step.fetch('run', '').include?('--arg admin_key_secret') }.fetch('run')
+      program = run.match(/'del\((.*?)\)' task-definition.json/m)[0].sub(/' task-definition.json\z/, '').delete_prefix("'")
+      %w[true false].each do |enabled|
+        args = run.scan(/--arg (\w+) /).flatten.flat_map { |key| ['--arg', key, key == 'push_enabled' ? enabled : 'fixture-' + key] }
+        input = { 'containerDefinitions' => [{ 'name' => 'Main', 'environment' => [], 'secrets' => [] }] }
+        output, error, status = Open3.capture3('jq', *args, program, stdin_data: JSON.generate(input))
+        assert status.success?, error
+        container = JSON.parse(output).fetch('containerDefinitions').first
+        env = container.fetch('environment').to_h { |entry| [entry['name'], entry['value']] }
+        assert_equal enabled, env['SANCTUARY_PUSH_ENABLED']
+        refute env.key?('SANCTUARY_FIREBASE_SERVICE_ACCOUNT_JSON')
+        secret = container.fetch('secrets').find { |entry| entry['name'] == 'SANCTUARY_FIREBASE_SERVICE_ACCOUNT_JSON' }
+        enabled == 'true' ? assert_equal('fixture-firebase_secret', secret['valueFrom']) : assert_nil(secret)
+      end
+    end
+  end
+
+  def test_api_tests_never_inherit_live_push_enablement
+    %w[api-dev-deploy.yml api-prod-deploy.yml].each do |name|
+      workflow(name).fetch('jobs').each_value do |job|
+        job.fetch('steps').select { |step| step['name'] == 'Run API tests' }.each do |step|
+          assert_equal 'false', step.fetch('env').fetch('SANCTUARY_PUSH_ENABLED'), name
+        end
+      end
+    end
+  end
+
+  def test_ios_archives_do_not_force_app_profiles_onto_packages
+    source = File.read(File.join(__dir__, '..', 'workflows', 'ios-pipeline.yml'))
+    archives = source.split('          xcodebuild ').drop(1).select { |command| command.include?("\n            archive\n") }.map { |command| command.split("\n            archive").first }
+    assert_equal 3, archives.size
+    archives.each do |command|
+      refute_match(/PROVISIONING_PROFILE_SPECIFIER=|CODE_SIGN_STYLE=|CODE_SIGN_IDENTITY=|DEVELOPMENT_TEAM=/, command)
+    end
+    project = File.read(File.join(__dir__, '..', '..', 'apps', 'ios', 'Sanctuary.xcodeproj', 'project.pbxproj'))
+    %w[Dev UAT Prod].each { |stage| assert_includes project, 'PROVISIONING_PROFILE_SPECIFIER = "Sanctuary ' + stage + ' App Store";' }
+  end
+
   def test_delayed_pr_checks_cannot_cancel_deployments
     %w[api-dev-deploy.yml api-prod-deploy.yml web-dev-deploy.yml web-prod-deploy.yml].each do |name|
       group = workflow(name).fetch('concurrency').fetch('group')
@@ -86,6 +126,46 @@ class WorkflowPathIsolationTest < Minitest::Test
       assert_operator names.index('Publish entry page after assets'), :>, names.index('Publish admin entry as HTML')
       assert_operator names.index('Publish entry page after assets'), :<, names.index('Invalidate CloudFront cache')
     end
+  end
+
+  def test_ios_caches_separate_sdk_configuration_and_preserve_runners
+    jobs = workflow('ios-pipeline.yml').fetch('jobs')
+    jobs.each do |name, job|
+      assert_equal 'macos-15-intel', job.fetch('runs-on')
+      steps = job.fetch('steps')
+      packages = steps.find { |step| step['name'] == 'Cache Swift packages' }.fetch('with')
+      assert_includes packages.fetch('key'), 'runner.arch'
+      assert_includes packages.fetch('key'), 'steps.xcode.outputs.cache-key'
+      assert_includes packages.fetch('key'), 'Package.resolved'
+      compilation = steps.find { |step| ['Cache simulator compilation', 'Cache device compilation'].include?(step['name']) }.fetch('with')
+      assert_includes compilation.fetch('key'), 'github.sha'
+      assert_includes compilation.fetch('key'), 'steps.xcode.outputs.cache-key'
+      assert_includes compilation.fetch('key'), name == 'validate' ? 'steps.resolve.outputs.scheme' : 'github.job'
+      refute_match(/keychain|private_keys|p12|mobileprovision|AuthKey/i, compilation.fetch('path'))
+    end
+  end
+
+  def test_only_simulator_validation_restricts_the_architecture
+    source = File.read(File.join(__dir__, '..', 'workflows', 'ios-pipeline.yml'))
+    assert_equal 1, source.scan('ARCHS="$(uname -m)" ONLY_ACTIVE_ARCH=YES').size
+    jobs = workflow('ios-pipeline.yml').fetch('jobs')
+    run = jobs.fetch('validate').fetch('steps').find { |step| step['name'] == 'Build iOS app for simulator' }.fetch('run')
+    assert_includes run, 'SanctuarySimulatorDerivedData'
+    assert_includes run, 'SanctuarySourcePackages'
+    assert_includes run, '-showBuildTimingSummary'
+    jobs.reject { |name, _| name == 'validate' }.each_value do |job|
+      archive = job.fetch('steps').find { |step| step.fetch('run', '').include?('-archivePath') }.fetch('run')
+      assert_includes archive, 'SanctuaryDeviceDerivedData'
+      assert_includes archive, 'SanctuarySourcePackages'
+      refute_includes archive, 'ONLY_ACTIVE_ARCH'
+    end
+  end
+
+  def test_ios_workflow_changes_validate_without_triggering_push_uploads
+    assert triggers?('ios-pipeline.yml', 'pull_request', '.github/workflows/ios-pipeline.yml')
+    refute triggers?('ios-pipeline.yml', 'push', '.github/workflows/ios-pipeline.yml')
+    detect = workflow('ios-pipeline.yml').fetch('jobs').fetch('validate').fetch('steps').find { |step| step['id'] == 'changes' }.fetch('run')
+    assert_includes detect, 'git diff --quiet FETCH_HEAD...HEAD -- apps/ios .github/workflows/ios-pipeline.yml'
   end
 
 end

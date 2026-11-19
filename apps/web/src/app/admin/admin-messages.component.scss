@@ -1,0 +1,263 @@
+:host {
+  display: block;
+  color: #f4f6f5;
+}
+h1 {
+  font-size: 2.5rem;
+  margin: 0.3rem 0;
+}
+h2 {
+  font-size: 1.3rem;
+}
+p {
+  line-height: 1.6;
+}
+.eyebrow,
+small {
+  color: #a7c6d2;
+}
+.eyebrow {
+  letter-spacing: 0.2em;
+  font-weight: 800;
+}
+.panel {
+  padding: 1.5rem;
+  margin: 1.5rem 0;
+  background: #ffffff06;
+  border: 1px solid #ffffff26;
+  border-radius: 22px;
+}
+form {
+  display: grid;
+  gap: 1rem;
+}
+label {
+  display: grid;
+  gap: 0.5rem;
+  font-weight: 600;
+}
+input,
+select,
+textarea,
+button {
+  font: inherit;
+  color: inherit;
+}
+select,
+textarea {
+  background: #172e3e;
+  border: 1px solid #8aa5ad88;
+  border-radius: 12px;
+  padding: 0.9rem;
+  width: 100%;
+  box-sizing: border-box;
+}
+button {
+  cursor: pointer;
+  border: 1px solid #8aa5ad88;
+  background: transparent;
+  border-radius: 12px;
+  padding: 0.8rem 1rem;
+}
+button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.primary {
+  background: #e5c476;
+  color: #193240;
+  font-weight: 800;
+}
+.columns,
+.actions {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.columns > * {
+  flex: 1;
+  min-width: 180px;
+}
+.phone {
+  background: #ffffff0d;
+  padding: 1.2rem;
+  border: 1px solid #ffffff30;
+  border-radius: 20px;
+  max-width: 450px;
+}
+.phone strong {
+  display: block;
+  margin-top: 0.7rem;
+}
+.review {
+  border-top: 1px solid #ffffff30;
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+}
+.check {
+  display: flex;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+article {
+  padding: 1rem 0;
+  border-bottom: 1px solid #ffffff22;
+  overflow-wrap: anywhere;
+}
+.notice {
+  padding: 1rem;
+  border: 1px solid #e5c476;
+  border-radius: 12px;
+}
+
+.dismissible-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.dismissible-notice span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.notice-dismiss {
+  flex: 0 0 44px;
+  min-height: 44px;
+  padding: 0;
+  font-size: 1.5rem;
+}
+.notice-dismiss:focus-visible {
+  outline: 2px solid #9ee6f1;
+  outline-offset: 3px;
+}
+.completion {
+  background: #244f59;
+}
+.completion button {
+  margin: 0.3rem 0.5rem 0.3rem 0;
+}
+.history-confirm {
+  border: 1px solid #e5c476;
+  border-radius: 16px;
+  padding: 1rem;
+  margin: 1rem 0;
+}
+.history-confirm button {
+  margin: 0.3rem 0.5rem 0.3rem 0;
+}
+
+.records-header,
+.record-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.records-header h2,
+.record-heading h3 {
+  margin: 0;
+}
+.records-description {
+  color: #b8d1dc;
+}
+.announcement-record {
+  display: grid;
+  gap: 1rem;
+  padding: 1.25rem;
+  margin: 1.25rem 0;
+  background: #102738;
+  border: 1px solid #7cc7de66;
+  border-radius: 20px;
+}
+.record-heading h3 {
+  font-size: 1.1rem;
+  line-height: 1.4;
+}
+.record-date {
+  display: block;
+}
+.record-body {
+  margin: 0;
+  white-space: pre-wrap;
+}
+.record-statuses {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin: 0;
+  padding-top: 1rem;
+  border-top: 1px solid #7cc7de33;
+}
+.record-statuses dt {
+  color: #b8d1dc;
+  font-size: 0.85rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+.record-statuses dd {
+  margin: 0;
+}
+.status-badge {
+  display: inline-block;
+  padding: 0.4rem 0.7rem;
+  border: 1px solid #91aebe66;
+  border-radius: 999px;
+  background: #ffffff0a;
+  font-size: 0.85rem;
+}
+.status-visible {
+  background: #216b6044;
+  border-color: #8cd5b8aa;
+  color: #c7f3df;
+}
+.status-removed {
+  background: #9a783622;
+  border-color: #d7bd7e88;
+  color: #f1dcaa;
+}
+.alert-audience {
+  display: block;
+  margin-top: 0.5rem;
+}
+.record-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+.records-pagination {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 1rem;
+  align-items: center;
+  padding-top: 0.5rem;
+}
+.records-pagination button:first-child {
+  justify-self: start;
+}
+.records-pagination button:last-child {
+  justify-self: end;
+}
+@media (max-width: 640px) {
+  .record-statuses {
+    grid-template-columns: 1fr;
+  }
+  .records-header .actions,
+  .records-header .actions button,
+  .record-actions button {
+    width: 100%;
+  }
+  .panel {
+    padding: 1rem;
+  }
+}
+
+[role='group'][aria-label='Message type'] {
+  margin-block: 1rem;
+  button[aria-pressed='true'] {
+    border-color: #e5c476;
+    background: #e5c476;
+    color: #193240;
+    font-weight: 800;
+  }
+}

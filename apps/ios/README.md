@@ -6,7 +6,7 @@ Current release identity:
 
 - production bundle: `com.pamisu.Sanctuary`
 - display name: `Sanctuary: Prayer and Peace`
-- marketing version: `1.0.15`
+- marketing version: `1.0.38`
 - deployment target: iOS 16.6
 - Swift language mode: 5.0
 
@@ -20,7 +20,7 @@ Current release identity:
 - Saints
 - Me/account access
 
-Home opens daily readings, prayers, rosaries, intention search, patronage search, About, and language selection. Calendar screens support day/week/month views; detail screens support favorites, sharing, related navigation, and novena progress. The UI supports English, Spanish, and Polish.
+Home opens daily readings, prayers, rosaries, intention search and patronage search. Me has a bell for Announcements and gear for Settings. Settings contains Account, General/language, Notifications, Support & Legal and About Sanctuary. Calendar screens support day/week/month views; detail screens support favorites, sharing, related navigation, and novena progress. The UI supports English, Spanish, and Polish.
 
 Application state is divided by responsibility:
 
@@ -80,14 +80,13 @@ The app entitlement registers `applinks:mydailysanctuary.com`. `SharedContentLin
 
 Opening a link selects the appropriate tab and presents an API-backed full-screen detail. Shares emit the same canonical apex-domain URL.
 
-`NovenaReminderScheduler` uses `UNUserNotificationCenter`:
+`NovenaReminderScheduler` reconciles signed-in account definitions from `/me/reminders` into repeating `UNCalendarNotificationTrigger` requests. Users choose a daily hour/minute for each prayer/novena; Me supports editing, thumbnails/content navigation, deletion and Clear all. Sync runs on login/foreground and quietly while the list is visible. Logout cancels local account schedules; signing back in restores definitions. Fixed 08:00/20:00 legacy controls are not exposed in Me. See [the reminder contract](../../docs/notifications/account-reminders.md).
 
-- active novena + novena reminders enabled: 08:00 and 20:00 local repeating notifications
-- otherwise general daily reminders enabled: 08:00 local repeating notification
-- disabled settings remove both pending requests
-- permission is requested only when scheduling is needed; denied permission is handled without failure
+## Announcements and native phone alerts
 
-Reminder switches come from the profile and resynchronize when the profile/user changes.
+`PushNotifications` configures environment-specific Firebase resources, APNs registration, private installation identity and saved consent. `AnnouncementConsent` backs up the installation choice in Keychain. Restored ON requests missing Apple permission before APNs/FCM registration; concurrent requests share one dialog. OFF is never automatically changed to ON. Denial preserves app consent and shows a Settings action. Logout/account deletion detach identity without opting the installation out.
+
+The public inbox is separate from phone alerts. New installations/accounts use publication cutoffs; guest receipts transfer at login and local clears survive logout. Opening the inbox acknowledges remote phone alerts and clears their icon badge without deleting prayer/novena schedules. Apple/Watch routing and OS permission still control presentation. See [announcements](../../docs/announcements/README.md) and [permission recovery tests/limitations](../../docs/notifications/restored-permission-recovery.md).
 
 ## Local validation
 
@@ -105,22 +104,22 @@ Unsigned simulator builds from repository root:
 
 ```bash
 xcodebuild -project apps/ios/Sanctuary.xcodeproj \
-  -scheme Sanctuary-Dev -configuration Debug \
+  -scheme Sanctuary-Dev -configuration Debug-Dev \
   -destination 'generic/platform=iOS Simulator' \
   CODE_SIGNING_ALLOWED=NO build
 
 xcodebuild -project apps/ios/Sanctuary.xcodeproj \
-  -scheme Sanctuary-UAT -configuration Debug \
+  -scheme Sanctuary-UAT -configuration Debug-UAT \
   -destination 'generic/platform=iOS Simulator' \
   CODE_SIGNING_ALLOWED=NO build
 
 xcodebuild -project apps/ios/Sanctuary.xcodeproj \
-  -scheme Sanctuary-Prod -configuration Debug \
+  -scheme Sanctuary-Prod -configuration Debug-Prod \
   -destination 'generic/platform=iOS Simulator' \
   CODE_SIGNING_ALLOWED=NO build
 ```
 
-There is currently no XCTest target or `apps/ios/*Tests` source tree. CI's iOS validation consists of the platform-configuration executable plus an unsigned simulator build.
+There is no XCTest target. CI runs executable checks for platform mapping, announcement consent/permission concurrency, inbox receipts, reminder clocks/DST and progress feedback, followed by a simulator build. Unsigned builds verify compilation; interactive Keychain/notification testing needs an appropriately signed build. Simulator permission tests do not prove physical APNs delivery.
 
 ## CI and App Store Connect
 
@@ -134,6 +133,8 @@ There is currently no XCTest target or `apps/ios/*Tests` source tree. CI's iOS v
 | Push to `uat` with iOS code changes                        | validate, sign/archive `Sanctuary-UAT`, upload to TestFlight                             |
 | Push to `main` with iOS code changes                       | validate, sign/archive `Sanctuary-Prod`, upload to App Store Connect                     |
 | Manual dispatch                                            | run selected `dev`, `uat`, or `prod` target                                              |
+
+The workflow uses `macos-15-intel`, caches Swift packages and separate simulator/device compilation intermediates, and validates only the runner architecture for simulator builds. Device archives retain their normal architecture settings. See [cache details](../../docs/deployment/ios-build-caching.md).
 
 Each upload queries App Store Connect for the latest build number of that bundle ID/version, increments it, archives with that `CURRENT_PROJECT_VERSION`, exports the IPA, and uploads with Apple's API key tooling. Signing certificates, provisioning profiles, API key, issuer, and team ID come from GitHub environment secrets/variables.
 
