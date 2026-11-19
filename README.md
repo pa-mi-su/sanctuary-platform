@@ -1,6 +1,6 @@
 # Sanctuary Platform
 
-Sanctuary is a Catholic daily companion delivered as an Angular web app, a SwiftUI iOS app, and a Jetpack Compose Android app. All three clients use one Spring Boot API and one PostgreSQL data model for liturgical content, accounts, favorites, preferences, and novena progress.
+Sanctuary is a Catholic daily companion delivered as an Angular web app, a SwiftUI iOS app, and a Jetpack Compose Android app. All three clients use one Spring Boot API and one PostgreSQL data model for liturgical content, accounts, favorites, preferences, novena progress, announcement inboxes, and account reminder definitions.
 
 This README describes the code at the current branch tip. Files under `docs/architecture` include historical plans and migration records; executable code, Flyway migrations, and GitHub Actions are authoritative when a planning document differs.
 
@@ -42,12 +42,14 @@ The clients expose the same core product, with platform-native presentation:
 - daily readings opened from USCCB URLs supplied by the calendar API
 - Cognito-backed registration, confirmation, login, refresh, forgot-password, and reset-password flows
 - profile, language/time-zone preferences, reminder settings, favorites, commitments, and account deletion
-- optional native daily/novena reminders on iOS and Android
+- account-owned prayer/novena reminders with user-selected daily times, edited from content pages or Me
+- an Announcements inbox on web/iOS/Android, with optional Firebase phone alerts on opted-in native installations
+- native Me bell/gear navigation, account settings, language selection, Support & Legal, and About Sanctuary
 - verified/universal links for `https://mydailysanctuary.com/{saints|novenas|prayers}/{slug}`
 
 ## Owner administration
 
-The Angular `/admin` panel manages prayers, saints, complete nine-day novenas, localized intention/patronage terms, tags, and content associations. It also provides a read-only registration directory, saved-content and novena-progress inspection, recorded login/activity metrics, and publishing history. Access requires a separately configured, subject-pinned owner account and authenticator MFA; it is disabled by default.
+The Angular `/admin` panel manages prayers, saints, complete nine-day novenas, localized intention/patronage terms, tags, and content associations. It also provides a read-only registration directory, saved-content and novena-progress inspection, recorded login/activity metrics, publishing history, and an Announcements composer with optional phone alerts, owner-device tests, and separate inbox/submission statuses. Access requires a separately configured, subject-pinned owner account and authenticator MFA; it is disabled by default.
 
 See [content admin setup, security boundaries, and rollout](docs/admin/content-admin.md). Web/API validation now includes admin tests and native workflow-isolation checks. Angular/admin changes do not select iOS or Android workflows.
 
@@ -79,11 +81,19 @@ When `sanctuary.auth.enabled=false`, the security chain permits all requests. De
 
 The web production build runs `apps/web/scripts/generate-share-previews.mjs` after Angular compilation. It fetches English saint, novena, and prayer content from the configured API, then writes static Open Graph preview documents for share URLs and a direct `/privacy` document. CloudFront serves those files with explicit metadata. The apex-domain URLs open native detail screens through the iOS associated domain and Android verified app links when a matching app is installed; both native parsers also accept `www` URLs delivered to them.
 
+### Announcements and phone alerts
+
+Announcements are public English publications; the in-app bell is independent of phone permission. The owner can publish an announcement with an optional phone alert, or send an owner-only test that is not published. Firebase acceptance means submission, not confirmed delivery or reading.
+
+New installations and accounts start with a publication cutoff to avoid historical inbox floods. Guest read/clear state carries into sign-in; clears made while signed in remain cleared locally after logout. General announcements not cleared by the reader can remain visible after logout/account deletion.
+
+Announcement consent belongs to the installation, survives login/logout/account deletion and updates, and is separate from system notification permission. New/unknown installations and OFF upgrades receive an invitation. Restored ON requests missing native permission; denied permission does not silently rewrite consent. Firebase registration and Settings recovery are described in [permission recovery verification](docs/notifications/restored-permission-recovery.md).
+
 ### Reminders
 
-- iOS uses `UNUserNotificationCenter`: active novena reminders are scheduled at 08:00 and 20:00 local time; the general daily reminder uses 08:00.
-- Android uses `AlarmManager.setAndAllowWhileIdle`, stores reminder state, reschedules after delivery, boot, and app replacement, and uses the same 08:00/20:00 behavior.
-- Reminder switches are stored in the account profile. Native scheduling occurs only when notification permission is available.
+Signed-in users create daily reminders on prayer/novena pages and edit/delete them from Me. Definitions synchronize through `/me/reminders`; native apps schedule notifications locally using the selected hour/minute on each device. Foreground/resume and quiet polling reconcile changes; a closed/offline phone can retain an older schedule until it syncs. Logout removes local schedules while retaining account definitions.
+
+iOS uses repeating calendar notifications. Android uses exact alarms when special access is granted and an approximate fallback otherwise. OS permission, Focus/Do Not Disturb, wearable routing and battery restrictions can affect presentation. Legacy fixed daily/novena switches are no longer exposed in Me. See [account reminders](docs/notifications/account-reminders.md).
 
 ## Technology and runtime versions
 
@@ -92,8 +102,8 @@ The web production build runs `apps/web/scripts/generate-share-previews.mjs` aft
 | Web      | Angular 21.2, TypeScript 5.9, RxJS 7.8, SCSS, Vitest 4                                               |
 | API      | Java 21 exactly, Spring Boot 3.5.6, Spring MVC/Security/JDBC, Flyway, Maven                          |
 | Database | PostgreSQL 17 locally; PostgreSQL on AWS RDS when deployed                                           |
-| iOS      | Swift 5 language mode, SwiftUI, iOS 16.6 deployment target, version 1.0.15                           |
-| Android  | Kotlin, Compose/Material 3, Java/Kotlin target 17, min SDK 26, target/compile SDK 36, version 1.0.15 |
+| iOS      | Swift 5 language mode, SwiftUI, iOS 16.6 deployment target, version 1.0.38                           |
+| Android  | Kotlin, Compose/Material 3, Java/Kotlin target 17, min SDK 26, target/compile SDK 36, version 1.0.38 |
 | AWS      | S3/CloudFront web hosting, ECR/ECS API runtime, RDS, Secrets Manager, Cognito                        |
 
 ## Environment matrix
@@ -175,7 +185,7 @@ swiftc \
   -o /tmp/verify-sanctuary-platform
 /tmp/verify-sanctuary-platform
 xcodebuild -project apps/ios/Sanctuary.xcodeproj \
-  -scheme Sanctuary-Prod -configuration Debug \
+  -scheme Sanctuary-Prod -configuration Debug-Prod \
   -destination 'generic/platform=iOS Simulator' \
   CODE_SIGNING_ALLOWED=NO build
 
@@ -195,11 +205,13 @@ The full contract and validation limits are documented in [apps/api/README.md](a
 | Public auth     | native and web session operations under `/auth/**`                                      |
 | Public calendar | `/calendar/day`, `/calendar/range`, `/calendar/anchors`, novena serving windows         |
 | Public content  | saints, prayers, novenas, intention terms, and patronage terms under `/content/**`      |
-| Authenticated   | profile/account deletion, preferences, favorites, and novena commitments under `/me/**` |
+| Authenticated   | profile/account deletion, preferences, favorites, novena commitments, reminders and inbox receipts under `/me/**` |
+
+Public `GET /announcements` and `GET /announcements/{id}` serve publications. `PUT /push/installations` registers opted-in installations using a private installation credential; it does not require an account. `/admin-api/**` uses the separate owner/MFA boundary.
 
 ## PostgreSQL model
 
-Flyway migrations `V1` through `V21` are authoritative and create/evolve these groups:
+Flyway migrations `V1` through `V27` are authoritative and create/evolve these groups:
 
 - platform metadata
 - saints, localized fields, tags, legacy patronage strings, and sources
@@ -209,6 +221,9 @@ Flyway migrations `V1` through `V21` are authoritative and create/evolve these g
 - deletion audit records containing a one-way email hash rather than the deleted account row
 - normalized multilingual intention terms/aliases linked to novenas and saints
 - normalized multilingual patronage terms/aliases linked to saints
+- content-admin revisions/media and owner-session/audit state
+- push installations, dispatch/idempotency history, public announcements and per-account receipts
+- account prayer/novena reminder definitions
 
 Migrations run at API startup. Content import is never an implicit startup action.
 
@@ -237,19 +252,14 @@ The native store workflows upload artifacts; App Store and Google Play review/re
 
 - Markdown-only changes inside an app directory do not run that app pipeline.
 - Root `README.md` and other unrelated documentation do not run application pipelines.
+- PR path matching considers the full PR diff. Adding README changes to an existing application release PR can rerun its checks; it does not turn that release into a documentation-only PR.
 - A workflow file can validate itself on a matching PR, but workflow-only pushes do not deploy applications.
 - Web workflows additionally watch root `package.json` and `package-lock.json` because the web app is an npm workspace.
 - Manual `workflow_dispatch` remains available where declared.
 
 ## DEV AWS lifecycle control
 
-[`DEV Environment Control`](.github/workflows/dev-environment-control.yml) can run `status`, `start`, or `stop` manually. A nightly `07:23 UTC` schedule stops DEV again, including after AWS automatically restarts a stopped RDS instance seven days later.
-
-An AWS-native replacement for the nightly schedule is defined in
-[`infra/dev-cost-control`](infra/dev-cost-control/README.md). It is disabled by
-default and must be deployed and verified before the existing GitHub schedule
-is removed. The GitHub manual `status`, `start`, and `stop` controls remain in
-place after cutover.
+[`DEV Environment Control`](.github/workflows/dev-environment-control.yml) can run `status`, `start`, or `stop` manually. AWS-native nightly shutdown is defined in [`infra/dev-cost-control`](infra/dev-cost-control/README.md), scheduled for `03:23 America/New_York` when enabled. Its template defaults to disabled; verify deployed AWS schedule state rather than assuming it from source. The current GitHub workflows have no nightly schedule trigger.
 
 The implementation is deliberately DEV-only and refuses to operate unless all of these exact targets match:
 
@@ -271,8 +281,18 @@ The implementation is deliberately DEV-only and refuses to operate unless all of
 - The Android production package name is `com.pamisu.sanctuary`; DEV/UAT suffixes cannot update that Play listing.
 - Merging to `main` can upload new native artifacts only when the native app path changed; documentation-only merges do not.
 
+## Release 1.0.38 rollout
+
+The web/API can be deployed before Apple review completes. Existing auth, calendar, content, favorites, preferences and commitment contracts are retained; V23–V27 add messaging/reminder data without replacing those records. Old mobile apps keep their existing features and local reminder behavior; new inbox/push/account-reminder interfaces require the updated clients. This compatibility review is not a guarantee of zero deployment interruption.
+
+After API rollout, verify health and existing-client sign-in, content, favorites and novena progress before starting store rollout. Native workflows upload signed artifacts; store approval/release is a separate operation. Physical locked-phone delivery, badge and first-use Settings checks remain necessary. No database settings or backup-policy changes are part of this release.
+
 ## Maintained operational references
 
+- [Announcements behavior](docs/announcements/README.md)
+- [Firebase setup and historical implementation record](docs/admin/firebase-messaging.md)
+- [Account reminders](docs/notifications/account-reminders.md)
+- [iOS build caching](docs/deployment/ios-build-caching.md)
 - [Local development](docs/architecture/local-development.md)
 - [Deployment and pipelines](docs/architecture/deployment-and-pipelines.md)
 - [API production deployment setup](docs/deployment/api-prod-deploy-setup.md)

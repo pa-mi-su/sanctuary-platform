@@ -5,7 +5,7 @@
 Current release identity:
 
 - production package: `com.pamisu.sanctuary`
-- version name: `1.0.28`
+- version name: `1.0.38`
 - minimum SDK: 26
 - target/compile SDK: 36
 - Java/Kotlin bytecode target: 17
@@ -96,17 +96,17 @@ The manifest declares verified HTTPS links for both `mydailysanctuary.com` and `
 
 `MainActivity` parses those links and opens the matching API-backed detail. Outbound shares use the same canonical web URLs.
 
-`AndroidReminderScheduler`:
+`AndroidReminderScheduler` reconciles `/me/reminders` account definitions into local alarms. Users select a daily hour/minute on a prayer/novena page and can edit/delete reminders or open their content from Me. Definitions sync on login/resume and quietly while the list is visible. Logout cancels local schedules but keeps remote definitions. The old fixed daily/novena switches are not exposed in Me.
 
-- uses `AlarmManager.setAndAllowWhileIdle`
-- schedules active-novena reminders at 08:00 and 20:00 local time when enabled
-- otherwise schedules the general daily reminder at 08:00 when enabled
-- stores active count and switches in `sanctuary_reminders` shared preferences
-- reschedules after delivery, device boot, and app replacement
-- creates notification channel `sanctuary-reminders`
-- safely skips when notification permission/settings do not allow delivery
+With optional `SCHEDULE_EXACT_ALARM` access, scheduling uses `setExactAndAllowWhileIdle`; otherwise it uses an approximate `setAndAllowWhileIdle` fallback. The app does not request restricted `USE_EXACT_ALARM`. Boot, app replacement, clock/time-zone changes and permission grants restore schedules. See [account reminder behavior](../../docs/notifications/account-reminders.md).
 
-The manifest requests Internet, notification, and boot-completed permissions. The app does not request exact-alarm permission; these reminders are intentionally inexact while idle.
+## Announcements and phone alerts
+
+Me has a bell for Announcements and a gear for Settings; settings includes Account, General/language, Notifications, Support & Legal and About Sanctuary. Both native platforms use the same navigation intent; signed-out Account goes directly to account choices.
+
+`AndroidPushNotifications` uses Firebase and a private installation credential. Announcement consent is stored separately from account sessions, backed up locally, and survives login/logout/account deletion and updates. New/unknown installs and OFF upgrades receive an invitation. Restored ON requests missing `POST_NOTIFICATIONS`; denial preserves consent and offers app-specific Settings. Resume reconciles permission and registration. Test Lab registrations are excluded.
+
+The inbox is separate from system notifications. Fresh installations/accounts filter historical publications; read/clear state transfers at login and remains cleared locally after logout. Remote announcement tray entries determine Android launcher-dot behavior; the launcher and OS settings control its appearance. See [announcements](../../docs/announcements/README.md) and [recovery verification](../../docs/notifications/restored-permission-recovery.md).
 
 ## Local build and tests
 
@@ -129,6 +129,7 @@ The unit tests cover:
 - calendar swipe direction and threshold boundaries
 - favorite metadata normalization/state
 - novena day fallback/duplicate-content rules
+- consent restoration/permission recovery, inbox receipts/account isolation, reminder time/DST and safe notification links
 
 Instrumented Compose dependencies are configured, but no `androidTest` source files currently exist.
 

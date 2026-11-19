@@ -1,5 +1,7 @@
 # Firebase messaging in Sanctuary
 
+> Historical implementation/setup record. The current 1.0.38 behavior is documented in [Announcements](../announcements/README.md), [account reminders](../notifications/account-reminders.md), and [permission recovery](../notifications/restored-permission-recovery.md). Older version sections below describe their original UI and validation results, not current controls.
+
 For the current 1.0.26 public inbox, Settings layout, and independent publish/phone-alert controls, see [Announcements inbox and Settings](../announcements/README.md). The original implementation notes below describe the earlier push-only workflow.
 
 Current follow-up branch: `codex/anonymous-announcements`, based on merged DEV. iOS marketing version, Android versionName, and web package version are **1.0.17**. The original 1.0.16 implementation required sign-in; the follow-up adds anonymous opt-in. Existing CI computes mobile build numbers independently.
