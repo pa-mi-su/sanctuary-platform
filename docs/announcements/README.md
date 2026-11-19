@@ -1,6 +1,6 @@
 # Announcements inbox and Settings
 
-Version 1.0.26 separates three things:
+Current behavior for release 1.0.38 separates three things:
 
 - **Announcements** are public English messages published by the owner. Anyone can read them in the app or website, even without an account or notification permission.
 - **Phone alerts** optionally draw attention to an announcement. They require the existing device opt-in and OS permission. Turning them off does not hide the inbox.
@@ -8,18 +8,18 @@ Version 1.0.26 separates three things:
 
 ## Navigation
 
-Native Me has a large bell at the top left and gear at the top right. The bell displays a red unread dot and opens Announcements; the gear opens Settings. Both destinations slide in as full pages with back navigation. Native Home has no hamburger. About remains a separate card on Me. Web keeps its existing navigation. Existing primary tabs stay unchanged. Me contains saved content, active/completed novenas, and native scheduled reminders. Settings contains language, announcement preferences, OS notification settings/details, and authenticated account actions.
+Native Me has a large bell at the top left and gear at the top right. The bell displays a red unread dot and opens Announcements; the gear opens Settings. Both destinations slide in as full pages with back navigation. Native Home has no hamburger. About Sanctuary lives in Settings, not on Me. Web keeps its existing navigation. Existing primary tabs stay unchanged. Me contains saved content, active/completed novenas, and native scheduled reminders. Settings contains language, announcement preferences, OS notification settings, and authenticated account actions.
 
 The inbox shows the full message without an expander (messages are limited to 500 characters). A content action appears only for an associated prayer, saint, or novena; plain app announcements have no content button. Opening the inbox marks the loaded messages as read, with clearing one/Undo and clearing all/confirmation retained. This is inbox state, not proof that a message was read. An old alert can still open its specific message even if it was cleared from the inbox, provided the administrator has not withdrawn it. This does not restore the cleared entry to the regular inbox.
 
-Guest receipts are local to the installation/browser and environment. Signed-in receipts synchronize through the API and are separate from guest receipts. Clearing a message affects only that reader. Clear all uses a publication cutoff so future messages still appear. The unread dot reflects the currently loaded feed page; older announcements remain available through Load more.
+Guest receipts are local to the installation/browser and environment. On sign-in, guest reads/clears merge into account receipts; signed-in receipts synchronize through the API. Local clears made while signed in remain effective after logout/account deletion without exposing another account’s private receipt state. Fresh installations establish a publication cutoff; fresh accounts use their immutable server creation time so neither is flooded with old messages. Clearing a message affects only that reader. Clear all uses a publication cutoff so future messages still appear. The unread dot reflects the currently loaded feed page; older announcements remain available through Load more.
 
 ## Admin workflow
 
-The existing Messages area becomes an Announcements composer with independent controls:
+The Announcements composer has two modes:
 
-1. **Publish in Announcements:** public inbox publication.
-2. **Also send a phone alert:** optional push to the selected opted-in audience.
+1. **Announcement:** publishes to the public inbox, with **Also notify phones** as an optional switch.
+2. **Test phone alert:** sends only to the owner's selected device and never publishes to the inbox.
 
 Owner test alerts never create public inbox entries, even if the publication flag is submitted. Publication without a phone alert works without registered devices or enabled Firebase. Phone audience filters apply only to alerts; published messages are visible to everyone. Message limits remain 100 characters for the title and 500 for the body.
 
@@ -39,11 +39,17 @@ Read/clear receipts cannot target another user. Consumer and owner authenticatio
 
 ## Rollout
 
-Deploy API/migration and web first, then publish native 1.0.26 builds through the existing DEV-to-production process. A published alert opens `/announcements/{id}` in 1.0.26+; older/unknown native versions receive the original content link during rollout. Announcements remain plain text and destinations are restricted to Sanctuary content.
+Deploy API/migrations and web first, then publish native 1.0.38 builds through the existing DEV-to-production process. Existing mobile auth/content/favorites/progress contracts remain supported while store approval is pending. A published alert opens `/announcements/{id}` in 1.0.26+; older/unknown native versions receive the original content link during rollout. Announcements remain plain text and destinations are restricted to Sanctuary content.
 
 Android includes DEV announcement deep links only in its DEV manifest. iOS handles DEV push links explicitly; external DEV universal links still depend on existing associated-domain provisioning and can fall back to the website. Production AASA includes announcement paths.
 
-## Verification
+## Consent and account lifecycle
+
+The installation's phone-alert choice is separate from account state and OS permission. Login, logout, account deletion and app updates preserve it. New/unknown installs and OFF upgrades receive an invitation; restored ON with missing system permission invokes the native permission flow. System denial does not silently turn the app choice OFF. See [permission recovery verification](../notifications/restored-permission-recovery.md).
+
+Account deletion alone does not clear general publications that were still visible to that installation. A message explicitly cleared before logout/deletion should remain cleared locally. System notifications already delivered to phones are a separate OS surface.
+
+## Historical verification
 
 - API: 99 tests, 98 passed and one existing database audit skipped; real isolated local PostgreSQL, migration V26, receipt isolation, publish-only, owner-test privacy, history/withdrawal separation, and old-app routing.
 - Web: 55 tests passed, including guest/member isolation, failed requests, late responses, clear-all cutoff, cleared-message deep links, and independent publication management; development build passed.

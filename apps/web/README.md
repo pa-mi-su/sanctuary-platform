@@ -2,7 +2,7 @@
 
 `apps/web` is Sanctuary's Angular 21 browser client. It is a responsive, signal-driven single-page shell over the shared Spring Boot API; `app.routes.ts` intentionally contains no Angular feature routes.
 
-Current app version: `1.0.15`.
+Current app version: `1.0.38`.
 
 ## Runtime behavior
 
@@ -15,10 +15,20 @@ Current app version: `1.0.15`.
 - English, Spanish, and Polish language state
 - Cognito-backed account flows through API endpoints
 - protected actions that resume after login (favorite or start novena)
-- profile/preferences, favorites, commitments, reminders, and account deletion
+- profile/preferences, favorites, commitments, account reminder management, and account deletion
+- public Announcements inbox with guest/account receipt transfer, new-account baseline, read/clear/Undo and Clear all
+- owner-only `/admin` content management, users/activity inspection and announcement publishing with optional native phone alerts
 - anonymous novena progress stored locally, replaced by API-backed progress after authentication
 
 The root template (`src/app/app.html`) composes page components based on facade state. This app does not use URL routing for its ordinary tab/page transitions. Share paths are generated as static preview documents at build time and are interpreted on load by the shell.
+
+## Announcements, reminders and owner administration
+
+`announcement-inbox.service.ts` loads public publications and maintains guest/account receipt state. Fresh browsers initialize an inbox cutoff; account state uses the server account-creation cutoff. Guest reads/clears transfer on login, and clears remain effective locally after logout. The inbox does not require an account or phone permission.
+
+`account-reminders.component.ts` manages signed-in prayer/novena reminder definitions through `/me/reminders`. The native apps schedule them after synchronization; this release does not add browser push delivery or browser-local alarm scheduling.
+
+The owner `/admin` panel edits localized content, images, shared terms and relationships, inspects user/progress/activity, and publishes announcements. Normal announcements go to the app inbox with optional phone alerts. Owner-device tests stay out of public inboxes. The unified history separates inbox visibility from phone submission; neither submission nor installation counts prove active-user reach or reading. See [announcements](../../docs/announcements/README.md) and [admin setup](../../docs/admin/content-admin.md).
 
 ## Structure
 
