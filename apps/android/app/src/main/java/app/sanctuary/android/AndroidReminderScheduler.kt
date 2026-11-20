@@ -53,19 +53,22 @@ class AndroidReminderScheduler(
         val existing = itemReminders().associateBy { it.destination }
         val desired = records.map { it.destination }.toSet()
         itemReminders().filter { it.destination !in desired }.forEach { removeItem(it.destination) }
+        val retryTiming = preferences.getBoolean("timing_required", false)
+        var timingRequired = false
         records.forEach { record ->
             val previous = existing[record.destination]
             // Quiet refreshes must not replace an alarm that is about to fire.
-            if (previous?.title == record.title && previous.hour == record.hour && previous.minute == record.minute) return@forEach
+            if (!retryTiming && preciseTimingAllowed() && previous?.title == record.title && previous.hour == record.hour && previous.minute == record.minute) return@forEach
             val row = org.json.JSONObject().put("title", record.title).put("hour", record.hour).put("minute", record.minute)
             check(preferences.edit().putString("item:${record.destination}", row.toString()).commit())
-            scheduleItem(record.destination, record.title, record.hour, record.minute)
+            if (!scheduleItem(record.destination, record.title, record.hour, record.minute)) timingRequired = true
         }
+        preferences.edit().putBoolean("timing_required", timingRequired).commit()
     }
 
     fun resyncItem(destination: String) {
         val item = itemReminders().firstOrNull { it.destination == destination } ?: return
-        scheduleItem(item.destination, item.title, item.hour, item.minute)
+        if (!scheduleItem(item.destination, item.title, item.hour, item.minute)) preferences.edit().putBoolean("timing_required", true).commit()
     }
 
     fun legacyNotice(): Boolean = preferences.getBoolean("legacy_notice", false)
@@ -73,6 +76,7 @@ class AndroidReminderScheduler(
 
     fun preciseTimingAllowed(): Boolean = Build.VERSION.SDK_INT < 31 || alarmManager.canScheduleExactAlarms()
     fun notificationsAllowed(): Boolean = areNotificationsAllowed()
+    fun needsTimingSetup(): Boolean = itemReminders().isNotEmpty() && (!preciseTimingAllowed() || preferences.getBoolean("timing_required", false))
 
     data class ItemReminder(val destination: String, val title: String, val hour: Int, val minute: Int)
 
@@ -85,13 +89,16 @@ class AndroidReminderScheduler(
 
     fun observeItems(onChange: () -> Unit): () -> Unit {
         val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
-            if (key?.startsWith("item:") == true) onChange()
+            if (key?.startsWith("item:") == true || key == "timing_required") onChange()
         }
         preferences.registerOnSharedPreferenceChangeListener(listener)
         return { preferences.unregisterOnSharedPreferenceChangeListener(listener) }
     }
 
-    fun clearItemReminders() { itemReminders().forEach { removeItem(it.destination) } }
+    fun clearItemReminders() {
+        itemReminders().forEach { removeItem(it.destination) }
+        preferences.edit().putBoolean("timing_required", false).commit()
+    }
 
     fun itemTime(destination: String): Pair<Int, Int>? {
         val raw = preferences.getString("item:$destination", null) ?: return null
@@ -107,12 +114,11 @@ class AndroidReminderScheduler(
 
     fun resyncItems() {
         if (preferences.getString("account_owner", null) == null) { setAccount(null); return }
-        preferences.all.filterKeys { it.startsWith("item:") }.forEach { (key, raw) ->
-            runCatching {
-                val row = org.json.JSONObject(raw as String)
-                scheduleItem(key.removePrefix("item:"), row.getString("title"), row.getInt("hour"), row.getInt("minute"))
-            }
+        var timingRequired = false
+        itemReminders().forEach { item ->
+            if (!scheduleItem(item.destination, item.title, item.hour, item.minute)) timingRequired = true
         }
+        preferences.edit().putBoolean("timing_required", timingRequired).commit()
     }
 
     private fun itemIntent(destination: String, title: String): PendingIntent {
@@ -126,20 +132,24 @@ class AndroidReminderScheduler(
         return PendingIntent.getBroadcast(context, 4402, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
     }
 
-    private fun scheduleItem(destination: String, title: String, hour: Int, minute: Int) {
+    private fun scheduleItem(destination: String, title: String, hour: Int, minute: Int): Boolean {
         val next = nextItemReminderTime(ZonedDateTime.now(), hour, minute)
         val operation = itemIntent(destination, title)
-        if (preciseTimingAllowed()) {
-            try {
-                alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, next.toInstant().toEpochMilli(), operation)
-                return
-            } catch (_: SecurityException) { /* Access can be revoked between checking and scheduling. */ }
-        }
-        alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, next.toInstant().toEpochMilli(), operation)
+        return scheduleExactReminder(
+            allowed = preciseTimingAllowed(),
+            cancel = { alarmManager.cancel(operation) },
+            schedule = { alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, next.toInstant().toEpochMilli(), operation) }
+        )
     }
 
     fun showItem(destination: String, title: String, expectedOwner: String?) {
         if (expectedOwner == null || preferences.getString("account_owner", null) != expectedOwner || itemTime(destination) == null || !areNotificationsAllowed()) return
+        // An old inexact alarm may still be queued during upgrade. Never deliver it late
+        // while exact-alarm access is missing; keep the definition for permission recovery.
+        if (!preciseTimingAllowed()) {
+            preferences.edit().putBoolean("timing_required", true).commit()
+            return
+        }
         createNotificationChannel()
         val open = Intent(context, MainActivity::class.java).apply {
             data = android.net.Uri.parse(destination)
@@ -191,12 +201,6 @@ class AndroidReminderScheduler(
         } catch (_: SecurityException) {
             // Permission can be revoked after the check above; skip the reminder safely.
         }
-    }
-
-    private fun scheduleAlarm(kind: String, title: String, body: String, hour: Int) {
-        val triggerAt = nextTriggerTimeMillis(hour)
-        val pendingIntent = pendingIntentFor(kind, title, body)
-        alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pendingIntent)
     }
 
     private fun pendingIntentFor(kind: String, title: String, body: String): PendingIntent {

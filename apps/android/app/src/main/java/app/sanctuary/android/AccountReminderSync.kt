@@ -42,7 +42,8 @@ object AccountReminderSync {
     }
     suspend fun save(destination: String, title: String, hour: Int, minute: Int) {
         val native = checkNotNull(scheduler)
-        check(native.notificationsAllowed()) { "Enable Sanctuary notifications in phone settings first." }
+        check(native.notificationsAllowed()) { "itemReminder.permission" }
+        check(native.preciseTimingAllowed()) { "itemReminder.exactRequired" }
         val (kind, slug) = contentKey(destination)
         transact { it.saveContentReminder(AccountContentReminder(kind, slug, title, hour, minute)) }
     }
@@ -64,8 +65,12 @@ object AccountReminderSync {
                 val records = repo.contentReminders()
                 check(owner == expectedOwner && generation == version) { "Your account changed. Please try again." }
                 checkNotNull(scheduler).reconcile(records)
-                _problem.value = if (records.isNotEmpty() && !checkNotNull(scheduler).notificationsAllowed())
-                    "itemReminder.permission" else null
+                val native = checkNotNull(scheduler)
+                _problem.value = when {
+                    records.isNotEmpty() && !native.notificationsAllowed() -> "itemReminder.permission"
+                    native.needsTimingSetup() -> "itemReminder.exactRequired"
+                    else -> null
+                }
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (failure: Exception) {
