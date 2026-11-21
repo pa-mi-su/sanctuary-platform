@@ -41,7 +41,7 @@ class ReminderAlarmIntegrationTest {
 
     @Test fun deniedPermissionRetainsSyncedDefinitionWithoutAnAlarm() {
         assumeTrue(Build.VERSION.SDK_INT >= 31)
-        assumeFalse(scheduler.preciseTimingAllowed())
+        assertFalse("This scenario requires exact access denied", scheduler.preciseTimingAllowed())
         val records = records()
         scheduler.reconcile(records)
         assertEquals(records.first().hour to records.first().minute, scheduler.itemTime(destination))
@@ -51,7 +51,7 @@ class ReminderAlarmIntegrationTest {
         assertFalse("Resume must not install an approximate alarm", reminderAlarms().isNotEmpty())
         assertTrue(scheduler.needsTimingSetup())
         ParcelFileDescriptor.AutoCloseInputStream(instrumentation.uiAutomation.executeShellCommand(
-            "appops set ${context.packageName} SCHEDULE_EXACT_ALARM allow"
+            "appops set --uid ${context.packageName} SCHEDULE_EXACT_ALARM allow"
         )).use { it.readBytes() }
         assertTrue(scheduler.preciseTimingAllowed())
         scheduler.resyncItems()
@@ -61,7 +61,7 @@ class ReminderAlarmIntegrationTest {
     }
 
     @Test fun allowedPermissionInstallsExactAlarmAndQuietRefreshPreservesIt() {
-        assumeTrue(scheduler.preciseTimingAllowed())
+        assertTrue("This scenario requires exact access granted", scheduler.preciseTimingAllowed())
         val records = records()
         scheduler.reconcile(records)
         assertFalse(scheduler.needsTimingSetup())
@@ -75,9 +75,75 @@ class ReminderAlarmIntegrationTest {
         // Removal is also checked through the app's stored definitions, independent of dump history.
         assertFalse(scheduler.needsTimingSetup())
     }
+
+    @Test fun resumeKeepsDueAlarmAndEditsReplaceIt() {
+        assertTrue("This scenario requires exact access granted", scheduler.preciseTimingAllowed())
+        var clock = ZonedDateTime.now()
+        val native = AndroidReminderScheduler(context) { clock }
+        val target = clock.plusMinutes(2)
+        val record = AccountContentReminder("prayers", slug, "Queued reminder", target.hour, target.minute)
+        native.reconcile(listOf(record))
+        val prefs = context.getSharedPreferences("sanctuary_reminders", android.content.Context.MODE_PRIVATE)
+        val original = prefs.getLong("scheduled:$destination", 0)
+        assertTrue(original > 0)
+        // Move the app clock beyond the due time while the alarm is still queued.
+        clock = clock.plusMinutes(3)
+        native.resyncItems()
+        assertEquals("Resume must preserve the queued occurrence", original, prefs.getLong("scheduled:$destination", 0))
+        native.reconcile(listOf(record.copy(minute = (record.minute + 10) % 60)))
+        assertNotEquals("Editing must replace the previous native alarm", original, prefs.getLong("scheduled:$destination", 0))
+        assertEquals(1, reminderAlarms().size)
+    }
+
+    @Test fun staleDuplicateAndForeignAccountBroadcastsCannotDeliver() {
+        assertTrue("This scenario requires exact access granted", scheduler.preciseTimingAllowed())
+        assertTrue("This scenario requires reminder notifications enabled", scheduler.notificationsAllowed())
+        var clock = ZonedDateTime.now()
+        val native = AndroidReminderScheduler(context) { clock }
+        val target = clock.plusMinutes(2)
+        val title = "Broadcast fixture " + UUID.randomUUID()
+        native.reconcile(listOf(AccountContentReminder("prayers", slug, title, target.hour, target.minute)))
+        val prefs = context.getSharedPreferences("sanctuary_reminders", android.content.Context.MODE_PRIVATE)
+        val trigger = prefs.getLong("scheduled:$destination", 0)
+        val manager = context.getSystemService(android.app.NotificationManager::class.java)
+        try {
+            native.receiveItem(destination, "different-account", trigger)
+            native.receiveItem(destination, "local-hotfix-fixture", trigger - 1)
+            assertFalse(manager.activeNotifications.any { it.tag == destination })
+            assertEquals(trigger, prefs.getLong("scheduled:$destination", 0))
+            clock = clock.plusMinutes(3)
+            native.receiveItem(destination, "local-hotfix-fixture", trigger)
+            assertEquals(1, manager.activeNotifications.count { it.tag == destination })
+            val next = prefs.getLong("scheduled:$destination", 0)
+            assertTrue("Delivery must rearm tomorrow", next > trigger + 23 * 60 * 60 * 1000L)
+            manager.cancel(destination, 4402)
+            native.receiveItem(destination, "local-hotfix-fixture", trigger)
+            assertFalse("Duplicate delivery must be ignored", manager.activeNotifications.any { it.tag == destination })
+            assertEquals(next, prefs.getLong("scheduled:$destination", 0))
+            native.removeItem(destination)
+            native.receiveItem(destination, "local-hotfix-fixture", next)
+            assertNull(native.itemTime(destination))
+            assertFalse(manager.activeNotifications.any { it.tag == destination })
+        } finally { manager.cancel(destination, 4402) }
+    }
+
+    @Test fun bootUpdateAndClockChangesReconstructExactAlarms() {
+        assertTrue("This scenario requires exact access granted", scheduler.preciseTimingAllowed())
+        scheduler.reconcile(records())
+        val prefs = context.getSharedPreferences("sanctuary_reminders", android.content.Context.MODE_PRIVATE)
+        val receiver = ReminderBootReceiver()
+        for (action in listOf(android.content.Intent.ACTION_BOOT_COMPLETED,
+            android.content.Intent.ACTION_MY_PACKAGE_REPLACED, android.content.Intent.ACTION_TIME_CHANGED,
+            android.content.Intent.ACTION_TIMEZONE_CHANGED, android.app.AlarmManager.ACTION_SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED)) {
+            prefs.edit().remove("scheduled:$destination").commit()
+            receiver.onReceive(context, android.content.Intent(action))
+            assertTrue("Recovery failed for $action", prefs.getLong("scheduled:$destination", 0) > 0)
+            assertTrue(reminderAlarms().single().contains("window=0"))
+        }
+    }
     @Test fun exactPrayerAndNovenaDeliverDuringForcedIdle() {
-        assumeTrue(scheduler.preciseTimingAllowed())
-        assumeTrue(scheduler.notificationsAllowed())
+        assertTrue("This scenario requires exact access granted", scheduler.preciseTimingAllowed())
+        assertTrue("This scenario requires reminder notifications enabled", scheduler.notificationsAllowed())
         val target = ZonedDateTime.now().plusMinutes(2).withSecond(0).withNano(0)
         val title = "Idle fixture " + UUID.randomUUID().toString()
         val records = listOf(

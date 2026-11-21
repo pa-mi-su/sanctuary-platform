@@ -2,6 +2,7 @@ package app.sanctuary.android
 
 import android.Manifest
 import android.app.AlarmManager
+import android.app.ActivityManager
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -14,9 +15,9 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import java.time.ZonedDateTime
 
-class AndroidReminderScheduler(
-    private val context: Context
-) {
+class AndroidReminderScheduler(private val context: Context) {
+    private var now: () -> ZonedDateTime = { ZonedDateTime.now() }
+    internal constructor(context: Context, now: () -> ZonedDateTime) : this(context) { this.now = now }
     private val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
     private val preferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
@@ -61,14 +62,14 @@ class AndroidReminderScheduler(
             if (!retryTiming && preciseTimingAllowed() && previous?.title == record.title && previous.hour == record.hour && previous.minute == record.minute) return@forEach
             val row = org.json.JSONObject().put("title", record.title).put("hour", record.hour).put("minute", record.minute)
             check(preferences.edit().putString("item:${record.destination}", row.toString()).commit())
-            if (!scheduleItem(record.destination, record.title, record.hour, record.minute)) timingRequired = true
+            if (!scheduleItem(record.destination, record.title, record.hour, record.minute, force = true)) timingRequired = true
         }
         preferences.edit().putBoolean("timing_required", timingRequired).commit()
     }
 
-    fun resyncItem(destination: String) {
+    fun resyncItem(destination: String, after: Long = 0) {
         val item = itemReminders().firstOrNull { it.destination == destination } ?: return
-        if (!scheduleItem(item.destination, item.title, item.hour, item.minute)) preferences.edit().putBoolean("timing_required", true).commit()
+        if (!scheduleItem(item.destination, item.title, item.hour, item.minute, force = true, after = after)) preferences.edit().putBoolean("timing_required", true).commit()
     }
 
     fun legacyNotice(): Boolean = preferences.getBoolean("legacy_notice", false)
@@ -76,6 +77,24 @@ class AndroidReminderScheduler(
 
     fun preciseTimingAllowed(): Boolean = Build.VERSION.SDK_INT < 31 || alarmManager.canScheduleExactAlarms()
     fun notificationsAllowed(): Boolean = areNotificationsAllowed()
+    internal fun setupIssue(): ReminderSetupIssue? = reminderSetupIssue(
+        hasReminders = itemReminders().isNotEmpty(),
+        notificationsAllowed = notificationsAllowed(),
+        timingRequired = needsTimingSetup(),
+        backgroundRestricted = backgroundRestricted()
+    )
+    fun backgroundRestricted(): Boolean = Build.VERSION.SDK_INT >= 28 &&
+        context.getSystemService(ActivityManager::class.java).isBackgroundRestricted
+    fun notificationSettingsIntent(): Intent {
+        createNotificationChannel()
+        return if (NotificationManagerCompat.from(context).areNotificationsEnabled()) {
+            Intent(android.provider.Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS)
+                .putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, context.packageName)
+                .putExtra(android.provider.Settings.EXTRA_CHANNEL_ID, CHANNEL_ID)
+        } else Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+            .putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, context.packageName)
+    }
+    fun hasOwnedReminders(): Boolean = preferences.getString("account_owner", null) != null && itemReminders().isNotEmpty()
     fun needsTimingSetup(): Boolean = itemReminders().isNotEmpty() && (!preciseTimingAllowed() || preferences.getBoolean("timing_required", false))
 
     data class ItemReminder(val destination: String, val title: String, val hour: Int, val minute: Int)
@@ -107,39 +126,70 @@ class AndroidReminderScheduler(
     }
 
     fun removeItem(destination: String) {
-        preferences.edit().remove("item:$destination").commit()
-        alarmManager.cancel(itemIntent(destination, ""))
+        preferences.edit().remove("item:$destination").remove("scheduled:$destination").commit()
+        val operation = itemIntent(destination, "")
+        alarmManager.cancel(operation)
+        operation.cancel()
         (context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).cancel(destination, 4402)
     }
 
-    fun resyncItems() {
+    fun resyncItems(force: Boolean = false) {
         if (preferences.getString("account_owner", null) == null) { setAccount(null); return }
         var timingRequired = false
         itemReminders().forEach { item ->
-            if (!scheduleItem(item.destination, item.title, item.hour, item.minute)) timingRequired = true
+            if (!scheduleItem(item.destination, item.title, item.hour, item.minute, force)) timingRequired = true
         }
         preferences.edit().putBoolean("timing_required", timingRequired).commit()
     }
 
-    private fun itemIntent(destination: String, title: String): PendingIntent {
+    private fun itemIntent(destination: String, title: String, triggerAt: Long = 0): PendingIntent {
         val intent = Intent(context, ReminderNotificationReceiver::class.java).apply {
             action = ACTION_SHOW_REMINDER
             data = android.net.Uri.parse(destination)
             putExtra(EXTRA_TITLE, title)
             putExtra("itemDestination", destination)
             putExtra("reminderOwner", preferences.getString("account_owner", null))
+            putExtra("triggerAt", triggerAt)
         }
         return PendingIntent.getBroadcast(context, 4402, intent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
     }
 
-    private fun scheduleItem(destination: String, title: String, hour: Int, minute: Int): Boolean {
-        val next = nextItemReminderTime(ZonedDateTime.now(), hour, minute)
-        val operation = itemIntent(destination, title)
-        return scheduleExactReminder(
+    private fun scheduleItem(destination: String, title: String, hour: Int, minute: Int, force: Boolean = false, after: Long = 0): Boolean {
+        val existing = PendingIntent.getBroadcast(context, 4402,
+            Intent(context, ReminderNotificationReceiver::class.java).apply {
+                action = ACTION_SHOW_REMINDER
+                data = android.net.Uri.parse(destination)
+            }, PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE)
+        // Replacing a due/queued alarm on resume can silently move it to tomorrow.
+        // Boot, clock changes and permission grants explicitly force reconstruction.
+        if (!force && preciseTimingAllowed() && !preferences.getBoolean("timing_required", false) &&
+            preferences.getLong("scheduled:$destination", 0) > 0 && existing != null) return true
+        val current = now()
+        val reference = if (current.toInstant().toEpochMilli() < after)
+            java.time.Instant.ofEpochMilli(after).atZone(current.zone) else current
+        val next = nextItemReminderTime(reference, hour, minute)
+        val triggerAt = next.toInstant().toEpochMilli()
+        val operation = itemIntent(destination, title, triggerAt)
+        val scheduled = scheduleExactReminder(
             allowed = preciseTimingAllowed(),
-            cancel = { alarmManager.cancel(operation) },
-            schedule = { alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, next.toInstant().toEpochMilli(), operation) }
+            cancel = {
+                alarmManager.cancel(operation)
+                preferences.edit().remove("scheduled:$destination").commit()
+            },
+            schedule = { alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, operation) }
         )
+        if (scheduled) check(preferences.edit().putLong("scheduled:$destination", triggerAt).commit())
+        return scheduled
+    }
+
+    fun receiveItem(destination: String, expectedOwner: String?, triggerAt: Long) {
+        val item = itemReminders().firstOrNull { it.destination == destination } ?: return
+        if (expectedOwner == null || expectedOwner != preferences.getString("account_owner", null)) return
+        if (triggerAt != preferences.getLong("scheduled:$destination", 0)) return
+        // Rearm independently of notification access and before displaying anything.
+        // A duplicate or stale broadcast then cannot notify twice or rearm a changed reminder.
+        resyncItem(destination, after = triggerAt)
+        showItem(destination, item.title, expectedOwner)
     }
 
     fun showItem(destination: String, title: String, expectedOwner: String?) {
@@ -234,7 +284,9 @@ class AndroidReminderScheduler(
         } else {
             true
         }
-        return granted && NotificationManagerCompat.from(context).areNotificationsEnabled()
+        val manager = context.getSystemService(NotificationManager::class.java)
+        val channelEnabled = manager.getNotificationChannel(CHANNEL_ID)?.importance != NotificationManager.IMPORTANCE_NONE
+        return granted && NotificationManagerCompat.from(context).areNotificationsEnabled() && channelEnabled
     }
 
     private fun createNotificationChannel() {
@@ -274,8 +326,7 @@ class ReminderNotificationReceiver : BroadcastReceiver() {
         val scheduler = AndroidReminderScheduler(context)
         val destination = intent.getStringExtra("itemDestination")
         if (destination != null) {
-            scheduler.showItem(destination, intent.getStringExtra(AndroidReminderScheduler.EXTRA_TITLE).orEmpty(), intent.getStringExtra("reminderOwner"))
-            scheduler.resyncItem(destination)
+            scheduler.receiveItem(destination, intent.getStringExtra("reminderOwner"), intent.getLongExtra("triggerAt", 0))
             return
         }
         // Ignore a legacy digest broadcast that was already queued during upgrade.
@@ -290,7 +341,7 @@ class ReminderBootReceiver : BroadcastReceiver() {
             intent.action == Intent.ACTION_MY_PACKAGE_REPLACED || intent.action == Intent.ACTION_TIMEZONE_CHANGED || intent.action == Intent.ACTION_TIME_CHANGED || intent.action == AlarmManager.ACTION_SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED
         ) {
             AndroidReminderScheduler(context).resyncFromStoredPreferences()
-            AndroidReminderScheduler(context).resyncItems()
+            AndroidReminderScheduler(context).resyncItems(force = true)
         }
     }
 }
