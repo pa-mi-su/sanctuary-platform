@@ -287,6 +287,10 @@ class SanctuaryStrings(
 
         "itemReminder.exactRequired" to "To receive reminders at your chosen time, allow Alarms & reminders for Sanctuary in Android settings. Reminders are paused on this phone until you allow it.",
         "itemReminder.precise" to "Allow precise reminders",
+        "itemReminder.exactIntroduction" to "Android asks separately for Alarms & reminders access. Allow it for Sanctuary so prayer and novena reminders can use your chosen time. Turning on general alerts does not enable this permission. You can enable it now or later in Settings.",
+        "itemReminder.preciseSettings" to "Timed prayer & novena reminders",
+        "itemReminder.preciseOn" to "Alarms & reminders: on. Sanctuary can schedule reminders at your chosen time.",
+        "itemReminder.preciseOff" to "Alarms & reminders: off. Allow access in Android settings. Turning on general alerts does not enable this permission.",
         "itemReminder.body" to "A daily reminder to return to this prayer or novena.",
         "itemReminder.time" to "Time",
         "itemReminder.save" to "Save reminder",
@@ -598,6 +602,10 @@ class SanctuaryStrings(
 
         "itemReminder.exactRequired" to "Para recibir recordatorios a la hora elegida, permite Alarmas y recordatorios para Sanctuary en los ajustes de Android. Los recordatorios están en pausa en este teléfono hasta que lo permitas.",
         "itemReminder.precise" to "Permitir recordatorios precisos",
+        "itemReminder.exactIntroduction" to "Android solicita por separado el acceso a Alarmas y recordatorios. Permítelo para Sanctuary para programar recordatorios de oraciones y novenas a la hora elegida. Activar los avisos generales no concede este permiso. Puedes activarlo ahora o más tarde en Ajustes.",
+        "itemReminder.preciseSettings" to "Recordatorios de oraciones y novenas",
+        "itemReminder.preciseOn" to "Alarmas y recordatorios: activados. Sanctuary puede programar recordatorios a la hora elegida.",
+        "itemReminder.preciseOff" to "Alarmas y recordatorios: desactivados. Permite el acceso en los ajustes de Android. Activar los avisos generales no concede este permiso.",
         "itemReminder.body" to "Un recordatorio diario para volver a esta oración o novena.",
         "itemReminder.time" to "Hora",
         "itemReminder.save" to "Guardar recordatorio",
@@ -909,6 +917,10 @@ class SanctuaryStrings(
 
         "itemReminder.exactRequired" to "Aby otrzymywać przypomnienia o wybranej godzinie, zezwól aplikacji Sanctuary na alarmy i przypomnienia w ustawieniach Androida. Do tego czasu przypomnienia na tym telefonie są wstrzymane.",
         "itemReminder.precise" to "Zezwól na dokładne przypomnienia",
+        "itemReminder.exactIntroduction" to "Android osobno pyta o dostęp do alarmów i przypomnień. Zezwól na niego aplikacji Sanctuary, aby planować przypomnienia o modlitwach i nowennach na wybraną godzinę. Włączenie ogólnych powiadomień nie nadaje tego uprawnienia. Możesz włączyć je teraz lub później w Ustawieniach.",
+        "itemReminder.preciseSettings" to "Przypomnienia o modlitwach i nowennach",
+        "itemReminder.preciseOn" to "Alarmy i przypomnienia: włączone. Sanctuary może planować przypomnienia na wybraną godzinę.",
+        "itemReminder.preciseOff" to "Alarmy i przypomnienia: wyłączone. Zezwól na dostęp w ustawieniach Androida. Włączenie ogólnych powiadomień nie nadaje tego uprawnienia.",
         "itemReminder.body" to "Codzienne przypomnienie o tej modlitwie lub nowennie.",
         "itemReminder.time" to "Godzina",
         "itemReminder.save" to "Zapisz przypomnienie",

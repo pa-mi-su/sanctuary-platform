@@ -5660,10 +5660,27 @@ private fun AnnouncementPreference() {
             else Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + context.packageName))
             context.startActivity(intent)
         }
-
+        PreciseReminderSettings()
     }
 }
 
+@Composable
+private fun PreciseReminderSettings() {
+    val context = LocalContext.current
+    val l10n = sanctuaryStrings()
+    val scheduler = remember(context) { AndroidReminderScheduler(context) }
+    var allowed by remember { mutableStateOf(scheduler.preciseTimingAllowed()) }
+    androidx.lifecycle.compose.LifecycleResumeEffect(scheduler) {
+        allowed = scheduler.preciseTimingAllowed()
+        onPauseOrDispose { }
+    }
+    NotificationActionCard(
+        title = l10n.t("itemReminder.preciseSettings"),
+        subtitle = l10n.t(if (allowed) "itemReminder.preciseOn" else "itemReminder.preciseOff"),
+        icon = Icons.Filled.NotificationsActive,
+        trailingIcon = Icons.Filled.OpenInNew
+    ) { context.startActivity(reminderSettingsIntent(context, scheduler, ReminderSetupIssue.PreciseTiming)) }
+}
 
 
 @Composable
@@ -5801,8 +5818,10 @@ private fun ReminderTimingSetupCard(issue: ReminderSetupIssue) {
 private fun ReminderTimingRecovery(owner: String?) {
     val context = LocalContext.current
     val scheduler = remember(context) { AndroidReminderScheduler(context) }
+    val onboarding = remember(context) { ReminderPermissionOnboarding(context) }
     val l10n = sanctuaryStrings()
     var issue by remember(owner) { mutableStateOf(scheduler.setupIssue()) }
+    var introduction by remember(owner) { mutableStateOf(onboarding.shouldOffer(scheduler.preciseTimingAllowed())) }
     var dismissed by remember(owner) { mutableStateOf(false) }
     DisposableEffect(scheduler, owner) {
         val unsubscribe = scheduler.observeItems { issue = scheduler.setupIssue() }
@@ -5811,21 +5830,30 @@ private fun ReminderTimingRecovery(owner: String?) {
     androidx.lifecycle.compose.LifecycleResumeEffect(owner) {
         scheduler.resyncItems()
         issue = scheduler.setupIssue()
+        introduction = onboarding.shouldOffer(scheduler.preciseTimingAllowed())
         // Returning from Settings must re-evaluate, including a declined request.
         dismissed = false
         onPauseOrDispose { }
     }
-    LaunchedEffect(issue) { dismissed = false }
-    val currentIssue = issue
-    if (scheduler.hasOwnedReminders() && currentIssue != null && !dismissed) {
-        AlertDialog(onDismissRequest = { dismissed = true },
+    val currentIssue = issue ?: if (introduction) ReminderSetupIssue.PreciseTiming else null
+    LaunchedEffect(currentIssue) { dismissed = false }
+    fun dismissSetup() {
+        if (introduction && currentIssue == ReminderSetupIssue.PreciseTiming) {
+            onboarding.acknowledge()
+            introduction = false
+        }
+        dismissed = true
+    }
+    if (currentIssue != null && !dismissed) {
+        AlertDialog(onDismissRequest = ::dismissSetup,
             title = { Text(l10n.t(if (currentIssue == ReminderSetupIssue.PreciseTiming) "itemReminder.precise" else "reminders.manage.setup")) },
-            text = { Text(l10n.t(currentIssue.messageKey)) },
+            text = { Text(l10n.t(if (currentIssue == ReminderSetupIssue.PreciseTiming && !scheduler.hasOwnedReminders())
+                "itemReminder.exactIntroduction" else currentIssue.messageKey)) },
             confirmButton = { Button(onClick = {
-                dismissed = true
+                dismissSetup()
                 context.startActivity(reminderSettingsIntent(context, scheduler, currentIssue))
             }) { Text(l10n.t("reminders.manage.settings")) } },
-            dismissButton = { TextButton(onClick = { dismissed = true }) { Text(l10n.t("common.close")) } })
+            dismissButton = { TextButton(onClick = ::dismissSetup) { Text(l10n.t("common.close")) } })
     }
 }
 
