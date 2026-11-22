@@ -8,6 +8,7 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.CancellationException
 
 class SessionRepository(
     context: Context,
@@ -532,9 +533,13 @@ class SessionRepository(
             val session = response.toStoredSession(previous.refreshToken)
             persistSession(session)
             loadProfile(session)
-        } catch (_: Exception) {
-            clearSession()
-            SessionBootstrapResult.signedOut()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (exception: Exception) {
+            if (exception is SanctuaryApiException && exception.isSessionRejected()) {
+                clearSession()
+                SessionBootstrapResult.signedOut()
+            } else SessionBootstrapResult.failed(exception.message ?: "Please try again when you are online.")
         }
     }
 
@@ -544,14 +549,14 @@ class SessionRepository(
             val profile = authenticatedCall(resolvedSession) { it.me() }.toUserProfile(loadSession() ?: resolvedSession)
             persistLanguage(profile.preferredLanguage ?: currentLanguage())
             SessionBootstrapResult.authenticated(loadSession() ?: resolvedSession, profile)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (exception: Exception) {
-            if (!session.refreshToken.isNullOrBlank()) {
-                refreshSession(session.refreshToken, session)
-            } else if (exception is SanctuaryApiException && exception.isSessionRejected()) {
+            // authenticatedCall already retries rejected access with a refreshed token.
+            if (exception is SanctuaryApiException && exception.isSessionRejected()) {
                 clearSession()
                 SessionBootstrapResult.signedOut()
             } else {
-                clearSession()
                 SessionBootstrapResult.failed(exception.message ?: "Please sign in to continue.")
             }
         }
@@ -604,9 +609,13 @@ class SessionRepository(
             }
             if (loadSession()?.idToken != previous.idToken) return null
             response.toStoredSession(previous.refreshToken).also(::persistSession)
-        } catch (_: Exception) {
-            if (loadSession()?.idToken == previous.idToken) clearSession()
-            null
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (exception: Exception) {
+            if (exception is SanctuaryApiException && exception.isSessionRejected()) {
+                if (loadSession()?.idToken == previous.idToken) clearSession()
+                null
+            } else throw exception
         }
     }
 }

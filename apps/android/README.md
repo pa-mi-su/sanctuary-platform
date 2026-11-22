@@ -5,7 +5,7 @@
 Current release identity:
 
 - production package: `com.pamisu.sanctuary`
-- version name: `1.0.38`
+- version name: `1.0.39`
 - minimum SDK: 26
 - target/compile SDK: 36
 - Java/Kotlin bytecode target: 17
@@ -98,7 +98,7 @@ The manifest declares verified HTTPS links for both `mydailysanctuary.com` and `
 
 `AndroidReminderScheduler` reconciles `/me/reminders` account definitions into local alarms. Users select a daily hour/minute on a prayer/novena page and can edit/delete reminders or open their content from Me. Definitions sync on login/resume and quietly while the list is visible. Logout cancels local schedules but keeps remote definitions. The old fixed daily/novena switches are not exposed in Me.
 
-With optional `SCHEDULE_EXACT_ALARM` access, scheduling uses `setExactAndAllowWhileIdle`; otherwise it uses an approximate `setAndAllowWhileIdle` fallback. The app does not request restricted `USE_EXACT_ALARM`. Boot, app replacement, clock/time-zone changes and permission grants restore schedules. See [account reminder behavior](../../docs/notifications/account-reminders.md).
+Selected-time reminders require `SCHEDULE_EXACT_ALARM` access and use `setExactAndAllowWhileIdle`. Without access, definitions remain saved but native reminders are paused with a setup prompt; no approximate fallback is installed. The app does not request restricted `USE_EXACT_ALARM`. Boot, app replacement, clock/time-zone changes and permission grants restore schedules. See [account reminder behavior](../../docs/notifications/account-reminders.md).
 
 ## Announcements and phone alerts
 
