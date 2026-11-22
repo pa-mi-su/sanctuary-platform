@@ -9,6 +9,7 @@
 - Spring MVC, Validation, Security OAuth2 Resource Server, Actuator, and JDBC
 - Flyway with PostgreSQL support
 - AWS SDK Cognito Identity Provider client
+- Firebase Admin SDK for server-side native phone alerts
 - Maven and a two-stage Java 21 Docker image
 
 The API is the only application layer that accesses PostgreSQL. Clients never connect to RDS, Cognito, or Secrets Manager directly.
@@ -17,6 +18,8 @@ The API is the only application layer that accesses PostgreSQL. Clients never co
 
 ```text
 src/main/java/app/sanctuary/api/
+├── admin/      # owner MFA/session, content editing, publishing audit
+├── messaging/  # installations, dispatch, announcement inbox/receipts
 ├── auth/       # Cognito flows, native/web sessions, validation
 ├── calendar/   # anchors, liturgical days, novena serving windows
 ├── config/     # security, CORS, cookies, abuse protection
@@ -27,7 +30,7 @@ src/main/java/app/sanctuary/api/
 src/main/resources/
 ├── application.yml
 ├── application-{local,dev,uat,prod}.yml
-└── db/migration/   # V1 through V15
+└── db/migration/   # V1 through V27
 ```
 
 Each feature follows controller -> service/repository -> JDBC/database boundaries. Liturgical calculation is service code; localized devotional content and serving rules are database-backed.
@@ -67,6 +70,8 @@ Production `SANCTUARY_DB_PASSWORD` is injected from the RDS-managed Secrets Mana
 When `SANCTUARY_AUTH_ENABLED=true`:
 
 - `/health`, `/actuator/**`, `/auth/**`, `/calendar/**`, and `/content/**` are public.
+- public `GET /announcements`/`GET /announcements/{id}` serve publications; public `PUT /push/installations` uses private installation credentials and registration limits.
+- `/admin-api/**` has a separate owner authentication/MFA security chain.
 - `/me/**` requires authentication.
 - every other request is denied.
 - JWT validation checks the configured Cognito issuer and, when configured, accepts a matching JWT audience or `client_id`.
@@ -166,9 +171,20 @@ The term routes use normalized global intention terms/aliases; `/content/novenas
 | `PUT`    | `/me/novena-commitments/{novenaId}` | Create/update progress and reminder config                                |
 | `DELETE` | `/me/novena-commitments/{novenaId}` | Remove commitment                                                         |
 
+### Messaging and account reminders
+
+- `GET /announcements` and `GET /announcements/{id}`: public active publications.
+- `GET/POST /me/announcements`: authenticated receipts and read/clear/restore/Clear all; effective cutoff includes immutable account creation time.
+- `POST /me/announcements/guest`: merge guest receipts into the authenticated account.
+- `PUT /push/installations`: anonymous credential-protected installation registration; `PUT /me/push-devices` and `DELETE /me/push-devices/{installationId}`: authenticated registration/removal.
+- `GET/PUT/DELETE /me/reminders` and `DELETE /me/reminders/{kind}/{slug}`: account-owned definitions, maximum 50, local wall-clock hour/minute.
+- `/admin-api/messages`: owner-authenticated review/send/history, publication removal and completed-history clearing. Owner tests never publish; idempotency prevents duplicate resends.
+
+`SANCTUARY_PUSH_ENABLED` defaults false. Enabled environments inject `SANCTUARY_FIREBASE_SERVICE_ACCOUNT_JSON` from the environment's exact Secrets Manager secret via the ECS execution role; credentials are never returned to clients. Dispatch checks current eligibility, tracks provider submission and cannot claim delivery/reading. Native clients own OS permission and scheduling. See [current announcement behavior](../../docs/announcements/README.md), [reminders](../../docs/notifications/account-reminders.md) and [Firebase setup/history](../../docs/admin/firebase-messaging.md).
+
 ## PostgreSQL and Flyway
 
-Migrations `V1`-`V15` define:
+Migrations `V1`-`V27` define:
 
 - `platform_metadata`
 - `saints`, `saint_tags`, `saint_patronages`, `saint_sources`
@@ -178,10 +194,20 @@ Migrations `V1`-`V15` define:
 - `deleted_user_accounts`
 - `content_intentions`, `content_intention_aliases`, `novena_intention_links`, `saint_intention_links`
 - `content_patronages`, `content_patronage_aliases`, `saint_patronage_links`
+- owner/admin audit, content revisions and media records
+- `push_devices`, `push_messages`, `push_deliveries`, registration limits
+- `announcements`, `announcement_receipts`, `announcement_inbox_preferences`
+- `user_content_reminders`
 
 Flyway runs at application startup. Legacy content is not imported at startup. Import scripts under the repository root are explicit operational tools; inspect their arguments and target environment before running them.
 
+Deleting an account detaches push installations into guest state without resetting installation consent, skips pending member-targeted sends, and cascades account reminder/receipt records.
+
 Account deletion first deletes the Cognito identity, records the Cognito subject and SHA-256 normalized email hash in `deleted_user_accounts`, and deletes the local user. Foreign keys/cascade and explicit cleanup remove owned preferences, favorites, commitments, and activity.
+
+## Backward-compatible rollout
+
+This release keeps existing auth, calendar, content, favorites, preferences and commitment contracts. Messaging and account reminder routes are additive; V23–V27 create/extend new feature tables rather than replace existing content/account data. Deploy API before new web/native clients; old mobile versions retain their existing behavior while store review is pending. Smoke-test existing-client login/content/favorites/progress after rollout. Native feature availability and physical push delivery require the corresponding signed client release. Database settings and backup policies are not changed by these migrations.
 
 ## Local development
 

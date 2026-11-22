@@ -28,6 +28,22 @@ object AccountReminderSync {
         if (owner != userId || userId == null) { generation++; _problem.value = null }
         owner = userId
         native.setAccount(userId)
+        updateLocalPermissionProblem(native)
+    }
+
+    // A transient authentication outage must not delete the phone's saved alarms.
+    // Disable account mutations until identity has been verified again.
+    fun deferUntilAuthenticated(context: Context, repository: SessionRepository) {
+        this.repository = repository
+        generation++
+        owner = null
+        val native = scheduler ?: AndroidReminderScheduler(context.applicationContext).also { scheduler = it }
+        updateLocalPermissionProblem(native)
+    }
+
+    // Local schedules must expose missing access even when the reminder API is unavailable.
+    private fun updateLocalPermissionProblem(native: AndroidReminderScheduler) {
+        _problem.value = native.setupIssue()?.messageKey
     }
 
     suspend fun refresh() {
@@ -42,35 +58,59 @@ object AccountReminderSync {
     }
     suspend fun save(destination: String, title: String, hour: Int, minute: Int) {
         val native = checkNotNull(scheduler)
-        check(native.notificationsAllowed()) { "Enable Sanctuary notifications in phone settings first." }
+        check(native.notificationsAllowed()) { "itemReminder.permission" }
+        check(native.preciseTimingAllowed()) { "itemReminder.exactRequired" }
         val (kind, slug) = contentKey(destination)
-        transact { it.saveContentReminder(AccountContentReminder(kind, slug, title, hour, minute)) }
+        val record = AccountContentReminder(kind, slug, title, hour, minute)
+        transact(mutation = { it.saveContentReminder(record) }, applyLocal = { scheduler ->
+            val retained = scheduler.itemReminders().filter { it.destination != destination }.map {
+                val (savedKind, savedSlug) = contentKey(it.destination)
+                AccountContentReminder(savedKind, savedSlug, it.title, it.hour, it.minute)
+            }
+            scheduler.reconcile(retained + record)
+        })
     }
     suspend fun remove(destination: String) {
         val (kind, slug) = contentKey(destination)
-        transact { it.deleteContentReminder(kind, slug) }
+        transact(mutation = { it.deleteContentReminder(kind, slug) }, applyLocal = { it.removeItem(destination) })
     }
-    suspend fun clear() { transact { it.clearContentReminders() } }
+    suspend fun clear() {
+        transact(mutation = { it.clearContentReminders() }, applyLocal = { it.clearItemReminders() })
+    }
 
-    private suspend fun transact(mutation: (suspend (SessionRepository) -> Unit)?) {
+    private suspend fun transact(
+        mutation: (suspend (SessionRepository) -> Unit)?,
+        applyLocal: ((AndroidReminderScheduler) -> Unit)? = null
+    ) {
         val expectedOwner = checkNotNull(owner) { "Please sign in to continue." }
         val version = generation
         mutex.withLock {
             check(owner == expectedOwner && generation == version) { "Your account changed. Please try again." }
             _busy.value = mutation != null
+            var appliedLocally = false
             try {
                 val repo = checkNotNull(repository)
                 mutation?.invoke(repo)
+                check(owner == expectedOwner && generation == version) { "Your account changed. Please try again." }
+                if (mutation != null) {
+                    // Once the server confirms a write, the phone must apply it even
+                    // if downloading the full list fails afterwards.
+                    checkNotNull(applyLocal).invoke(checkNotNull(scheduler))
+                    appliedLocally = true
+                }
                 val records = repo.contentReminders()
                 check(owner == expectedOwner && generation == version) { "Your account changed. Please try again." }
                 checkNotNull(scheduler).reconcile(records)
-                _problem.value = if (records.isNotEmpty() && !checkNotNull(scheduler).notificationsAllowed())
-                    "itemReminder.permission" else null
+                val native = checkNotNull(scheduler)
+                updateLocalPermissionProblem(native)
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (failure: Exception) {
-                if (version == generation) _problem.value = "reminders.manage.unavailable"
-                throw failure
+                if (version == generation) {
+                    updateLocalPermissionProblem(checkNotNull(scheduler))
+                    if (_problem.value == null) _problem.value = "reminders.manage.unavailable"
+                }
+                if (!appliedLocally || version != generation) throw failure
             } finally { _busy.value = false }
         }
     }

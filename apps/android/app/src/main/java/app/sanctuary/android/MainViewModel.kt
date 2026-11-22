@@ -246,10 +246,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 refreshNovenaProgress()
                 syncPushDevice()
             } else {
-                cancelAccountReminders()
+                if (repository.currentSession() == null) cancelAccountReminders()
+                else AccountReminderSync.deferUntilAuthenticated(getApplication(), repository)
                 _appLanguage.value = AppLanguage.fromCode(repository.currentLanguage())
                 _session.value = SessionUiState(
-                    status = SessionStatus.SignedOut,
+                    status = if (repository.currentSession() == null) SessionStatus.SignedOut else SessionStatus.Failed,
+                    message = result.errorMessage,
                     isBootstrapping = false,
                     isSavingReminderPreferences = false
                 )
@@ -476,10 +478,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun syncPushDevice() {
         if (_session.value.status != SessionStatus.Loading) {
-            AccountReminderSync.configure(getApplication(), repository, _session.value.profile?.userId)
+            if (_session.value.profile == null && repository.currentSession() != null) {
+                AccountReminderSync.deferUntilAuthenticated(getApplication(), repository)
+            } else AccountReminderSync.configure(getApplication(), repository, _session.value.profile?.userId)
             if (_session.value.status == SessionStatus.Authenticated) viewModelScope.launch { AccountReminderSync.refresh() }
         }
         viewModelScope.launch { runCatching { AndroidPushNotifications.sync(getApplication(), repository) } }
+    }
+
+    fun retrySessionOnResume() {
+        if (_session.value.status == SessionStatus.Failed && repository.currentSession() != null) bootstrap()
     }
 
     fun logout() {
