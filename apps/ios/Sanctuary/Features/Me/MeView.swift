@@ -74,7 +74,7 @@ struct MeView: View {
         ZStack {
             AppBackdrop()
 
-            ScrollView(showsIndicators: false) {
+            KeyboardAwareScrollView {
                 VStack(alignment: .leading, spacing: 14) {
                     if !settingsMode {
                         HStack {

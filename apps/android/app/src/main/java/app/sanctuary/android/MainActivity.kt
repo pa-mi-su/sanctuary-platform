@@ -61,6 +61,9 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -649,7 +652,7 @@ private fun AccountAccessScreen(
         }
     } else {
         LazyColumn(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().imePadding(),
             contentPadding = PaddingValues(24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
@@ -1046,10 +1049,12 @@ private fun AuthenticatedShell(
         onTabSelected(AppTab.Me)
     }
 
+    val keyboardCoversBottom = WindowInsets.ime.getBottom(LocalDensity.current) > 0
     Scaffold(
         containerColor = Color.Transparent,
         bottomBar = {
-            if (!showSettings && !showInbox) Surface(
+            // Navigation belongs at the device bottom, underneath the IME.
+            if (!showSettings && !showInbox && !keyboardCoversBottom) Surface(
                 modifier = Modifier.fillMaxWidth(),
                 color = SanctuaryHomeSurface
             ) {
@@ -1101,6 +1106,8 @@ private fun AuthenticatedShell(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .consumeWindowInsets(padding)
+                .imePadding()
                 .background(if (selectedTab == AppTab.Home) SanctuaryHomeSurface else Color.Transparent),
             contentPadding = if (selectedTab == AppTab.Home) PaddingValues(bottom = 96.dp) else PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
@@ -1264,7 +1271,7 @@ private fun AuthenticatedShell(
         }
         SanctuarySlidePage(visible=showSettings, onBack={if (settingsSection != null) settingsSection=null else showSettings=false}) {
                 LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier.fillMaxSize().imePadding(),
                     contentPadding = PaddingValues(start = 18.dp, end = 18.dp, top = 76.dp, bottom = 96.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
@@ -3129,6 +3136,7 @@ private fun SanctuaryModalSheet(
                 )
                 .statusBarsPadding()
                 .navigationBarsPadding()
+                .imePadding()
         ) {
             Column(
                 modifier = Modifier
