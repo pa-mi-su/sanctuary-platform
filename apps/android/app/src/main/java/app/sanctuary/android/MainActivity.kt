@@ -1,5 +1,8 @@
 package app.sanctuary.android
 
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
@@ -62,8 +65,18 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.interaction.collectIsDraggedAsState
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.runtime.SideEffect
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -81,6 +94,7 @@ import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.ChevronRight
@@ -187,6 +201,23 @@ import app.sanctuary.android.data.SearchTerm
 import app.sanctuary.android.data.CommitmentStatus
 import app.sanctuary.android.data.FavoriteItemType
 import app.sanctuary.android.data.UserNovenaCommitment
+import app.sanctuary.android.ui.theme.SanctuaryAdvent
+import app.sanctuary.android.ui.theme.SanctuaryChristmas
+import app.sanctuary.android.ui.theme.SanctuaryLent
+import app.sanctuary.android.ui.theme.SanctuaryEaster
+import app.sanctuary.android.ui.theme.SanctuaryOrdinary
+import app.sanctuary.android.ui.theme.SanctuaryText
+import app.sanctuary.android.ui.theme.SanctuaryMuted
+import app.sanctuary.android.ui.theme.SanctuaryOnAccent
+import app.sanctuary.android.ui.theme.SanctuaryError
+import app.sanctuary.android.ui.theme.SanctuaryErrorSurface
+import app.sanctuary.android.ui.theme.SanctuaryWarning
+import app.sanctuary.android.ui.theme.SanctuaryHeroBase
+import app.sanctuary.android.ui.theme.SanctuaryBlue
+import app.sanctuary.android.ui.theme.SanctuaryHomeSurface
+import app.sanctuary.android.ui.theme.SanctuaryHomeSurfaceRaised
+import app.sanctuary.android.ui.theme.SanctuaryHomeInk
+import app.sanctuary.android.ui.theme.SanctuaryHomeMuted
 import app.sanctuary.android.ui.theme.SanctuaryTheme
 import app.sanctuary.android.ui.theme.SanctuaryGradientBottom
 import app.sanctuary.android.ui.theme.SanctuaryGradientMid
@@ -209,7 +240,7 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
 
 private fun Modifier.sanctuaryCardShadow(shape: RoundedCornerShape = RoundedCornerShape(24.dp)) =
-    this.shadow(14.dp, shape, clip = false)
+    this.shadow(3.dp, shape, clip = false)
 
 private fun Modifier.calendarDaySwipe(
     enabled: Boolean,
@@ -245,6 +276,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        androidx.core.view.WindowCompat.getInsetsController(window, window.decorView).apply {
+            isAppearanceLightStatusBars = true
+            isAppearanceLightNavigationBars = true
+        }
         setContent {
             SanctuaryTheme {
                 SanctuaryApp(viewModel)
@@ -345,77 +380,12 @@ private enum class AboutDocument {
     Privacy
 }
 
-private enum class HomeAction(
-    val titleKey: String,
-    val subtitleKey: String,
-    val icon: ImageVector,
-    val iconTint: Color,
-    val illustrationColors: List<Color>,
-    val artworkAssetPath: String? = null
-) {
-    Saints(
-        "home.saints",
-        "home.saintsSubtitle",
-        Icons.Filled.People,
-        Color(0xFFE7C76A),
-        listOf(Color(0xFF7BB4CF), Color(0xFF385E77)),
-        "file:///android_asset/home_cards/saints.svg"
-    ),
-    Novenas(
-        "home.novenas",
-        "home.novenasSubtitle",
-        Icons.Filled.MenuBook,
-        Color(0xFF8FE0FF),
-        listOf(Color(0xFF6EB9DE), Color(0xFF345C76)),
-        "file:///android_asset/home_cards/novenas.svg"
-    ),
-    Liturgical(
-        "home.liturgical",
-        "home.liturgicalSubtitle",
-        Icons.Filled.CalendarMonth,
-        Color(0xFFB7D8FF),
-        listOf(Color(0xFF7FA4D2), Color(0xFF344E76))
-    ),
-    Prayers(
-        "home.prayers",
-        "home.prayersSubtitle",
-        Icons.Filled.SelfImprovement,
-        Color(0xFFF2A8C4),
-        listOf(Color(0xFFB08FCF), Color(0xFF5D4D7C)),
-        "file:///android_asset/home_cards/prayers.svg"
-    ),
-    Rosary(
-        "home.rosary",
-        "home.rosarySubtitle",
-        Icons.Filled.SelfImprovement,
-        Color(0xFFE7C76A),
-        listOf(Color(0xFF43506B), Color(0xFF10394A)),
-        "file:///android_asset/home_cards/rosary.svg"
-    ),
-    Intentions(
-        "home.intentions",
-        "home.intentionsSubtitle",
-        Icons.Filled.Favorite,
-        Color(0xFFF2A8C4),
-        listOf(Color(0xFF5B4167), Color(0xFF184754)),
-        "file:///android_asset/home_cards/intentions.svg"
-    ),
-    Patronage(
-        "home.patronage",
-        "home.patronageSubtitle",
-        Icons.Filled.People,
-        Color(0xFFE7C76A),
-        listOf(Color(0xFF7BB4CF), Color(0xFF385E77)),
-        "file:///android_asset/home_cards/saints.svg"
-    ),
-    Daily(
-        "home.daily",
-        "home.dailySubtitle",
-        Icons.Filled.WbSunny,
-        Color(0xFFF5D57A),
-        listOf(Color(0xFFE0C487), Color(0xFF6C5A3B)),
-        "file:///android_asset/home_cards/daily-readings.svg"
-    )
+private enum class HomeAction(val titleKey: String, val subtitleKey: String, val icon: ImageVector) {
+    Daily("home.daily", "home.dailySubtitle", Icons.Filled.WbSunny),
+    Prayers("home.prayers", "home.prayersSubtitle", Icons.Filled.SelfImprovement),
+    Patronage("home.patronage", "home.patronageSubtitle", Icons.Filled.People),
+    Intentions("home.intentions", "home.intentionsSubtitle", Icons.Filled.Favorite),
+    Rosary("home.rosary", "home.rosarySubtitle", Icons.Filled.SelfImprovement)
 }
 
 private enum class TermSearchMode {
@@ -536,31 +506,7 @@ private fun SanctuaryApp(viewModel: MainViewModel) {
 
 @Composable
 private fun SanctuaryBackdrop() {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                brush = Brush.linearGradient(
-                    colors = listOf(
-                        SanctuaryGradientTop,
-                        SanctuaryGradientMid,
-                        SanctuaryGradientBottom
-                    ),
-                    start = Offset.Zero,
-                    end = Offset.Infinite
-                )
-            )
-    ) {
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .background(
-                    Brush.linearGradient(
-                        colors = listOf(Color.White.copy(alpha = 0.09f), Color.Transparent, Color.Black.copy(alpha = 0.18f))
-                    )
-                )
-        )
-    }
+    Box(Modifier.fillMaxSize().background(SanctuaryHomeSurface))
 }
 
 @Composable
@@ -572,7 +518,7 @@ private fun BrandedLaunchScreen() {
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
             BrandLogoMark(size = 132.dp, corner = 30.dp, glowExtra = 44.dp)
-            Text(l10n.t("common.loading"), color = Color.White)
+            Text(l10n.t("common.loading"), color = SanctuaryText)
         }
     }
 }
@@ -807,7 +753,7 @@ private fun AccountAccessContent(
         if (showAccountEyebrow) {
             Text(
                 text = l10n.t("auth.sanctuaryAccount"),
-                color = Color(0xFF8EDBE5),
+                color = SanctuaryTabActive,
                 style = MaterialTheme.typography.labelLarge
             )
         }
@@ -821,7 +767,7 @@ private fun AccountAccessContent(
                 AuthStep.ForgotPassword -> l10n.t("auth.resetCalmly")
                 AuthStep.ResetPassword -> l10n.t("auth.chooseNewPassword")
             },
-            color = Color.White,
+            color = SanctuaryText,
             fontSize = 34.sp,
             lineHeight = 38.sp,
             fontWeight = FontWeight.Bold
@@ -829,7 +775,7 @@ private fun AccountAccessContent(
 
         Text(
             text = if (step == AuthStep.Landing) introBody else l10n.t("auth.accountBody"),
-            color = Color(0xFFD0DFEA),
+            color = SanctuaryMuted,
             lineHeight = 22.sp
         )
 
@@ -889,7 +835,7 @@ private fun AccountAccessContent(
                 }
                 Text(
                     text = "${l10n.t("auth.confirmationSentPrefix")} ${session.pendingConfirmationEmail ?: registerEmail.trim()}.",
-                    color = Color(0xFFD0DFEA)
+                    color = SanctuaryMuted
                 )
                 TextFieldBlock(l10n.t("auth.verificationCode"), confirmationCode, keyboardType = KeyboardType.Number, onValueChange = onConfirmationCodeChange)
                 PrimaryButton(l10n.t("auth.confirmAccountCta"), isBusy, enabled = confirmationCode.trim().isNotEmpty()) {
@@ -914,7 +860,7 @@ private fun AccountAccessContent(
                 }
                 Text(
                     text = "${l10n.t("auth.resetSentPrefix")} ${session.pendingPasswordResetEmail ?: forgotEmail.trim()}.",
-                    color = Color(0xFFD0DFEA)
+                    color = SanctuaryMuted
                 )
                 TextFieldBlock(l10n.t("auth.email"), resetEmail, keyboardType = KeyboardType.Email, onValueChange = onResetEmailChange)
                 TextFieldBlock(l10n.t("auth.resetCode"), resetCode, keyboardType = KeyboardType.Number, onValueChange = onResetCodeChange)
@@ -1034,6 +980,16 @@ private fun AuthenticatedShell(
     }
     var liturgicalCalendarMode by rememberSaveable { mutableStateOf(CalendarMode.Month) }
     val scope = rememberCoroutineScope()
+    val contentScrollState = rememberLazyListState()
+    val homeHeroHeight = with(LocalDensity.current) { (470.dp * this.fontScale.coerceAtLeast(1f) + 60.dp).roundToPx() }
+    val lightHomeHeader = selectedTab == AppTab.Home && contentScrollState.firstVisibleItemScrollOffset >= homeHeroHeight
+    SideEffect {
+        (context as? android.app.Activity)?.let { activity ->
+            androidx.core.view.WindowCompat.getInsetsController(activity.window, activity.window.decorView)
+                .isAppearanceLightStatusBars = selectedTab != AppTab.Home || lightHomeHeader
+        }
+    }
+
 
     LaunchedEffect(session.status, novenaProgress.isLoading) {
         if (
@@ -1093,135 +1049,114 @@ private fun AuthenticatedShell(
         containerColor = Color.Transparent,
         bottomBar = {
             if (!showSettings && !showInbox) Surface(
-                modifier = Modifier
-                    .navigationBarsPadding()
-                    .padding(horizontal = 12.dp, vertical = 8.dp)
-                    .shadow(18.dp, RoundedCornerShape(26.dp), clip = false),
-                shape = RoundedCornerShape(26.dp),
-                color = SanctuaryTabBackground,
-                border = androidx.compose.foundation.BorderStroke(1.dp, SanctuaryTabBorder.copy(alpha = 0.55f))
+                modifier = Modifier.fillMaxWidth(),
+                color = SanctuaryHomeSurface
             ) {
-                NavigationBar(
-                    containerColor = Color.Transparent,
-                    windowInsets = WindowInsets(0, 0, 0, 0),
-                    tonalElevation = 0.dp
-                ) {
-                    AppTab.entries.forEach { tab ->
-                        NavigationBarItem(
-                            modifier = Modifier.weight(1f),
-                            selected = selectedTab == tab,
-                            onClick = { onTabSelected(tab) },
-                            label = {
-                                Text(
-                                    tab.label(l10n),
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    fontSize = 11.sp,
-                                    lineHeight = 12.sp,
-                                    textAlign = TextAlign.Center
-                                )
-                            },
-                            colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = SanctuaryTabActive,
-                                selectedTextColor = SanctuaryTabActive,
-                                indicatorColor = SanctuaryTabActive.copy(alpha = 0.16f),
-                                unselectedIconColor = SanctuaryTabInactive,
-                                unselectedTextColor = SanctuaryTabInactive
-                            ),
-                            icon = {
-                                Box(Modifier.size(28.dp), contentAlignment = Alignment.Center) {
-                                    Icon(imageVector = tab.icon(), contentDescription = tab.label(l10n), modifier = Modifier.size(26.dp))
-                                    if (tab != AppTab.Home && tab != AppTab.Me) Icon(Icons.Filled.Schedule, contentDescription = null,
-                                        modifier = Modifier.align(Alignment.BottomEnd).size(12.dp).background(SanctuaryTabBackground, CircleShape))
+                Column {
+                    Box(Modifier.fillMaxWidth().height(0.5.dp).background(SanctuaryCardBorder))
+                    NavigationBar(
+                        modifier = Modifier.navigationBarsPadding(),
+                        containerColor = Color.Transparent,
+                        windowInsets = WindowInsets(0, 0, 0, 0),
+                        tonalElevation = 0.dp
+                    ) {
+                        AppTab.entries.filter { it != AppTab.Liturgical }.forEach { tab ->
+                            NavigationBarItem(
+                                modifier = Modifier.weight(1f),
+                                selected = selectedTab == tab,
+                                onClick = { onTabSelected(tab) },
+                                label = {
+                                    Text(
+                                        tab.label(l10n),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        fontSize = 11.sp,
+                                        lineHeight = 12.sp,
+                                        textAlign = TextAlign.Center
+                                    )
+                                },
+                                colors = NavigationBarItemDefaults.colors(
+                                    selectedIconColor = SanctuaryHomeInk,
+                                    selectedTextColor = SanctuaryHomeInk,
+                                    indicatorColor = Color.Transparent,
+                                    unselectedIconColor = SanctuaryHomeMuted,
+                                    unselectedTextColor = SanctuaryHomeMuted
+                                ),
+                                icon = {
+                                    Box(Modifier.size(28.dp), contentAlignment = Alignment.Center) {
+                                        Icon(imageVector = tab.icon(), contentDescription = null, modifier = Modifier.size(26.dp))
+                                    }
                                 }
-                            }
-                        )
+                            )
+                        }
                     }
                 }
             }
         }
     ) { padding ->
-        Box(Modifier.fillMaxSize()) {
+        Box(Modifier.fillMaxSize().background(if (selectedTab == AppTab.Home) { if (lightHomeHeader) SanctuaryHomeSurface else SanctuaryHeroBase } else Color.Transparent)) {
         LazyColumn(
+            state = contentScrollState,
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding),
-            contentPadding = PaddingValues(16.dp),
+                .padding(padding)
+                .background(if (selectedTab == AppTab.Home) SanctuaryHomeSurface else Color.Transparent),
+            contentPadding = if (selectedTab == AppTab.Home) PaddingValues(bottom = 96.dp) else PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             when (selectedTab) {
                 AppTab.Home -> {
                     item {
-                        HomeHeroCard(session)
-                    }
-                    item {
-                        HomeFeatureCard(
-                            action = HomeAction.Daily,
-                            onClick = {
-                                isLoadingDailyReadings = true
-                                scope.launch {
-                                    val today = LocalDate.now().toString()
-                                    runCatching { fetchLiturgicalRange(today, today) }
-                                        .onSuccess { days ->
-                                            isLoadingDailyReadings = false
-                                            val readingsUrl = days.firstOrNull()?.readingsUrl
-                                            if (!readingsUrl.isNullOrBlank()) {
-                                                dailyReadingsUrl = readingsUrl
-                                            } else {
-                                                dailyReadingError = l10n.t("calendar.dailyReadingsMissing")
+                        HomeLanding(isObscured = showPrayerSearch || showRosarySearch || showIntentionsSearch
+                            || showPatronageSearch || dailyReadingsUrl != null || isLoadingDailyReadings
+                            || showSettings || showInbox) { action ->
+                            when (action) {
+                                HomeAction.Daily -> {
+                                    isLoadingDailyReadings = true
+                                    scope.launch {
+                                        val today = LocalDate.now().toString()
+                                        runCatching { fetchLiturgicalRange(today, today) }
+                                            .onSuccess { days ->
+                                                isLoadingDailyReadings = false
+                                                val readingsUrl = days.firstOrNull()?.readingsUrl
+                                                if (!readingsUrl.isNullOrBlank()) {
+                                                    dailyReadingsUrl = readingsUrl
+                                                } else {
+                                                    dailyReadingError = l10n.t("calendar.dailyReadingsMissing")
+                                                }
                                             }
-                                        }
-                                        .onFailure {
-                                            isLoadingDailyReadings = false
-                                            dailyReadingError = it.message ?: l10n.t("calendar.dailyReadingsOpenError")
-                                        }
+                                            .onFailure {
+                                                isLoadingDailyReadings = false
+                                                dailyReadingError = it.message ?: l10n.t("calendar.dailyReadingsOpenError")
+                                            }
+                                    }
+                                }
+                                HomeAction.Prayers -> {
+                                    showPrayerSearch = true
+                                    if (prayers.items.isEmpty() && !prayers.isLoading) {
+                                        onReloadPrayers()
+                                    }
+                                }
+                                HomeAction.Patronage -> {
+                                    showPatronageSearch = true
+                                    if (patronageTerms.terms.isEmpty() && !patronageTerms.isLoading) {
+                                        onReloadPatronageTerms()
+                                    }
+                                }
+                                HomeAction.Intentions -> {
+                                    showIntentionsSearch = true
+                                    if (intentionTerms.terms.isEmpty() && !intentionTerms.isLoading) {
+                                        onReloadIntentionTerms()
+                                    }
+                                }
+                                HomeAction.Rosary -> {
+                                    showRosarySearch = true
+                                    if (rosaries.items.isEmpty() && !rosaries.isLoading) {
+                                        onReloadRosaries()
+                                    }
                                 }
                             }
-                        )
-                    }
-                    item {
-                        HomeFeatureCard(
-                            action = HomeAction.Prayers,
-                            onClick = {
-                                showPrayerSearch = true
-                                if (prayers.items.isEmpty() && !prayers.isLoading) {
-                                    onReloadPrayers()
-                                }
-                            }
-                        )
-                    }
-                    item {
-                        HomeFeatureCard(
-                            action = HomeAction.Patronage,
-                            onClick = {
-                                showPatronageSearch = true
-                                if (patronageTerms.terms.isEmpty() && !patronageTerms.isLoading) {
-                                    onReloadPatronageTerms()
-                                }
-                            }
-                        )
-                    }
-                    item {
-                        HomeFeatureCard(
-                            action = HomeAction.Intentions,
-                            onClick = {
-                                showIntentionsSearch = true
-                                if (intentionTerms.terms.isEmpty() && !intentionTerms.isLoading) {
-                                    onReloadIntentionTerms()
-                                }
-                            }
-                        )
-                    }
-                    item {
-                        HomeFeatureCard(
-                            action = HomeAction.Rosary,
-                            onClick = {
-                                showRosarySearch = true
-                                if (rosaries.items.isEmpty() && !rosaries.isLoading) {
-                                    onReloadRosaries()
-                                }
-                            }
-                        )
+                        }
                     }
                 }
 
@@ -1276,9 +1211,9 @@ private fun AuthenticatedShell(
                             if (session.status == SessionStatus.Authenticated) {
                                 Row(Modifier.weight(1f).padding(horizontal=10.dp), verticalAlignment=Alignment.CenterVertically, horizontalArrangement=Arrangement.spacedBy(10.dp)) {
                                     SanctuaryHaloAvatar(Modifier.size(44.dp))
-                                    Text(session.profile?.displayName ?: session.session?.displayName ?: sanctuaryStrings().t("me.title"), color=Color.White, fontSize=24.sp, fontWeight=FontWeight.Bold, modifier=Modifier.weight(1f))
+                                    Text(session.profile?.displayName ?: session.session?.displayName ?: sanctuaryStrings().t("me.title"), color=SanctuaryText, fontSize=24.sp, fontWeight=FontWeight.Bold, modifier=Modifier.weight(1f))
                                 }
-                            } else Text(sanctuaryStrings().t("me.title"), color=Color.White, fontSize=32.sp, fontWeight=FontWeight.Bold)
+                            } else Text(sanctuaryStrings().t("me.title"), color=SanctuaryText, fontSize=32.sp, fontWeight=FontWeight.Bold)
                             MeHeaderAction(sanctuaryStrings().t("settings.title"), Icons.Filled.Settings) { settingsSection=null; showSettings=true }
                         }
                     }
@@ -1332,7 +1267,7 @@ private fun AuthenticatedShell(
                     contentPadding = PaddingValues(start = 18.dp, end = 18.dp, top = 76.dp, bottom = 96.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    item { Text(sanctuaryStrings().t(settingsSection ?: "settings.title"), fontSize = 32.sp, color = Color.White, fontWeight = FontWeight.Bold) }
+                    item { Text(sanctuaryStrings().t(settingsSection ?: "settings.title"), fontSize = 32.sp, color = SanctuaryText, fontWeight = FontWeight.Bold) }
                     if (settingsSection == null) {
                         if (session.status == SessionStatus.Authenticated) {
                             item { SettingsProfileCard(session) { settingsSection="settings.account" } }
@@ -1346,7 +1281,7 @@ private fun AuthenticatedShell(
                         if (session.status == SessionStatus.Authenticated) {
                             item { SettingsNavigationRow(title=sanctuaryStrings().t("me.logout"), onClick=onLogout) }
                         }
-                        item { Text(BuildConfig.VERSION_NAME, color=Color(0xFFBAD9E4), modifier=Modifier.fillMaxWidth(), textAlign=TextAlign.Center) }
+                        item { Text(BuildConfig.VERSION_NAME, color=SanctuaryMuted, modifier=Modifier.fillMaxWidth(), textAlign=TextAlign.Center) }
                     } else when (settingsSection) {
                         "settings.general" -> item { LanguageSettingsButton(language = selectedLanguage, onClick = onShowLanguagePicker) }
                         "notifications.title" -> item { MeSectionCard(title = sanctuaryStrings().t("notifications.title")) { AnnouncementPreference() } }
@@ -1397,7 +1332,7 @@ private fun AuthenticatedShell(
         }
 
         dailyReadingsUrl?.let { url ->
-            SanctuaryModalSheet(onDismissRequest = { dailyReadingsUrl = null }) {
+            SanctuaryModalSheet(onDismissRequest = { dailyReadingsUrl = null }, scrollContent = false, showBackButton = false) {
                 DailyReadingsSheet(
                     url = url,
                     onDismiss = { dailyReadingsUrl = null }
@@ -1483,13 +1418,14 @@ private fun AuthenticatedShell(
         if (showRosarySearch) {
             SanctuaryModalSheet(onDismissRequest = { showRosarySearch = false }) {
                 SearchListSheet(
-                    title = l10n.t("search.rosaryTitle"),
+                    title = l10n.t("home.rosary"),
                     query = rosaries.query,
                     onQueryChanged = onRosaryQueryChanged,
                     onSubmit = onReloadRosaries,
                     isLoading = rosaries.isLoading,
                     error = rosaries.error,
                     emptyLabel = l10n.t("search.rosaryTitle"),
+                    showSearch = false,
                     items = rosaries.items
                 ) { item ->
                     ContentCard(
@@ -1696,18 +1632,18 @@ private fun ChoiceCard(
     val l10n = sanctuaryStrings()
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF193341)),
+        colors = CardDefaults.cardColors(containerColor = SanctuaryCard),
         shape = RoundedCornerShape(24.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF49616F)),
+        border = androidx.compose.foundation.BorderStroke(1.dp, SanctuaryCardBorder),
         onClick = onClick,
         enabled = enabled
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
-            Text(eyebrow.uppercase(), color = Color(0xFF7AC8EA), style = MaterialTheme.typography.labelLarge)
+            Text(eyebrow.uppercase(), color = SanctuaryTabActive, style = MaterialTheme.typography.labelLarge)
             Spacer(modifier = Modifier.height(8.dp))
-            Text(title, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 24.sp)
+            Text(title, color = SanctuaryText, fontWeight = FontWeight.Bold, fontSize = 24.sp)
             Spacer(modifier = Modifier.height(8.dp))
-            Text(body, color = Color(0xFFD0DFEA), lineHeight = 22.sp)
+            Text(body, color = SanctuaryMuted, lineHeight = 22.sp)
         }
     }
 }
@@ -1736,14 +1672,14 @@ private fun Banner(message: String, isError: Boolean) {
         border = BorderStroke(1.dp, SanctuaryCardBorder),
         modifier = Modifier.sanctuaryCardShadow(RoundedCornerShape(18.dp)),
         colors = CardDefaults.cardColors(
-            containerColor = if (isError) Color(0x4D7B1E26) else Color(0x332F9FD9)
+            containerColor = if (isError) SanctuaryErrorSurface else SanctuaryCardSoft
         ),
         shape = RoundedCornerShape(18.dp)
     ) {
         Text(
             text = message,
             modifier = Modifier.padding(16.dp),
-            color = if (isError) Color(0xFFFFD9DD) else Color(0xFFE9F7FF),
+            color = if (isError) SanctuaryError else SanctuaryText,
             lineHeight = 20.sp
         )
     }
@@ -1806,7 +1742,7 @@ private fun PrimaryButton(
         border = BorderStroke(1.dp, SanctuaryCardBorder),
         onClick = onClick,
         enabled = enabled && !isBusy,
-        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2B728D)),
+        colors = ButtonDefaults.buttonColors(containerColor = SanctuaryBlue),
         shape = RoundedCornerShape(18.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -1817,11 +1753,11 @@ private fun PrimaryButton(
             if (isBusy) {
             CircularProgressIndicator(
                 modifier = Modifier.size(18.dp),
-                color = Color.White,
+                color = if (enabled && !isBusy) SanctuaryOnAccent else SanctuaryMuted,
                 strokeWidth = 2.dp
             )
             }
-            Text(title, color = Color.White)
+            Text(title, color = if (enabled && !isBusy) SanctuaryOnAccent else SanctuaryMuted)
         }
     }
 }
@@ -1839,7 +1775,7 @@ private fun SecondaryButton(
         enabled = enabled && !isBusy,
         colors = ButtonDefaults.buttonColors(
             containerColor = SanctuaryCardSoft,
-            contentColor = Color(0xFF7AC8EA)
+            contentColor = SanctuaryTabActive
         ),
         shape = RoundedCornerShape(18.dp),
         modifier = Modifier.fillMaxWidth()
@@ -1851,7 +1787,7 @@ private fun SecondaryButton(
             if (isBusy) {
                 CircularProgressIndicator(
                     modifier = Modifier.size(18.dp),
-                    color = Color(0xFF7AC8EA),
+                    color = SanctuaryTabActive,
                     strokeWidth = 2.dp
                 )
             }
@@ -1907,13 +1843,13 @@ private fun PasswordPanel(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = l10n.t("auth.passwordStrength"),
-                    color = Color.White,
+                    color = SanctuaryText,
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.weight(1f))
                 Text(
                     text = strengthLabel,
-                    color = if (rules.all { it.met }) Color(0xFF7AC8EA) else Color(0xFFD0DFEA),
+                    color = if (rules.all { it.met }) SanctuaryTabActive else SanctuaryMuted,
                     fontWeight = FontWeight.SemiBold
                 )
             }
@@ -1925,19 +1861,19 @@ private fun PasswordPanel(
                 ) {
                     Text(
                         text = if (rule.met) "✓" else "•",
-                        color = if (rule.met) Color(0xFF7AC8EA) else Color(0xFFD0DFEA),
+                        color = if (rule.met) SanctuaryTabActive else SanctuaryMuted,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
                         text = rule.label,
-                        color = if (rule.met) Color.White else Color(0xFFD0DFEA)
+                        color = if (rule.met) SanctuaryText else SanctuaryMuted
                     )
                 }
             }
 
             Text(
                 text = if (matches) l10n.t("auth.passwordsMatch") else confirmationWarning,
-                color = if (matches) Color(0xFF7AC8EA) else Color(0xFFD0DFEA)
+                color = if (matches) SanctuaryTabActive else SanctuaryMuted
             )
         }
     }
@@ -1955,13 +1891,13 @@ private fun HomeCard(session: SessionUiState) {
         Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(
                 text = profile?.displayName ?: session.session?.displayName ?: l10n.t("me.accountFallback"),
-                color = Color.White,
+                color = SanctuaryText,
                 fontSize = 28.sp,
                 fontWeight = FontWeight.Bold
             )
             Text(
                 text = session.session?.email.orEmpty(),
-                color = Color(0xFFD0DFEA)
+                color = SanctuaryMuted
             )
             Spacer(modifier = Modifier.height(8.dp))
             ProfileMetric(l10n.t("me.metric.activeNovenas"), profile?.activeNovenaCount ?: 0)
@@ -2003,10 +1939,10 @@ private fun SettingsProfileCard(session: SessionUiState, onClick: () -> Unit) {
     Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(SanctuaryCard).border(1.dp,SanctuaryCardBorder,RoundedCornerShape(20.dp)).clickable(onClick=onClick).padding(18.dp), verticalAlignment=Alignment.CenterVertically, horizontalArrangement=Arrangement.spacedBy(14.dp)) {
         SanctuaryHaloAvatar(Modifier.size(60.dp))
         Column(Modifier.weight(1f), verticalArrangement=Arrangement.spacedBy(4.dp)) {
-            Text(session.profile?.displayName ?: session.session?.displayName ?: sanctuaryStrings().t("settings.account"), color=Color.White, fontSize=22.sp, fontWeight=FontWeight.Bold)
-            Text(session.profile?.email ?: session.session?.email.orEmpty(), color=Color(0xFFBAD9E4), fontSize=14.sp)
+            Text(session.profile?.displayName ?: session.session?.displayName ?: sanctuaryStrings().t("settings.account"), color=SanctuaryText, fontSize=22.sp, fontWeight=FontWeight.Bold)
+            Text(session.profile?.email ?: session.session?.email.orEmpty(), color=SanctuaryMuted, fontSize=14.sp)
         }
-        Icon(Icons.Filled.ChevronRight, contentDescription=null, tint=Color(0xFF91DEEA))
+        Icon(Icons.Filled.ChevronRight, contentDescription=null, tint=SanctuaryTabActive)
     }
 }
 
@@ -2040,7 +1976,7 @@ private fun MeScreen(
                 modifier = Modifier.padding(18.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                Text(l10n.t("me.signedIn"), color = Color(0xFF7AC8EA), fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                Text(l10n.t("me.signedIn"), color = SanctuaryTabActive, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                 Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.Top) {
                     Box(
                         modifier = Modifier
@@ -2051,7 +1987,7 @@ private fun MeScreen(
                     ) {
                         Text(
                             text = initialsFor(profile?.displayName ?: session.session?.displayName ?: "S"),
-                            color = Color.White,
+                            color = SanctuaryText,
                             fontWeight = FontWeight.Bold,
                             fontSize = 22.sp
                         )
@@ -2059,14 +1995,14 @@ private fun MeScreen(
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(
                             profile?.displayName ?: session.session?.displayName ?: l10n.t("me.accountFallback"),
-                            color = Color.White,
+                            color = SanctuaryText,
                             fontSize = 30.sp,
                             lineHeight = 34.sp,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
                             profile?.email ?: session.session?.email.orEmpty(),
-                            color = Color(0xFFD0DFEA)
+                            color = SanctuaryMuted
                         )
 
                     }
@@ -2075,11 +2011,11 @@ private fun MeScreen(
                 Button(
                     border = BorderStroke(1.dp, SanctuaryCardBorder),
                     onClick = onLogout,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2A4153)),
+                    colors = ButtonDefaults.buttonColors(containerColor = SanctuaryCardSoft),
                     shape = RoundedCornerShape(18.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(l10n.t("me.logout"), color = Color.White)
+                    Text(l10n.t("me.logout"), color = SanctuaryText)
                 }
                 }
             }
@@ -2092,7 +2028,7 @@ private fun MeScreen(
 
         MeSectionCard(title = l10n.t("me.inProgress")) {
             if (progress.commitments.none { it.status == CommitmentStatus.Active }) {
-                Text(l10n.t("me.noInProgress"), color = Color(0xFFD0DFEA))
+                Text(l10n.t("me.noInProgress"), color = SanctuaryMuted)
             } else {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     progress.commitments
@@ -2112,7 +2048,7 @@ private fun MeScreen(
 
         MeSectionCard(title = l10n.t("me.favoriteNovenas")) {
             if (favoriteNovenas.isEmpty()) {
-                Text(l10n.t("me.noneFavoriteNovenas"), color = Color(0xFFD0DFEA))
+                Text(l10n.t("me.noneFavoriteNovenas"), color = SanctuaryMuted)
             } else {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     favoriteNovenas.forEach { favorite ->
@@ -2134,7 +2070,7 @@ private fun MeScreen(
         }
         MeSectionCard(title = l10n.t("me.favoriteSaints")) {
             if (favoriteSaints.isEmpty()) {
-                Text(l10n.t("me.noneFavoriteSaints"), color = Color(0xFFD0DFEA))
+                Text(l10n.t("me.noneFavoriteSaints"), color = SanctuaryMuted)
             } else {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     favoriteSaints.forEach { favorite ->
@@ -2151,7 +2087,7 @@ private fun MeScreen(
 
         MeSectionCard(title = l10n.t("me.favoritePrayers")) {
             if (favoritePrayers.isEmpty()) {
-                Text(l10n.t("me.noneFavoritePrayers"), color = Color(0xFFD0DFEA))
+                Text(l10n.t("me.noneFavoritePrayers"), color = SanctuaryMuted)
             } else {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     favoritePrayers.forEach { favorite ->
@@ -2171,14 +2107,14 @@ private fun MeScreen(
         MeSectionCard(title = l10n.t("me.deleteAccount.title")) {
             Text(
                 l10n.t("me.deleteAccount.body"),
-                color = Color(0xFFD0DFEA),
+                color = SanctuaryMuted,
                 lineHeight = 20.sp
             )
             Button(
                 border = BorderStroke(1.dp, SanctuaryCardBorder),
                 onClick = { showDeleteAccountDialog = true },
                 enabled = !session.isDeletingAccount,
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF9C2630)),
+                colors = ButtonDefaults.buttonColors(containerColor = SanctuaryError),
                 shape = RoundedCornerShape(18.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -2187,13 +2123,13 @@ private fun MeScreen(
                         modifier = Modifier
                             .size(18.dp)
                             .padding(end = 8.dp),
-                        color = Color.White,
+                        color = SanctuaryOnAccent,
                         strokeWidth = 2.dp
                     )
                 }
                 Text(
                     l10n.t(if (session.isDeletingAccount) "me.deleteAccount.deleting" else "me.deleteAccount.action"),
-                    color = Color.White,
+                    color = SanctuaryOnAccent,
                     fontWeight = FontWeight.Bold
                 )
             }
@@ -2217,7 +2153,7 @@ private fun MeScreen(
                         onDeleteAccount()
                     }
                 ) {
-                    Text(l10n.t("me.deleteAccount.confirmAction"), color = Color(0xFFB3261E))
+                    Text(l10n.t("me.deleteAccount.confirmAction"), color = SanctuaryError)
                 }
             },
             dismissButton = {
@@ -2225,9 +2161,9 @@ private fun MeScreen(
                     Text(l10n.t("common.cancel"))
                 }
             },
-            containerColor = Color(0xFF172D3C),
-            titleContentColor = Color.White,
-            textContentColor = Color(0xFFD0DFEA)
+            containerColor = SanctuaryCard,
+            titleContentColor = SanctuaryText,
+            textContentColor = SanctuaryMuted
         )
     }
 }
@@ -2239,13 +2175,13 @@ private fun MeSectionCard(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF173340)),
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF49616F)),
+        colors = CardDefaults.cardColors(containerColor = SanctuaryCard),
+        border = androidx.compose.foundation.BorderStroke(1.dp, SanctuaryCardBorder),
         shape = RoundedCornerShape(24.dp)
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            Text(title, color = Color.White, fontSize = 24.sp, lineHeight = 29.sp, fontWeight = FontWeight.Bold)
-            Box(Modifier.fillMaxWidth().height(1.dp).background(Color(0xFF3B5562)))
+            Text(title, color = SanctuaryText, fontSize = 24.sp, lineHeight = 29.sp, fontWeight = FontWeight.Bold)
+            Box(Modifier.fillMaxWidth().height(1.dp).background(SanctuaryCardBorder))
             content()
         }
     }
@@ -2255,8 +2191,8 @@ private fun MeSectionCard(
 private fun MeAccountCard(content: @Composable () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF173340)),
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF49616F)),
+        colors = CardDefaults.cardColors(containerColor = SanctuaryCard),
+        border = androidx.compose.foundation.BorderStroke(1.dp, SanctuaryCardBorder),
         shape = RoundedCornerShape(24.dp)
     ) {
         Box(Modifier.fillMaxWidth().padding(20.dp)) { content() }
@@ -2275,14 +2211,14 @@ private fun ReminderToggleRow(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(18.dp))
-            .background(if (checked) Color(0xFF244F59) else Color(0xFF243D4D))
-            .border(1.dp, if (checked) Color(0xFF6EBAAF) else Color(0xFF587383), RoundedCornerShape(18.dp))
+            .background(if (checked) SanctuaryCardSoft else SanctuaryCardSoft)
+            .border(1.dp, if (checked) SanctuaryTabActive else SanctuaryCardBorder, RoundedCornerShape(18.dp))
             .padding(14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(title, color = Color.White, fontWeight = FontWeight.SemiBold)
-            Text(subtitle, color = Color(0xFFD0DFEA), lineHeight = 18.sp, fontSize = 13.sp)
+            Text(title, color = SanctuaryText, fontWeight = FontWeight.SemiBold)
+            Text(subtitle, color = SanctuaryMuted, lineHeight = 18.sp, fontSize = 13.sp)
         }
         Switch(
             modifier = Modifier.semantics { contentDescription = title },
@@ -2290,16 +2226,16 @@ private fun ReminderToggleRow(
             onCheckedChange = onCheckedChange,
             enabled = enabled,
             colors = SwitchDefaults.colors(
-                checkedThumbColor = Color.White,
-                checkedTrackColor = Color(0xFF279A83),
-                checkedBorderColor = Color(0xFF75D6BE),
-                uncheckedThumbColor = Color.White,
-                uncheckedTrackColor = Color(0xFF526775),
-                uncheckedBorderColor = Color(0xFF8EA4B2),
-                disabledCheckedThumbColor = Color.White.copy(alpha = 0.9f),
-                disabledCheckedTrackColor = Color(0xFF8EDBFF).copy(alpha = 0.55f),
-                disabledUncheckedThumbColor = Color.White.copy(alpha = 0.75f),
-                disabledUncheckedTrackColor = Color.White.copy(alpha = 0.10f)
+                checkedThumbColor = SanctuaryOnAccent,
+                checkedTrackColor = SanctuaryBlue,
+                checkedBorderColor = SanctuaryBlue,
+                uncheckedThumbColor = SanctuaryOnAccent,
+                uncheckedTrackColor = SanctuaryCardBorder,
+                uncheckedBorderColor = SanctuaryCardBorder,
+                disabledCheckedThumbColor = SanctuaryOnAccent.copy(alpha = 0.9f),
+                disabledCheckedTrackColor = SanctuaryTabActive.copy(alpha = 0.55f),
+                disabledUncheckedThumbColor = SanctuaryOnAccent.copy(alpha = 0.75f),
+                disabledUncheckedTrackColor = SanctuaryOnAccent.copy(alpha = 0.10f)
             )
         )
     }
@@ -2312,7 +2248,7 @@ private fun SettingsNavigationRow(title: String, onClick: () -> Unit) {
         colors = CardDefaults.cardColors(containerColor = SanctuaryCardSoft)) {
         Row(Modifier.fillMaxWidth().heightIn(min = 64.dp).padding(16.dp),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            Text(title, Modifier.weight(1f), color = Color.White, fontSize = 18.sp,
+            Text(title, Modifier.weight(1f), color = SanctuaryText, fontSize = 18.sp,
                 fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Start)
             Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = SanctuaryTabActive, modifier = Modifier.size(22.dp))
         }
@@ -2329,7 +2265,7 @@ private fun LinkedMeRow(
         border = BorderStroke(1.dp, SanctuaryCardBorder),
         onClick = onClick,
         shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF2A4153)),
+        colors = CardDefaults.cardColors(containerColor = SanctuaryCardSoft),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
@@ -2342,7 +2278,7 @@ private fun LinkedMeRow(
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
                     title,
-                    color = Color.White,
+                    color = SanctuaryText,
                     textAlign = TextAlign.Start,
                     modifier = Modifier.fillMaxWidth(),
                     fontWeight = FontWeight.SemiBold,
@@ -2350,10 +2286,10 @@ private fun LinkedMeRow(
                     overflow = TextOverflow.Ellipsis
                 )
                 subtitle?.let {
-                    Text(it, color = Color(0xFFD0DFEA), fontSize = 13.sp, modifier = Modifier.fillMaxWidth())
+                    Text(it, color = SanctuaryMuted, fontSize = 13.sp, modifier = Modifier.fillMaxWidth())
                 }
             }
-            Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = Color.White.copy(alpha = 0.85f))
+            Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = SanctuaryText.copy(alpha = 0.85f))
         }
     }
 }
@@ -2364,58 +2300,219 @@ private fun initialsFor(name: String): String {
     return parts.take(2).mapNotNull { it.firstOrNull()?.uppercase() }.joinToString("").ifBlank { "S" }
 }
 
+private val homeFeaturedActions = listOf(
+    HomeAction.Daily, HomeAction.Prayers, HomeAction.Patronage,
+    HomeAction.Intentions, HomeAction.Rosary
+)
+
 @Composable
-private fun HomeHeroCard(session: SessionUiState) {
+private fun HomeLanding(isObscured: Boolean, onOpen: (HomeAction) -> Unit) {
     val l10n = sanctuaryStrings()
-    Card(
-        border = BorderStroke(1.dp, SanctuaryCardBorder),
-        colors = CardDefaults.cardColors(containerColor = SanctuaryCard),
-        shape = RoundedCornerShape(28.dp)
-    ) {
-        Column(
-            modifier = Modifier.padding(24.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = l10n.t("home.eyebrow"),
-                modifier = Modifier.fillMaxWidth(),
-                color = Color(0xFF7AC8EA),
-                style = MaterialTheme.typography.labelLarge,
-                textAlign = TextAlign.Center
-            )
-            Box(
-                modifier = Modifier
-                    .size(156.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                BrandLogoMark(size = 132.dp, corner = 30.dp, glowExtra = 44.dp)
+    val pageCount = homeFeaturedActions.size + 1
+    // Start on a welcome page near the midpoint, leaving room to swipe either way.
+    val initialPage = (Int.MAX_VALUE / 2 / pageCount) * pageCount
+    val pagerState = rememberPagerState(initialPage = initialPage, pageCount = { Int.MAX_VALUE })
+    val scope = rememberCoroutineScope()
+    val fontScale = LocalDensity.current.fontScale.coerceAtLeast(1f)
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    val context = LocalContext.current
+    val view = LocalView.current
+    var windowFocused by remember { mutableStateOf(view.hasWindowFocus()) }
+    var paused by rememberSaveable { mutableStateOf(false) }
+    var manualSelection by remember { mutableStateOf(0) }
+    val isDragged by pagerState.interactionSource.collectIsDraggedAsState()
+    val selectedPage = pagerState.currentPage % pageCount
+    DisposableEffect(view) {
+        val listener = android.view.ViewTreeObserver.OnWindowFocusChangeListener { windowFocused = it }
+        view.viewTreeObserver.addOnWindowFocusChangeListener(listener)
+        onDispose { if (view.viewTreeObserver.isAlive) view.viewTreeObserver.removeOnWindowFocusChangeListener(listener) }
+    }
+    LaunchedEffect(pagerState, isDragged, paused, isObscured, windowFocused, manualSelection) {
+        val accessibility = context.getSystemService(Context.ACCESSIBILITY_SERVICE) as android.view.accessibility.AccessibilityManager
+        if (!paused && !isObscured && !isDragged && windowFocused
+            && !accessibility.isTouchExplorationEnabled && android.animation.ValueAnimator.areAnimatorsEnabled()) {
+            lifecycleOwner.lifecycle.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.RESUMED) {
+                while (true) {
+                    delay(7_000)
+                    pagerState.animateScrollToPage(pagerState.currentPage + 1)
+                }
             }
-            Text(
-                text = l10n.t("home.welcome"),
-                modifier = Modifier.fillMaxWidth(),
-                color = Color.White,
-                fontSize = 34.sp,
-                lineHeight = 38.sp,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center
-            )
-            Text(
-                text = l10n.t("home.connect"),
-                modifier = Modifier.fillMaxWidth(),
-                color = Color(0xFFE7F2FA),
-                fontSize = 22.sp,
-                lineHeight = 28.sp,
-                fontWeight = FontWeight.SemiBold,
-                textAlign = TextAlign.Center
-            )
-            Text(
-                text = l10n.t("home.supporting"),
-                modifier = Modifier.fillMaxWidth(),
-                color = Color(0xFFD0DFEA),
-                lineHeight = 22.sp,
-                textAlign = TextAlign.Center
-            )
+        }
+    }
+    Box(Modifier.fillMaxWidth().background(SanctuaryHomeSurface), contentAlignment = Alignment.TopCenter) {
+        Column(Modifier.widthIn(max = 760.dp).fillMaxWidth()) {
+            Column(Modifier.background(SanctuaryHeroBase)) {
+                Box {
+                    HorizontalPager(
+                        state = pagerState,
+                        modifier = Modifier.fillMaxWidth().height((470 * fontScale).dp)
+                    ) { index ->
+                        val logicalPage = index % pageCount
+                        if (logicalPage == 0) {
+                            HomeWelcomeSlide()
+                        } else {
+                            val action = homeFeaturedActions[logicalPage - 1]
+                            Box(Modifier.fillMaxSize().clickable(role = Role.Button, onClickLabel = l10n.t("home.open")) { onOpen(action) }) {
+                                HomeEditorialBackground(action.editorialAsset())
+                                Column(Modifier.fillMaxSize().padding(start = 24.dp, end = 24.dp, top = 90.dp, bottom = 16.dp),
+                                    verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    Spacer(Modifier.weight(1f))
+                                    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                                        Icon(Icons.AutoMirrored.Filled.ArrowForward, null,
+                                            tint = SanctuaryHeroBase, modifier = Modifier.size(60.dp)
+                                                .background(SanctuaryOnAccent, CircleShape).padding(18.dp))
+                                    }
+                                    Spacer(Modifier.weight(1f))
+                                    Text(l10n.t(action.subtitleKey), color = SanctuaryOnAccent, fontSize = 12.sp,
+                                        modifier = Modifier.background(SanctuaryOnAccent.copy(alpha = 0.18f), RoundedCornerShape(5.dp))
+                                            .padding(horizontal = 9.dp, vertical = 5.dp))
+                                    Text(l10n.t(action.titleKey), color = SanctuaryOnAccent,
+                                        fontSize = 28.sp, lineHeight = 34.sp, fontWeight = FontWeight.Bold)
+                                    Text(l10n.t("home.open"), color = SanctuaryOnAccent.copy(alpha = 0.85f), fontSize = 16.sp)
+                                }
+                            }
+                        }
+                    }
+                    Row(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically) {
+                        Text(l10n.t("tab.home"), color = SanctuaryOnAccent, fontSize = 34.sp, fontWeight = FontWeight.Bold)
+                        Spacer(Modifier.weight(1f))
+                        Image(painterResource(R.drawable.brand_logo), "Sanctuary",
+                            Modifier.size(42.dp).clip(RoundedCornerShape(12.dp)))
+                    }
+                }
+                Row(Modifier.fillMaxWidth().padding(bottom = 12.dp), horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically) {
+                    repeat(pageCount) { index ->
+                        val isSelected = selectedPage == index
+                        Box(
+                            Modifier.size(width = 44.dp, height = 48.dp)
+                                .semantics {
+                                    contentDescription = if (index == 0) l10n.t("home.welcome") else l10n.t(homeFeaturedActions[index - 1].titleKey)
+                                    selected = isSelected
+                                    stateDescription = "${index + 1} / $pageCount"
+                                }
+                                .clickable(role = Role.Tab) {
+                                    manualSelection += 1
+                                    scope.launch { pagerState.scrollToPage(pagerState.currentPage - selectedPage + index) }
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Box(Modifier.size(width = if (isSelected) 20.dp else 5.dp, height = 5.dp)
+                                .background(SanctuaryOnAccent.copy(alpha = if (isSelected) 0.95f else 0.3f), CircleShape))
+                        }
+                    }
+                    IconButton(onClick = { paused = !paused }) {
+                        Icon(if (paused) Icons.Filled.PlayArrow else Icons.Filled.Pause,
+                            l10n.t(if (paused) "home.resumeCarousel" else "home.pauseCarousel"),
+                            tint = SanctuaryOnAccent.copy(alpha = 0.6f), modifier = Modifier.size(14.dp))
+                    }
+                }
+            }
+            Box(Modifier.fillMaxWidth().height(36.dp).background(Brush.verticalGradient(
+                listOf(SanctuaryHeroBase, SanctuaryHomeSurface))))
+            Column(Modifier.background(SanctuaryHomeSurface).padding(vertical = 24.dp), verticalArrangement = Arrangement.spacedBy(32.dp)) {
+                Row(Modifier.fillMaxWidth().padding(horizontal = 24.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    homeFeaturedActions.filter { it != HomeAction.Rosary }.forEach { action ->
+                        Column(Modifier.weight(1f).clickable(role = Role.Button) { onOpen(action) },
+                            horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                            Box(Modifier.fillMaxWidth().height(62.dp).background(SanctuaryHomeSurfaceRaised, RoundedCornerShape(16.dp)),
+                                contentAlignment = Alignment.Center) {
+                                Icon(action.icon, null, tint = SanctuaryHomeInk, modifier = Modifier.size(24.dp))
+                            }
+                            Text(l10n.t(action.titleKey), color = SanctuaryHomeInk, fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
+                        }
+                    }
+                }
+                Column(Modifier.fillMaxWidth().padding(horizontal = 32.dp, vertical = 8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("MATTHEW 11:28", color = SanctuaryHomeMuted, fontSize = 12.sp, letterSpacing = 1.2.sp)
+                    Text(l10n.t("home.verse"), color = SanctuaryHomeInk, fontSize = 24.sp, lineHeight = 32.sp,
+                        fontFamily = androidx.compose.ui.text.font.FontFamily.Serif, textAlign = TextAlign.Center)
+                }
+                HomeDailyPrayerList(l10n.t("home.explore"), listOf(HomeAction.Daily, HomeAction.Prayers, HomeAction.Rosary), onOpen)
+                HomeFeatureShelf(l10n.t("home.guidance"), listOf(HomeAction.Patronage, HomeAction.Intentions), onOpen)
+            }
+        }
+    }
+}
+
+private fun HomeAction.editorialAsset(): String = when (this) {
+    HomeAction.Rosary -> "rosary"
+    HomeAction.Patronage -> "welcome"
+    else -> "scripture"
+}
+
+@Composable
+private fun HomeEditorialArtwork(asset: String, modifier: Modifier = Modifier) {
+    AsyncImage(model = "file:///android_asset/home_editorial/$asset.png", contentDescription = null,
+        contentScale = ContentScale.Crop, modifier = modifier)
+}
+
+@Composable
+private fun HomeEditorialBackground(asset: String) {
+    Box(Modifier.fillMaxSize()) {
+        HomeEditorialArtwork(asset, Modifier.fillMaxSize())
+        Box(Modifier.fillMaxSize().background(Brush.verticalGradient(
+            0f to Color.Black.copy(alpha = 0.25f), 0.38f to Color.Transparent,
+            0.73f to SanctuaryHeroBase.copy(alpha = 0.8f), 1f to SanctuaryHeroBase)))
+    }
+}
+
+@Composable
+private fun HomeWelcomeSlide() {
+    val l10n = sanctuaryStrings()
+    Box(Modifier.fillMaxSize()) {
+        HomeEditorialBackground("welcome")
+        Column(Modifier.fillMaxSize().padding(start = 24.dp, end = 24.dp, bottom = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.Bottom)) {
+            Text(l10n.t("home.heroEyebrow"), color = SanctuaryOnAccent, fontSize = 12.sp,
+                modifier = Modifier.background(SanctuaryOnAccent.copy(alpha = 0.18f), RoundedCornerShape(5.dp))
+                    .padding(horizontal = 9.dp, vertical = 5.dp))
+            Text(l10n.t("home.welcome"), color = SanctuaryOnAccent, fontSize = 28.sp, lineHeight = 34.sp,
+                fontWeight = FontWeight.Bold, modifier = Modifier.semantics { heading() })
+            Text(l10n.t("home.welcomeBody"), color = SanctuaryOnAccent.copy(alpha = 0.85f), fontSize = 16.sp, lineHeight = 23.sp)
+        }
+    }
+}
+
+@Composable
+private fun HomeDailyPrayerList(title: String, actions: List<HomeAction>, onOpen: (HomeAction) -> Unit) {
+    val l10n = sanctuaryStrings()
+    Column(Modifier.padding(horizontal = 24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Text(title, color = SanctuaryHomeInk, fontSize = 22.sp, fontWeight = FontWeight.Bold,
+            modifier = Modifier.semantics { heading() })
+        actions.forEach { action ->
+            Row(Modifier.fillMaxWidth().clickable(role = Role.Button) { onOpen(action) },
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                HomeEditorialArtwork(action.editorialAsset(), Modifier.size(68.dp).clip(RoundedCornerShape(10.dp)))
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                    Text(l10n.t(action.titleKey), color = SanctuaryHomeInk, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+                    Text(l10n.t(action.subtitleKey), color = SanctuaryHomeMuted, fontSize = 14.sp)
+                }
+                Icon(Icons.Filled.ChevronRight, null, tint = SanctuaryHomeMuted, modifier = Modifier.size(14.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun HomeFeatureShelf(title: String, actions: List<HomeAction>, onOpen: (HomeAction) -> Unit) {
+    val l10n = sanctuaryStrings()
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Text(title, color = SanctuaryHomeInk, fontSize = 22.sp, fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(horizontal = 24.dp).semantics { heading() })
+        Row(Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 24.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            actions.forEach { action ->
+                Column(Modifier.weight(1f).clickable(role = Role.Button) { onOpen(action) },
+                    verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    HomeEditorialArtwork(action.editorialAsset(), Modifier.fillMaxWidth().height(128.dp).clip(RoundedCornerShape(12.dp)))
+                    Text(l10n.t(action.titleKey), color = SanctuaryHomeInk, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+                    Text(l10n.t(action.subtitleKey), color = SanctuaryHomeMuted, fontSize = 14.sp, lineHeight = 20.sp)
+                }
+            }
         }
     }
 }
@@ -2435,11 +2532,11 @@ private fun AboutOverviewSheet(
         subtitle = l10n.t("about.subtitle")
     ) {
         AboutInfoCard(title = l10n.t("about.brand")) {
-            Text(l10n.t("about.brand"), color = Color(0xFF7AC8EA), fontWeight = FontWeight.Bold, fontSize = 13.sp)
-            Text(l10n.t("about.title"), color = Color.White, fontSize = 28.sp, lineHeight = 32.sp, fontWeight = FontWeight.Bold)
+            Text(l10n.t("about.brand"), color = SanctuaryTabActive, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+            Text(l10n.t("about.title"), color = SanctuaryText, fontSize = 28.sp, lineHeight = 32.sp, fontWeight = FontWeight.Bold)
             Text(
                 l10n.t("about.subtitle"),
-                color = Color(0xFFD0DFEA),
+                color = SanctuaryMuted,
                 lineHeight = 21.sp
             )
         }
@@ -2447,7 +2544,7 @@ private fun AboutOverviewSheet(
         AboutInfoCard(title = l10n.t("about.desktopVersion")) {
             Text(
                 l10n.t("about.desktopBody"),
-                color = Color(0xFFD0DFEA),
+                color = SanctuaryMuted,
                 lineHeight = 21.sp
             )
             PrimarySheetButton(title = l10n.t("about.link.desktop"), onClick = onOpenDesktop)
@@ -2456,33 +2553,33 @@ private fun AboutOverviewSheet(
         AboutInfoCard(title = l10n.t("about.versionTitle")) {
             Text(
                 "${l10n.t("about.versionLabel")}: ${BuildConfig.VERSION_NAME}",
-                color = Color(0xFFD0DFEA),
+                color = SanctuaryMuted,
                 lineHeight = 21.sp
             )
             Text(
                 "${l10n.t("about.buildLabel")}: ${BuildConfig.VERSION_CODE}",
-                color = Color(0xFFD0DFEA),
+                color = SanctuaryMuted,
                 lineHeight = 21.sp
             )
             if (BuildConfig.ENVIRONMENT != "prod") {
                 Text(
                     "${l10n.t("about.environmentLabel")}: ${BuildConfig.ENVIRONMENT.uppercase()}",
-                    color = Color(0xFFD0DFEA),
+                    color = SanctuaryMuted,
                     lineHeight = 21.sp
                 )
             }
         }
 
         AboutInfoCard(title = l10n.t("about.whatsInApp")) {
-            Text("• ${l10n.t("about.whatsInApp.liturgical")}", color = Color(0xFFD0DFEA), lineHeight = 21.sp)
-            Text("• ${l10n.t("about.whatsInApp.saints")}", color = Color(0xFFD0DFEA), lineHeight = 21.sp)
-            Text("• ${l10n.t("about.whatsInApp.novenas")}", color = Color(0xFFD0DFEA), lineHeight = 21.sp)
+            Text("• ${l10n.t("about.whatsInApp.liturgical")}", color = SanctuaryMuted, lineHeight = 21.sp)
+            Text("• ${l10n.t("about.whatsInApp.saints")}", color = SanctuaryMuted, lineHeight = 21.sp)
+            Text("• ${l10n.t("about.whatsInApp.novenas")}", color = SanctuaryMuted, lineHeight = 21.sp)
         }
 
         AboutInfoCard(title = l10n.t("about.references")) {
-            Text(l10n.t("about.referencesBody"), color = Color(0xFFD0DFEA), lineHeight = 21.sp)
-            Text("• ${l10n.t("about.reference.usccb")}", color = Color(0xFFD0DFEA))
-            Text("• ${l10n.t("about.reference.wikipedia")}", color = Color(0xFFD0DFEA))
+            Text(l10n.t("about.referencesBody"), color = SanctuaryMuted, lineHeight = 21.sp)
+            Text("• ${l10n.t("about.reference.usccb")}", color = SanctuaryMuted)
+            Text("• ${l10n.t("about.reference.wikipedia")}", color = SanctuaryMuted)
             PrimarySheetButton(title = l10n.t("about.link.usccb"), onClick = onOpenUsccb)
             PrimarySheetButton(title = l10n.t("about.link.wikipedia"), onClick = onOpenWikipedia)
         }
@@ -2490,7 +2587,7 @@ private fun AboutOverviewSheet(
         AboutInfoCard(title = l10n.t("about.contact")) {
             Text(
                 l10n.t("about.contactBody"),
-                color = Color(0xFFD0DFEA),
+                color = SanctuaryMuted,
                 lineHeight = 21.sp
             )
             PrimarySheetButton(title = l10n.t("about.emailSupport"), onClick = onEmailSupport)
@@ -2500,7 +2597,7 @@ private fun AboutOverviewSheet(
 
         Text(
             l10n.t("about.copyright"),
-            color = Color(0xFFD0DFEA),
+            color = SanctuaryMuted,
             fontSize = 14.sp,
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth().padding(top = 6.dp)
@@ -2540,13 +2637,13 @@ private fun AboutDocumentSheet(
     ) {
         sections.forEach { (sectionTitle, body) ->
             AboutInfoCard(title = sectionTitle) {
-                Text(body, color = Color(0xFFD0DFEA), lineHeight = 21.sp)
+                Text(body, color = SanctuaryMuted, lineHeight = 21.sp)
             }
         }
         PrimarySheetButton(title = l10n.t("about.emailSupport"), onClick = onEmailSupport)
         Text(
             l10n.t("about.copyright"),
-            color = Color(0xFFD0DFEA),
+            color = SanctuaryMuted,
             fontSize = 14.sp,
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth().padding(top = 6.dp)
@@ -2569,7 +2666,7 @@ private fun AboutInfoCard(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
             content = {
-                Text(title, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                Text(title, color = SanctuaryText, fontSize = 24.sp, fontWeight = FontWeight.Bold)
                 content()
             }
         )
@@ -2585,16 +2682,16 @@ private fun PrimarySheetButton(title: String, onClick: () -> Unit) {
         shape = RoundedCornerShape(20.dp),
         modifier = Modifier
             .fillMaxWidth()
-            .shadow(12.dp, RoundedCornerShape(20.dp), clip = false)
+            .shadow(3.dp, RoundedCornerShape(20.dp), clip = false)
             .background(
                 brush = Brush.linearGradient(
-                    listOf(Color(0xFF3E9FC1), Color(0xFF195E78))
+                    listOf(SanctuaryBlue, SanctuaryBlue)
                 ),
                 shape = RoundedCornerShape(20.dp)
             )
             .border(1.dp, Color.White.copy(alpha = 0.16f), RoundedCornerShape(20.dp))
     ) {
-        Text(title, color = Color.White, fontWeight = FontWeight.SemiBold)
+        Text(title, color = SanctuaryOnAccent, fontWeight = FontWeight.SemiBold)
     }
 }
 
@@ -2608,9 +2705,9 @@ private fun SecondarySheetButton(title: String, onClick: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .background(Color.White.copy(alpha = 0.08f), RoundedCornerShape(20.dp))
-            .border(1.dp, Color(0xFF7CC7DE).copy(alpha = 0.6f), RoundedCornerShape(20.dp))
+            .border(1.dp, SanctuaryCardBorder.copy(alpha = 0.6f), RoundedCornerShape(20.dp))
     ) {
-        Text(title, color = Color.White, fontWeight = FontWeight.SemiBold)
+        Text(title, color = SanctuaryText, fontWeight = FontWeight.SemiBold)
     }
 }
 
@@ -2656,7 +2753,7 @@ private fun MeHeaderAction(title: String, icon: ImageVector, unread: Boolean = f
             color=SanctuaryCard, border=BorderStroke(1.5.dp,SanctuaryTabActive.copy(alpha=0.7f))) {
             Box(contentAlignment=Alignment.Center) { Icon(icon, contentDescription=title, tint=SanctuaryTabActive, modifier=Modifier.size(28.dp)) }
         }
-        if(unread) Box(Modifier.align(Alignment.TopEnd).padding(5.dp).size(12.dp).background(Color(0xFFEF4444),CircleShape).border(2.dp,SanctuaryCard,CircleShape))
+        if(unread) Box(Modifier.align(Alignment.TopEnd).padding(5.dp).size(12.dp).background(SanctuaryError,CircleShape).border(2.dp,SanctuaryCard,CircleShape))
     }
 }
 
@@ -2668,7 +2765,7 @@ private fun SanctuarySlidePage(visible: Boolean, onBack: () -> Unit, content: @C
             content()
             Surface(onClick=onBack, modifier=Modifier.align(Alignment.TopStart).padding(start=18.dp,top=12.dp).size(42.dp),
                 color=SanctuaryCard, shape=CircleShape, border=BorderStroke(1.dp,SanctuaryCardBorder)) {
-                Box(contentAlignment=Alignment.Center) { Icon(Icons.Filled.ArrowBack,contentDescription="Back",tint=Color.White,modifier=Modifier.size(22.dp)) }
+                Box(contentAlignment=Alignment.Center) { Icon(Icons.Filled.ArrowBack,contentDescription="Back",tint=SanctuaryText,modifier=Modifier.size(22.dp)) }
             }
         }
     }
@@ -2677,10 +2774,10 @@ private fun SanctuarySlidePage(visible: Boolean, onBack: () -> Unit, content: @C
 @Composable
 private fun NavigationCardAction(title: String, icon: ImageVector, onClick: () -> Unit) {
     Card(onClick = onClick, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = SanctuaryCard), border = BorderStroke(1.dp, Color(0x997CC7DE))) {
+        colors = CardDefaults.cardColors(containerColor = SanctuaryCard), border = BorderStroke(1.dp, SanctuaryCardBorder)) {
         Row(Modifier.fillMaxWidth().heightIn(min = 64.dp).padding(18.dp), horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(icon, contentDescription = null, tint = SanctuaryTabActive, modifier = Modifier.size(25.dp))
-            Text(title, Modifier.weight(1f), color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+            Text(title, Modifier.weight(1f), color = SanctuaryText, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
             Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, tint = SanctuaryTabActive, modifier = Modifier.size(20.dp))
         }
     }
@@ -2698,7 +2795,7 @@ private fun CalendarSearchButton(
         modifier = Modifier
             .fillMaxWidth()
             .height(58.dp)
-            .shadow(22.dp, shape, clip = false),
+            .shadow(4.dp, shape, clip = false),
         contentPadding = PaddingValues(0.dp),
         colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
         shape = shape
@@ -2710,8 +2807,8 @@ private fun CalendarSearchButton(
                 .background(
                     Brush.linearGradient(
                         listOf(
-                            Color(0xFF55C0E1),
-                            Color(0xFF2B8DAA),
+                            SanctuaryCardSoft,
+                            SanctuaryCardSoft,
                             SanctuaryCardSoft
                         )
                     )
@@ -2734,14 +2831,14 @@ private fun CalendarSearchButton(
                     Icon(
                         imageVector = Icons.Filled.Search,
                         contentDescription = null,
-                        tint = Color.White,
+                        tint = SanctuaryText,
                         modifier = Modifier.size(18.dp)
                     )
                 }
                 Text(
                     label,
                     modifier = Modifier.weight(1f),
-                    color = Color.White,
+                    color = SanctuaryText,
                     fontWeight = FontWeight.Bold,
                     fontSize = 15.sp,
                     maxLines = 1,
@@ -2750,7 +2847,7 @@ private fun CalendarSearchButton(
                 Icon(
                     imageVector = Icons.Filled.ChevronRight,
                     contentDescription = null,
-                    tint = Color.White.copy(alpha = 0.78f),
+                    tint = SanctuaryMuted,
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -2771,10 +2868,10 @@ private fun LanguageSettingsButton(language: AppLanguage, onClick: () -> Unit) {
             horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             Icon(Icons.Filled.Language, contentDescription = null, tint = SanctuaryTabActive, modifier = Modifier.size(26.dp))
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(sanctuaryStrings().t("home.language"), color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
-                Text(language.displayName, color = Color(0xFFD0DFEA), fontSize = 16.sp)
+                Text(sanctuaryStrings().t("home.language"), color = SanctuaryText, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                Text(language.displayName, color = SanctuaryMuted, fontSize = 16.sp)
             }
-            Icon(Icons.Filled.ExpandMore, contentDescription = null, tint = Color.White)
+            Icon(Icons.Filled.ExpandMore, contentDescription = null, tint = SanctuaryText)
         }
     }
 }
@@ -2793,7 +2890,7 @@ private fun LanguagePickerSheet(
     ) {
         Text(
             text = l10n.t("home.chooseLanguage"),
-            color = Color.White,
+            color = SanctuaryText,
             fontWeight = FontWeight.Bold,
             fontSize = 24.sp
         )
@@ -2801,7 +2898,7 @@ private fun LanguagePickerSheet(
             Card(
         border = BorderStroke(1.dp, SanctuaryCardBorder),
                 colors = CardDefaults.cardColors(
-                    containerColor = if (language == current) Color(0xFF245C73) else SanctuaryCard
+                    containerColor = if (language == current) SanctuaryCardSoft else SanctuaryCard
                 ),
                 shape = RoundedCornerShape(18.dp),
                 onClick = { onSelect(language) }
@@ -2813,7 +2910,7 @@ private fun LanguagePickerSheet(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(language.displayName, color = Color.White, fontWeight = FontWeight.SemiBold)
+                    Text(language.displayName, color = SanctuaryText, fontWeight = FontWeight.SemiBold)
                     if (language == current) {
                         Text("✓", color = SanctuaryTabActive, fontWeight = FontWeight.Bold)
                     }
@@ -2825,636 +2922,11 @@ private fun LanguagePickerSheet(
 }
 
 @Composable
-private fun HomeFeatureCard(
-    action: HomeAction,
-    onClick: () -> Unit
-) {
-    val l10n = sanctuaryStrings()
-    val fontScale = LocalDensity.current.fontScale
-    Card(
-        border = BorderStroke(1.dp, SanctuaryCardBorder),
-        modifier = Modifier.shadow(18.dp, RoundedCornerShape(28.dp), clip = false),
-        colors = CardDefaults.cardColors(containerColor = Color.Transparent),
-        shape = RoundedCornerShape(28.dp),
-        onClick = onClick
-    ) {
-        BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-            val compact = maxWidth < 360.dp || fontScale >= 1.18f
-            val cardHeight = if (compact) 148.dp else 188.dp
-            val artworkWidth = if (maxWidth < 420.dp) 128.dp else 156.dp
-            val artworkHeight = if (maxWidth < 420.dp) 88.dp else 108.dp
-
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(cardHeight)
-                    .background(
-                        brush = action.cardBrush(),
-                        shape = RoundedCornerShape(28.dp)
-                    )
-                    .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(28.dp))
-            ) {
-                Box(
-                    modifier = Modifier
-                        .matchParentSize()
-                        .background(
-                            brush = Brush.linearGradient(
-                                listOf(Color.White.copy(alpha = 0.06f), Color.Transparent, Color.Black.copy(alpha = 0.18f))
-                            ),
-                            shape = RoundedCornerShape(28.dp)
-                        )
-                )
-
-                if (compact) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(horizontal = 18.dp, vertical = 18.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(14.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(48.dp)
-                                .background(Color.White.copy(alpha = 0.12f), RoundedCornerShape(16.dp)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            HomeActionBadgeGlyph(
-                                action = action,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-                        Column(
-                            modifier = Modifier.weight(1f),
-                            verticalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            Text(
-                                l10n.t(action.titleKey),
-                                color = Color.White,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 21.sp,
-                                lineHeight = 25.sp,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            Text(
-                                l10n.t(action.subtitleKey),
-                                color = Color(0xFFD0DFEA),
-                                fontSize = 14.sp,
-                                lineHeight = 19.sp,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .background(Color.White.copy(alpha = 0.12f), CircleShape),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.SouthEast,
-                                contentDescription = null,
-                                tint = Color.White.copy(alpha = 0.78f),
-                                modifier = Modifier.size(19.dp)
-                            )
-                        }
-                    }
-                } else {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(start = 22.dp, top = 16.dp, end = 16.dp, bottom = 20.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(14.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.weight(1f),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(42.dp)
-                                    .background(Color.White.copy(alpha = 0.12f), RoundedCornerShape(14.dp)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                HomeActionBadgeGlyph(
-                                    action = action,
-                                    modifier = Modifier.size(22.dp)
-                                )
-                            }
-                            Column(
-                                modifier = Modifier.weight(1f),
-                                verticalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                Text(
-                                    l10n.t(action.titleKey),
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 22.sp,
-                                    maxLines = 2,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                                Text(
-                                    l10n.t(action.subtitleKey),
-                                    color = Color(0xFFD0DFEA),
-                                    fontSize = 14.sp,
-                                    lineHeight = 20.sp,
-                                    maxLines = 2,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                        }
-                        HomeFeatureArtwork(
-                            action = action,
-                            contentDescription = l10n.t(action.titleKey),
-                            modifier = Modifier.size(width = artworkWidth, height = artworkHeight)
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun HomeFeatureArtwork(
-    action: HomeAction,
-    contentDescription: String,
-    modifier: Modifier = Modifier
-) {
-    Box(modifier = modifier) {
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .clip(RoundedCornerShape(22.dp))
-                .background(
-                    brush = Brush.linearGradient(action.illustrationColors)
-                )
-                .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(22.dp))
-        )
-
-        if (action.artworkAssetPath != null) {
-            HomeActionArtwork(
-                assetPath = action.artworkAssetPath,
-                contentDescription = contentDescription,
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .fillMaxSize()
-                    .padding(start = 16.dp, end = 12.dp, top = 10.dp, bottom = 8.dp)
-            )
-        } else {
-            HomeActionIllustration(
-                action = action,
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .fillMaxSize()
-                    .padding(horizontal = 18.dp, vertical = 14.dp)
-            )
-        }
-
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(10.dp)
-                .size(28.dp)
-                .background(Color.White.copy(alpha = 0.12f), CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Filled.SouthEast,
-                contentDescription = null,
-                tint = Color.White.copy(alpha = 0.78f),
-                modifier = Modifier.size(15.dp)
-            )
-        }
-
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 10.dp)
-                .size(width = 78.dp, height = 4.dp)
-                .background(Color.White.copy(alpha = 0.22f), RoundedCornerShape(999.dp))
-        )
-    }
-}
-
-@Composable
-private fun HomeActionArtwork(
-    assetPath: String,
-    contentDescription: String,
-    modifier: Modifier = Modifier
-) {
-    val context = LocalContext.current
-    AsyncImage(
-        model = ImageRequest.Builder(context)
-            .data(assetPath)
-            .build(),
-        contentDescription = contentDescription,
-        contentScale = ContentScale.Fit,
-        modifier = modifier
-    )
-}
-
-private fun HomeAction.cardBrush(): Brush = when (this) {
-    HomeAction.Saints, HomeAction.Patronage -> Brush.linearGradient(
-        listOf(Color(0xFF153646).copy(alpha = 0.92f), Color(0xFF1C5461).copy(alpha = 0.76f))
-    )
-    HomeAction.Novenas -> Brush.linearGradient(
-        listOf(Color(0xFF0D2535).copy(alpha = 0.94f), Color(0xFF1B576C).copy(alpha = 0.72f))
-    )
-    HomeAction.Liturgical -> Brush.linearGradient(
-        listOf(Color(0xFF243652).copy(alpha = 0.92f), Color(0xFF4A66A0).copy(alpha = 0.74f))
-    )
-    HomeAction.Prayers -> Brush.linearGradient(
-        listOf(Color(0xFF2C3144).copy(alpha = 0.90f), Color(0xFF15424D).copy(alpha = 0.72f))
-    )
-    HomeAction.Rosary -> Brush.linearGradient(
-        listOf(Color(0xFF30384F).copy(alpha = 0.92f), Color(0xFF123E4D).copy(alpha = 0.74f))
-    )
-    HomeAction.Intentions -> Brush.linearGradient(
-        listOf(Color(0xFF4C3B56).copy(alpha = 0.90f), Color(0xFF15404B).copy(alpha = 0.74f))
-    )
-    HomeAction.Daily -> Brush.linearGradient(
-        listOf(Color(0xFF1C514C).copy(alpha = 0.90f), Color(0xFF143B4D).copy(alpha = 0.74f))
-    )
-}
-
-@Composable
-private fun HomeActionBadgeGlyph(
-    action: HomeAction,
-    modifier: Modifier = Modifier
-) {
-    Canvas(modifier = modifier) {
-        val gold = Color(0xFFF2D37B)
-        val cyan = Color(0xFF9DDFF4)
-        val rose = Color(0xFFF2A8C4)
-        val ivory = Color(0xFFF1E6CF)
-        val navy = Color(0xFF173244)
-        val stroke = size.minDimension * 0.09f
-        val center = Offset(size.width / 2f, size.height / 2f)
-
-        when (action) {
-            HomeAction.Saints, HomeAction.Patronage -> {
-                drawCircle(gold, radius = size.minDimension * 0.12f, center = Offset(size.width * 0.5f, size.height * 0.32f))
-                drawCircle(navy, radius = size.minDimension * 0.06f, center = Offset(size.width * 0.5f, size.height * 0.25f))
-                drawCircle(gold.copy(alpha = 0.85f), radius = size.minDimension * 0.09f, center = Offset(size.width * 0.28f, size.height * 0.44f))
-                drawCircle(gold.copy(alpha = 0.85f), radius = size.minDimension * 0.09f, center = Offset(size.width * 0.72f, size.height * 0.44f))
-                drawArc(
-                    color = gold,
-                    startAngle = 200f,
-                    sweepAngle = 140f,
-                    useCenter = false,
-                    topLeft = Offset(size.width * 0.13f, size.height * 0.45f),
-                    size = Size(size.width * 0.74f, size.height * 0.34f),
-                    style = Stroke(width = stroke, cap = StrokeCap.Round)
-                )
-            }
-            HomeAction.Novenas -> {
-                drawRoundRect(
-                    color = Color(0xFF163245),
-                    topLeft = Offset(size.width * 0.16f, size.height * 0.16f),
-                    size = Size(size.width * 0.42f, size.height * 0.58f),
-                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(size.minDimension * 0.12f)
-                )
-                repeat(2) { index ->
-                    drawLine(
-                        color = cyan.copy(alpha = 0.65f),
-                        start = Offset(size.width * 0.24f, size.height * (0.30f + 0.12f * index)),
-                        end = Offset(size.width * 0.46f, size.height * (0.30f + 0.12f * index)),
-                        strokeWidth = stroke * 0.8f,
-                        cap = StrokeCap.Round
-                    )
-                }
-                drawLine(gold, Offset(size.width * 0.36f, size.height * 0.54f), Offset(size.width * 0.36f, size.height * 0.72f), stroke, StrokeCap.Round)
-                drawLine(gold, Offset(size.width * 0.27f, size.height * 0.63f), Offset(size.width * 0.45f, size.height * 0.63f), stroke, StrokeCap.Round)
-                drawArc(
-                    color = Color(0xFFD9C49B),
-                    startAngle = -70f,
-                    sweepAngle = 150f,
-                    useCenter = false,
-                    topLeft = Offset(size.width * 0.58f, size.height * 0.14f),
-                    size = Size(size.width * 0.22f, size.height * 0.52f),
-                    style = Stroke(width = stroke * 0.72f, cap = StrokeCap.Round)
-                )
-                listOf(0.0f, 0.12f, 0.24f, 0.36f).forEach { fraction ->
-                    drawCircle(
-                        color = gold,
-                        radius = size.minDimension * 0.045f,
-                        center = Offset(size.width * 0.73f, size.height * (0.20f + fraction))
-                    )
-                }
-            }
-            HomeAction.Liturgical -> {
-                drawRoundRect(
-                    color = Color(0xFFAEC7F0),
-                    topLeft = Offset(size.width * 0.2f, size.height * 0.22f),
-                    size = Size(size.width * 0.6f, size.height * 0.52f),
-                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(size.minDimension * 0.12f)
-                )
-                drawRoundRect(
-                    color = Color(0xFF6D88B8),
-                    topLeft = Offset(size.width * 0.2f, size.height * 0.22f),
-                    size = Size(size.width * 0.6f, size.height * 0.16f)
-                )
-                drawLine(Color(0xFF50698F), Offset(size.width * 0.32f, size.height * 0.16f), Offset(size.width * 0.32f, size.height * 0.30f), stroke * 0.8f, StrokeCap.Round)
-                drawLine(Color(0xFF50698F), Offset(size.width * 0.68f, size.height * 0.16f), Offset(size.width * 0.68f, size.height * 0.30f), stroke * 0.8f, StrokeCap.Round)
-                drawLine(Color(0xFF50698F), Offset(size.width * 0.28f, size.height * 0.5f), Offset(size.width * 0.72f, size.height * 0.5f), stroke * 0.72f, StrokeCap.Round)
-            }
-            HomeAction.Prayers -> {
-                drawCircle(gold.copy(alpha = 0.4f), radius = size.minDimension * 0.26f, center = Offset(size.width * 0.58f, size.height * 0.24f))
-                drawOval(
-                    color = gold,
-                    topLeft = Offset(size.width * 0.48f, size.height * 0.12f),
-                    size = Size(size.width * 0.18f, size.height * 0.22f)
-                )
-                drawRoundRect(
-                    color = ivory,
-                    topLeft = Offset(size.width * 0.44f, size.height * 0.34f),
-                    size = Size(size.width * 0.18f, size.height * 0.4f),
-                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(size.minDimension * 0.04f)
-                )
-                drawLine(
-                    color = Color(0xFF244A5B),
-                    start = Offset(size.width * 0.53f, size.height * 0.40f),
-                    end = Offset(size.width * 0.53f, size.height * 0.64f),
-                    strokeWidth = stroke * 0.72f,
-                    cap = StrokeCap.Round
-                )
-                drawLine(
-                    color = Color(0xFF244A5B),
-                    start = Offset(size.width * 0.45f, size.height * 0.52f),
-                    end = Offset(size.width * 0.61f, size.height * 0.52f),
-                    strokeWidth = stroke * 0.72f,
-                    cap = StrokeCap.Round
-                )
-            }
-            HomeAction.Rosary -> {
-                drawArc(
-                    color = gold,
-                    startAngle = 205f,
-                    sweepAngle = 130f,
-                    useCenter = false,
-                    topLeft = Offset(size.width * 0.18f, size.height * 0.34f),
-                    size = Size(size.width * 0.64f, size.height * 0.42f),
-                    style = Stroke(width = stroke * 0.72f, cap = StrokeCap.Round)
-                )
-                listOf(0.18f, 0.28f, 0.39f, 0.50f, 0.61f, 0.72f, 0.82f).forEach { x ->
-                    drawCircle(gold, radius = size.minDimension * 0.035f, center = Offset(size.width * x, size.height * 0.58f))
-                }
-                drawLine(gold, Offset(center.x, size.height * 0.34f), Offset(center.x, size.height * 0.66f), stroke, StrokeCap.Round)
-                drawLine(gold, Offset(size.width * 0.36f, size.height * 0.50f), Offset(size.width * 0.64f, size.height * 0.50f), stroke, StrokeCap.Round)
-            }
-            HomeAction.Intentions -> {
-                val heart = androidx.compose.ui.graphics.Path().apply {
-                    moveTo(center.x, size.height * 0.72f)
-                    cubicTo(size.width * 0.18f, size.height * 0.54f, size.width * 0.16f, size.height * 0.28f, size.width * 0.34f, size.height * 0.28f)
-                    cubicTo(size.width * 0.46f, size.height * 0.28f, size.width * 0.5f, size.height * 0.38f, center.x, size.height * 0.44f)
-                    cubicTo(size.width * 0.5f, size.height * 0.38f, size.width * 0.54f, size.height * 0.28f, size.width * 0.66f, size.height * 0.28f)
-                    cubicTo(size.width * 0.84f, size.height * 0.28f, size.width * 0.82f, size.height * 0.54f, center.x, size.height * 0.72f)
-                    close()
-                }
-                drawPath(heart, rose.copy(alpha = 0.8f))
-                drawLine(Color.White.copy(alpha = 0.8f), Offset(center.x, size.height * 0.38f), Offset(center.x, size.height * 0.56f), stroke, StrokeCap.Round)
-                drawLine(Color.White.copy(alpha = 0.8f), Offset(size.width * 0.41f, size.height * 0.47f), Offset(size.width * 0.59f, size.height * 0.47f), stroke, StrokeCap.Round)
-            }
-            HomeAction.Daily -> {
-                drawCircle(gold.copy(alpha = 0.75f), radius = size.minDimension * 0.09f, center = Offset(size.width * 0.74f, size.height * 0.22f))
-                drawLine(gold, Offset(size.width * 0.5f, size.height * 0.12f), Offset(size.width * 0.5f, size.height * 0.34f), stroke, StrokeCap.Round)
-                drawLine(gold, Offset(size.width * 0.40f, size.height * 0.23f), Offset(size.width * 0.60f, size.height * 0.23f), stroke, StrokeCap.Round)
-                val pageColor = Color(0xFFE8DCC2)
-                drawArc(
-                    color = pageColor,
-                    startAngle = 180f,
-                    sweepAngle = 180f,
-                    useCenter = true,
-                    topLeft = Offset(size.width * 0.18f, size.height * 0.50f),
-                    size = Size(size.width * 0.32f, size.height * 0.18f)
-                )
-                drawArc(
-                    color = pageColor,
-                    startAngle = 180f,
-                    sweepAngle = 180f,
-                    useCenter = true,
-                    topLeft = Offset(size.width * 0.50f, size.height * 0.50f),
-                    size = Size(size.width * 0.32f, size.height * 0.18f)
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun HomeActionIllustration(
-    action: HomeAction,
-    modifier: Modifier = Modifier
-) {
-    Canvas(modifier = modifier) {
-        val gold = Color(0xFFF7DF91)
-        val cyan = Color(0xFF8EE0F2)
-        val rose = Color(0xFFF2ACC8)
-        val ivory = Color(0xFFF2E8D0)
-        val navy = Color(0xFF102E3D)
-        val deep = Color(0xFF243949)
-        val stroke = size.minDimension * 0.035f
-        val center = Offset(size.width / 2f, size.height / 2f)
-
-        val scaleFactor = when (action) {
-            HomeAction.Saints, HomeAction.Patronage -> 1.22f
-            HomeAction.Novenas -> 1.20f
-            HomeAction.Liturgical -> 1.16f
-            HomeAction.Prayers -> 1.18f
-            HomeAction.Rosary -> 1.18f
-            HomeAction.Intentions -> 1.16f
-            HomeAction.Daily -> 1.20f
-        }
-        val offsetX = when (action) {
-            HomeAction.Saints, HomeAction.Patronage -> -size.width * 0.035f
-            HomeAction.Novenas -> -size.width * 0.03f
-            HomeAction.Liturgical -> -size.width * 0.02f
-            HomeAction.Prayers -> -size.width * 0.02f
-            HomeAction.Rosary -> -size.width * 0.02f
-            HomeAction.Intentions -> -size.width * 0.02f
-            HomeAction.Daily -> -size.width * 0.02f
-        }
-        val offsetY = when (action) {
-            HomeAction.Saints, HomeAction.Patronage -> size.height * 0.01f
-            HomeAction.Novenas -> size.height * 0.015f
-            HomeAction.Liturgical -> size.height * 0.01f
-            HomeAction.Prayers -> size.height * 0.01f
-            HomeAction.Rosary -> size.height * 0.01f
-            HomeAction.Intentions -> size.height * 0.01f
-            HomeAction.Daily -> size.height * 0.015f
-        }
-
-        withTransform({
-            translate(left = offsetX, top = offsetY)
-            scale(scaleX = scaleFactor, scaleY = scaleFactor, pivot = center)
-        }) {
-        when (action) {
-            HomeAction.Saints, HomeAction.Patronage -> {
-                drawCircle(gold.copy(alpha = 0.35f), radius = size.minDimension * 0.34f, center = Offset(size.width * 0.64f, size.height * 0.26f))
-                drawPath(
-                    path = androidx.compose.ui.graphics.Path().apply {
-                        moveTo(size.width * 0.16f, size.height * 0.82f)
-                        quadraticBezierTo(size.width * 0.50f, size.height * 0.62f, size.width * 0.84f, size.height * 0.82f)
-                        lineTo(size.width * 0.84f, size.height)
-                        lineTo(size.width * 0.16f, size.height)
-                        close()
-                    },
-                    color = Color(0xFF2A5E72)
-                )
-                drawCircle(Color(0xFFD9C49B), radius = size.minDimension * 0.17f, center = Offset(size.width * 0.64f, size.height * 0.30f))
-                drawPath(
-                    path = androidx.compose.ui.graphics.Path().apply {
-                        moveTo(size.width * 0.48f, size.height * 0.28f)
-                        quadraticBezierTo(size.width * 0.54f, size.height * 0.08f, size.width * 0.82f, size.height * 0.20f)
-                        lineTo(size.width * 0.82f, size.height * 0.30f)
-                        close()
-                    },
-                    color = deep
-                )
-                drawLine(gold, Offset(size.width * 0.64f, size.height * 0.10f), Offset(size.width * 0.64f, size.height * 0.40f), stroke * 1.2f, StrokeCap.Round)
-                drawLine(gold, Offset(size.width * 0.50f, size.height * 0.25f), Offset(size.width * 0.78f, size.height * 0.25f), stroke * 1.2f, StrokeCap.Round)
-                drawLine(cyan.copy(alpha = 0.45f), Offset(size.width * 0.14f, size.height * 0.88f), Offset(size.width * 0.45f, size.height * 0.78f), stroke * 1.1f, StrokeCap.Round)
-                drawLine(gold.copy(alpha = 0.38f), Offset(size.width * 0.70f, size.height * 0.76f), Offset(size.width * 0.92f, size.height * 0.86f), stroke * 1.1f, StrokeCap.Round)
-            }
-            HomeAction.Novenas -> {
-                drawRoundRect(
-                    color = Color(0xFF102D3D),
-                    topLeft = Offset(size.width * 0.12f, size.height * 0.16f),
-                    size = Size(size.width * 0.34f, size.height * 0.54f),
-                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(size.minDimension * 0.10f)
-                )
-                drawLine(cyan.copy(alpha = 0.42f), Offset(size.width * 0.18f, size.height * 0.28f), Offset(size.width * 0.40f, size.height * 0.28f), stroke, StrokeCap.Round)
-                drawLine(Color.White.copy(alpha = 0.22f), Offset(size.width * 0.18f, size.height * 0.42f), Offset(size.width * 0.36f, size.height * 0.42f), stroke * 0.9f, StrokeCap.Round)
-                drawLine(Color.White.copy(alpha = 0.18f), Offset(size.width * 0.18f, size.height * 0.54f), Offset(size.width * 0.38f, size.height * 0.54f), stroke * 0.9f, StrokeCap.Round)
-                drawLine(gold, Offset(size.width * 0.29f, size.height * 0.58f), Offset(size.width * 0.29f, size.height * 0.76f), stroke, StrokeCap.Round)
-                drawLine(gold, Offset(size.width * 0.20f, size.height * 0.67f), Offset(size.width * 0.38f, size.height * 0.67f), stroke, StrokeCap.Round)
-                drawArc(
-                    color = Color(0xFFD9C49B),
-                    startAngle = -70f,
-                    sweepAngle = 170f,
-                    useCenter = false,
-                    topLeft = Offset(size.width * 0.56f, size.height * 0.12f),
-                    size = Size(size.width * 0.24f, size.height * 0.62f),
-                    style = Stroke(width = stroke * 0.9f, cap = StrokeCap.Round)
-                )
-                listOf(0.0f, 0.12f, 0.24f, 0.36f, 0.52f).forEach { fraction ->
-                    drawCircle(gold, radius = size.minDimension * 0.03f, center = Offset(size.width * 0.70f, size.height * (0.16f + fraction)))
-                }
-                drawLine(gold, Offset(size.width * 0.70f, size.height * 0.70f), Offset(size.width * 0.70f, size.height * 0.88f), stroke, StrokeCap.Round)
-                drawLine(gold, Offset(size.width * 0.61f, size.height * 0.79f), Offset(size.width * 0.79f, size.height * 0.79f), stroke, StrokeCap.Round)
-                drawArc(
-                    color = cyan.copy(alpha = 0.55f),
-                    startAngle = -68f,
-                    sweepAngle = 145f,
-                    useCenter = false,
-                    topLeft = Offset(size.width * 0.76f, size.height * 0.22f),
-                    size = Size(size.width * 0.18f, size.height * 0.44f),
-                    style = Stroke(width = stroke * 0.8f, cap = StrokeCap.Round)
-                )
-            }
-            HomeAction.Liturgical -> {
-                drawRoundRect(
-                    color = Color(0xFF9CB9E0),
-                    topLeft = Offset(size.width * 0.26f, size.height * 0.20f),
-                    size = Size(size.width * 0.34f, size.height * 0.40f),
-                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(size.minDimension * 0.08f)
-                )
-                drawRoundRect(
-                    color = Color(0xFF6E86B1),
-                    topLeft = Offset(size.width * 0.26f, size.height * 0.20f),
-                    size = Size(size.width * 0.34f, size.height * 0.12f)
-                )
-                drawLine(Color(0xFF50698F), Offset(size.width * 0.34f, size.height * 0.14f), Offset(size.width * 0.34f, size.height * 0.28f), stroke * 0.8f, StrokeCap.Round)
-                drawLine(Color(0xFF50698F), Offset(size.width * 0.52f, size.height * 0.14f), Offset(size.width * 0.52f, size.height * 0.28f), stroke * 0.8f, StrokeCap.Round)
-                drawLine(Color(0xFF50698F), Offset(size.width * 0.30f, size.height * 0.42f), Offset(size.width * 0.56f, size.height * 0.42f), stroke * 0.7f, StrokeCap.Round)
-            }
-            HomeAction.Prayers -> {
-                drawCircle(gold.copy(alpha = 0.30f), radius = size.minDimension * 0.30f, center = Offset(size.width * 0.56f, size.height * 0.22f))
-                drawOval(gold, Offset(size.width * 0.44f, size.height * 0.10f), Size(size.width * 0.14f, size.height * 0.18f))
-                drawRoundRect(
-                    color = ivory,
-                    topLeft = Offset(size.width * 0.42f, size.height * 0.30f),
-                    size = Size(size.width * 0.12f, size.height * 0.42f),
-                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(size.minDimension * 0.04f)
-                )
-                drawLine(Color(0xFF2C5363), Offset(size.width * 0.48f, size.height * 0.36f), Offset(size.width * 0.48f, size.height * 0.62f), stroke, StrokeCap.Round)
-                drawLine(Color(0xFF2C5363), Offset(size.width * 0.40f, size.height * 0.49f), Offset(size.width * 0.56f, size.height * 0.49f), stroke, StrokeCap.Round)
-                drawLine(cyan.copy(alpha = 0.35f), Offset(size.width * 0.14f, size.height * 0.78f), Offset(size.width * 0.48f, size.height * 0.70f), stroke * 1.1f, StrokeCap.Round)
-                drawLine(rose.copy(alpha = 0.40f), Offset(size.width * 0.56f, size.height * 0.70f), Offset(size.width * 0.86f, size.height * 0.78f), stroke * 1.1f, StrokeCap.Round)
-            }
-            HomeAction.Rosary -> {
-                drawCircle(gold.copy(alpha = 0.24f), radius = size.minDimension * 0.32f, center = Offset(size.width * 0.60f, size.height * 0.24f))
-                drawArc(
-                    color = cyan.copy(alpha = 0.42f),
-                    startAngle = 200f,
-                    sweepAngle = 140f,
-                    useCenter = false,
-                    topLeft = Offset(size.width * 0.18f, size.height * 0.36f),
-                    size = Size(size.width * 0.68f, size.height * 0.40f),
-                    style = Stroke(width = stroke * 1.1f, cap = StrokeCap.Round)
-                )
-                listOf(0.18f, 0.28f, 0.39f, 0.50f, 0.61f, 0.72f, 0.82f).forEach { x ->
-                    drawCircle(gold, radius = size.minDimension * 0.034f, center = Offset(size.width * x, size.height * 0.58f))
-                }
-                drawLine(gold, Offset(size.width * 0.50f, size.height * 0.28f), Offset(size.width * 0.50f, size.height * 0.64f), stroke * 1.1f, StrokeCap.Round)
-                drawLine(gold, Offset(size.width * 0.38f, size.height * 0.46f), Offset(size.width * 0.62f, size.height * 0.46f), stroke * 1.1f, StrokeCap.Round)
-                drawLine(gold, Offset(size.width * 0.50f, size.height * 0.72f), Offset(size.width * 0.50f, size.height * 0.88f), stroke, StrokeCap.Round)
-                drawLine(gold, Offset(size.width * 0.42f, size.height * 0.80f), Offset(size.width * 0.58f, size.height * 0.80f), stroke, StrokeCap.Round)
-            }
-            HomeAction.Intentions -> {
-                val heart = androidx.compose.ui.graphics.Path().apply {
-                    moveTo(size.width * 0.50f, size.height * 0.74f)
-                    cubicTo(size.width * 0.24f, size.height * 0.56f, size.width * 0.22f, size.height * 0.24f, size.width * 0.38f, size.height * 0.24f)
-                    cubicTo(size.width * 0.46f, size.height * 0.24f, size.width * 0.50f, size.height * 0.34f, size.width * 0.50f, size.height * 0.40f)
-                    cubicTo(size.width * 0.50f, size.height * 0.34f, size.width * 0.54f, size.height * 0.24f, size.width * 0.62f, size.height * 0.24f)
-                    cubicTo(size.width * 0.78f, size.height * 0.24f, size.width * 0.76f, size.height * 0.56f, size.width * 0.50f, size.height * 0.74f)
-                    close()
-                }
-                drawPath(heart, rose.copy(alpha = 0.72f))
-                drawLine(Color.White.copy(alpha = 0.72f), Offset(size.width * 0.50f, size.height * 0.34f), Offset(size.width * 0.50f, size.height * 0.56f), stroke * 1.1f, StrokeCap.Round)
-                drawLine(Color.White.copy(alpha = 0.72f), Offset(size.width * 0.40f, size.height * 0.45f), Offset(size.width * 0.60f, size.height * 0.45f), stroke * 1.1f, StrokeCap.Round)
-                drawCircle(gold.copy(alpha = 0.76f), radius = size.minDimension * 0.04f, center = Offset(size.width * 0.20f, size.height * 0.70f))
-                drawCircle(cyan.copy(alpha = 0.70f), radius = size.minDimension * 0.03f, center = Offset(size.width * 0.82f, size.height * 0.18f))
-                drawLine(cyan.copy(alpha = 0.32f), Offset(size.width * 0.12f, size.height * 0.82f), Offset(size.width * 0.86f, size.height * 0.76f), stroke * 1.1f, StrokeCap.Round)
-            }
-            HomeAction.Daily -> {
-                drawCircle(gold.copy(alpha = 0.72f), radius = size.minDimension * 0.09f, center = Offset(size.width * 0.78f, size.height * 0.18f))
-                drawLine(gold, Offset(size.width * 0.54f, size.height * 0.18f), Offset(size.width * 0.54f, size.height * 0.44f), stroke * 1.1f, StrokeCap.Round)
-                drawLine(gold, Offset(size.width * 0.42f, size.height * 0.31f), Offset(size.width * 0.66f, size.height * 0.31f), stroke * 1.1f, StrokeCap.Round)
-                drawArc(
-                    color = Color(0xFFE8DCC2),
-                    startAngle = 180f,
-                    sweepAngle = 180f,
-                    useCenter = true,
-                    topLeft = Offset(size.width * 0.14f, size.height * 0.58f),
-                    size = Size(size.width * 0.28f, size.height * 0.18f)
-                )
-                drawArc(
-                    color = Color(0xFFE8DCC2),
-                    startAngle = 180f,
-                    sweepAngle = 180f,
-                    useCenter = true,
-                    topLeft = Offset(size.width * 0.42f, size.height * 0.58f),
-                    size = Size(size.width * 0.28f, size.height * 0.18f)
-                )
-                drawLine(Color(0xFF2B5663).copy(alpha = 0.44f), Offset(size.width * 0.20f, size.height * 0.66f), Offset(size.width * 0.38f, size.height * 0.66f), stroke * 0.7f, StrokeCap.Round)
-                drawLine(Color(0xFF2B5663).copy(alpha = 0.44f), Offset(size.width * 0.48f, size.height * 0.66f), Offset(size.width * 0.66f, size.height * 0.66f), stroke * 0.7f, StrokeCap.Round)
-            }
-        }
-        }
-    }
-}
-
-@Composable
 private fun LoadingCard() {
     val l10n = sanctuaryStrings()
     Card(
         border = BorderStroke(1.dp, SanctuaryCardBorder),
-        modifier = Modifier.shadow(12.dp, RoundedCornerShape(24.dp), clip = false),
+        modifier = Modifier.shadow(3.dp, RoundedCornerShape(24.dp), clip = false),
         colors = CardDefaults.cardColors(containerColor = SanctuaryCard),
         shape = RoundedCornerShape(24.dp)
     ) {
@@ -3466,11 +2938,11 @@ private fun LoadingCard() {
         ) {
             CircularProgressIndicator(
                 modifier = Modifier.size(20.dp),
-                color = Color(0xFF7AC8EA),
+                color = SanctuaryTabActive,
                 strokeWidth = 2.dp
             )
             Spacer(modifier = Modifier.size(12.dp))
-            Text(l10n.t("common.loading"), color = Color.White)
+            Text(l10n.t("common.loading"), color = SanctuaryText)
         }
     }
 }
@@ -3482,8 +2954,8 @@ private fun ProfileMetric(label: String, value: Any) {
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(label, color = Color(0xFFBCC9D6))
-        Text(value.toString(), color = Color.White, fontWeight = FontWeight.SemiBold)
+        Text(label, color = SanctuaryMuted)
+        Text(value.toString(), color = SanctuaryText, fontWeight = FontWeight.SemiBold)
     }
 }
 
@@ -3502,7 +2974,7 @@ private fun SearchCard(
         shape = RoundedCornerShape(24.dp)
     ) {
         Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text(title, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+            Text(title, color = SanctuaryText, fontWeight = FontWeight.Bold, fontSize = 20.sp)
             TextFieldBlock(label = l10n.t("search.field"), value = query, onValueChange = onQueryChanged)
             PrimaryButton(l10n.t("common.search"), false, onClick = onSubmit)
         }
@@ -3548,14 +3020,14 @@ private fun ContentCard(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text(title, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 18.sp)
+                Text(title, color = SanctuaryText, fontWeight = FontWeight.SemiBold, fontSize = 18.sp)
                 detail?.takeIf { it.isNotBlank() }?.let {
-                    Text(it, color = Color(0xFF7AC8EA), style = MaterialTheme.typography.labelLarge)
+                    Text(it, color = SanctuaryTabActive, style = MaterialTheme.typography.labelLarge)
                 }
                 subtitle?.takeIf { it.isNotBlank() }?.let {
                     Text(
                         text = it,
-                        color = Color(0xFFD0DFEA),
+                        color = SanctuaryMuted,
                         maxLines = 3,
                         overflow = TextOverflow.Ellipsis,
                         lineHeight = 20.sp
@@ -3565,7 +3037,7 @@ private fun ContentCard(
             Icon(
                 imageVector = Icons.Filled.SouthEast,
                 contentDescription = null,
-                tint = Color(0xFFBCC9D6)
+                tint = SanctuaryMuted
             )
         }
     }
@@ -3597,7 +3069,7 @@ private fun ThumbnailStack(
                     .size(58.dp)
                     .align(Alignment.CenterStart)
                     .offset(x = (index * 12).dp, y = (index * 4).dp)
-                    .border(2.dp, Color(0xFF183246), RoundedCornerShape(16.dp)),
+                    .border(2.dp, SanctuaryCardBorder, RoundedCornerShape(16.dp)),
                 shape = RoundedCornerShape(16.dp)
             )
         }
@@ -3618,8 +3090,8 @@ private fun DetailSheetScaffold(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         if (showHeading) {
-            Text(title, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 34.sp, lineHeight = 39.sp)
-            if (!subtitle.isNullOrBlank()) Text(subtitle, color = Color(0xFF8BD7EC))
+            Text(title, color = SanctuaryText, fontWeight = FontWeight.Bold, fontSize = 34.sp, lineHeight = 39.sp)
+            if (!subtitle.isNullOrBlank()) Text(subtitle, color = SanctuaryTabActive)
         }
         content()
         Spacer(modifier = Modifier.height(24.dp))
@@ -3631,6 +3103,7 @@ private fun SanctuaryModalSheet(
     onDismissRequest: () -> Unit,
     heroContent: Boolean = false,
     scrollContent: Boolean = true,
+    showBackButton: Boolean = true,
     content: @Composable ColumnScope.() -> Unit
 ) {
     Dialog(
@@ -3666,9 +3139,9 @@ private fun SanctuaryModalSheet(
             ) {
                 content()
             }
-            Surface(
+            if (showBackButton) Surface(
         border = BorderStroke(1.dp, SanctuaryCardBorder),
-                color = Color(0xCC102232),
+                color = SanctuaryCardSoft,
                 shape = CircleShape,
                 modifier = Modifier
                     .align(Alignment.TopStart)
@@ -3677,7 +3150,7 @@ private fun SanctuaryModalSheet(
                 Icon(
                     imageVector = Icons.Filled.ArrowBack,
                     contentDescription = "Back",
-                    tint = Color.White,
+                    tint = SanctuaryText,
                     modifier = Modifier
                         .size(42.dp)
                         .clickable(onClick = onDismissRequest)
@@ -3722,7 +3195,7 @@ private fun SaintDetailSheet(
     ) {
         if (!detail.imageUrl.isNullOrBlank()) ContentHeroImage(detail.imageUrl, detail.name)
         DetailSectionCard(title = detail.name, prominentTitle = true) {
-            Text(detail.feastLabel, color = Color(0xFF8BD7EC), fontSize = 14.sp)
+            Text(detail.feastLabel, color = SanctuaryTabActive, fontSize = 14.sp)
 
         Button(
             border = BorderStroke(1.dp, SanctuaryCardBorder),
@@ -3742,13 +3215,13 @@ private fun SaintDetailSheet(
                 }
             },
             colors = ButtonDefaults.buttonColors(
-                containerColor = if (isFavorite) Color(0xFF2B728D) else SanctuaryCardSoft,
-                contentColor = Color.White
+                containerColor = if (isFavorite) SanctuaryBlue else SanctuaryCardSoft,
+                contentColor = if (isFavorite) SanctuaryOnAccent else SanctuaryText
             ),
             shape = RoundedCornerShape(99.dp),
             modifier = Modifier.wrapContentWidth(Alignment.Start)
         ) {
-            Icon(if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder, contentDescription = null, tint = Color.White)
+            Icon(if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder, contentDescription = null, tint = if (isFavorite) SanctuaryOnAccent else SanctuaryText)
             Spacer(Modifier.width(8.dp))
             Text(if (isFavorite) l10n.t("detail.favorite.saved") else l10n.t("detail.favorite.add"))
         }
@@ -3764,7 +3237,7 @@ private fun SaintDetailSheet(
             },
             colors = ButtonDefaults.buttonColors(
                 containerColor = SanctuaryCardSoft,
-                contentColor = Color.White
+                contentColor = SanctuaryText
             ),
             shape = RoundedCornerShape(99.dp),
             modifier = Modifier.wrapContentWidth(Alignment.Start)
@@ -3772,7 +3245,7 @@ private fun SaintDetailSheet(
             Icon(
                 imageVector = Icons.Filled.Share,
                 contentDescription = null,
-                tint = Color.White
+                tint = SanctuaryText
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text("Share")
@@ -3782,19 +3255,19 @@ private fun SaintDetailSheet(
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     }
         detail.patronages.forEach { patronage ->
-                        Text("• $patronage", color = Color(0xFFD0DFEA), lineHeight = 20.sp)
+                        Text("• $patronage", color = SanctuaryMuted, lineHeight = 20.sp)
                     }
                 }
             }
         }
         detail.summary?.takeIf { it.isNotBlank() }?.let { summary ->
             DetailSectionCard(title = l10n.t("detail.summary")) {
-                Text(summary, color = Color(0xFFD0DFEA), lineHeight = 22.sp)
+                Text(summary, color = SanctuaryMuted, lineHeight = 22.sp)
             }
         }
         detail.biography?.takeIf { it.isNotBlank() }?.let { biography ->
             DetailSectionCard(title = l10n.t("detail.biography")) {
-                Text(biography, color = Color(0xFFD0DFEA), lineHeight = 22.sp)
+                Text(biography, color = SanctuaryMuted, lineHeight = 22.sp)
             }
         }
     }
@@ -3879,13 +3352,13 @@ private fun NovenaDetailSheet(
                 }
             },
             colors = ButtonDefaults.buttonColors(
-                containerColor = if (isFavorite) Color(0xFF2B728D) else SanctuaryCardSoft,
-                contentColor = Color.White
+                containerColor = if (isFavorite) SanctuaryBlue else SanctuaryCardSoft,
+                contentColor = if (isFavorite) SanctuaryOnAccent else SanctuaryText
             ),
             shape = RoundedCornerShape(99.dp),
             modifier = Modifier.wrapContentWidth(Alignment.Start)
         ) {
-            Icon(if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder, contentDescription = null, tint = Color.White)
+            Icon(if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder, contentDescription = null, tint = if (isFavorite) SanctuaryOnAccent else SanctuaryText)
             Spacer(Modifier.width(8.dp))
             Text(if (isFavorite) l10n.t("detail.favorite.saved") else l10n.t("detail.favorite.add"))
         }
@@ -3905,7 +3378,7 @@ private fun NovenaDetailSheet(
             },
             colors = ButtonDefaults.buttonColors(
                 containerColor = SanctuaryCardSoft,
-                contentColor = Color.White
+                contentColor = SanctuaryText
             ),
             shape = RoundedCornerShape(99.dp),
             modifier = Modifier.wrapContentWidth(Alignment.Start)
@@ -3913,7 +3386,7 @@ private fun NovenaDetailSheet(
             Icon(
                 imageVector = Icons.Filled.Share,
                 contentDescription = null,
-                tint = Color.White
+                tint = SanctuaryText
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text("Share")
@@ -3926,7 +3399,7 @@ private fun NovenaDetailSheet(
         }
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             detail.description.takeIf { it.isNotBlank() }?.let {
-                Text(it, color = Color.White, lineHeight = 24.sp)
+                Text(it, color = SanctuaryText, lineHeight = 24.sp)
             }
         }
         }
@@ -3934,7 +3407,7 @@ private fun NovenaDetailSheet(
             DetailSectionCard(title = l10n.t("detail.intentions")) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     detail.intentions.forEach { intention ->
-                        Text("• $intention", color = Color(0xFFD0DFEA), lineHeight = 20.sp)
+                        Text("• $intention", color = SanctuaryMuted, lineHeight = 20.sp)
                     }
                 }
             }
@@ -3957,14 +3430,14 @@ private fun NovenaDetailSheet(
                     onClick = { selectedDay = day.dayNumber },
                     shape = RoundedCornerShape(22.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = if (active) Color(0xFF2B728D) else Color(0xFF20384B),
-                        contentColor = Color.White
+                        containerColor = if (active) SanctuaryBlue else SanctuaryCardSoft,
+                        contentColor = if (active) SanctuaryOnAccent else SanctuaryText
                     ),
                     contentPadding = PaddingValues(vertical = 12.dp, horizontal = 8.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(l10n.t("calendar.dayLabel"), fontSize = 12.sp, color = Color.White.copy(alpha = 0.78f))
+                        Text(l10n.t("calendar.dayLabel"), fontSize = 12.sp, color = if (active) SanctuaryOnAccent.copy(alpha = 0.85f) else SanctuaryMuted)
                         Text("${day.dayNumber}", fontWeight = FontWeight.Bold, fontSize = 20.sp)
                     }
                 }
@@ -3993,27 +3466,27 @@ private fun NovenaDetailSheet(
 
         DetailSectionCard(title = "${l10n.t("calendar.dayNumberPrefix")} $selectedDay") {
             if (selectedDayDetail == null) {
-                Text(l10n.t("detail.noDayContent"), color = Color(0xFFD0DFEA), lineHeight = 22.sp)
+                Text(l10n.t("detail.noDayContent"), color = SanctuaryMuted, lineHeight = 22.sp)
             } else if (!selectedDayDetail.hasVisibleDayContent()) {
-                Text(l10n.t("detail.noDayContent"), color = Color(0xFFD0DFEA), lineHeight = 22.sp)
+                Text(l10n.t("detail.noDayContent"), color = SanctuaryMuted, lineHeight = 22.sp)
             } else {
                 selectedDayDetail.title?.takeIf { it.isNotBlank() }?.let {
-                    Text(it, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 22.sp, lineHeight = 26.sp)
+                    Text(it, color = SanctuaryText, fontWeight = FontWeight.Bold, fontSize = 22.sp, lineHeight = 26.sp)
                 }
                 selectedDayDetail.scripture?.takeIf { it.isNotBlank() }?.let {
                     DetailSectionLabel(l10n.t("detail.scripture"))
-                    Text(it, color = Color(0xFFD0DFEA), lineHeight = 22.sp)
+                    Text(it, color = SanctuaryMuted, lineHeight = 22.sp)
                 }
                 selectedDayDetail.prayer?.takeIf { it.isNotBlank() }?.let {
                     DetailSectionLabel(l10n.t("detail.prayer"))
-                    Text(it, color = Color(0xFFD0DFEA), lineHeight = 22.sp)
+                    Text(it, color = SanctuaryMuted, lineHeight = 22.sp)
                 }
                 selectedDayDetail.reflection?.takeIf { it.isNotBlank() }?.let {
                     DetailSectionLabel(l10n.t("detail.reflection"))
-                    Text(it, color = Color(0xFFD0DFEA), lineHeight = 22.sp)
+                    Text(it, color = SanctuaryMuted, lineHeight = 22.sp)
                 }
                 selectedDayDetail.body?.takeIf { selectedDayDetail.hasFallbackBodyContent() && it.isNotBlank() }?.let {
-                    Text(it, color = Color(0xFFD0DFEA), lineHeight = 22.sp)
+                    Text(it, color = SanctuaryMuted, lineHeight = 22.sp)
                 }
             }
         }
@@ -4023,11 +3496,11 @@ private fun NovenaDetailSheet(
                 border = BorderStroke(1.dp, SanctuaryCardBorder),
                 onClick = { onCompleteDay(detail.id, detail.durationDays) },
                 enabled = latestCommitment?.status != CommitmentStatus.Completed && detail.id !in progress.pendingNovenaCompletions,
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2B728D)),
+                colors = ButtonDefaults.buttonColors(containerColor = SanctuaryBlue),
                 shape = RoundedCornerShape(18.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(completionLabel, color = Color.White)
+                Text(completionLabel, color = SanctuaryOnAccent)
             }
         }
 
@@ -4077,7 +3550,7 @@ private fun PrayerDetailSheet(
             if (canExpandHeroImage) {
                 Surface(
         border = BorderStroke(1.dp, SanctuaryCardBorder),
-                    color = Color(0xCC102232),
+                    color = SanctuaryCardSoft,
                     shape = CircleShape,
                     modifier = Modifier
                         .align(Alignment.TopEnd)
@@ -4086,7 +3559,7 @@ private fun PrayerDetailSheet(
                     Icon(
                         imageVector = Icons.Filled.SouthEast,
                         contentDescription = null,
-                        tint = Color.White,
+                        tint = SanctuaryText,
                         modifier = Modifier
                             .size(34.dp)
                             .padding(8.dp)
@@ -4114,8 +3587,8 @@ private fun PrayerDetailSheet(
                     }
                 },
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isFavorite) Color(0xFF2B728D) else SanctuaryCardSoft,
-                    contentColor = Color.White
+                    containerColor = if (isFavorite) SanctuaryBlue else SanctuaryCardSoft,
+                    contentColor = if (isFavorite) SanctuaryOnAccent else SanctuaryText
                 ),
                 shape = RoundedCornerShape(99.dp),
                 modifier = Modifier.wrapContentWidth(Alignment.Start)
@@ -4123,7 +3596,7 @@ private fun PrayerDetailSheet(
                 Icon(
                     imageVector = if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
                     contentDescription = null,
-                    tint = Color.White
+                    tint = if (isFavorite) SanctuaryOnAccent else SanctuaryText
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(if (isFavorite) l10n.t("detail.favorite.saved") else l10n.t("detail.favorite.add"))
@@ -4144,7 +3617,7 @@ private fun PrayerDetailSheet(
                 },
                 colors = ButtonDefaults.buttonColors(
                     containerColor = SanctuaryCardSoft,
-                    contentColor = Color.White
+                    contentColor = SanctuaryText
                 ),
                 shape = RoundedCornerShape(99.dp),
                 modifier = Modifier.wrapContentWidth(Alignment.Start)
@@ -4152,17 +3625,17 @@ private fun PrayerDetailSheet(
                 Icon(
                     imageVector = Icons.Filled.Share,
                     contentDescription = null,
-                    tint = Color.White
+                    tint = SanctuaryText
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text("Share")
             }
             detail.note?.takeIf { it.isNotBlank() }?.let {
-                Text(it, color = Color(0xFFD0DFEA), lineHeight = 22.sp)
+                Text(it, color = SanctuaryMuted, lineHeight = 22.sp)
             }
         }
         DetailSectionCard(title = l10n.t("detail.prayer")) {
-            Text(bodyText, color = Color(0xFFD0DFEA), lineHeight = 24.sp)
+            Text(bodyText, color = SanctuaryMuted, lineHeight = 24.sp)
         }
     }
 
@@ -4220,7 +3693,7 @@ private fun ExpandedPrayerImageDialog(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.94f))
+                .background(SanctuaryHeroBase)
                 .clickable { onDismiss() },
             contentAlignment = Alignment.Center
         ) {
@@ -4275,7 +3748,7 @@ private fun DetailSectionCard(
             modifier = Modifier.padding(18.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Text(title, color = Color.White, fontWeight = FontWeight.Bold, fontSize = if (prominentTitle) 40.sp else 22.sp, lineHeight = if (prominentTitle) 44.sp else 28.sp)
+            Text(title, color = SanctuaryText, fontWeight = FontWeight.Bold, fontSize = if (prominentTitle) 40.sp else 22.sp, lineHeight = if (prominentTitle) 44.sp else 28.sp)
             if (!prominentTitle) Box(Modifier.fillMaxWidth().height(1.dp).background(SanctuaryCardBorder))
             content()
         }
@@ -4286,7 +3759,7 @@ private fun DetailSectionCard(
 private fun DetailSectionLabel(text: String) {
     Text(
         text = text,
-        color = Color(0xFF7AC8EA),
+        color = SanctuaryTabActive,
         fontWeight = FontWeight.SemiBold,
         fontSize = 15.sp
     )
@@ -4294,9 +3767,9 @@ private fun DetailSectionLabel(text: String) {
 
 private fun AppTab.icon(): ImageVector = when (this) {
     AppTab.Home -> Icons.Filled.Home
-    AppTab.Novenas -> Icons.Filled.CalendarMonth
+    AppTab.Novenas -> Icons.Filled.MenuBook
     AppTab.Liturgical -> Icons.Filled.CalendarMonth
-    AppTab.Saints -> Icons.Filled.CalendarMonth
+    AppTab.Saints -> Icons.Filled.People
     AppTab.Me -> Icons.Filled.Person
 }
 
@@ -4319,11 +3792,11 @@ private fun InlineLoading(message: String) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         CircularProgressIndicator(
             modifier = Modifier.size(18.dp),
-            color = Color(0xFF7AC8EA),
+            color = SanctuaryTabActive,
             strokeWidth = 2.dp
         )
         Spacer(modifier = Modifier.size(10.dp))
-        Text(message, color = Color(0xFFD0DFEA))
+        Text(message, color = SanctuaryMuted)
     }
 }
 
@@ -4336,8 +3809,8 @@ private fun SectionHint(title: String, body: String) {
         shape = RoundedCornerShape(22.dp)
     ) {
         Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(title, color = Color.White, fontWeight = FontWeight.SemiBold)
-            Text(body, color = Color(0xFFD0DFEA), lineHeight = 22.sp)
+            Text(title, color = SanctuaryText, fontWeight = FontWeight.SemiBold)
+            Text(body, color = SanctuaryMuted, lineHeight = 22.sp)
         }
     }
 }
@@ -4363,7 +3836,7 @@ private fun ThumbnailImage(
                 .clip(shape)
                 .background(
                     brush = Brush.linearGradient(
-                        listOf(Color(0xFF385E77), SanctuaryCardSoft)
+                        listOf(SanctuaryCardSoft, SanctuaryCardSoft)
                     )
                 ),
             contentAlignment = Alignment.Center
@@ -4371,7 +3844,7 @@ private fun ThumbnailImage(
             Icon(
                 imageVector = Icons.Filled.MenuBook,
                 contentDescription = null,
-                tint = Color.White.copy(alpha = 0.7f),
+                tint = SanctuaryMuted,
                 modifier = Modifier.size(28.dp)
             )
         }
@@ -4424,7 +3897,7 @@ private fun TermSearchSheet(
         when {
             state.isLoading -> InlineLoading(l10n.t("inline.loading"))
             state.error != null -> Banner(state.error, isError = true)
-            state.selectedTerm == null && state.terms.isEmpty() -> Text(title, color = Color(0xFFD0DFEA))
+            state.selectedTerm == null && state.terms.isEmpty() -> Text(title, color = SanctuaryMuted)
             state.selectedTerm == null -> LazyColumn(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -4442,7 +3915,7 @@ private fun TermSearchSheet(
                     )
                 }
             }
-            mode == TermSearchMode.Intentions && state.novenas.isEmpty() -> Text(title, color = Color(0xFFD0DFEA))
+            mode == TermSearchMode.Intentions && state.novenas.isEmpty() -> Text(title, color = SanctuaryMuted)
             mode == TermSearchMode.Intentions -> LazyColumn(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -4460,7 +3933,7 @@ private fun TermSearchSheet(
                     )
                 }
             }
-            state.saints.isEmpty() -> Text(title, color = Color(0xFFD0DFEA))
+            state.saints.isEmpty() -> Text(title, color = SanctuaryMuted)
             else -> LazyColumn(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -4502,6 +3975,7 @@ private fun <T> SearchListSheet(
     error: String?,
     emptyLabel: String,
     items: List<T>,
+    showSearch: Boolean = true,
     itemContent: @Composable (T) -> Unit
 ) {
     val l10n = sanctuaryStrings()
@@ -4511,6 +3985,7 @@ private fun <T> SearchListSheet(
     }
 
     DetailSheetScaffold(title = title) {
+        if (showSearch) {
         SearchCard(
             title = title,
             query = query,
@@ -4519,14 +3994,18 @@ private fun <T> SearchListSheet(
         )
         Text(
             text = "${items.size} ${l10n.t("search.results")}",
-            color = Color.White.copy(alpha = 0.92f),
+            color = SanctuaryText.copy(alpha = 0.92f),
             fontWeight = FontWeight.Medium,
             fontSize = 17.sp
         )
+        }
         when {
             isLoading -> InlineLoading(l10n.t("inline.loading"))
-            error != null -> Banner(error, isError = true)
-            items.isEmpty() -> Text(emptyLabel, color = Color(0xFFD0DFEA))
+            error != null -> Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Banner(error, isError = true)
+                TextButton(onClick = onSubmit) { Text(l10n.t("inbox.refresh")) }
+            }
+            items.isEmpty() -> Text(emptyLabel, color = SanctuaryMuted)
             else -> LazyColumn(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -4640,7 +4119,6 @@ private fun SaintsCalendarScreen(
         onDateSelected = { date -> selectedYear = date.year; selectedMonth = date.monthValue; selectedDay = date.dayOfMonth },
         footer = {
             CalendarSearchButton(label = l10n.t("calendar.searchSaints"), onClick = onSearch)
-            SeasonLegend()
         }
     ) {
         when (val current = state) {
@@ -4800,7 +4278,6 @@ private fun NovenasCalendarScreen(
         onDateSelected = { date -> selectedYear = date.year; selectedMonth = date.monthValue; selectedDay = date.dayOfMonth },
         footer = {
             CalendarSearchButton(label = l10n.t("calendar.searchNovenas"), onClick = onSearch)
-            SeasonLegend()
         }
     ) {
         when (val current = state) {
@@ -4959,7 +4436,6 @@ private fun LiturgicalCalendarScreen(
         selectedDate = LocalDate.of(selectedYear, selectedMonth, selectedDay.coerceIn(1, month.lengthOfMonth())),
         onDateSelected = { date -> selectedYear = date.year; selectedMonth = date.monthValue; selectedDay = date.dayOfMonth },
         footer = {
-            SeasonLegend()
         }
     ) {
         when (val current = state) {
@@ -5033,29 +4509,38 @@ private fun DailyReadingsSheet(
     onDismiss: () -> Unit
 ) {
     val l10n = sanctuaryStrings()
-    DetailSheetScaffold(
-        title = l10n.t("calendar.dailyReadingsTitle"),
-        subtitle = l10n.t("calendar.dailyReadingsSubtitle")
-    ) {
-        DailyReadingsWebView(url = url)
+    Column(Modifier.fillMaxSize().padding(top = 12.dp, start = 16.dp, end = 16.dp, bottom = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onDismiss) { Icon(Icons.Filled.Close, l10n.t("common.close"), tint = SanctuaryText) }
+            Text(l10n.t("calendar.dailyReadingsTitle"), color = SanctuaryText, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+        }
+        DailyReadingsWebView(url = url, modifier = Modifier.weight(1f))
     }
 }
 
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
-private fun DailyReadingsWebView(url: String) {
+private fun DailyReadingsWebView(url: String, modifier: Modifier = Modifier) {
     Card(
+        modifier = modifier,
         border = BorderStroke(1.dp, SanctuaryCardBorder),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF10212E)),
+        colors = CardDefaults.cardColors(containerColor = SanctuaryCard),
         shape = RoundedCornerShape(24.dp)
     ) {
         AndroidView(
             modifier = Modifier
-                .fillMaxWidth()
-                .height(560.dp),
+                .fillMaxSize(),
             factory = { context ->
                 WebView(context).apply {
+                    setBackgroundColor(android.graphics.Color.parseColor("#D8E3D9"))
                     webViewClient = object : WebViewClient() {
+                        override fun onPageFinished(view: WebView, finishedUrl: String) {
+                            super.onPageFinished(view, finishedUrl)
+                            val script = context.assets.open("readings-theme.js").bufferedReader().use { it.readText() }
+                            view.evaluateJavascript(script, null)
+                        }
+
                         override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                             val uri = request.url
                             val scheme = uri.scheme
@@ -5115,78 +4600,35 @@ private fun CalendarSurface(
 ) {
     val l10n = sanctuaryStrings()
     val context = LocalContext.current
-    Column(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        Card(
-        border = BorderStroke(1.dp, SanctuaryCardBorder),
-            colors = CardDefaults.cardColors(containerColor = SanctuaryCard),
-            shape = RoundedCornerShape(28.dp)
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 14.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                CalendarNavButton(symbol = "‹", onClick = onPrev)
-                Column(
-                    modifier = Modifier.weight(1f).clip(RoundedCornerShape(12.dp)).clickable {
-                        android.app.DatePickerDialog(context, { _, year, monthIndex, day ->
-                            onDateSelected(LocalDate.of(year, monthIndex + 1, day))
-                        }, selectedDate.year, selectedDate.monthValue - 1, selectedDate.dayOfMonth).show()
-                    },
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(title, color = Color.White, fontSize = 21.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
-                        Icon(Icons.Filled.ExpandMore, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
-                    }
-                    Text(subtitle, color = Color(0xFFD0DFEA))
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 32.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            CalendarNavButton("‹", onPrev)
+            Column(Modifier.weight(1f).clickable {
+                android.app.DatePickerDialog(context, { _, year, monthIndex, day ->
+                    onDateSelected(LocalDate.of(year, monthIndex + 1, day))
+                }, selectedDate.year, selectedDate.monthValue - 1, selectedDate.dayOfMonth).show()
+            }, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(subtitle.substringBefore("•").trim(), color = SanctuaryMuted, fontSize = 14.sp)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(title, color = SanctuaryText, fontSize = 20.sp, fontWeight = FontWeight.Bold,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                    Icon(Icons.Filled.ExpandMore, null, tint = SanctuaryText, modifier = Modifier.size(18.dp))
                 }
-                CalendarNavButton(symbol = "›", onClick = onNext)
             }
+            CalendarNavButton("›", onNext)
         }
-        Card(
-            border = BorderStroke(1.dp, SanctuaryCardBorder),
-            shape = RoundedCornerShape(26.dp), colors = CardDefaults.cardColors(containerColor = SanctuaryCard)) {
-        Row(modifier = Modifier.fillMaxWidth().padding(10.dp).then(if (LocalDensity.current.fontScale > 1.2f) Modifier.horizontalScroll(rememberScrollState()) else Modifier), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            FilterChipButton(title = l10n.t("common.today"), selected = false, onClick = onToday)
+        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+            TextButton(onClick = onToday) { Text(l10n.t("common.today"), color = SanctuaryTabActive) }
             CalendarMode.entries.forEach { entry ->
-                FilterChipButton(
-                    title = entry.label(l10n),
-                    selected = mode == entry,
-                    onClick = { onModeChange(entry) }
-                )
+                FilterChipButton(entry.label(l10n), mode == entry) { onModeChange(entry) }
             }
         }
-        }
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-                .calendarDaySwipe(
-                    enabled = mode == CalendarMode.Day,
-                    onPrevious = onPrev,
-                    onNext = onNext
-                ),
-            contentAlignment = Alignment.TopCenter
-        ) {
-            Column(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                content()
-            }
-        }
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-            content = footer
-        )
+        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp), content = footer)
+        Column(Modifier.fillMaxWidth().calendarDaySwipe(enabled = mode == CalendarMode.Day,
+            onPrevious = onPrev, onNext = onNext), verticalArrangement = Arrangement.spacedBy(16.dp), content = content)
+        SeasonLegend()
     }
 }
 
@@ -5206,7 +4648,7 @@ private fun CalendarNavButton(
                 .size(44.dp),
             contentAlignment = Alignment.Center
         ) {
-            Icon(if (symbol == "‹") Icons.Filled.ChevronLeft else Icons.Filled.ChevronRight, contentDescription = if (symbol == "‹") "Previous date" else "Next date", tint = Color.White, modifier = Modifier.size(26.dp))
+            Icon(if (symbol == "‹") Icons.Filled.ChevronLeft else Icons.Filled.ChevronRight, contentDescription = if (symbol == "‹") "Previous date" else "Next date", tint = SanctuaryText, modifier = Modifier.size(26.dp))
         }
     }
 }
@@ -5220,7 +4662,7 @@ private fun FilterChipButton(
     Card(
         border = BorderStroke(1.dp, SanctuaryCardBorder),
         colors = CardDefaults.cardColors(
-            containerColor = if (selected) Color(0xFF2B728D) else SanctuaryCardSoft
+            containerColor = if (selected) SanctuaryBlue else SanctuaryCardSoft
         ),
         shape = RoundedCornerShape(20.dp),
         onClick = onClick
@@ -5228,7 +4670,7 @@ private fun FilterChipButton(
         Text(
             text = title,
             modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp),
-            color = Color.White,
+            color = if (selected) SanctuaryOnAccent else SanctuaryText,
             fontWeight = FontWeight.SemiBold
         )
     }
@@ -5246,30 +4688,24 @@ private fun DayPreviewCard(
     borderColor: Color = liturgicalBorderColor(null),
     onClick: () -> Unit
 ) {
-    val cardShape = RoundedCornerShape(28.dp)
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = SanctuaryCard), shape = cardShape,
-        border = BorderStroke(5.dp, borderColor), enabled = enabled, onClick = onClick
-    ) {
-        val largeText = LocalDensity.current.fontScale > 1.2f
-        Box(Modifier.fillMaxWidth().height(if (largeText) 178.dp else 142.dp)) {
-            if (showImage && !imageUrl.isNullOrBlank()) ThumbnailImage(imageUrl, title, Modifier.fillMaxSize(), RoundedCornerShape(23.dp))
-            Box(Modifier.matchParentSize().background(Brush.horizontalGradient(listOf(Color(0xDD102738), Color(0x44102738), Color(0xAA102738)))))
-            Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Row(verticalAlignment = Alignment.Top) {
-                    Column(Modifier.weight(1f)) {
-                        Text(date.dayOfMonth.toString(), color = Color.White, fontSize = 32.sp, fontWeight = FontWeight.Bold)
-                        Text(title, color = Color.White, fontSize = 17.sp, lineHeight = 21.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                    }
-                    if (enabled) Box(Modifier.size(30.dp).background(Color.White.copy(alpha = .12f), CircleShape), contentAlignment = Alignment.Center) {
-                        Icon(Icons.Filled.NorthEast, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
-                    }
-                }
-                if (buttonLabel != null) Text(buttonLabel, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.clip(RoundedCornerShape(99.dp)).background(Color.White.copy(alpha = .14f)).padding(horizontal = 12.dp, vertical = 5.dp))
-                else if (subtitle.isNotBlank()) Text(subtitle, color = Color(0xFFD0DFEA), fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+    Card(onClick = onClick, enabled = enabled, modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = SanctuaryCard), shape = RoundedCornerShape(18.dp)) {
+        Row(Modifier.fillMaxWidth().heightIn(min = 144.dp).padding(18.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            if (showImage && !imageUrl.isNullOrBlank()) {
+                ThumbnailImage(imageUrl, title, Modifier.size(width = 84.dp, height = 112.dp), RoundedCornerShape(12.dp))
             }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(date.dayOfMonth.toString(), color = SanctuaryText, fontSize = 34.sp,
+                        fontFamily = androidx.compose.ui.text.font.FontFamily.Serif, fontWeight = FontWeight.SemiBold)
+                    Box(Modifier.size(7.dp).background(borderColor, CircleShape))
+                }
+                Text(title, color = SanctuaryText, fontSize = 17.sp, lineHeight = 23.sp, fontWeight = FontWeight.SemiBold)
+                if (buttonLabel != null) Text(buttonLabel, color = SanctuaryTabActive, fontSize = 13.sp)
+                else if (subtitle.isNotBlank()) Text(subtitle, color = SanctuaryMuted, fontSize = 13.sp)
+            }
+            if (enabled) Icon(Icons.Filled.ChevronRight, null, tint = SanctuaryMuted)
         }
     }
 }
@@ -5287,7 +4723,7 @@ private fun CalendarWeekGrid(
     val start = selectedDate.minusDays((selectedDate.dayOfWeek.value % 7).toLong())
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         CalendarWeekHeaderRow()
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             repeat(7) { offset ->
                 val date = start.plusDays(offset.toLong())
                 if (date.month == month.month) {
@@ -5322,17 +4758,15 @@ private fun CalendarMonthGrid(
     val offset = (first.dayOfWeek.value % 7)
     val total = month.lengthOfMonth()
     val rowCount = ((offset + total + 6) / 7).coerceIn(4, 6)
-    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        val rowGap = if (maxHeight < 390.dp) 8.dp else 10.dp
-        val headerHeight = 20.dp
-        val availableForRows = maxHeight - headerHeight - rowGap * rowCount
-        val cellHeight = (availableForRows / rowCount).coerceIn(54.dp, 72.dp)
+    Box(modifier = Modifier.fillMaxWidth()) {
+        val rowGap = 6.dp
+        val cellHeight = 60.dp
 
         Column(verticalArrangement = Arrangement.spacedBy(rowGap)) {
             CalendarWeekHeaderRow()
             var dayNumber = 1
             repeat(rowCount) { row ->
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     repeat(7) { column ->
                         val index = row * 7 + column
                         if (index < offset || dayNumber > total) {
@@ -5370,51 +4804,15 @@ private fun CalendarEntryCell(
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
-    val scale = if (selected) 1f else 0.985f
-    Button(
-        border = BorderStroke(1.dp, SanctuaryCardBorder),
-        onClick = onClick,
-        modifier = modifier
-            .height(height)
-            .scale(scale),
-        contentPadding = PaddingValues(0.dp),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = Color(0xFF2A4153),
-            contentColor = Color.White
-        ),
-        shape = RoundedCornerShape(20.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .border(
-                    if (isToday) 3.dp else 1.6.dp,
-                    if (isToday) Color(0xFFEFD572) else borderColor,
-                    RoundedCornerShape(20.dp)
-                )
-                .padding(horizontal = 4.dp, vertical = 6.dp)
-        ) {
-            Column(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    day.toString(),
-                    color = Color.White,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Text(
-                    text = label,
-                    color = Color.White.copy(alpha = 0.86f),
-                    fontSize = 10.sp,
-                    lineHeight = 12.sp,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    textAlign = TextAlign.Center
-                )
-            }
+    Surface(onClick = onClick, modifier = modifier.height(60.dp).semantics { contentDescription = "$day, $label" },
+        color = if (selected) SanctuaryBlue else SanctuaryCard,
+        shape = RoundedCornerShape(12.dp),
+        border = if (isToday && !selected) BorderStroke(1.dp, SanctuaryBlue) else null) {
+        Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically),
+            horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(day.toString(), color = if (selected) SanctuaryOnAccent else SanctuaryText,
+                fontSize = 16.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium)
+            Box(Modifier.size(5.dp).background(borderColor, CircleShape))
         }
     }
 }
@@ -5442,7 +4840,7 @@ private fun CalendarWeekHeaderRow() {
         l10n.weekdaySymbolsShort().forEach { label ->
             Text(
                 label,
-                color = Color.White.copy(alpha = 0.82f),
+                color = SanctuaryMuted,
                 fontSize = 13.sp,
                 modifier = Modifier.weight(1f),
                 textAlign = TextAlign.Center
@@ -5470,11 +4868,11 @@ private fun LiturgicalDayPreviewCard(
 }
 
 private fun liturgicalBorderColor(season: String?): Color = when (season?.lowercase()) {
-    "advent" -> Color(0xFF7858B9)
-    "christmas" -> Color.White
-    "lent" -> Color(0xFF9B5087)
-    "easter" -> Color.White
-    else -> Color(0xFF3C9B5F)
+    "advent" -> SanctuaryAdvent
+    "christmas" -> SanctuaryChristmas
+    "lent" -> SanctuaryLent
+    "easter" -> SanctuaryEaster
+    else -> SanctuaryOrdinary
 }
 
 private fun shortLiturgicalLabel(detail: app.sanctuary.android.data.LiturgicalDay): String {
@@ -5495,29 +4893,21 @@ private fun shortLiturgicalLabel(detail: app.sanctuary.android.data.LiturgicalDa
     return "$first\n$second"
 }
 
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 private fun SeasonLegend() {
     val l10n = sanctuaryStrings()
-    Card(border = BorderStroke(1.dp, SanctuaryCardBorder), shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = SanctuaryCard)) {
-    BoxWithConstraints(modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 12.dp)) {
-        val compact = maxWidth < 380.dp
-        val fontSize = if (maxWidth < 320.dp) 10.sp else 11.sp
-        val dotSize = if (compact) 6.dp else 7.dp
-        val spacing = if (compact) 8.dp else 14.dp
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            SeasonDot(l10n.t("season.advent"), Color(0xFF7858B9), fontSize, dotSize, spacing)
-            SeasonDot(l10n.t("season.christmas"), Color(0xFFDCB969), fontSize, dotSize, spacing)
-            SeasonDot(l10n.t("season.lent"), Color(0xFF9B5087), fontSize, dotSize, spacing)
-            SeasonDot(l10n.t("season.easter"), Color(0xFFF5F5F5), fontSize, dotSize, spacing)
-            SeasonDot(l10n.t("season.ordinary"), Color(0xFF3C9B5F), fontSize, dotSize, spacing)
-        }
+    androidx.compose.foundation.layout.FlowRow(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        SeasonDot(l10n.t("season.advent"), SanctuaryAdvent, 11.sp, 7.dp, 8.dp)
+        SeasonDot(l10n.t("season.christmas"), SanctuaryChristmas, 11.sp, 7.dp, 8.dp)
+        SeasonDot(l10n.t("season.lent"), SanctuaryLent, 11.sp, 7.dp, 8.dp)
+        SeasonDot(l10n.t("season.easter"), SanctuaryEaster, 11.sp, 7.dp, 8.dp)
+        SeasonDot(l10n.t("season.ordinary"), SanctuaryOrdinary, 11.sp, 7.dp, 8.dp)
     }
-}
 }
 
 @Composable
@@ -5536,7 +4926,7 @@ private fun SeasonDot(
         Box(modifier = Modifier.size(dotSize).background(color, CircleShape))
         Text(
             text = label,
-            color = Color(0xFFD0DFEA),
+            color = SanctuaryMuted,
             fontSize = fontSize,
             maxLines = 1,
             softWrap = false
@@ -5596,7 +4986,7 @@ private fun AnnouncementInvitation(onSync: () -> Unit, onVisibilityChanged: (Boo
     if (visible) ModalBottomSheet(
         onDismissRequest = {},
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true, confirmValueChange = { it != SheetValue.Hidden }),
-        containerColor = Color(0xFF102738), contentColor = Color.White
+        containerColor = SanctuaryCard, contentColor = SanctuaryText
     ) {
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(28.dp),
             horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(24.dp)) {
@@ -5687,16 +5077,16 @@ private fun PreciseReminderSettings() {
 private fun NotificationActionCard(title: String, subtitle: String, icon: ImageVector, trailingIcon: ImageVector, onClick: () -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp))
-            .background(SanctuaryCardSoft).border(1.dp, Color(0xFF7E96A3), RoundedCornerShape(18.dp))
+            .background(SanctuaryCardSoft).border(1.dp, SanctuaryCardBorder, RoundedCornerShape(18.dp))
             .clickable(role = androidx.compose.ui.semantics.Role.Button, onClick = onClick).padding(14.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top
     ) {
-        Icon(icon, contentDescription = null, tint = Color(0xFF9ADFEB), modifier = Modifier.size(24.dp))
+        Icon(icon, contentDescription = null, tint = SanctuaryTabActive, modifier = Modifier.size(24.dp))
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(title, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-            Text(subtitle, color = Color(0xFFD0DFEA), fontSize = 13.sp, lineHeight = 18.sp)
+            Text(title, color = SanctuaryText, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+            Text(subtitle, color = SanctuaryMuted, fontSize = 13.sp, lineHeight = 18.sp)
         }
-        Icon(trailingIcon, contentDescription = null, tint = Color.White, modifier = Modifier.size(22.dp))
+        Icon(trailingIcon, contentDescription = null, tint = SanctuaryText, modifier = Modifier.size(22.dp))
     }
 }
 
@@ -5767,23 +5157,23 @@ private fun ContentReminderControl(destination: String, title: String, authentic
             else problem = "itemReminder.permission"
         } else chooseTime()
     }, enabled = !busy, modifier = Modifier.wrapContentWidth(Alignment.Start), shape = RoundedCornerShape(99.dp)) {
-        Icon(if (time == null) Icons.Filled.NotificationsNone else Icons.Filled.NotificationsActive, contentDescription = null, tint = Color.White)
+        Icon(if (time == null) Icons.Filled.NotificationsNone else Icons.Filled.NotificationsActive, contentDescription = null, tint = SanctuaryText)
         Spacer(Modifier.width(8.dp))
-        Text(l10n.t(if (time == null) "itemReminder.add" else "itemReminder.edit"), color = Color.White)
+        Text(l10n.t(if (time == null) "itemReminder.add" else "itemReminder.edit"), color = SanctuaryText)
     }
     if (showOptions) AlertDialog(
         onDismissRequest = { showOptions = false },
         title = { Text(l10n.t("itemReminder.title")) },
         text = { Text(title + "\n" + l10n.t("itemReminder.body") + "\n" + time?.let { "%02d:%02d".format(it.first, it.second) }.orEmpty()) },
         confirmButton = { Button(
-        border = BorderStroke(1.dp, SanctuaryCardBorder),onClick = { showOptions = false; chooseTime() }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF217A66))) { Text(l10n.t("reminders.manage.change"), color = Color.White) } },
+        border = BorderStroke(1.dp, SanctuaryCardBorder),onClick = { showOptions = false; chooseTime() }, colors = ButtonDefaults.buttonColors(containerColor = SanctuaryBlue)) { Text(l10n.t("reminders.manage.change"), color = SanctuaryOnAccent) } },
         dismissButton = { OutlinedButton(onClick = { scope.launch {
                 runCatching { AccountReminderSync.remove(destination) }.onFailure { problem = it.message }
                 showOptions = false
             } }) {
-            Icon(Icons.Filled.Delete, contentDescription = null, tint = Color(0xFFFFA6A6))
+            Icon(Icons.Filled.Delete, contentDescription = null, tint = SanctuaryError)
             Spacer(Modifier.width(6.dp))
-            Text(l10n.t("itemReminder.remove"), color = Color(0xFFFFA6A6))
+            Text(l10n.t("itemReminder.remove"), color = SanctuaryError)
         } }
     )
     if (problem != null) AlertDialog(onDismissRequest = { problem = null },
@@ -5808,7 +5198,7 @@ private fun ReminderTimingSetupCard(issue: ReminderSetupIssue) {
     val l10n = sanctuaryStrings()
     val scheduler = remember(context) { AndroidReminderScheduler(context) }
     Column(Modifier.fillMaxWidth().background(SanctuaryCardSoft, RoundedCornerShape(16.dp)).padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text(l10n.t(issue.messageKey), color = Color(0xFFFFC67D))
+        Text(l10n.t(issue.messageKey), color = SanctuaryWarning)
         Button(onClick = { context.startActivity(reminderSettingsIntent(context, scheduler, issue)) },
             modifier = Modifier.fillMaxWidth()) { Text(l10n.t("reminders.manage.settings")) }
     }
@@ -5913,15 +5303,15 @@ private fun ScheduledRemindersCard(onOpenNovena: (String) -> Unit, onOpenPrayer:
     var confirmingClear by remember { mutableStateOf(false) }
     MeSectionCard(title = l10n.t("reminders.manage.title")) {
         if (legacyNotice) {
-            Text(l10n.t("reminders.manage.legacy"), color = Color(0xFFBAD9E4))
-            OutlinedButton(onClick = { scheduler.dismissLegacyNotice(); legacyNotice = false }) { Text(l10n.t("common.close"), color = Color.White) }
+            Text(l10n.t("reminders.manage.legacy"), color = SanctuaryMuted)
+            OutlinedButton(onClick = { scheduler.dismissLegacyNotice(); legacyNotice = false }) { Text(l10n.t("common.close"), color = SanctuaryText) }
         }
         val timingRequired = setupIssue != null
         setupIssue?.let { ReminderTimingSetupCard(it) }
-        (problem ?: issue)?.takeUnless { it == setupIssue?.messageKey }?.let { Text(l10n.t(it), color = Color(0xFFFFC67D)) }
+        (problem ?: issue)?.takeUnless { it == setupIssue?.messageKey }?.let { Text(l10n.t(it), color = SanctuaryWarning) }
         if (reminders.isEmpty()) Row(modifier = Modifier.padding(vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Top) {
-            Icon(Icons.Filled.NotificationsOff, contentDescription = null, tint = Color(0xFFBAD9E4), modifier = Modifier.size(20.dp))
-            Text(l10n.t("reminders.manage.empty"), color = Color(0xFFBAD9E4), fontSize = 14.sp, lineHeight = 20.sp)
+            Icon(Icons.Filled.NotificationsOff, contentDescription = null, tint = SanctuaryMuted, modifier = Modifier.size(20.dp))
+            Text(l10n.t("reminders.manage.empty"), color = SanctuaryMuted, fontSize = 14.sp, lineHeight = 20.sp)
         }
         reminders.forEach { reminder ->
             key(reminder.destination) {
@@ -5936,14 +5326,14 @@ private fun ScheduledRemindersCard(onOpenNovena: (String) -> Unit, onOpenPrayer:
                             } }, reminder.hour, reminder.minute, android.text.format.DateFormat.is24HourFormat(context)).apply {
                                 setTitle(l10n.t("itemReminder.edit"))
                             }.show()
-                        }) { Icon(Icons.Filled.Edit, contentDescription = l10n.t("itemReminder.edit"), tint = Color(0xFF9ADFEB)) }
+                        }) { Icon(Icons.Filled.Edit, contentDescription = l10n.t("itemReminder.edit"), tint = SanctuaryTabActive) }
                         IconButton(modifier = Modifier.size(48.dp).testTag("delete:${reminder.destination}"), enabled = !busy, onClick = { scope.launch {
                             runCatching { AccountReminderSync.remove(reminder.destination) }.onSuccess { problem = null }.onFailure { problem = it.message }
                         } }) {
-                            Icon(Icons.Filled.Delete, contentDescription = l10n.t("itemReminder.remove") + ": " + reminder.title, tint = Color(0xFFFFA6A6))
+                            Icon(Icons.Filled.Delete, contentDescription = l10n.t("itemReminder.remove") + ": " + reminder.title, tint = SanctuaryError)
                         }
                     }
-                    Column(modifier = Modifier.fillMaxWidth().testTag("reminder:${reminder.destination}").clip(RoundedCornerShape(16.dp)).background(Color(0xFF243D4D)).border(1.dp, SanctuaryCardBorder, RoundedCornerShape(16.dp)).padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Column(modifier = Modifier.fillMaxWidth().testTag("reminder:${reminder.destination}").clip(RoundedCornerShape(16.dp)).background(SanctuaryCardSoft).border(1.dp, SanctuaryCardBorder, RoundedCornerShape(16.dp)).padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                             val image = images[reminder.destination]
                             val key = AccountReminderSync.contentKey(reminder.destination)
@@ -5954,9 +5344,9 @@ private fun ScheduledRemindersCard(onOpenNovena: (String) -> Unit, onOpenPrayer:
                                 else Icon(Icons.Filled.MenuBook, contentDescription = reminder.title, tint = SanctuaryTabActive, modifier = Modifier.size(24.dp))
                             }
                             Column(Modifier.weight(1f).testTag("text:${reminder.destination}").clickable(onClick = open), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                                Text(reminder.title, color = Color.White, fontWeight = FontWeight.SemiBold)
+                                Text(reminder.title, color = SanctuaryText, fontWeight = FontWeight.SemiBold)
                                 val calendar = java.util.Calendar.getInstance().apply { set(java.util.Calendar.HOUR_OF_DAY, reminder.hour); set(java.util.Calendar.MINUTE, reminder.minute) }
-                                Text((if (timingRequired) l10n.t("reminders.manage.waiting") + " · " else "") + l10n.t("reminders.manage.daily") + " · " + android.text.format.DateFormat.getTimeFormat(context).format(calendar.time), color = Color(0xFFBAD9E4), fontSize = 13.sp)
+                                Text((if (timingRequired) l10n.t("reminders.manage.waiting") + " · " else "") + l10n.t("reminders.manage.daily") + " · " + android.text.format.DateFormat.getTimeFormat(context).format(calendar.time), color = SanctuaryMuted, fontSize = 13.sp)
                             }
                             if (!compactActions) Row { actions() }
                         }
@@ -5966,7 +5356,7 @@ private fun ScheduledRemindersCard(onOpenNovena: (String) -> Unit, onOpenPrayer:
             }
         }
         if (reminders.isNotEmpty()) OutlinedButton(onClick = { confirmingClear = true }, modifier = Modifier.fillMaxWidth()) {
-            Text(l10n.t("reminders.manage.clear"), color = Color(0xFFFFA6A6))
+            Text(l10n.t("reminders.manage.clear"), color = SanctuaryError)
         }
     }
     if (confirmingClear) AlertDialog(onDismissRequest = { confirmingClear = false },
@@ -5975,7 +5365,7 @@ private fun ScheduledRemindersCard(onOpenNovena: (String) -> Unit, onOpenPrayer:
         border = BorderStroke(1.dp, SanctuaryCardBorder),onClick = { scope.launch {
             runCatching { AccountReminderSync.clear() }.onSuccess { problem = null }.onFailure { problem = it.message }
             confirmingClear = false
-        } }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF9E3030))) { Text(l10n.t("reminders.manage.clear"), color = Color.White) } },
+        } }, colors = ButtonDefaults.buttonColors(containerColor = SanctuaryError)) { Text(l10n.t("reminders.manage.clear"), color = SanctuaryOnAccent) } },
         dismissButton = { TextButton(onClick = { confirmingClear = false }) { Text(l10n.t("common.cancel")) } })
 }
 
@@ -5993,7 +5383,7 @@ private fun ContentHeroImage(url: String?, title: String) {
 @Composable
 private fun DetailMetaChip(text: String) {
     Row(Modifier.clip(RoundedCornerShape(12.dp)).background(SanctuaryCardSoft).border(1.dp, SanctuaryCardBorder, RoundedCornerShape(12.dp)).padding(horizontal = 10.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Icon(Icons.Filled.CalendarMonth, contentDescription = null, tint = Color(0xFFD0DFEA), modifier = Modifier.size(16.dp))
-        Text(text, color = Color(0xFFD0DFEA), fontSize = 14.sp)
+        Icon(Icons.Filled.CalendarMonth, contentDescription = null, tint = SanctuaryMuted, modifier = Modifier.size(16.dp))
+        Text(text, color = SanctuaryMuted, fontSize = 14.sp)
     }
 }

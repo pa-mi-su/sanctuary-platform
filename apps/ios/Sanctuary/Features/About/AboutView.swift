@@ -21,7 +21,7 @@ struct AboutView: View {
         ScrollView(showsIndicators: false) {
           VStack(alignment: .leading, spacing: 14) {
             Text(localization.t("about.heroTitle"))
-              .font(AppTheme.rounded(34, weight: .bold)).foregroundStyle(.white)
+              .font(AppTheme.rounded(34, weight: .bold)).foregroundStyle(AppTheme.cardText)
             Text(localization.t("about.subtitle"))
               .font(AppTheme.rounded(16, weight: .medium)).foregroundStyle(AppTheme.heroEyebrow)
 
@@ -34,7 +34,7 @@ struct AboutView: View {
 
                 Text(localization.t("about.heroTitle"))
                   .font(AppTheme.rounded(28, weight: .bold))
-                  .foregroundStyle(.white)
+                  .foregroundStyle(AppTheme.cardText)
 
                 Text(localization.t("about.subtitle"))
                   .foregroundStyle(AppTheme.cardText.opacity(0.9))
@@ -101,7 +101,7 @@ struct AboutView: View {
           dismiss()
         } label: {
           Image(systemName: "arrow.left").font(.system(size: 20, weight: .medium))
-            .foregroundStyle(.white).frame(width: 42, height: 42)
+            .foregroundStyle(AppTheme.cardText).frame(width: 42, height: 42)
             .background(AppTheme.cardBackground).clipShape(Circle())
             .overlay(Circle().stroke(AppTheme.tabBorder, lineWidth: 1))
         }
@@ -171,7 +171,7 @@ private struct AboutActionStyle: ButtonStyle {
   func makeBody(configuration: Configuration) -> some View {
     configuration.label
       .font(AppTheme.rounded(14, weight: .semibold))
-      .foregroundStyle(.white)
+      .foregroundStyle(secondary ? AppTheme.cardText : AppTheme.onAccent)
       .padding(.horizontal, 16).padding(.vertical, 10)
       .frame(maxWidth: .infinity, minHeight: 44)
       .background {
@@ -196,7 +196,7 @@ struct AboutDocumentView: View {
       AppBackdrop()
       ScrollView(showsIndicators: false) {
         VStack(alignment: .leading, spacing: 16) {
-          Text(title).font(AppTheme.rounded(34, weight: .bold)).foregroundStyle(.white)
+          Text(title).font(AppTheme.rounded(34, weight: .bold)).foregroundStyle(AppTheme.cardText)
           if destination == .privacy {
             Text(localization.t("about.privacyEffectiveDate"))
               .font(AppTheme.rounded(16, weight: .medium)).foregroundStyle(AppTheme.heroEyebrow)
@@ -220,7 +220,7 @@ struct AboutDocumentView: View {
         dismiss()
       } label: {
         Image(systemName: "arrow.left").font(.system(size: 20, weight: .medium))
-          .foregroundStyle(.white).frame(width: 42, height: 42)
+          .foregroundStyle(AppTheme.cardText).frame(width: 42, height: 42)
           .background(AppTheme.cardBackground).clipShape(Circle())
           .overlay(Circle().stroke(AppTheme.tabBorder, lineWidth: 1))
       }.accessibilityLabel(localization.t("common.close"))

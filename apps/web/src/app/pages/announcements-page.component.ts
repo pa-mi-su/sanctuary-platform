@@ -89,8 +89,8 @@ import { AnnouncementInboxService, Announcement } from '../core/state/announceme
       }
       article {
         padding: 20px;
-        background: #102738;
-        border: 1px solid #7cc7de99;
+        background: var(--sanctuary-surface-card);
+        border: 1px solid var(--sanctuary-border);
         border-radius: 22px;
         margin: 1rem 0;
       }
@@ -98,8 +98,8 @@ import { AnnouncementInboxService, Announcement } from '../core/state/announceme
       a {
         font: inherit;
         color: inherit;
-        border: 1px solid #7cc7de99;
-        background: #2a4153;
+        border: 1px solid var(--sanctuary-border);
+        background: var(--sanctuary-surface-raised);
         border-radius: 14px;
         padding: 0.8rem;
         min-height: 48px;

@@ -89,7 +89,7 @@ interface Reminder {
     }
     .panel-card {
       padding: 1.2rem;
-      border: 1px solid #63818e;
+      border: 1px solid var(--sanctuary-border);
       border-radius: 24px;
     }
     .reminder-row {
@@ -97,7 +97,7 @@ interface Reminder {
       align-items: center;
       gap: 0.75rem;
       padding: 1rem 0;
-      border-bottom: 1px solid #63818e;
+      border-bottom: 1px solid var(--sanctuary-border);
     }
     a {
       display: flex;
@@ -120,9 +120,9 @@ interface Reminder {
     button,
     input {
       padding: 0.6rem;
-      border: 1px solid #63818e;
+      border: 1px solid var(--sanctuary-border);
       border-radius: 12px;
-      background: #203c4b;
+      background: var(--sanctuary-surface-card);
       color: inherit;
     }
     .reminder-editor {

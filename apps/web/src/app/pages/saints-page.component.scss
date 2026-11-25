@@ -1,23 +1,23 @@
 :host {
   display: block;
   width: 100%;
-  color: #ffffff;
+  color: var(--sanctuary-text);
 }
 
 .glass-card {
   background: var(--glass-fill);
   border: 1px solid var(--glass-stroke);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    inset 0 1px 0 var(--sanctuary-shadow),
     inset 0 0 0 999px var(--glass-overlay),
-    0 18px 36px rgba(3, 10, 18, 0.22);
+    0 18px 36px var(--sanctuary-shadow);
   backdrop-filter: blur(18px);
 }
 
 .glass-subtle {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  background: var(--sanctuary-surface-card);
+  border: 1px solid var(--sanctuary-border);
+  box-shadow: inset 0 1px 0 var(--sanctuary-shadow);
 }
 
 .screen-card {
@@ -41,7 +41,7 @@
 
 .meta-text {
   margin: 6px 0 0;
-  color: rgba(255, 255, 255, 0.74);
+  color: var(--sanctuary-text-muted);
   font-size: 0.92rem;
 }
 
@@ -64,7 +64,7 @@
 
 .screen-title p {
   margin: 6px 0 0;
-  color: rgba(255, 255, 255, 0.74);
+  color: var(--sanctuary-text-muted);
   font-size: 0.92rem;
 }
 
@@ -73,8 +73,8 @@
   height: 42px;
   border: 0;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.08);
-  color: #ffffff;
+  background: var(--sanctuary-surface-raised);
+  color: var(--sanctuary-text);
   font-size: 1.5rem;
   cursor: pointer;
 }
@@ -87,7 +87,7 @@
   align-items: center;
   gap: 10px;
   padding: 0 16px;
-  color: rgba(255, 255, 255, 0.72);
+  color: var(--sanctuary-text-muted);
 }
 
 .search-input {
@@ -96,12 +96,12 @@
   border: 0;
   outline: 0;
   background: transparent;
-  color: #ffffff;
+  color: var(--sanctuary-text);
   font: inherit;
 }
 
 .search-input::placeholder {
-  color: rgba(255, 255, 255, 0.58);
+  color: var(--sanctuary-text-muted);
 }
 
 .list-stack {
@@ -116,7 +116,7 @@
   grid-template-columns: 88px minmax(0, 1fr);
   gap: 16px;
   align-items: stretch;
-  color: #ffffff;
+  color: var(--sanctuary-text);
   min-height: 172px;
 }
 
@@ -127,8 +127,7 @@
   display: grid;
   place-items: center;
   background:
-    linear-gradient(180deg, rgba(76, 182, 216, 0.2), rgba(13, 36, 53, 0.74)),
-    rgba(255, 255, 255, 0.05);
+    var(--sanctuary-hero);
   background-position: center;
   background-size: cover;
   overflow: hidden;
@@ -150,7 +149,7 @@
 
 .content-card__body p {
   margin: 0;
-  color: rgba(255, 255, 255, 0.74);
+  color: var(--sanctuary-text-muted);
   font-size: 0.9rem;
   line-height: 1.42;
   display: -webkit-box;
@@ -170,8 +169,8 @@
   min-height: 42px;
   border: 0;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.92);
+  background: var(--sanctuary-surface-raised);
+  color: var(--sanctuary-text);
   font-weight: 600;
   cursor: pointer;
 }
@@ -182,8 +181,8 @@
 }
 
 .chip.active-blue {
-  background: linear-gradient(180deg, #3e9fc1, #195e78);
-  color: white;
+  background: var(--sanctuary-primary);
+  color: var(--sanctuary-on-accent);
 }
 
 .season-legend {
@@ -199,8 +198,8 @@
   gap: 8px;
   padding: 6px 12px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.06);
-  color: rgba(255, 255, 255, 0.88);
+  background: var(--sanctuary-surface-raised);
+  color: var(--sanctuary-text-muted);
   font-size: 0.76rem;
 }
 
@@ -209,7 +208,7 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--season-color, rgba(255, 255, 255, 0.35));
+  background: var(--sanctuary-surface-raised);
 }
 
 .calendar-headings {
@@ -217,7 +216,7 @@
   grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 8px;
   margin: 2px 0 10px;
-  color: rgba(255, 255, 255, 0.64);
+  color: var(--sanctuary-text-muted);
   font-size: 0.72rem;
   text-align: center;
 }
@@ -235,27 +234,31 @@
 .calendar-day {
   --season-color: transparent;
   min-height: 74px;
-  border-radius: 18px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  border: 1px solid transparent;
+  background: var(--sanctuary-surface-card);
   padding: 8px 6px;
   display: flex;
   flex-direction: column;
   gap: 6px;
-  color: #ffffff;
-  box-shadow: inset 0 0 0 2px var(--season-color);
+  color: var(--sanctuary-text);
+  box-shadow: none;
   min-width: 0;
   overflow: hidden;
+  position: relative;
+  padding-bottom: 14px;
 }
 
 .calendar-day.selected {
-  background: linear-gradient(180deg, rgba(76, 182, 216, 0.28), rgba(17, 52, 70, 0.9));
-  border-color: rgba(142, 224, 242, 0.86);
-  box-shadow: inset 0 0 0 2px var(--season-color), 0 0 0 2px rgba(142, 224, 242, 0.62);
+  background: var(--sanctuary-primary);
+  border-color: var(--sanctuary-primary);
+  box-shadow: none;
+  color: var(--sanctuary-on-accent);
 }
 
 .calendar-day.today {
-  box-shadow: inset 0 0 0 2px var(--season-color), inset 0 0 0 4px rgba(229, 198, 106, 0.82);
+  box-shadow: none;
+  border-color: var(--sanctuary-primary);
 }
 
 .calendar-day.empty {
@@ -274,7 +277,7 @@
 
 .calendar-day span {
   margin: 0;
-  color: rgba(255, 255, 255, 0.74);
+  color: var(--sanctuary-text-muted);
   font-size: 0.6rem;
   line-height: 1.15;
   min-width: 0;
@@ -297,10 +300,10 @@
 }
 
 .saint-highlight[data-season] {
-  border-color: var(--season-color, rgba(255, 255, 255, 0.1));
+  border-color: var(--season-color, var(--sanctuary-border));
   box-shadow:
     inset 0 0 0 2px var(--season-color, transparent),
-    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    inset 0 1px 0 var(--sanctuary-shadow);
 }
 
 .content-button {
@@ -326,7 +329,7 @@
 
 .saint-date span {
   margin: 0;
-  color: rgba(255, 255, 255, 0.74);
+  color: var(--sanctuary-text-muted);
   font-size: 0.9rem;
   line-height: 1.42;
 }
@@ -335,7 +338,7 @@
   width: min(240px, 100%);
   aspect-ratio: 1 / 1;
   border-radius: 16px;
-  background: linear-gradient(180deg, rgba(111, 197, 244, 0.18), rgba(19, 32, 46, 0.7));
+  background: var(--sanctuary-hero);
   background-position: center;
   background-repeat: no-repeat;
   background-size: contain;
@@ -345,7 +348,7 @@
 .saint-action {
   display: grid;
   place-items: center;
-  color: rgba(255, 255, 255, 0.66);
+  color: var(--sanctuary-text-muted);
 }
 
 .mode-panel {
@@ -365,7 +368,7 @@
 
 .mode-panel p {
   margin: 0;
-  color: rgba(255, 255, 255, 0.72);
+  color: var(--sanctuary-text-muted);
 }
 
 .preview-grid {
@@ -378,17 +381,16 @@
   width: 100%;
   min-height: 54px;
   margin-top: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  border: 1px solid var(--sanctuary-border);
   border-radius: 22px;
   padding: 0 16px;
   display: flex;
   align-items: center;
   gap: 10px;
-  color: #ffffff;
+  color: var(--sanctuary-text);
   background:
-    linear-gradient(100deg, rgba(85, 183, 220, 0.94), rgba(30, 127, 155, 0.82), rgba(255, 255, 255, 0.08)),
-    rgba(255, 255, 255, 0.08);
-  box-shadow: 0 14px 28px rgba(30, 127, 155, 0.2);
+    var(--sanctuary-surface-card);
+  box-shadow: 0 14px 28px var(--sanctuary-shadow);
   cursor: pointer;
 }
 
@@ -406,12 +408,12 @@
   border-radius: 50%;
   display: grid;
   place-items: center;
-  background: rgba(255, 255, 255, 0.14);
+  background: var(--sanctuary-surface-card);
   font-weight: 800;
 }
 
 .calendar-search-arrow {
-  color: rgba(255, 255, 255, 0.78);
+  color: var(--sanctuary-text-muted);
   font-size: 1.4rem;
   line-height: 1;
 }
@@ -437,7 +439,7 @@
 
 .preview-header p {
   margin: 4px 0 0;
-  color: rgba(255, 255, 255, 0.74);
+  color: var(--sanctuary-text-muted);
   font-size: 0.85rem;
 }
 
@@ -452,8 +454,8 @@
   border-radius: 18px;
   padding: 12px 14px;
   text-align: left;
-  background: rgba(255, 255, 255, 0.06);
-  color: #ffffff;
+  background: var(--sanctuary-surface-card);
+  color: var(--sanctuary-text);
   display: grid;
   grid-template-columns: 56px minmax(0, 1fr);
   gap: 12px;
@@ -471,8 +473,7 @@
   height: 56px;
   border-radius: 14px;
   background:
-    linear-gradient(180deg, rgba(76, 182, 216, 0.2), rgba(13, 36, 53, 0.74)),
-    rgba(255, 255, 255, 0.05);
+    var(--sanctuary-hero);
   background-position: center;
   background-size: cover;
   display: grid;
@@ -488,7 +489,7 @@
 
 .preview-item span,
 .preview-empty {
-  color: rgba(255, 255, 255, 0.74);
+  color: var(--sanctuary-text-muted);
   font-size: 0.86rem;
   line-height: 1.45;
 }
@@ -502,15 +503,15 @@
   margin-top: 10px;
   padding: 6px 10px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.82);
+  background: var(--sanctuary-surface-card);
+  color: var(--sanctuary-text-muted);
   font-size: 0.74rem;
 }
 
 .content-card__fallback {
-  color: #dff7ff;
+  color: var(--sanctuary-on-accent);
   font-size: 1.35rem;
-  text-shadow: 0 4px 18px rgba(0, 0, 0, 0.28);
+  text-shadow: 0 4px 18px var(--sanctuary-shadow);
 }
 
 @media (min-width: 900px) {
@@ -589,21 +590,40 @@
 }
 
 [data-season='ADVENT'] {
-  --season-color: #7858b9;
+  --season-color: var(--sanctuary-advent);
 }
 
 [data-season='CHRISTMAS'] {
-  --season-color: #ffffff;
+  --season-color: var(--sanctuary-christmas);
 }
 
 [data-season='LENT'] {
-  --season-color: #9b5087;
+  --season-color: var(--sanctuary-lent);
 }
 
 [data-season='EASTER'] {
-  --season-color: #ffffff;
+  --season-color: var(--sanctuary-easter);
 }
 
 [data-season='ORDINARY'] {
-  --season-color: #3c9b5f;
+  --season-color: var(--sanctuary-ordinary);
+}
+
+.calendar-day::after {
+  content: '';
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  left: calc(50% - 2.5px);
+  bottom: 5px;
+  border-radius: 50%;
+  background: var(--season-color, transparent);
+}
+
+.calendar-day.selected span {
+  color: var(--sanctuary-on-accent);
+}
+
+.calendar-day.empty::after {
+  display: none;
 }

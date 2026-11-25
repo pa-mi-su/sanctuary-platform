@@ -2,18 +2,18 @@ package app.sanctuary.android.ui.theme
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
-import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.unit.dp
 
-private val SanctuaryColorScheme = darkColorScheme(
+private val SanctuaryColorScheme = lightColorScheme(
     primary = SanctuaryBlue,
-    onPrimary = SanctuaryText,
+    onPrimary = SanctuaryOnAccent,
     primaryContainer = DeepOcean,
     onPrimaryContainer = SanctuaryText,
     secondary = SanctuaryTabActive,
-    onSecondary = NightSky,
+    onSecondary = SanctuaryOnAccent,
     secondaryContainer = SanctuaryCardSoft,
     onSecondaryContainer = SanctuaryText,
     surfaceVariant = SanctuaryCardSoft,
@@ -21,6 +21,10 @@ private val SanctuaryColorScheme = darkColorScheme(
     outline = SanctuaryCardBorder,
     outlineVariant = SanctuaryCardBorder,
     surfaceTint = androidx.compose.ui.graphics.Color.Transparent,
+    error = SanctuaryError,
+    onError = SanctuaryOnAccent,
+    errorContainer = SanctuaryErrorSurface,
+    onErrorContainer = SanctuaryError,
     background = NightSky,
     onBackground = SanctuaryText,
     surface = SanctuaryCard,

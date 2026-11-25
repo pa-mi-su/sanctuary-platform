@@ -2,9 +2,10 @@ import SwiftUI
 
 struct HomeView: View {
     let environment: AppEnvironment
+    var isObscured = false
+    @State private var heroIsVisible = true
     @EnvironmentObject private var localization: LocalizationManager
 
-    @State private var revealContent = false
     @State private var showPrayersSearch = false
     @State private var showRosarySearch = false
     @State private var showIntentionsSearch = false
@@ -19,47 +20,42 @@ struct HomeView: View {
     private var primaryActions: [HomeAction] {
         [
             HomeAction(
+                id: .daily,
                 title: localization.t("home.daily"),
                 subtitle: localization.t("home.dailySubtitle"),
-                icon: "sun.max.fill",
-                tint: AppTheme.todayHighlight,
-                illustrationAssetName: "HomeCardDailyReadings"
+                icon: "sun.max.fill"
             ) {
                 showDailyReadings = true
             },
             HomeAction(
+                id: .prayers,
                 title: localization.t("home.prayers"),
                 subtitle: localization.t("home.prayersSubtitle"),
-                icon: "hands.sparkles.fill",
-                tint: AppTheme.glowRose,
-                illustrationAssetName: "HomeCardPrayers"
+                icon: "hands.sparkles.fill"
             ) {
                 showPrayersSearch = true
             },
             HomeAction(
+                id: .patronage,
                 title: localization.t("home.patronage"),
                 subtitle: localization.t("home.patronageSubtitle"),
-                icon: "person.crop.circle.badge.checkmark",
-                tint: AppTheme.glowGold,
-                illustrationAssetName: "HomeCardSaints"
+                icon: "person.crop.circle.badge.checkmark"
             ) {
                 showPatronageSearch = true
             },
             HomeAction(
+                id: .intentions,
                 title: localization.t("home.intentions"),
                 subtitle: localization.t("home.intentionsSubtitle"),
-                icon: "heart.text.square.fill",
-                tint: AppTheme.glowRose,
-                illustrationAssetName: "HomeCardIntentions"
+                icon: "heart.text.square.fill"
             ) {
                 showIntentionsSearch = true
             },
             HomeAction(
+                id: .rosary,
                 title: localization.t("home.rosary"),
                 subtitle: localization.t("home.rosarySubtitle"),
-                icon: "circle",
-                tint: AppTheme.glowGold,
-                illustrationAssetName: "HomeCardRosary"
+                icon: "circle"
             ) {
                 showRosarySearch = true
             }
@@ -70,96 +66,101 @@ struct HomeView: View {
         NavigationStack {
             GeometryReader { proxy in
                 let width = proxy.size.width
-                let scale = ResponsiveLayout.scale(for: width)
-                let logoSize = ResponsiveLayout.value(146, width: width)
-                let contentWidth = max(0, min(width - 24, 760))
+                let contentWidth = min(width, 760)
 
-                ZStack {
-                    AppBackdrop()
-
-                    ScrollView(showsIndicators: false) {
-                        VStack(spacing: 16 * scale) {
-                            VStack(spacing: 16 * scale) {
-                                Text(localization.t("home.eyebrow"))
-                                    .font(AppTheme.rounded(13 * scale, weight: .bold))
-                                    .tracking(1.8 * scale)
-                                    .foregroundStyle(AppTheme.heroEyebrow)
-                                    .multilineTextAlignment(.center)
-
-                                ZStack {
-                                    Circle()
-                                        .fill(AppTheme.glowGold.opacity(0.22))
-                                        .frame(width: logoSize + (44 * scale), height: logoSize + (44 * scale))
-                                        .blur(radius: 16)
-
-                                    Image("BrandLogo")
-                                        .resizable()
-                                        .scaledToFit()
-                                        .frame(width: logoSize, height: logoSize)
-                                        .clipShape(RoundedRectangle(cornerRadius: 30 * scale, style: .continuous))
-                                        .overlay(
-                                            RoundedRectangle(cornerRadius: 30 * scale, style: .continuous)
-                                                .stroke(Color.white.opacity(0.14), lineWidth: 1)
-                                        )
-                                        .shadow(color: Color.black.opacity(0.26), radius: 22, x: 0, y: 12)
-                                }
-                                .padding(.top, 6 * scale)
-
-                                VStack(spacing: 10 * scale) {
-                                    Text(localization.t("home.welcome"))
-                                        .font(AppTheme.rounded(31 * scale, weight: .bold))
-                                        .minimumScaleFactor(0.7)
-                                        .multilineTextAlignment(.center)
-                                        .foregroundStyle(.white)
-
-                                    Text(localization.t("home.connect"))
-                                        .font(AppTheme.rounded(17 * scale, weight: .semibold))
-                                        .multilineTextAlignment(.center)
-                                        .foregroundStyle(AppTheme.subtitleText)
-                                }
-
-                                Text(localization.t("home.supporting"))
-                                    .font(AppTheme.rounded(14 * scale, weight: .medium))
-                                    .foregroundStyle(Color.white.opacity(0.65))
-                                    .multilineTextAlignment(.center)
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 0) {
+                        HomeFeaturedCarousel(
+                            actions: primaryActions,
+                            isObscured: isObscured || showPrayersSearch || showRosarySearch
+                                || showIntentionsSearch || showPatronageSearch || showDailyReadings
+                        )
+                        .background {
+                            GeometryReader { geometry in
+                                Color.clear.preference(key: HomeHeroVisibilityKey.self,
+                                    value: geometry.frame(in: .named("homeScroll")).maxY)
                             }
-                            .padding(.horizontal, 20 * scale)
-                            .padding(.vertical, 18 * scale)
-                            .frame(maxWidth: .infinity)
-                            .appGlassCard(cornerRadius: 30 * scale)
-                            .opacity(revealContent ? 1 : 0)
-                            .offset(y: revealContent ? 0 : 14)
+                        }
+                        .overlay(alignment: .top) {
+                            HStack {
+                                Text(localization.t("tab.home"))
+                                    .font(.system(.largeTitle, weight: .bold))
+                                    .foregroundStyle(AppTheme.onAccent)
+                                Spacer()
+                                Image("BrandLogo")
+                                    .resizable().scaledToFit()
+                                    .frame(width: 42, height: 42)
+                                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                                    .accessibilityLabel("Sanctuary")
+                            }
+                            .padding(.horizontal, 24)
+                            .padding(.top, 12)
+                        }
 
-                            VStack(spacing: 16 * scale) {
-                                ForEach(Array(primaryActions.enumerated()), id: \.offset) { index, action in
+                        LinearGradient(colors: [AppTheme.heroBase, AppTheme.homeSurface],
+                            startPoint: .top, endPoint: .bottom)
+                            .frame(height: 36)
+                            .accessibilityHidden(true)
+
+                        VStack(spacing: 32) {
+                            HStack(alignment: .top, spacing: 10) {
+                                ForEach(primaryActions.filter { $0.id != .rosary }) { action in
                                     Button(action: action.action) {
-                                        HomeFeatureCard(action: action, scale: scale)
+                                        VStack(spacing: 9) {
+                                            Image(systemName: action.icon)
+                                                .font(.system(size: 24, weight: .regular))
+                                                .frame(maxWidth: .infinity)
+                                                .frame(height: 62)
+                                                .background(AppTheme.homeSurfaceRaised, in: RoundedRectangle(cornerRadius: 16))
+                                            Text(action.title)
+                                                .font(.system(size: 11, weight: .semibold))
+                                                .multilineTextAlignment(.center)
+                                        }
+                                        .foregroundStyle(AppTheme.homeInk)
+                                        .frame(maxWidth: .infinity, alignment: .top)
                                     }
                                     .buttonStyle(.plain)
-                                        .opacity(revealContent ? 1 : 0)
-                                        .offset(y: revealContent ? 0 : CGFloat(18 + (index * 5)))
-                                        .animation(
-                                            .spring(response: 0.54, dampingFraction: 0.86)
-                                                .delay(0.08 + (Double(index) * 0.04)),
-                                            value: revealContent
-                                        )
                                 }
                             }
-                            .padding(.bottom, 18 * scale)
+                            .padding(.horizontal, 24)
+
+                            VStack(spacing: 12) {
+                                Text("MATTHEW 11:28")
+                                    .font(.caption)
+                                    .tracking(1.2)
+                                    .foregroundStyle(AppTheme.homeMuted)
+                                Text(localization.t("home.verse"))
+                                    .font(.system(.title2, design: .serif))
+                                    .lineSpacing(4)
+                                    .multilineTextAlignment(.center)
+                                    .foregroundStyle(AppTheme.homeInk)
+                            }
+                            .padding(.horizontal, 32)
+                            .padding(.vertical, 8)
+
+                            HomeDailyPrayerList(
+                                title: localization.t("home.explore"),
+                                actions: primaryActions.filter { [.daily, .prayers, .rosary].contains($0.id) }
+                            )
+
+                            HomeFeatureShelf(
+                                title: localization.t("home.guidance"),
+                                actions: primaryActions.filter { [.patronage, .intentions].contains($0.id) }
+                            )
                         }
-                        .frame(maxWidth: contentWidth)
-                        .padding(.horizontal, 12 * scale)
-                        .padding(.top, 6 * scale)
-                        .padding(.bottom, 16 * scale)
+                        .padding(.top, 24)
+                        .padding(.bottom, 112)
+                        .background(AppTheme.homeSurface)
                     }
+                    .frame(maxWidth: contentWidth)
+                    .frame(maxWidth: .infinity)
                 }
+                .coordinateSpace(name: "homeScroll")
+                .onPreferenceChange(HomeHeroVisibilityKey.self) { heroIsVisible = $0 > 0 }
+                .background(AppTheme.homeSurface, ignoresSafeAreaEdges: [])
             }
-            .task {
-                guard !revealContent else { return }
-                withAnimation(.spring(response: 0.62, dampingFraction: 0.88)) {
-                    revealContent = true
-                }
-            }
+            .background((heroIsVisible ? AppTheme.heroBase : AppTheme.homeSurface).ignoresSafeArea(edges: .top))
+            .preferredColorScheme(heroIsVisible ? .dark : .light)
             .task(id: localization.language) {
                 await loadDailyReadingsURL()
             }
@@ -208,7 +209,7 @@ struct LanguagePickerSheet: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
                     Text(localization.t("home.chooseLanguage"))
-                        .font(AppTheme.rounded(24, weight: .bold)).foregroundStyle(.white)
+                        .font(AppTheme.rounded(24, weight: .bold)).foregroundStyle(AppTheme.cardText)
                         .padding(.bottom, 4)
                     ForEach(AppLanguage.allCases) { language in
                         Button {
@@ -220,9 +221,9 @@ struct LanguagePickerSheet: View {
                                 Spacer()
                                 if language == localization.language { Image(systemName: "checkmark").foregroundStyle(AppTheme.tabActive) }
                             }
-                            .foregroundStyle(.white).padding(.horizontal, 18).padding(.vertical, 16)
+                            .foregroundStyle(AppTheme.cardText).padding(.horizontal, 18).padding(.vertical, 16)
                             .frame(maxWidth: .infinity, minHeight: 56)
-                            .background(language == localization.language ? Color(hex: "#245C73") : AppTheme.cardBackground)
+                            .background(language == localization.language ? AppTheme.cardBackgroundSoft : AppTheme.cardBackground)
                             .clipShape(RoundedRectangle(cornerRadius: 18))
                             .overlay(RoundedRectangle(cornerRadius: 18).stroke(AppTheme.tabBorder, lineWidth: 1))
                         }.buttonStyle(.plain)
@@ -233,146 +234,295 @@ struct LanguagePickerSheet: View {
     }
 }
 
-private struct HomeAction {
+private struct HomeHeroVisibilityKey: PreferenceKey {
+    static var defaultValue: CGFloat = 1
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
+}
+
+private enum HomeDestination {
+    case daily, prayers, patronage, intentions, rosary
+}
+
+private struct HomeAction: Identifiable {
+    let id: HomeDestination
     let title: String
     let subtitle: String
     let icon: String
-    let tint: Color
-    let illustrationAssetName: String
     let action: () -> Void
 }
 
-private struct HomeFeatureCard: View {
-    let action: HomeAction
-    let scale: CGFloat
+/// Sentinel pages at both ends make manual swipes and automatic advances loop forward.
+private struct HomeFeaturedCarousel: View {
+    let actions: [HomeAction]
+    let isObscured: Bool
+    @EnvironmentObject private var localization: LocalizationManager
+    @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.accessibilityVoiceOverEnabled) private var voiceOverEnabled
+    @ScaledMetric(relativeTo: .body) private var heroHeight: CGFloat = 470
+    @GestureState private var isDragging = false
+    @State private var position = 1
+    @State private var isPaused = false
+    @State private var isVisible = false
 
-    var body: some View {
-        ZStack(alignment: .bottomLeading) {
-            RoundedRectangle(cornerRadius: 28 * scale, style: .continuous)
-                .fill(cardGradient)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 28 * scale, style: .continuous)
-                        .fill(
-                            LinearGradient(
-                                colors: [Color.white.opacity(0.06), Color.clear, Color.black.opacity(0.18)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 28 * scale, style: .continuous)
-                        .stroke(Color.white.opacity(0.12), lineWidth: 1)
-                )
-
-            VStack(alignment: .leading, spacing: 14 * scale) {
-                Spacer(minLength: 0)
-
-                HStack(alignment: .center, spacing: 14 * scale) {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 14 * scale, style: .continuous)
-                            .fill(Color.white.opacity(0.12))
-                            .frame(width: 42 * scale, height: 42 * scale)
-
-                        Image(systemName: action.icon)
-                            .font(.system(size: 18 * scale, weight: .semibold))
-                            .foregroundStyle(action.tint)
-                    }
-
-                    VStack(alignment: .leading, spacing: 4 * scale) {
-                        Text(action.title)
-                            .font(AppTheme.rounded(22 * scale, weight: .bold))
-                            .foregroundStyle(.white)
-                        Text(action.subtitle)
-                            .font(AppTheme.rounded(14 * scale, weight: .medium))
-                            .foregroundStyle(Color.white.opacity(0.78))
-                            .multilineTextAlignment(.leading)
-                    }
-
-                    Spacer(minLength: 0)
-
-                    ZStack {
-                        Circle()
-                            .fill(Color.white.opacity(0.12))
-                            .frame(width: 32 * scale, height: 32 * scale)
-
-                        Image(systemName: "arrow.up.right")
-                            .font(.system(size: 12 * scale, weight: .bold))
-                            .foregroundStyle(Color.white.opacity(0.78))
-                    }
-                }
-            }
-            .padding(.horizontal, 22 * scale)
-            .padding(.vertical, 20 * scale)
-
-            VStack {
-                HStack {
-                    Spacer()
-
-                    Image(action.illustrationAssetName)
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: 156 * scale, height: 108 * scale)
-                        .clipShape(RoundedRectangle(cornerRadius: 22 * scale, style: .continuous))
-                        .shadow(color: Color.black.opacity(0.24), radius: 18 * scale, x: 0, y: 10 * scale)
-                }
-
-                Spacer()
-            }
-            .padding(.top, 16 * scale)
-            .padding(.trailing, 16 * scale)
-            .allowsHitTesting(false)
-        }
-        .frame(maxWidth: .infinity)
-        .frame(height: 188 * scale)
-        .shadow(color: Color.black.opacity(0.24), radius: 18 * scale, x: 0, y: 10 * scale)
+    private var pageCount: Int { actions.count + 1 }
+    private var selectedPage: Int { logicalPage(position) }
+    private func logicalPage(_ position: Int) -> Int { (position - 1 + pageCount) % pageCount }
+    private func title(for page: Int) -> String {
+        page == 0 ? localization.t("home.welcome") : actions[page - 1].title
+    }
+    private var playbackKey: String {
+        "\(position)-\(isPaused)-\(isVisible)-\(scenePhase)-\(isObscured)-\(isDragging)-\(reduceMotion)-\(voiceOverEnabled)"
     }
 
-    private var cardGradient: LinearGradient {
-        switch action.illustrationAssetName {
-        case "HomeCardSaints":
-            return LinearGradient(
-                colors: [Color(hex: "#153646").opacity(0.92), Color(hex: "#1C5461").opacity(0.76)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        case "HomeCardNovenas":
-            return LinearGradient(
-                colors: [Color(hex: "#0D2535").opacity(0.94), Color(hex: "#1B576C").opacity(0.72)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        case "HomeCardPrayers":
-            return LinearGradient(
-                colors: [Color(hex: "#2C3144").opacity(0.9), Color(hex: "#15424D").opacity(0.72)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        case "HomeCardRosary":
-            return LinearGradient(
-                colors: [Color(hex: "#30384F").opacity(0.92), Color(hex: "#123E4D").opacity(0.74)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        case "HomeCardDailyReadings":
-            return LinearGradient(
-                colors: [Color(hex: "#1C514C").opacity(0.9), Color(hex: "#143B4D").opacity(0.74)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        case "HomeCardIntentions":
-            return LinearGradient(
-                colors: [Color(hex: "#4C3B56").opacity(0.9), Color(hex: "#15404B").opacity(0.74)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        default:
-            return LinearGradient(
-                colors: [AppTheme.cardBackground, AppTheme.cardBackground.opacity(0.76)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
+    var body: some View {
+        VStack(spacing: 0) {
+            TabView(selection: $position) {
+                ForEach(0..<(pageCount + 2), id: \.self) { index in
+                    Group {
+                        if logicalPage(index) == 0 {
+                            HomeWelcomeSlide()
+                        } else {
+                            HomeHeroSlide(action: actions[logicalPage(index) - 1], openLabel: localization.t("home.open"))
+                        }
+                    }
+                    .tag(index)
+                    .accessibilityHidden(logicalPage(index) != selectedPage)
+                }
+            }
+            .tabViewStyle(.page(indexDisplayMode: .never))
+            .frame(height: heroHeight)
+            .simultaneousGesture(DragGesture(minimumDistance: 10).updating($isDragging) { _, state, _ in state = true })
+
+            HStack(spacing: 0) {
+                ForEach(0..<pageCount, id: \.self) { index in
+                    Button {
+                        withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.35)) { position = index + 1 }
+                    } label: {
+                        Capsule()
+                            .fill(Color.white.opacity(selectedPage == index ? 0.95 : 0.25))
+                            .frame(width: selectedPage == index ? 20 : 5, height: 5)
+                            .frame(width: 40, height: 44)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(title(for: index))
+                    .accessibilityValue("\(index + 1) / \(pageCount)")
+                    .accessibilityAddTraits(selectedPage == index ? .isSelected : [])
+                }
+                Button {
+                    isPaused.toggle()
+                } label: {
+                    Image(systemName: isPaused ? "play.fill" : "pause.fill")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(Color.white.opacity(0.6))
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(localization.t(isPaused ? "home.resumeCarousel" : "home.pauseCarousel"))
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.bottom, 12)
         }
+        .background(AppTheme.heroBase)
+        .onAppear { isVisible = true }
+        .onDisappear { isVisible = false }
+        .task(id: position) {
+            guard position == 0 || position == pageCount + 1 else { return }
+            let boundary = position
+            do { try await Task.sleep(nanoseconds: reduceMotion ? 0 : 400_000_000) } catch { return }
+            guard position == boundary else { return }
+            var transaction = Transaction()
+            transaction.disablesAnimations = true
+            withTransaction(transaction) { position = boundary == 0 ? pageCount : 1 }
+        }
+        .task(id: playbackKey) {
+            guard isVisible, scenePhase == .active, !isPaused, !isObscured,
+                  !isDragging, !reduceMotion, !voiceOverEnabled else { return }
+            do { try await Task.sleep(nanoseconds: 7_000_000_000) } catch { return }
+            withAnimation(.easeInOut(duration: 0.4)) { position += 1 }
+        }
+    }
+}
+
+private extension HomeAction {
+    var editorialAsset: String {
+        switch id {
+        case .rosary: return "HomeEditorialRosary"
+        case .patronage: return "HomeEditorialWelcome"
+        default: return "HomeEditorialScripture"
+        }
+    }
+}
+
+private struct HomeEditorialBackground: View {
+    let asset: String
+
+    var body: some View {
+        GeometryReader { proxy in
+            Image(asset)
+                .resizable().scaledToFill()
+                .frame(width: proxy.size.width, height: proxy.size.height)
+                .clipped()
+                .overlay {
+                    LinearGradient(
+                        stops: [.init(color: .black.opacity(0.25), location: 0),
+                                .init(color: .clear, location: 0.38),
+                                .init(color: AppTheme.heroBase.opacity(0.8), location: 0.73),
+                                .init(color: AppTheme.heroBase, location: 1)],
+                        startPoint: .top, endPoint: .bottom
+                    )
+                }
+        }
+        .accessibilityHidden(true)
+    }
+}
+
+private struct HomeWelcomeSlide: View {
+    @EnvironmentObject private var localization: LocalizationManager
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Spacer()
+            Text(localization.t("home.heroEyebrow"))
+                .font(.caption.weight(.medium))
+                .padding(.horizontal, 9).padding(.vertical, 5)
+                .background(.white.opacity(0.18), in: RoundedRectangle(cornerRadius: 5))
+            Text(localization.t("home.welcome"))
+                .font(.system(.title, weight: .bold))
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityAddTraits(.isHeader)
+            Text(localization.t("home.welcomeBody"))
+                .font(.body)
+                .foregroundStyle(AppTheme.onAccent.opacity(0.85))
+        }
+        .foregroundStyle(AppTheme.onAccent)
+        .padding(.horizontal, 24)
+        .padding(.bottom, 16)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+        .background { HomeEditorialBackground(asset: "HomeEditorialWelcome") }
+    }
+}
+
+private struct HomeHeroSlide: View {
+    let action: HomeAction
+    let openLabel: String
+
+    var body: some View {
+        Button(action: action.action) {
+            VStack(alignment: .leading, spacing: 12) {
+                Spacer()
+                Image(systemName: "arrow.right")
+                    .font(.system(size: 23, weight: .semibold))
+                    .foregroundStyle(AppTheme.heroBase)
+                    .frame(width: 60, height: 60)
+                    .background(.white, in: Circle())
+                    .frame(maxWidth: .infinity)
+                Spacer()
+                Text(action.subtitle)
+                    .font(.caption.weight(.medium))
+                    .padding(.horizontal, 9).padding(.vertical, 5)
+                    .background(.white.opacity(0.18), in: RoundedRectangle(cornerRadius: 5))
+                Text(action.title)
+                    .font(.system(.title, weight: .bold))
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(openLabel)
+                    .font(.body)
+                    .foregroundStyle(AppTheme.onAccent.opacity(0.85))
+            }
+            .foregroundStyle(AppTheme.onAccent)
+            .padding(.horizontal, 24)
+            .padding(.top, 90)
+            .padding(.bottom, 16)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+            .background { HomeEditorialBackground(asset: action.editorialAsset) }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(action.title). \(action.subtitle)")
+        .accessibilityHint(openLabel)
+    }
+}
+
+private struct HomeDailyPrayerList: View {
+    let title: String
+    let actions: [HomeAction]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text(title)
+                .font(.system(.title2, weight: .bold))
+                .accessibilityAddTraits(.isHeader)
+            ForEach(actions) { action in
+                Button(action: action.action) {
+                    HStack(spacing: 14) {
+                        Image(action.editorialAsset)
+                            .resizable().scaledToFill()
+                            .frame(width: 68, height: 68)
+                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                            .accessibilityHidden(true)
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text(action.title).font(.headline).fixedSize(horizontal: false, vertical: true)
+                            Text(action.subtitle).font(.subheadline).fixedSize(horizontal: false, vertical: true)
+                                .foregroundStyle(AppTheme.homeMuted)
+                        }
+                        Spacer(minLength: 0)
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(AppTheme.homeMuted)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .foregroundStyle(AppTheme.homeInk)
+        .padding(.horizontal, 24)
+    }
+}
+
+private struct HomeFeatureShelf: View {
+    let title: String
+    let actions: [HomeAction]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text(title)
+                .font(.system(.title2, weight: .bold))
+                .accessibilityAddTraits(.isHeader)
+                .padding(.horizontal, 24)
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], alignment: .leading, spacing: 12) {
+                ForEach(actions) { action in
+                    Button(action: action.action) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            GeometryReader { geometry in
+                                Image(action.editorialAsset)
+                                    .resizable().scaledToFill()
+                                    .frame(width: geometry.size.width, height: 128)
+                                    .clipped()
+                                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                                    .accessibilityHidden(true)
+                            }
+                            .frame(height: 128)
+                            Text(action.title).font(.headline)
+                                .fixedSize(horizontal: false, vertical: true)
+                            Text(action.subtitle).font(.subheadline)
+                                .foregroundStyle(AppTheme.homeMuted)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .multilineTextAlignment(.leading)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 24)
+            .padding(.bottom, 24)
+        }
+        .foregroundStyle(AppTheme.homeInk)
     }
 }
 

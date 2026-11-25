@@ -85,7 +85,7 @@ struct SaintDetailView: View {
                         Text(displayName)
                             .font(AppTheme.rounded(46, weight: .bold))
                             .minimumScaleFactor(0.6)
-                            .foregroundStyle(.white)
+                            .foregroundStyle(AppTheme.cardText)
 
                         HStack(spacing: 10) {
                             Button {
@@ -104,13 +104,13 @@ struct SaintDetailView: View {
                                     Text(isFavorite ? localization.t("detail.savedFavorites") : localization.t("detail.addFavorites"))
                                 }
                                 .font(AppTheme.rounded(16, weight: .semibold))
-                                .foregroundStyle(.white)
+                                .foregroundStyle(isFavorite ? AppTheme.onAccent : AppTheme.cardText)
                                 .padding(.horizontal, 18)
                                 .padding(.vertical, 12)
                                 .background(isFavorite ? AnyShapeStyle(AppTheme.primaryButtonGradient) : AnyShapeStyle(AppTheme.cardBackgroundSoft))
                                 .overlay(
                                     Capsule()
-                                        .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                                        .stroke(AppTheme.cardText.opacity(0.12), lineWidth: 1)
                                 )
                                 .clipShape(Capsule())
                             }
@@ -126,13 +126,13 @@ struct SaintDetailView: View {
                                 Text("Share")
                             }
                             .font(AppTheme.rounded(16, weight: .semibold))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(AppTheme.cardText)
                             .padding(.horizontal, 18)
                             .padding(.vertical, 12)
                             .background(AppTheme.cardBackgroundSoft)
                             .overlay(
                                 Capsule()
-                                    .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                                    .stroke(AppTheme.cardText.opacity(0.12), lineWidth: 1)
                             )
                             .clipShape(Capsule())
                         }
@@ -222,14 +222,14 @@ struct SaintDetailView: View {
                 .foregroundStyle(AppTheme.glowGold)
             Text(text)
                 .font(AppTheme.rounded(15, weight: .medium))
-                .foregroundStyle(.white.opacity(0.9))
+                .foregroundStyle(AppTheme.cardText.opacity(0.9))
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
         .background(AppTheme.cardBackgroundSoft)
         .overlay(
             Capsule()
-                .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                .stroke(AppTheme.cardText.opacity(0.1), lineWidth: 1)
         )
         .clipShape(Capsule())
     }
@@ -275,7 +275,7 @@ private struct RemoteHeroImage: View {
                 AsyncImage(url: url) { phase in
                     switch phase {
                     case .empty:
-                        ProgressView().tint(.white)
+                        ProgressView().tint(AppTheme.tabActive)
                     case .success(let image):
                         ZStack {
                             image
@@ -299,7 +299,7 @@ private struct RemoteHeroImage: View {
                                 .clipShape(innerShape)
                                 .overlay(
                                     innerShape
-                                        .stroke(Color.white.opacity(0.34), lineWidth: 1)
+                                        .stroke(AppTheme.cardText.opacity(0.34), lineWidth: 1)
                                 )
                         }
                         .frame(width: containerSize.width, height: containerSize.height)
@@ -316,14 +316,14 @@ private struct RemoteHeroImage: View {
             .clipShape(outerShape)
             .overlay(
                 outerShape
-                    .stroke(Color.white.opacity(0.16), lineWidth: 1.5)
+                    .stroke(AppTheme.cardText.opacity(0.16), lineWidth: 1.5)
             )
         }
         .frame(maxWidth: .infinity)
         .frame(height: 280)
         .clipped()
         .allowsHitTesting(false)
-        .shadow(color: Color.black.opacity(0.22), radius: 18, x: 0, y: 10)
+        .shadow(color: Color.black.opacity(0.07), radius: 8, x: 0, y: 4)
     }
 }
 

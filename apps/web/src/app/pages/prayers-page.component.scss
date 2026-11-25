@@ -1,23 +1,23 @@
 :host {
   display: block;
   width: 100%;
-  color: #ffffff;
+  color: var(--sanctuary-text);
 }
 
 .glass-card {
   background: var(--glass-fill);
   border: 1px solid var(--glass-stroke);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    inset 0 1px 0 var(--sanctuary-shadow),
     inset 0 0 0 999px var(--glass-overlay),
-    0 18px 36px rgba(3, 10, 18, 0.22);
+    0 18px 36px var(--sanctuary-shadow);
   backdrop-filter: blur(18px);
 }
 
 .glass-subtle {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  background: var(--sanctuary-surface-card);
+  border: 1px solid var(--sanctuary-border);
+  box-shadow: inset 0 1px 0 var(--sanctuary-shadow);
 }
 
 .screen-card {
@@ -41,7 +41,7 @@
 
 .meta-text {
   margin: 6px 0 0;
-  color: rgba(255, 255, 255, 0.74);
+  color: var(--sanctuary-text-muted);
   font-size: 0.92rem;
 }
 
@@ -50,8 +50,8 @@
   height: 42px;
   border: 0;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.08);
-  color: #ffffff;
+  background: var(--sanctuary-surface-raised);
+  color: var(--sanctuary-text);
   font-size: 1.5rem;
   cursor: pointer;
 }
@@ -64,7 +64,7 @@
   align-items: center;
   gap: 10px;
   padding: 0 16px;
-  color: rgba(255, 255, 255, 0.72);
+  color: var(--sanctuary-text-muted);
 }
 
 .search-input {
@@ -73,12 +73,12 @@
   border: 0;
   outline: 0;
   background: transparent;
-  color: #ffffff;
+  color: var(--sanctuary-text);
   font: inherit;
 }
 
 .search-input::placeholder {
-  color: rgba(255, 255, 255, 0.58);
+  color: var(--sanctuary-text-muted);
 }
 
 .mode-panel {
@@ -98,7 +98,7 @@
 
 .mode-panel p {
   margin: 0;
-  color: rgba(255, 255, 255, 0.72);
+  color: var(--sanctuary-text-muted);
 }
 
 .list-stack {
@@ -113,7 +113,7 @@
   grid-template-columns: 88px minmax(0, 1fr);
   gap: 16px;
   align-items: stretch;
-  color: #ffffff;
+  color: var(--sanctuary-text);
   min-height: 172px;
 }
 
@@ -131,17 +131,16 @@
   display: grid;
   place-items: center;
   background:
-    linear-gradient(180deg, rgba(76, 182, 216, 0.2), rgba(13, 36, 53, 0.74)),
-    rgba(255, 255, 255, 0.05);
+    var(--sanctuary-hero);
   background-position: center;
   background-size: cover;
   overflow: hidden;
 }
 
 .content-card__fallback {
-  color: #dff7ff;
+  color: var(--sanctuary-on-accent);
   font-size: 1.35rem;
-  text-shadow: 0 4px 18px rgba(0, 0, 0, 0.28);
+  text-shadow: 0 4px 18px var(--sanctuary-shadow);
 }
 
 .content-card__body {
@@ -160,7 +159,7 @@
 
 .content-card__body p {
   margin: 0;
-  color: rgba(255, 255, 255, 0.74);
+  color: var(--sanctuary-text-muted);
   font-size: 0.9rem;
   line-height: 1.42;
   display: -webkit-box;
@@ -174,8 +173,8 @@
   margin-top: 10px;
   padding: 6px 10px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.82);
+  background: var(--sanctuary-surface-card);
+  color: var(--sanctuary-text-muted);
   font-size: 0.74rem;
 }
 

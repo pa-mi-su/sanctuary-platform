@@ -19,7 +19,7 @@ enum PrayerSearchMode {
         case .prayers:
             return "search.prayersTitle"
         case .rosary:
-            return "search.rosaryTitle"
+            return "home.rosary"
         }
     }
 
@@ -61,6 +61,7 @@ final class PrayersSearchViewModel: ObservableObject {
     @Published var query: String = ""
     @Published private(set) var prayers: [Prayer] = []
     @Published private(set) var isLoading = false
+    @Published private(set) var loadError: String?
 
     private let environment: AppEnvironment
     private let mode: PrayerSearchMode
@@ -81,6 +82,7 @@ final class PrayersSearchViewModel: ObservableObject {
     }
 
     func load() async {
+        loadError = nil
         isLoading = true
         defer { isLoading = false }
         do {
@@ -88,6 +90,7 @@ final class PrayersSearchViewModel: ObservableObject {
             rebuildIndex()
             scheduleFilter(immediate: true)
         } catch {
+            loadError = error.localizedDescription
             allPrayers = []
             indexedPrayers = []
             prayers = []
@@ -197,10 +200,10 @@ struct PrayersSearchView: View {
                         } label: {
                             Image(systemName: "arrow.left")
                                 .font(.system(size: 20, weight: .bold))
-                                .foregroundStyle(.white)
+                                .foregroundStyle(AppTheme.cardText)
                                 .frame(width: 52, height: 52)
                                 .background(AppTheme.cardBackgroundSoft)
-                                .overlay(Circle().stroke(Color.white.opacity(0.12), lineWidth: 1))
+                                .overlay(Circle().stroke(AppTheme.cardText.opacity(0.12), lineWidth: 1))
                                 .clipShape(Circle())
                         }
                         .buttonStyle(.plain)
@@ -209,20 +212,21 @@ struct PrayersSearchView: View {
                         Spacer()
                         Text(localization.t(mode.titleKey))
                             .font(.system(size: 24, weight: .heavy))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(AppTheme.cardText)
                         Spacer()
                         Color.clear.frame(width: 52, height: 52)
                     }
                     .padding(.top, 8)
 
+                    if mode != .rosary {
                     HStack(spacing: 10) {
                         Image(systemName: "magnifyingglass")
-                            .foregroundStyle(AppTheme.cardText.opacity(0.75))
+                            .foregroundStyle(AppTheme.subtitleText)
                         TextField(
                             "",
                             text: $viewModel.query,
                             prompt: Text(localization.t(mode.promptKey))
-                                .foregroundColor(AppTheme.cardText.opacity(0.58))
+                                .foregroundColor(AppTheme.subtitleText)
                         )
                             .foregroundColor(AppTheme.cardText)
                             .textInputAutocapitalization(.never)
@@ -246,17 +250,28 @@ struct PrayersSearchView: View {
                         }
                     }
 
+                    }
+
                     if viewModel.isLoading {
                         SanctuaryLoadingCard(
                             title: localization.t("common.loading"),
                             detail: localization.t("common.loadingDetail")
                         )
+                    } else if let error = viewModel.loadError {
+                        VStack(spacing: 16) {
+                            Text(error).foregroundStyle(AppTheme.errorText).multilineTextAlignment(.center)
+                            Button(localization.t("common.retry")) { Task { await viewModel.load() } }
+                                .buttonStyle(PrimaryPillButtonStyle())
+                        }.padding(.vertical, 24)
                     } else {
+                        if mode != .rosary {
                         HStack {
                             Text("\(viewModel.prayers.count) \(localization.t("search.results"))")
                                 .font(AppTheme.rounded(17, weight: .medium))
-                                .foregroundStyle(.white.opacity(0.92))
+                                .foregroundStyle(AppTheme.cardText.opacity(0.92))
                             Spacer()
+                        }
+
                         }
 
                         ScrollView(showsIndicators: false) {
@@ -284,6 +299,7 @@ struct PrayersSearchView: View {
                 }
                 .padding(.horizontal, 14)
                 .padding(.bottom, 10)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             }
             .toolbar(.hidden, for: .navigationBar)
         }
@@ -402,7 +418,7 @@ struct PrayerDetailView: View {
                         Text(title)
                             .font(AppTheme.rounded(48, weight: .bold))
                             .minimumScaleFactor(0.58)
-                            .foregroundStyle(.white)
+                            .foregroundStyle(AppTheme.cardText)
 
                         HStack(spacing: 10) {
                             Button {
@@ -421,13 +437,13 @@ struct PrayerDetailView: View {
                                     Text(isFavorite ? localization.t("detail.savedFavorites") : localization.t("detail.addFavorites"))
                                 }
                                 .font(AppTheme.rounded(16, weight: .semibold))
-                                .foregroundStyle(.white)
+                                .foregroundStyle(isFavorite ? AppTheme.onAccent : AppTheme.cardText)
                                 .padding(.horizontal, 18)
                                 .padding(.vertical, 12)
                                 .background(isFavorite ? AnyShapeStyle(AppTheme.primaryButtonGradient) : AnyShapeStyle(AppTheme.cardBackgroundSoft))
                                 .overlay(
                                     Capsule()
-                                        .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                                        .stroke(AppTheme.cardText.opacity(0.12), lineWidth: 1)
                                 )
                                 .clipShape(Capsule())
                             }
@@ -445,13 +461,13 @@ struct PrayerDetailView: View {
                                 Text("Share")
                             }
                             .font(AppTheme.rounded(16, weight: .semibold))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(AppTheme.cardText)
                             .padding(.horizontal, 18)
                             .padding(.vertical, 12)
                             .background(AppTheme.cardBackgroundSoft)
                             .overlay(
                                 Capsule()
-                                    .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                                    .stroke(AppTheme.cardText.opacity(0.12), lineWidth: 1)
                             )
                             .clipShape(Capsule())
                         }
@@ -461,7 +477,7 @@ struct PrayerDetailView: View {
                             if !noteText.isEmpty {
                                 Text(noteText)
                                     .font(AppTheme.rounded(18, weight: .medium))
-                                    .foregroundStyle(.white.opacity(0.95))
+                                    .foregroundStyle(AppTheme.cardText.opacity(0.95))
                                     .padding(.top, 2)
                             }
                         }
@@ -520,14 +536,14 @@ struct PrayerDetailView: View {
                 .foregroundStyle(AppTheme.glowGold)
             Text(text)
                 .font(AppTheme.rounded(15, weight: .medium))
-                .foregroundStyle(.white.opacity(0.9))
+                .foregroundStyle(AppTheme.cardText.opacity(0.9))
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
         .background(AppTheme.cardBackgroundSoft)
         .overlay(
             Capsule()
-                .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                .stroke(AppTheme.cardText.opacity(0.1), lineWidth: 1)
         )
         .clipShape(Capsule())
     }
@@ -571,7 +587,7 @@ private struct PrayerHeroImage: View {
                 AsyncImage(url: url) { phase in
                     switch phase {
                     case .empty:
-                        ProgressView().tint(.white)
+                        ProgressView().tint(AppTheme.tabActive)
                     case .success(let image):
                         ZStack {
                             image
@@ -595,7 +611,7 @@ private struct PrayerHeroImage: View {
                                 .clipShape(innerShape)
                                 .overlay(
                                     innerShape
-                                        .stroke(Color.white.opacity(0.34), lineWidth: 1)
+                                        .stroke(AppTheme.cardText.opacity(0.34), lineWidth: 1)
                                 )
                         }
                         .frame(width: containerSize.width, height: containerSize.height)
@@ -603,7 +619,7 @@ private struct PrayerHeroImage: View {
                     case .failure:
                         Image(systemName: "photo")
                             .font(.system(size: 46))
-                            .foregroundStyle(.white.opacity(0.7))
+                            .foregroundStyle(AppTheme.subtitleText)
                     @unknown default:
                         EmptyView()
                     }
@@ -614,13 +630,13 @@ private struct PrayerHeroImage: View {
             .clipShape(outerShape)
             .overlay(
                 outerShape
-                    .stroke(Color.white.opacity(0.16), lineWidth: 1.5)
+                    .stroke(AppTheme.cardText.opacity(0.16), lineWidth: 1.5)
             )
             .overlay(alignment: .topTrailing) {
                 if isExpandable {
                     Image(systemName: "arrow.up.left.and.arrow.down.right")
                         .font(.system(size: 14, weight: .bold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(AppTheme.cardText)
                         .frame(width: 36, height: 36)
                         .background(AppTheme.cardBackgroundSoft)
                         .clipShape(Circle())
@@ -638,7 +654,7 @@ private struct PrayerHeroImage: View {
         .frame(height: 280)
         .clipped()
         .accessibilityAddTraits(isExpandable ? .isButton : [])
-        .shadow(color: Color.black.opacity(0.22), radius: 18, x: 0, y: 10)
+        .shadow(color: Color.black.opacity(0.07), radius: 8, x: 0, y: 4)
     }
 }
 
@@ -648,14 +664,14 @@ private struct ExpandedPrayerImageView: View {
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
-            Color.black.opacity(0.96)
+            AppTheme.heroBase
                 .ignoresSafeArea()
                 .onTapGesture { onDismiss() }
 
             AsyncImage(url: url) { phase in
                 switch phase {
                 case .empty:
-                    ProgressView().tint(.white)
+                    ProgressView().tint(AppTheme.onAccent)
                 case .success(let image):
                     image
                         .resizable()
@@ -665,7 +681,7 @@ private struct ExpandedPrayerImageView: View {
                 case .failure:
                     Image(systemName: "photo")
                         .font(.system(size: 54))
-                        .foregroundStyle(.white.opacity(0.72))
+                        .foregroundStyle(AppTheme.onAccent.opacity(0.72))
                 @unknown default:
                     EmptyView()
                 }
@@ -675,7 +691,7 @@ private struct ExpandedPrayerImageView: View {
             Button(action: onDismiss) {
                 Image(systemName: "arrow.left")
                     .font(.system(size: 20, weight: .bold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(AppTheme.onAccent)
                     .frame(width: 48, height: 48)
                     .background(Color.white.opacity(0.16))
                     .clipShape(Circle())

@@ -1,6 +1,6 @@
 :host {
   display: block;
-  color: #f4f6f5;
+  color: var(--sanctuary-text);
 }
 h1 {
   font-size: 2.5rem;
@@ -14,7 +14,7 @@ p {
 }
 .eyebrow,
 small {
-  color: #a7c6d2;
+  color: var(--sanctuary-text-muted);
 }
 .eyebrow {
   letter-spacing: 0.2em;
@@ -23,8 +23,8 @@ small {
 .panel {
   padding: 1.5rem;
   margin: 1.5rem 0;
-  background: #ffffff06;
-  border: 1px solid #ffffff26;
+  background: var(--sanctuary-surface-card);
+  border: 1px solid var(--sanctuary-border);
   border-radius: 22px;
 }
 form {
@@ -45,8 +45,8 @@ button {
 }
 select,
 textarea {
-  background: #172e3e;
-  border: 1px solid #8aa5ad88;
+  background: var(--sanctuary-surface-card);
+  border: 1px solid var(--sanctuary-border);
   border-radius: 12px;
   padding: 0.9rem;
   width: 100%;
@@ -54,18 +54,20 @@ textarea {
 }
 button {
   cursor: pointer;
-  border: 1px solid #8aa5ad88;
+  border: 1px solid var(--sanctuary-border);
   background: transparent;
   border-radius: 12px;
   padding: 0.8rem 1rem;
 }
 button:disabled {
-  opacity: 0.45;
+  opacity: 1;
   cursor: default;
+  color: var(--sanctuary-text-muted);
+  background: var(--sanctuary-surface-raised);
 }
 .primary {
-  background: #e5c476;
-  color: #193240;
+  background: var(--sanctuary-primary);
+  color: var(--sanctuary-on-accent);
   font-weight: 800;
 }
 .columns,
@@ -80,9 +82,9 @@ button:disabled {
   min-width: 180px;
 }
 .phone {
-  background: #ffffff0d;
+  background: var(--sanctuary-surface-card);
   padding: 1.2rem;
-  border: 1px solid #ffffff30;
+  border: 1px solid var(--sanctuary-border);
   border-radius: 20px;
   max-width: 450px;
 }
@@ -91,7 +93,7 @@ button:disabled {
   margin-top: 0.7rem;
 }
 .review {
-  border-top: 1px solid #ffffff30;
+  border-top: 1px solid var(--sanctuary-border);
   margin-top: 1.5rem;
   padding-top: 1rem;
 }
@@ -102,12 +104,12 @@ button:disabled {
 }
 article {
   padding: 1rem 0;
-  border-bottom: 1px solid #ffffff22;
+  border-bottom: 1px solid var(--sanctuary-border);
   overflow-wrap: anywhere;
 }
 .notice {
   padding: 1rem;
-  border: 1px solid #e5c476;
+  border: 1px solid var(--sanctuary-border);
   border-radius: 12px;
 }
 
@@ -128,17 +130,17 @@ article {
   font-size: 1.5rem;
 }
 .notice-dismiss:focus-visible {
-  outline: 2px solid #9ee6f1;
+  outline: 2px solid var(--sanctuary-primary);
   outline-offset: 3px;
 }
 .completion {
-  background: #244f59;
+  background: var(--sanctuary-surface-card);
 }
 .completion button {
   margin: 0.3rem 0.5rem 0.3rem 0;
 }
 .history-confirm {
-  border: 1px solid #e5c476;
+  border: 1px solid var(--sanctuary-border);
   border-radius: 16px;
   padding: 1rem;
   margin: 1rem 0;
@@ -160,15 +162,15 @@ article {
   margin: 0;
 }
 .records-description {
-  color: #b8d1dc;
+  color: var(--sanctuary-text-muted);
 }
 .announcement-record {
   display: grid;
   gap: 1rem;
   padding: 1.25rem;
   margin: 1.25rem 0;
-  background: #102738;
-  border: 1px solid #7cc7de66;
+  background: var(--sanctuary-surface-card);
+  border: 1px solid var(--sanctuary-border);
   border-radius: 20px;
 }
 .record-heading h3 {
@@ -188,10 +190,10 @@ article {
   gap: 1rem;
   margin: 0;
   padding-top: 1rem;
-  border-top: 1px solid #7cc7de33;
+  border-top: 1px solid var(--sanctuary-border);
 }
 .record-statuses dt {
-  color: #b8d1dc;
+  color: var(--sanctuary-text);
   font-size: 0.85rem;
   font-weight: 700;
   margin-bottom: 0.5rem;
@@ -202,20 +204,20 @@ article {
 .status-badge {
   display: inline-block;
   padding: 0.4rem 0.7rem;
-  border: 1px solid #91aebe66;
+  border: 1px solid var(--sanctuary-border);
   border-radius: 999px;
-  background: #ffffff0a;
+  background: var(--sanctuary-surface-card);
   font-size: 0.85rem;
 }
 .status-visible {
-  background: #216b6044;
-  border-color: #8cd5b8aa;
-  color: #c7f3df;
+  background: var(--sanctuary-surface-raised);
+  border-color: var(--sanctuary-border);
+  color: var(--sanctuary-success);
 }
 .status-removed {
-  background: #9a783622;
-  border-color: #d7bd7e88;
-  color: #f1dcaa;
+  background: var(--sanctuary-warning-surface);
+  border-color: var(--sanctuary-border);
+  color: var(--sanctuary-warning);
 }
 .alert-audience {
   display: block;
@@ -255,9 +257,9 @@ article {
 [role='group'][aria-label='Message type'] {
   margin-block: 1rem;
   button[aria-pressed='true'] {
-    border-color: #e5c476;
-    background: #e5c476;
-    color: #193240;
+    border-color: var(--sanctuary-border);
+    background: var(--sanctuary-surface-raised);
+    color: var(--sanctuary-text);
     font-weight: 800;
   }
 }

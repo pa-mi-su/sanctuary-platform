@@ -69,6 +69,7 @@ struct SaintsSearchView: View {
                 }
                 .padding(.horizontal, 14)
                 .padding(.bottom, 10)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             }
             .toolbar(.hidden, for: .navigationBar)
             .leftEdgeSwipeBack(dismiss.callAsFunction)
@@ -408,7 +409,7 @@ struct TermSearchView: View {
             } label: {
                 Image(systemName: "chevron.left")
                     .font(.system(size: 13, weight: .bold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(AppTheme.cardText)
                     .frame(width: 34, height: 34)
                     .background(accent.opacity(0.18))
                     .clipShape(Circle())
@@ -418,10 +419,10 @@ struct TermSearchView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(term.label)
                     .font(AppTheme.rounded(17, weight: .bold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(AppTheme.cardText)
                 Text(resultLabel(for: term))
                     .font(AppTheme.rounded(13, weight: .semibold))
-                    .foregroundStyle(AppTheme.cardText.opacity(0.72))
+                    .foregroundStyle(AppTheme.subtitleText)
             }
 
             Spacer()
@@ -469,10 +470,10 @@ private struct SearchHeader: View {
             Button(action: dismiss) {
                 Image(systemName: "arrow.left")
                     .font(.system(size: 20, weight: .bold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(AppTheme.cardText)
                     .frame(width: 52, height: 52)
                     .background(AppTheme.cardBackgroundSoft)
-                    .overlay(Circle().stroke(Color.white.opacity(0.12), lineWidth: 1))
+                    .overlay(Circle().stroke(AppTheme.cardText.opacity(0.12), lineWidth: 1))
                     .clipShape(Circle())
             }
             .buttonStyle(.plain)
@@ -482,7 +483,7 @@ private struct SearchHeader: View {
 
             Text(title)
                 .font(.system(size: 24, weight: .heavy))
-                .foregroundStyle(.white)
+                .foregroundStyle(AppTheme.cardText)
 
             Spacer()
 
@@ -502,12 +503,12 @@ private struct SearchField: View {
     var body: some View {
         HStack(spacing: 10) {
             Image(systemName: "magnifyingglass")
-                .foregroundStyle(AppTheme.cardText.opacity(0.75))
+                .foregroundStyle(AppTheme.subtitleText)
             TextField(
                 "",
                 text: $text,
                 prompt: Text(prompt)
-                    .foregroundColor(AppTheme.cardText.opacity(0.58))
+                    .foregroundColor(AppTheme.subtitleText)
             )
                 .foregroundColor(AppTheme.cardText)
                 .textInputAutocapitalization(.never)
@@ -541,7 +542,7 @@ private struct SearchResultsCount: View {
         HStack {
             Text("\(count) \(localization.t("search.results"))")
                 .font(AppTheme.rounded(17, weight: .medium))
-                .foregroundStyle(.white.opacity(0.92))
+                .foregroundStyle(AppTheme.cardText.opacity(0.92))
             Spacer()
         }
     }
@@ -587,7 +588,7 @@ struct SearchResultCard: View {
                 if !subtitle.isEmpty {
                     Text(subtitle)
                         .font(AppTheme.rounded(15, weight: .medium))
-                        .foregroundStyle(AppTheme.cardText.opacity(0.78))
+                        .foregroundStyle(AppTheme.subtitleText)
                         .lineLimit(3)
                 }
             }
@@ -596,7 +597,7 @@ struct SearchResultCard: View {
 
             Image(systemName: "chevron.right")
                 .font(.system(size: 12, weight: .bold))
-                .foregroundStyle(.white.opacity(0.52))
+                .foregroundStyle(AppTheme.subtitleText)
                 .padding(.top, 3)
         }
         .padding(.horizontal, 16)
@@ -641,7 +642,7 @@ private struct SearchResultThumbnailStack: View {
                     .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
                     .overlay(
                         RoundedRectangle(cornerRadius: 13, style: .continuous)
-                            .stroke(Color(red: 0.08, green: 0.18, blue: 0.25), lineWidth: 2)
+                            .stroke(AppTheme.border, lineWidth: 2)
                     )
                     .offset(x: CGFloat(index * 12), y: CGFloat(index * 4))
                 }
@@ -677,7 +678,7 @@ private struct SearchResultThumbnail: View {
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                .stroke(AppTheme.cardText.opacity(0.08), lineWidth: 1)
         )
     }
 }

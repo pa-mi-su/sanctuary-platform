@@ -14,7 +14,7 @@ struct SanctuaryLoadingCard: View {
                     .blur(radius: 10)
 
                 Circle()
-                    .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                    .stroke(AppTheme.cardText.opacity(0.1), lineWidth: 1)
                     .frame(width: 72, height: 72)
 
                 Circle()
@@ -26,7 +26,7 @@ struct SanctuaryLoadingCard: View {
                 SanctuaryCrossShape()
                     .fill(
                         LinearGradient(
-                            colors: [AppTheme.glowGold, Color.white.opacity(0.92)],
+                            colors: [AppTheme.glowGold, AppTheme.tabActive],
                             startPoint: .top,
                             endPoint: .bottom
                         )
@@ -45,7 +45,7 @@ struct SanctuaryLoadingCard: View {
             VStack(spacing: 6) {
                 Text(title)
                     .font(AppTheme.rounded(18, weight: .bold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(AppTheme.cardText)
                     .multilineTextAlignment(.center)
 
                 if let detail, !detail.isEmpty {

@@ -1,5 +1,6 @@
 import SwiftUI
 import SafariServices
+import WebKit
 
 enum CalendarMode: String, CaseIterable {
     case day = "Day"
@@ -748,167 +749,79 @@ private struct CalendarScaffold<Content: View>: View {
 
     var body: some View {
         GeometryReader { proxy in
-            let width = proxy.size.width
-            let scale = ResponsiveLayout.scale(for: width)
-            let contentWidth = max(0, min(width - 24, 760))
-
             ZStack {
                 AppBackdrop()
-
-                VStack(spacing: 10 * scale) {
-                    VStack(spacing: 12 * scale) {
-                        HStack {
-                            Button(action: onPrev) {
-                                Image(systemName: "chevron.left")
-                                    .font(.system(size: 17 * scale, weight: .bold))
-                                    .foregroundStyle(.white)
-                                    .frame(width: 42 * scale, height: 42 * scale)
-                                    .background(Color.white.opacity(0.08))
-                                    .clipShape(Circle())
-                            }
-                            Spacer()
-                            Button {
-                                onHeaderTap?()
-                            } label: {
-                                HStack(spacing: 6) {
-                                    Text(headerTitle)
-                                        .font(AppTheme.rounded(27 * scale, weight: .bold))
-                                        .foregroundStyle(.white)
-                                        .lineLimit(1)
-                                        .minimumScaleFactor(0.75)
-                                    if onHeaderTap != nil {
-                                        Image(systemName: "chevron.down")
-                                            .font(.system(size: 16 * scale, weight: .semibold))
-                                            .foregroundStyle(.white.opacity(0.9))
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 20) {
+                        HStack(spacing: 8) {
+                            dateArrow("chevron.left", action: onPrev)
+                            Button { onHeaderTap?() } label: {
+                                VStack(spacing: 6) {
+                                    Text(subtitle.components(separatedBy: "•").first?.trimmingCharacters(in: .whitespaces) ?? subtitle)
+                                        .font(.subheadline.weight(.medium)).foregroundStyle(AppTheme.subtitleText)
+                                    HStack(spacing: 6) {
+                                        Text(headerTitle).font(.title3.weight(.bold)).lineLimit(1).minimumScaleFactor(0.7)
+                                        Image(systemName: "chevron.down").font(.caption.weight(.semibold))
                                     }
+                                    .foregroundStyle(AppTheme.cardText)
                                 }
+                                .frame(maxWidth: .infinity)
+                            }.buttonStyle(.plain)
+                            dateArrow("chevron.right", action: onNext)
+                        }
+                        HStack(spacing: 12) {
+                            Button(localization.t("calendar.today"), action: onToday)
+                                .font(.subheadline.weight(.semibold)).tint(AppTheme.glowBlue)
+                                .frame(minHeight: 44)
+                            Picker("", selection: $mode) {
+                                Text(localization.t("calendar.day")).tag(CalendarMode.day)
+                                Text(localization.t("calendar.week")).tag(CalendarMode.week)
+                                Text(localization.t("calendar.month")).tag(CalendarMode.month)
                             }
-                            .buttonStyle(.plain)
-                            Spacer()
-                            Button(action: onNext) {
-                                Image(systemName: "chevron.right")
-                                    .font(.system(size: 17 * scale, weight: .bold))
-                                    .foregroundStyle(.white)
-                                    .frame(width: 42 * scale, height: 42 * scale)
-                                    .background(Color.white.opacity(0.08))
-                                    .clipShape(Circle())
-                            }
+                            .pickerStyle(.segmented)
+                            .onChange(of: mode) { _ in onModeChanged() }
                         }
-                        .padding(.horizontal, 14 * scale)
-                        .padding(.top, 10 * scale)
+                        if let searchTitle {
+                            CalendarSearchActionButton(title: searchTitle, systemImage: "magnifyingglass", tint: AppTheme.glowBlue, scale: 1) { onSearchTap?() }
+                        }
+                        if let secondarySearchTitle {
+                            CalendarSearchActionButton(title: secondarySearchTitle, systemImage: "magnifyingglass", tint: AppTheme.glowGold, scale: 1) { onSecondarySearchTap?() }
+                        }
+                        content
+                        ViewThatFits(in: .horizontal) {
+                            HStack(spacing: 12) { legendItems }
+                            VStack(alignment: .leading, spacing: 8) { legendItems }
+                        }
+                        .font(.caption).foregroundStyle(AppTheme.subtitleText)
+                        .frame(maxWidth: .infinity, alignment: .leading)
 
-                        Text(subtitle)
-                            .font(AppTheme.rounded(14 * scale, weight: .medium))
-                            .foregroundStyle(AppTheme.subtitleText)
                     }
-                    .padding(.bottom, 12 * scale)
-                    .appGlassCard(cornerRadius: 28 * scale)
-
-                    HStack(spacing: 8 * scale) {
-                        pillModeButton(localization.t("calendar.today"), isActive: false, action: onToday)
-                        Spacer(minLength: 6 * scale)
-                        pillModeButton(localization.t("calendar.day"), isActive: mode == .day) {
-                            onModeChanged()
-                            mode = .day
-                        }
-                        pillModeButton(localization.t("calendar.week"), isActive: mode == .week) {
-                            onModeChanged()
-                            mode = .week
-                        }
-                        pillModeButton(localization.t("calendar.month"), isActive: mode == .month) {
-                            onModeChanged()
-                            mode = .month
-                        }
-                    }
-                    .padding(.horizontal, 12 * scale)
-                    .padding(.vertical, 8 * scale)
-                    .appGlassCard(cornerRadius: 26 * scale)
-
-                    content
-                        .padding(.horizontal, 12 * scale)
-
-                    Spacer(minLength: 6 * scale)
-
-                    if let searchTitle {
-                        CalendarSearchActionButton(
-                            title: searchTitle,
-                            systemImage: "magnifyingglass",
-                            tint: AppTheme.glowBlue,
-                            scale: scale
-                        ) {
-                            onSearchTap?()
-                        }
-                        .padding(.horizontal, 12 * scale)
-                    }
-
-                    if let secondarySearchTitle {
-                        CalendarSearchActionButton(
-                            title: secondarySearchTitle,
-                            systemImage: "magnifyingglass",
-                            tint: AppTheme.glowGold,
-                            scale: scale
-                        ) {
-                            onSecondarySearchTap?()
-                        }
-                        .padding(.horizontal, 12 * scale)
-                    }
-
-                    HStack(spacing: 12 * scale) {
-                        seasonDot(color: AppTheme.advent, text: localization.t("season.advent"))
-                        seasonDot(color: AppTheme.christmas, text: localization.t("season.christmas"))
-                        seasonDot(color: AppTheme.lent, text: localization.t("season.lent"))
-                        seasonDot(color: AppTheme.easter, text: localization.t("season.easter"))
-                        seasonDot(color: AppTheme.ordinary, text: localization.t("season.ordinary"))
-                    }
-                    .font(AppTheme.rounded(11 * scale, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.86))
-                    .padding(.horizontal, 14 * scale)
-                    .padding(.vertical, 12 * scale)
-                    .appGlassCard(cornerRadius: 24 * scale)
+                    .padding(.horizontal, 20).padding(.top, 12).padding(.bottom, 32)
+                    .frame(maxWidth: 760)
+                    .frame(maxWidth: .infinity)
                 }
-                .frame(maxWidth: contentWidth)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                .padding(.top, 4 * scale)
-                .contentShape(Rectangle())
-                .simultaneousGesture(
-                    DragGesture(minimumDistance: 24)
-                        .onEnded { value in
-                            guard abs(value.translation.width) > abs(value.translation.height) else { return }
-                            if value.translation.width < -40 {
-                                onNext()
-                            } else if value.translation.width > 40 {
-                                onPrev()
-                            }
-                        }
-                )
             }
         }
     }
 
-    private func pillModeButton(_ title: String, isActive: Bool, action: @escaping () -> Void) -> some View {
+    private func dateArrow(_ icon: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Text(title)
-                .font(AppTheme.rounded(15, weight: .semibold))
-                .foregroundStyle(.white)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 11)
-                .background(
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .fill(isActive ? AnyShapeStyle(AppTheme.primaryButtonGradient) : AnyShapeStyle(AppTheme.cardBackgroundSoft))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .stroke(isActive ? Color.white.opacity(0.12) : AppTheme.purpleOutline.opacity(0.45), lineWidth: 1)
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-        }
-        .buttonStyle(.plain)
-        .animation(.spring(response: 0.32, dampingFraction: 0.84), value: isActive)
+            Image(systemName: icon).font(.body.weight(.semibold))
+                .foregroundStyle(AppTheme.cardText)
+                .frame(width: 44, height: 44).background(AppTheme.cardBackground, in: Circle())
+        }.buttonStyle(.plain)
     }
 
+    @ViewBuilder private var legendItems: some View {
+        seasonDot(color: AppTheme.advent, text: localization.t("season.advent"))
+        seasonDot(color: AppTheme.christmas, text: localization.t("season.christmas"))
+        seasonDot(color: AppTheme.lent, text: localization.t("season.lent"))
+        seasonDot(color: AppTheme.easter, text: localization.t("season.easter"))
+        seasonDot(color: AppTheme.ordinary, text: localization.t("season.ordinary"))
+    }
     private func seasonDot(color: Color, text: String) -> some View {
-        HStack(spacing: 5) {
-            Circle().fill(color).frame(width: 8, height: 8)
+        HStack(spacing: 4) {
+            Circle().fill(color).overlay(Circle().stroke(AppTheme.homeInk.opacity(0.15), lineWidth: 0.5)).frame(width: 7, height: 7)
             Text(text)
         }
     }
@@ -926,18 +839,18 @@ private struct CalendarSearchActionButton: View {
             HStack(spacing: 10 * scale) {
                 Image(systemName: systemImage)
                     .font(.system(size: 16 * scale, weight: .bold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(AppTheme.cardText)
                     .frame(width: 34 * scale, height: 34 * scale)
                     .background(
                         Circle()
                             .fill(Color.white.opacity(0.14))
-                            .overlay(Circle().stroke(Color.white.opacity(0.1), lineWidth: 1))
+                            .overlay(Circle().stroke(AppTheme.cardText.opacity(0.1), lineWidth: 1))
                     )
                     .clipShape(Circle())
 
                 Text(title)
                     .font(AppTheme.rounded(15 * scale, weight: .bold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(AppTheme.cardText)
                     .lineLimit(1)
                     .minimumScaleFactor(0.82)
 
@@ -945,7 +858,7 @@ private struct CalendarSearchActionButton: View {
 
                 Image(systemName: "chevron.right")
                     .font(.system(size: 12 * scale, weight: .bold))
-                    .foregroundStyle(.white.opacity(0.78))
+                    .foregroundStyle(AppTheme.subtitleText)
             }
             .padding(.horizontal, 16 * scale)
             .frame(maxWidth: .infinity)
@@ -953,9 +866,9 @@ private struct CalendarSearchActionButton: View {
             .background(
                 LinearGradient(
                     colors: [
-                        tint.opacity(0.92),
-                        AppTheme.glowBlue.opacity(0.56),
-                        AppTheme.cardBackgroundSoft.opacity(0.96)
+                        AppTheme.cardBackgroundSoft,
+                        AppTheme.cardBackgroundSoft,
+                        AppTheme.cardBackgroundSoft
                     ],
                     startPoint: .leading,
                     endPoint: .trailing
@@ -971,11 +884,11 @@ private struct CalendarSearchActionButton: View {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 22 * scale, style: .continuous)
-                    .stroke(Color.white.opacity(0.18), lineWidth: 1)
+                    .stroke(AppTheme.cardText.opacity(0.18), lineWidth: 1)
             )
             .clipShape(RoundedRectangle(cornerRadius: 22 * scale, style: .continuous))
-            .shadow(color: tint.opacity(0.22), radius: 18 * scale, x: 0, y: 10 * scale)
-            .shadow(color: Color.black.opacity(0.22), radius: 12 * scale, x: 0, y: 8 * scale)
+            .shadow(color: tint.opacity(0.06), radius: 8 * scale, x: 0, y: 4 * scale)
+            .shadow(color: Color.black.opacity(0.06), radius: 8 * scale, x: 0, y: 4 * scale)
         }
         .buttonStyle(.plain)
         .accessibilityLabel(title)
@@ -991,163 +904,34 @@ private struct DayCard: View {
     var actionLabel: String? = nil
     var showsAction = true
     let onTap: () -> Void
-    private let cardHeight: CGFloat = 142
-
     var body: some View {
-        let outerShape = RoundedRectangle(cornerRadius: 28, style: .continuous)
-        let innerShape = RoundedRectangle(cornerRadius: 22, style: .continuous)
-        let borderWidth: CGFloat = borderColor == nil ? 0 : 8
-
-        let card = ZStack {
-            outerShape
-                .fill(AppTheme.cardBackground)
-                .overlay {
-                    if let imageURL {
-                        GeometryReader { geo in
-                            AsyncImage(url: imageURL) { phase in
-                                switch phase {
-                                case .success(let image):
-                                    image
-                                        .resizable()
-                                        .scaledToFill()
-                                        .frame(width: geo.size.width, height: geo.size.height)
-                                        .blur(radius: 30)
-                                        .saturation(0.78)
-                                        .opacity(0.5)
-                                case .empty:
-                                    Color.clear
-                                case .failure:
-                                    Color.clear
-                                @unknown default:
-                                    Color.clear
-                                }
-                            }
-                        }
-                        .clipShape(outerShape)
+        Button(action: onTap) {
+            HStack(alignment: .center, spacing: 16) {
+                if let imageURL {
+                    AsyncImage(url: imageURL) { image in image.resizable().scaledToFill() }
+                        placeholder: { AppTheme.cardBackgroundSoft }
+                        .frame(width: 84, height: 112).clipped()
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                }
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 8) {
+                        Text(title).font(.system(.largeTitle, design: .serif, weight: .semibold))
+                        if let borderColor { Circle().fill(borderColor).frame(width: 7, height: 7) }
+                    }
+                    Text(subtitle).font(.headline).fixedSize(horizontal: false, vertical: true)
+                    if showsAction {
+                        Text(actionLabel ?? localization.t("calendar.openDetails"))
+                            .font(.subheadline).foregroundStyle(AppTheme.glowBlue)
                     }
                 }
-
-            innerShape
-                .fill(AppTheme.cardBackground)
-                .overlay {
-                    ZStack {
-                        if let imageURL {
-                            GeometryReader { geo in
-                                AsyncImage(url: imageURL) { phase in
-                                    switch phase {
-                                    case .success(let image):
-                                        ZStack {
-                                            image
-                                                .resizable()
-                                                .scaledToFit()
-                                                .frame(
-                                                    width: max(0, geo.size.width - 18),
-                                                    height: max(0, geo.size.height - 18)
-                                                )
-                                                .mask(
-                                                    LinearGradient(
-                                                        stops: [
-                                                            .init(color: .clear, location: 0.0),
-                                                            .init(color: .white.opacity(0.9), location: 0.18),
-                                                            .init(color: .white, location: 0.5),
-                                                            .init(color: .white.opacity(0.9), location: 0.82),
-                                                            .init(color: .clear, location: 1.0)
-                                                        ],
-                                                        startPoint: .leading,
-                                                        endPoint: .trailing
-                                                    )
-                                                )
-                                                .shadow(color: .black.opacity(0.22), radius: 6, x: 0, y: 2)
-                                        }
-                                    case .empty:
-                                        Color.white.opacity(0.08)
-                                    case .failure:
-                                        Color.white.opacity(0.08)
-                                    @unknown default:
-                                        Color.white.opacity(0.08)
-                                    }
-                                }
-                            }
-                        }
-
-                        LinearGradient(
-                            colors: [Color.black.opacity(0.04), Color.black.opacity(0.24)],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-
-                        VStack(alignment: .leading, spacing: 10) {
-                            HStack(alignment: .top) {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(title)
-                                        .font(AppTheme.rounded(34, weight: .bold))
-                                        .foregroundStyle(.white)
-                                    Text(subtitle)
-                                        .font(AppTheme.rounded(17, weight: .semibold))
-                                        .foregroundStyle(.white.opacity(0.92))
-                                        .multilineTextAlignment(.leading)
-                                        .lineLimit(showsAction ? 2 : nil)
-                                        .fixedSize(horizontal: false, vertical: true)
-                                }
-                                .frame(maxWidth: .infinity, alignment: .leading)
-
-                                if showsAction {
-                                    Image(systemName: "arrow.up.right")
-                                        .font(.system(size: 14, weight: .bold))
-                                        .foregroundStyle(.white.opacity(0.74))
-                                        .padding(10)
-                                        .background(Color.white.opacity(0.10))
-                                        .clipShape(Circle())
-                                }
-                            }
-
-                            Spacer()
-
-                            if showsAction {
-                                Text(actionLabel ?? localization.t("calendar.openDetails"))
-                                    .font(AppTheme.rounded(13, weight: .semibold))
-                                    .foregroundStyle(.white.opacity(0.92))
-                                    .padding(.horizontal, 14)
-                                    .padding(.vertical, 8)
-                                    .background(Color.white.opacity(0.12))
-                                    .clipShape(Capsule())
-                            }
-                        }
-                        .padding(18)
-                    }
-                    .clipShape(innerShape)
-                }
-                .overlay {
-                    innerShape
-                        .strokeBorder(Color.white.opacity(0.12), lineWidth: 1)
-                }
-                .padding(borderWidth)
-
-            if let borderColor {
-                outerShape
-                    .strokeBorder(borderColor.opacity(0.98), lineWidth: 6)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                if showsAction { Image(systemName: "chevron.right").foregroundStyle(AppTheme.subtitleText) }
             }
+            .foregroundStyle(AppTheme.cardText)
+            .padding(18).frame(maxWidth: .infinity, minHeight: 144, alignment: .leading)
+            .background(AppTheme.cardBackground, in: RoundedRectangle(cornerRadius: 18))
         }
-        .frame(maxWidth: .infinity)
-        .frame(height: cardHeight)
-        .clipShape(outerShape)
-        .shadow(color: Color.black.opacity(0.2), radius: 18, x: 0, y: 10)
-
-        Group {
-            if showsAction {
-                Button(action: onTap) {
-                    card
-                }
-                .contentShape(outerShape)
-                .buttonStyle(.plain)
-            } else {
-                card
-                    .accessibilityElement(children: .combine)
-                    .accessibilityAddTraits(.isStaticText)
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .frame(height: cardHeight)
+        .buttonStyle(.plain).disabled(!showsAction)
     }
 }
 
@@ -1166,7 +950,7 @@ private struct MonthGrid: View {
         case day(Date)
     }
 
-    private let columns = Array(repeating: GridItem(.flexible(), spacing: 10), count: 7)
+    private let columns = Array(repeating: GridItem(.flexible(), spacing: 4), count: 7)
     private var cells: [MonthGridCell] {
         monthGridDates(year: year, month: month, daysInMonth: daysInMonth)
             .enumerated()
@@ -1185,11 +969,11 @@ private struct MonthGrid: View {
         VStack(alignment: .leading, spacing: 8) {
             weekHeaderRow
 
-            LazyVGrid(columns: columns, spacing: 10) {
+            LazyVGrid(columns: columns, spacing: 6) {
                 ForEach(cells, id: \.self) { cell in
                     switch cell {
                     case .empty:
-                        Color.clear.frame(height: 72)
+                        Color.clear.frame(height: 60)
                     case .day(let date):
                         let day = liturgicalUICalendar.component(.day, from: date)
                         dayCell(day: day, label: labelForDay(day))
@@ -1199,35 +983,10 @@ private struct MonthGrid: View {
         }
     }
 
-    @ViewBuilder
     private func dayCell(day: Int, label: String) -> some View {
-        let isToday = todayComponents.year == year && todayComponents.month == month && todayComponents.day == day
-        Button {
-            onDayTap(day)
-        } label: {
-            ZStack {
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .fill(AppTheme.cardBackgroundSoft)
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .stroke(isToday ? AppTheme.todayHighlight : borderColorForDay(day), lineWidth: isToday ? 3 : 1.6)
-
-                VStack(spacing: 6) {
-                    Text("\(day)")
-                        .font(AppTheme.rounded(15, weight: .semibold))
-                        .foregroundStyle(.white)
-                    Text(label)
-                        .font(AppTheme.rounded(10, weight: .medium))
-                        .foregroundStyle(.white.opacity(0.86))
-                        .multilineTextAlignment(.center)
-                        .lineLimit(2)
-                }
-                .padding(6)
-            }
-        }
-        .frame(height: 72)
-        .buttonStyle(.plain)
-        .scaleEffect(day == selectedDay ? 1 : 0.985)
-        .animation(.spring(response: 0.28, dampingFraction: 0.84), value: selectedDay)
+        CalendarDateCell(day: day, selected: day == selectedDay,
+            isToday: todayComponents.year == year && todayComponents.month == month && todayComponents.day == day,
+            season: borderColorForDay(day), label: label) { onDayTap(day) }
     }
 
     private var weekHeaderRow: some View {
@@ -1236,7 +995,7 @@ private struct MonthGrid: View {
                 Text(day)
                     .font(AppTheme.rounded(13, weight: .medium))
                     .frame(maxWidth: .infinity)
-                    .foregroundStyle(.white.opacity(0.82))
+                    .foregroundStyle(AppTheme.subtitleText)
             }
         }
     }
@@ -1266,46 +1025,22 @@ private struct WeekGrid: View {
                     Text(day)
                         .font(AppTheme.rounded(13, weight: .medium))
                         .frame(maxWidth: .infinity)
-                        .foregroundStyle(.white.opacity(0.82))
+                        .foregroundStyle(AppTheme.subtitleText)
                 }
             }
 
-            HStack(spacing: 10) {
+            HStack(spacing: 4) {
                 ForEach(Array(weekDays.enumerated()), id: \.offset) { _, maybeDate in
                     if let date = maybeDate {
                         let day = liturgicalUICalendar.component(.day, from: date)
                         let isToday = todayComponents.year == year && todayComponents.month == month && todayComponents.day == day
-                        Button {
-                            onDayTap(day)
-                        } label: {
-                            ZStack {
-                                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                                    .fill(AppTheme.cardBackgroundSoft)
-                                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                                    .stroke(isToday ? AppTheme.todayHighlight : borderColorForDay(day), lineWidth: isToday ? 3 : 1.6)
-
-                                VStack(spacing: 6) {
-                                    Text("\(day)")
-                                        .font(AppTheme.rounded(15, weight: .semibold))
-                                        .foregroundStyle(.white)
-                                    Text(labelForDay(day))
-                                        .font(AppTheme.rounded(10, weight: .medium))
-                                        .foregroundStyle(.white.opacity(0.86))
-                                        .multilineTextAlignment(.center)
-                                        .lineLimit(2)
-                                }
-                                .padding(6)
-                            }
-                        }
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 80)
-                        .buttonStyle(.plain)
-                        .scaleEffect(day == selectedDay ? 1 : 0.985)
-                        .animation(.spring(response: 0.28, dampingFraction: 0.84), value: selectedDay)
+                        CalendarDateCell(day: day, selected: day == selectedDay, isToday: isToday,
+                            season: borderColorForDay(day), label: labelForDay(day)) { onDayTap(day) }
+                            .frame(maxWidth: .infinity)
                     } else {
                         Color.clear
                             .frame(maxWidth: .infinity)
-                            .frame(height: 80)
+                            .frame(height: 60)
                     }
                 }
             }
@@ -1360,6 +1095,30 @@ private func makeCalendarDate(year: Int, month: Int, day: Int) -> Date? {
     components.day = day
     components.hour = 12
     return liturgicalUICalendar.date(from: components)
+}
+
+private struct CalendarDateCell: View {
+    let day: Int
+    let selected: Bool
+    let isToday: Bool
+    let season: Color
+    let label: String
+    let action: () -> Void
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 8) {
+                Text("\(day)").font(.body.weight(selected ? .bold : .medium))
+                    .foregroundStyle(selected ? AppTheme.onAccent : AppTheme.cardText)
+                Circle().fill(season).overlay(Circle().stroke(AppTheme.homeInk.opacity(0.15), lineWidth: 0.5))
+                    .frame(width: 5, height: 5)
+            }
+            .frame(maxWidth: .infinity).frame(height: 60)
+            .background(selected ? AppTheme.glowBlue : AppTheme.cardBackground, in: RoundedRectangle(cornerRadius: 12))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(isToday && !selected ? AppTheme.glowBlue : .clear, lineWidth: 1))
+        }.buttonStyle(.plain)
+            .accessibilityLabel("\(day), \(label)")
+            .accessibilityAddTraits(selected ? .isSelected : [])
+    }
 }
 
 private struct CalendarSelection: Identifiable {
@@ -1470,33 +1229,75 @@ private struct CalendarDatePickerSheet: View {
 }
 
 struct DailyReadingsView: View {
-    @EnvironmentObject private var localization: LocalizationManager
     let url: URL
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var localization: LocalizationManager
+    @State private var failed = false
+    @State private var reloadID = UUID()
 
     var body: some View {
         NavigationStack {
-            InAppSafariView(url: url)
-                .ignoresSafeArea()
-                .toolbar {
-                    ToolbarItem(placement: .topBarLeading) {
-                        Button(localization.t("common.close")) { dismiss() }
-                    }
+            ZStack {
+                AppTheme.homeSurface.ignoresSafeArea()
+                if failed {
+                    VStack(spacing: 16) {
+                        Text(localization.t("common.error")).foregroundStyle(AppTheme.errorText)
+                        Button(localization.t("common.retry")) { failed = false; reloadID = UUID() }
+                            .buttonStyle(PrimaryPillButtonStyle())
+                    }.padding()
+                } else {
+                    ThemedReadingsWebView(url: url, onFailure: { failed = true }).id(reloadID)
                 }
-        }
+            }
+            .navigationTitle(localization.t("calendar.dailyReadingsTitle"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(AppTheme.homeSurface, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button { dismiss() } label: { Image(systemName: "xmark") }
+                        .accessibilityLabel(localization.t("common.close"))
+                }
+            }
+            .tint(AppTheme.homeInk)
+        }.preferredColorScheme(.light)
     }
 }
 
-struct InAppSafariView: UIViewControllerRepresentable {
+private struct ThemedReadingsWebView: UIViewControllerRepresentable {
     let url: URL
-
-    func makeUIViewController(context: Context) -> SFSafariViewController {
-        let controller = SFSafariViewController(url: url)
-        controller.dismissButtonStyle = .close
+    let onFailure: () -> Void
+    func makeCoordinator() -> Coordinator { Coordinator(onFailure: onFailure) }
+    func makeUIViewController(context: Context) -> UIViewController {
+        let configuration = WKWebViewConfiguration()
+        if let path = Bundle.main.url(forResource: "readings-theme", withExtension: "js"),
+           let script = try? String(contentsOf: path, encoding: .utf8) {
+            configuration.userContentController.addUserScript(WKUserScript(source: script, injectionTime: .atDocumentEnd, forMainFrameOnly: true))
+        }
+        let webView = WKWebView(frame: .zero, configuration: configuration)
+        webView.navigationDelegate = context.coordinator
+        webView.isOpaque = false
+        webView.backgroundColor = UIColor(AppTheme.homeSurface)
+        webView.scrollView.backgroundColor = UIColor(AppTheme.homeSurface)
+        webView.load(URLRequest(url: url))
+        let controller = UIViewController()
+        controller.view = webView
         return controller
     }
-
-    func updateUIViewController(_ uiViewController: SFSafariViewController, context: Context) {}
+    func updateUIViewController(_ uiViewController: UIViewController, context: Context) {}
+    final class Coordinator: NSObject, WKNavigationDelegate {
+        let onFailure: () -> Void
+        init(onFailure: @escaping () -> Void) { self.onFailure = onFailure }
+        func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+            if (error as NSError).code != NSURLErrorCancelled { onFailure() }
+        }
+        func webView(_ webView: WKWebView, decidePolicyFor action: WKNavigationAction,
+                     decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+            guard let url = action.request.url else { decisionHandler(.cancel); return }
+            if ["https", "http", "about"].contains(url.scheme ?? "") { decisionHandler(.allow) }
+            else { UIApplication.shared.open(url); decisionHandler(.cancel) }
+        }
+    }
 }
 
 struct CalendarViews_Previews: PreviewProvider {

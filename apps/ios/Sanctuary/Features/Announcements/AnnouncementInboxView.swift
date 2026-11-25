@@ -171,7 +171,7 @@ struct AnnouncementInboxView: View {
       ScrollView {
         VStack(alignment: .leading, spacing: 18) {
           Text(localization.t("inbox.title"))
-            .font(AppTheme.rounded(30, weight: .bold)).foregroundStyle(.white)
+            .font(AppTheme.rounded(30, weight: .bold)).foregroundStyle(AppTheme.cardText)
             .frame(maxWidth: .infinity, alignment: .center)
           HStack(spacing: 12) {
             Button(localization.t("inbox.refresh")) { Task { await refresh() } }
@@ -181,7 +181,7 @@ struct AnnouncementInboxView: View {
               confirmClear = true
             }.buttonStyle(SecondaryPillButtonStyle()).disabled(store.visible.isEmpty || store.busy)
           }
-          if let error = store.error { Text(error).foregroundStyle(.red) }
+          if let error = store.error { Text(error).foregroundStyle(AppTheme.errorText) }
           if store.busy { ProgressView().frame(maxWidth: .infinity) }
           if let id = store.undoID {
             Button(localization.t("inbox.undo")) { Task { await store.change("restore", id: id) } }
@@ -193,7 +193,7 @@ struct AnnouncementInboxView: View {
           }
           ForEach(displayed) { row in
             VStack(alignment: .leading, spacing: 14) {
-              Text(row.title).font(AppTheme.rounded(20, weight: .bold)).foregroundStyle(.white)
+              Text(row.title).font(AppTheme.rounded(20, weight: .bold)).foregroundStyle(AppTheme.cardText)
                 .fixedSize(horizontal: false, vertical: true)
               Text(Date(timeIntervalSince1970: row.published_at / 1000), style: .date)
                 .font(AppTheme.rounded(14, weight: .medium)).foregroundStyle(AppTheme.subtitleText)
@@ -228,7 +228,7 @@ struct AnnouncementInboxView: View {
         dismiss()
       } label: {
         Image(systemName: "arrow.left").font(.system(size: 20, weight: .medium))
-          .foregroundStyle(.white).frame(width: 42, height: 42)
+          .foregroundStyle(AppTheme.cardText).frame(width: 42, height: 42)
           .background(AppTheme.cardBackground).clipShape(Circle())
           .overlay(Circle().stroke(AppTheme.tabBorder, lineWidth: 1))
       }.accessibilityLabel(localization.t("common.close")).padding(.leading, 18).padding(.top, 12)

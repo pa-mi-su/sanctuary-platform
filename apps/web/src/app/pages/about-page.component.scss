@@ -1,23 +1,23 @@
 :host {
   display: block;
   width: 100%;
-  color: #ffffff;
+  color: var(--sanctuary-text);
 }
 
 .glass-card {
   background: var(--glass-fill);
   border: 1px solid var(--glass-stroke);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    inset 0 1px 0 var(--sanctuary-shadow),
     inset 0 0 0 999px var(--glass-overlay),
-    0 18px 36px rgba(3, 10, 18, 0.22);
+    0 18px 36px var(--sanctuary-shadow);
   backdrop-filter: blur(18px);
 }
 
 .glass-subtle {
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  background: var(--sanctuary-surface-card);
+  border: 1px solid var(--sanctuary-border);
+  box-shadow: inset 0 1px 0 var(--sanctuary-shadow);
 }
 
 .screen-card {
@@ -36,7 +36,7 @@
 
 .eyebrow {
   margin: 0 0 10px;
-  color: rgba(142, 224, 242, 0.82);
+  color: var(--sanctuary-text-muted);
   font-size: 0.78rem;
   font-weight: 800;
   letter-spacing: 0.14em;
@@ -53,7 +53,7 @@
 .about-hero p,
 .about-card p,
 .about-card li {
-  color: rgba(255, 255, 255, 0.76);
+  color: var(--sanctuary-text-muted);
   line-height: 1.58;
 }
 
@@ -130,7 +130,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: #ffffff;
+  color: var(--sanctuary-text);
   font: inherit;
   font-weight: 800;
   text-align: center;
@@ -141,11 +141,12 @@
 .primary-action {
   border: 0;
   background: linear-gradient(180deg, var(--button-top), var(--button-bottom));
+  color: var(--sanctuary-on-accent);
 }
 
 .secondary-action {
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--sanctuary-border);
+  background: var(--sanctuary-surface-card);
 }
 
 .app-store-action {
@@ -153,15 +154,16 @@
   min-height: 64px;
   flex-direction: column;
   gap: 2px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  background: #05090d;
-  box-shadow: 0 18px 32px rgba(3, 10, 18, 0.22);
+  border: 1px solid var(--sanctuary-border);
+  background: var(--sanctuary-hero);
+  box-shadow: 0 18px 32px var(--sanctuary-shadow);
+  color: var(--sanctuary-on-accent);
 }
 
 .app-store-action span {
   font-size: 0.74rem;
   font-weight: 700;
-  color: rgba(255, 255, 255, 0.72);
+  color: var(--sanctuary-on-accent);
 }
 
 .app-store-action strong {
@@ -176,7 +178,7 @@
 .about-footnote {
   margin: 4px 0 0;
   text-align: center;
-  color: rgba(255, 255, 255, 0.72);
+  color: var(--sanctuary-text-muted);
   font-size: 0.92rem;
 }
 
