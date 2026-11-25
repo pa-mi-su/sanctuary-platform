@@ -13,7 +13,7 @@ Authority: [color contract](color-contract.md) and [machine-readable values](../
 | iOS | All native screen families listed in [mobile audit](mobile-appearance-audit.md), plus shared theme and launch resources | Removed remaining system-red/orange text and unread indicators; unified reminder controls, error surfaces and editorial roles. Native palette declarations and readings/launch colors now synchronize from the contract. |
 | Android | Compose screens, account/delete dialog, reminders/switches, announcements, calendars, theme and native XML surfaces | Fixed white delete-dialog title on a light card; replaced alternate switch/reminder greens and unread red; standardized season and error-container roles. Native theme XML now references generated color resources. |
 
-The same approved artwork/logo is used on web/admin and the native clients. Intrinsic artwork, photographs, avatar drawing colors, QR canvases, liturgical markers and external/system-owned surfaces have documented exceptions. This audit aligns appearance roles, not every platform's navigation or layout feature set.
+The same approved artwork/logo is used on web/admin and the native clients. Intrinsic artwork, photographs, QR canvases, liturgical markers and external/system-owned surfaces have documented exceptions. This audit aligns appearance roles, not every platform's navigation or layout feature set.
 
 ## Automated validation
 
@@ -39,3 +39,7 @@ The browser viewport override did not change its actual 1265 px viewport, so pho
 ## Future drift prevention
 
 Edit `design/tokens/colors.json`, run the synchronizer, then run both verification scripts and the relevant builds. New web/admin components must reference semantic roles. New native colors need explicit adapter mappings; do not copy a hex value into a screen. Review standard, disabled, focused, selected, loading, empty and error states whenever a surface or foreground changes.
+
+## Me avatar follow-up — 25 November 2026
+
+The halo avatar now uses the shared roles on iOS and Android: raised sage backdrop, primary teal robe, cream face, ink eyes, dark gold halo and bright gold cross. The halo and cross use different gold roles to remain visible against their respective light and dark surfaces. Shape and sizing are unchanged.
