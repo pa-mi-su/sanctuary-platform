@@ -1,16 +1,17 @@
 :host {
   display: block;
   margin-top: 20px;
+  --gold: var(--sanctuary-christmas);
+  color: var(--sanctuary-on-accent);
 }
 
 .glass-card {
   background:
-    radial-gradient(circle at 15% 110%, rgba(8, 91, 113, 0.42), transparent 38%),
-    linear-gradient(145deg, rgba(3, 13, 37, 0.94), rgba(5, 35, 53, 0.92));
-  border: 1px solid rgba(242, 215, 125, 0.3);
+    var(--sanctuary-hero);
+  border: 1px solid var(--sanctuary-border);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.05),
-    0 18px 38px rgba(1, 8, 21, 0.28);
+    inset 0 1px 0 var(--sanctuary-shadow),
+    0 18px 38px var(--sanctuary-shadow);
   backdrop-filter: blur(20px);
 }
 
@@ -38,9 +39,9 @@
 .brand-mark {
   width: 72px;
   height: 72px;
-  border: 1px solid rgba(242, 215, 125, 0.36);
+  border: 1px solid var(--sanctuary-border);
   border-radius: 20px;
-  box-shadow: 0 10px 24px rgba(0, 4, 17, 0.34);
+  box-shadow: 0 10px 24px var(--sanctuary-shadow);
   object-fit: cover;
 }
 
@@ -50,7 +51,7 @@
 }
 
 .brand-copy strong {
-  color: #f4d77d;
+  color: var(--sanctuary-on-accent);
   font-family: Georgia, 'Times New Roman', serif;
   font-size: 1.55rem;
   font-weight: 700;
@@ -59,7 +60,7 @@
 
 .brand-copy span {
   max-width: 220px;
-  color: rgba(255, 255, 255, 0.68);
+  color: var(--sanctuary-on-accent);
   font-size: 0.8rem;
   line-height: 1.4;
 }
@@ -67,7 +68,7 @@
 .footer-rule {
   width: 1px;
   height: 58px;
-  background: linear-gradient(180deg, transparent, rgba(242, 215, 125, 0.58), transparent);
+  background: var(--sanctuary-hero);
 }
 
 .footer-actions {
@@ -89,7 +90,7 @@
 
 .section-label {
   margin: 0;
-  color: rgba(242, 215, 125, 0.82);
+  color: var(--sanctuary-on-accent);
   font-size: 0.72rem;
   font-weight: 800;
   letter-spacing: 0.12em;
@@ -113,13 +114,13 @@
   display: grid;
   place-items: center;
   flex: 0 0 auto;
-  border: 1px solid rgba(242, 215, 125, 0.58);
+  border: 1px solid var(--sanctuary-border);
   border-radius: 50%;
-  background: linear-gradient(145deg, rgba(8, 33, 60, 0.98), rgba(8, 72, 90, 0.92));
+  background: var(--sanctuary-hero);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    0 12px 24px rgba(5, 18, 27, 0.22);
-  color: #f4d77d;
+    inset 0 1px 0 var(--sanctuary-shadow),
+    0 12px 24px var(--sanctuary-shadow);
+  color: var(--sanctuary-on-accent);
   text-decoration: none;
   transition:
     transform 160ms ease,
@@ -129,8 +130,8 @@
 
 .social-link:hover {
   transform: translateY(-2px);
-  border-color: #f4d77d;
-  background: linear-gradient(145deg, rgba(21, 68, 91, 1), rgba(10, 101, 119, 0.98));
+  border-color: var(--sanctuary-border);
+  background: var(--sanctuary-hero);
 }
 
 .social-link:focus-visible,
@@ -184,11 +185,11 @@
   display: flex;
   align-items: center;
   gap: 11px;
-  border: 1px solid rgba(242, 215, 125, 0.32);
+  border: 1px solid var(--sanctuary-border);
   border-radius: 16px;
-  background: rgba(2, 8, 22, 0.92);
-  box-shadow: 0 14px 28px rgba(3, 10, 18, 0.24);
-  color: #ffffff;
+  background: var(--sanctuary-hero);
+  box-shadow: 0 14px 28px var(--sanctuary-shadow);
+  color: var(--sanctuary-on-accent);
   text-decoration: none;
   transition:
     transform 160ms ease,
@@ -197,7 +198,7 @@
 
 a.store-badge:hover {
   transform: translateY(-2px);
-  border-color: rgba(242, 215, 125, 0.76);
+  border-color: var(--sanctuary-border);
 }
 
 .store-badge--disabled {
@@ -221,7 +222,7 @@ a.store-badge:hover {
 .store-icon--play {
   width: 28px;
   height: 31px;
-  background: linear-gradient(145deg, #58d2e9 0 34%, #83d65d 34% 55%, #ffd45d 55% 72%, #f56b73 72% 100%);
+  background: var(--sanctuary-hero);
   clip-path: polygon(0 0, 100% 50%, 0 100%);
 }
 
@@ -232,7 +233,7 @@ a.store-badge:hover {
 }
 
 .store-copy span {
-  color: rgba(242, 215, 125, 0.68);
+  color: var(--sanctuary-on-accent);
   font-size: 0.7rem;
   font-weight: 700;
 }
@@ -245,7 +246,7 @@ a.store-badge:hover {
 .action-divider {
   width: 1px;
   height: 44px;
-  background: rgba(242, 215, 125, 0.22);
+  background: var(--sanctuary-hero);
 }
 
 @media (max-width: 1060px) {

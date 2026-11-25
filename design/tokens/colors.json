@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "mode": "light",
+  "colors": {
+    "surface": "#D8E3D9",
+    "surface-raised": "#C4D5C8",
+    "surface-card": "#E3EBE2",
+    "surface-elevated": "#D3E1D4",
+    "surface-intermediate": "#D2E0D4",
+    "text": "#173D36",
+    "text-muted": "#465B4D",
+    "primary": "#24634F",
+    "primary-strong": "#174B3D",
+    "on-accent": "#F4F2E7",
+    "hero": "#073C3B",
+    "border": "#A9C2B2",
+    "border-strong": "#6F9380",
+    "error": "#9C2630",
+    "error-surface": "#F0DDD7",
+    "warning": "#755019",
+    "warning-surface": "#EADFC5",
+    "success": "#24634F",
+    "gold": "#75521D",
+    "berry": "#88596E",
+    "advent": "#7858B9",
+    "christmas": "#DCB969",
+    "lent": "#9B5087",
+    "easter": "#F5F5FA",
+    "ordinary": "#3C9B5F",
+    "today": "#F2CF63",
+    "qr-canvas": "#FFFFFF"
+  }
+}

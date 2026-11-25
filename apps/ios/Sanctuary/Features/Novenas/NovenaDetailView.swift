@@ -129,7 +129,7 @@ struct NovenaDetailView: View {
                         Text(title)
                             .font(AppTheme.rounded(48, weight: .bold))
                             .minimumScaleFactor(0.58)
-                            .foregroundStyle(.white)
+                            .foregroundStyle(AppTheme.cardText)
 
                         HStack(spacing: 10) {
                             Button {
@@ -149,13 +149,13 @@ struct NovenaDetailView: View {
                                     Text(isFavorite ? localization.t("detail.savedFavorites") : localization.t("detail.addFavorites"))
                                 }
                                 .font(AppTheme.rounded(16, weight: .semibold))
-                                .foregroundStyle(.white)
+                                .foregroundStyle(isFavorite ? AppTheme.onAccent : AppTheme.cardText)
                                 .padding(.horizontal, 18)
                                 .padding(.vertical, 12)
                                 .background(isFavorite ? AnyShapeStyle(AppTheme.primaryButtonGradient) : AnyShapeStyle(AppTheme.cardBackgroundSoft))
                                 .overlay(
                                     Capsule()
-                                        .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                                        .stroke(AppTheme.cardText.opacity(0.12), lineWidth: 1)
                                 )
                                 .clipShape(Capsule())
                             }
@@ -173,13 +173,13 @@ struct NovenaDetailView: View {
                                 Text("Share")
                             }
                             .font(AppTheme.rounded(16, weight: .semibold))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(AppTheme.cardText)
                             .padding(.horizontal, 18)
                             .padding(.vertical, 12)
                             .background(AppTheme.cardBackgroundSoft)
                             .overlay(
                                 Capsule()
-                                    .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                                    .stroke(AppTheme.cardText.opacity(0.12), lineWidth: 1)
                             )
                             .clipShape(Capsule())
                         }
@@ -197,7 +197,7 @@ struct NovenaDetailView: View {
                             if !description.isEmpty {
                                 Text(description)
                                     .font(AppTheme.rounded(18, weight: .medium))
-                                    .foregroundStyle(.white.opacity(0.95))
+                                    .foregroundStyle(AppTheme.cardText.opacity(0.95))
                                     .padding(.top, 2)
                             }
                         }
@@ -219,7 +219,7 @@ struct NovenaDetailView: View {
 
                     Text(localization.t("novena.chooseDay"))
                         .font(AppTheme.rounded(40, weight: .bold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(AppTheme.cardText)
                         .padding(.top, 4)
 
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 95), spacing: 10)], spacing: 10) {
@@ -231,17 +231,17 @@ struct NovenaDetailView: View {
                                 VStack(spacing: 4) {
                                     Text("\(localization.t("novena.dayLabel"))")
                                         .font(AppTheme.rounded(12, weight: .medium))
-                                        .foregroundStyle(.white.opacity(0.72))
+                                        .foregroundStyle(active ? AppTheme.onAccent.opacity(0.85) : AppTheme.subtitleText)
                                     Text("\(day.dayNumber)")
                                         .font(AppTheme.rounded(22, weight: .bold))
-                                        .foregroundStyle(.white)
+                                        .foregroundStyle(active ? AppTheme.onAccent : AppTheme.cardText)
                                 }
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 12)
                                 .background(active ? AnyShapeStyle(AppTheme.primaryButtonGradient) : AnyShapeStyle(AppTheme.cardBackgroundSoft))
                                 .overlay(
                                     RoundedRectangle(cornerRadius: 24, style: .continuous)
-                                        .stroke(Color.white.opacity(active ? 0.2 : 0.1), lineWidth: 1)
+                                        .stroke(AppTheme.cardText.opacity(active ? 0.2 : 0.1), lineWidth: 1)
                                 )
                                 .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
                             }
@@ -434,14 +434,14 @@ struct NovenaDetailView: View {
                 .foregroundStyle(AppTheme.glowGold)
             Text(text)
                 .font(AppTheme.rounded(15, weight: .medium))
-                .foregroundStyle(.white.opacity(0.9))
+                .foregroundStyle(AppTheme.cardText.opacity(0.9))
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
         .background(AppTheme.cardBackgroundSoft)
         .overlay(
             Capsule()
-                .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                .stroke(AppTheme.cardText.opacity(0.1), lineWidth: 1)
         )
         .clipShape(Capsule())
     }
@@ -484,7 +484,7 @@ private struct RemoteHeroImage: View {
                 AsyncImage(url: url) { phase in
                     switch phase {
                     case .empty:
-                        ProgressView().tint(.white)
+                        ProgressView().tint(AppTheme.tabActive)
                     case .success(let image):
                         ZStack {
                             image
@@ -508,7 +508,7 @@ private struct RemoteHeroImage: View {
                                 .clipShape(innerShape)
                                 .overlay(
                                     innerShape
-                                        .stroke(Color.white.opacity(0.34), lineWidth: 1)
+                                        .stroke(AppTheme.cardText.opacity(0.34), lineWidth: 1)
                                 )
                         }
                         .frame(width: containerSize.width, height: containerSize.height)
@@ -525,7 +525,7 @@ private struct RemoteHeroImage: View {
             .clipShape(outerShape)
             .overlay(
                 outerShape
-                    .stroke(Color.white.opacity(0.24), lineWidth: 1.5)
+                    .stroke(AppTheme.cardText.opacity(0.24), lineWidth: 1.5)
             )
         }
         .frame(maxWidth: .infinity)

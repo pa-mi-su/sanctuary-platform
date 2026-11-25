@@ -759,11 +759,25 @@ actor SanctuaryAPIClient {
     }
 
     private func execute(_ request: URLRequest) async throws -> (Data, URLResponse) {
+        let retryable: Set<URLError.Code> = [.timedOut, .networkConnectionLost, .cannotConnectToHost, .dnsLookupFailed, .cannotFindHost]
         do {
             return try await session.data(for: request)
+        } catch let error as URLError where request.httpMethod == "GET" && retryable.contains(error.code) {
+            // Retry a transient connection failure once; never replay account or progress mutations.
+            try await Task.sleep(nanoseconds: 350_000_000)
+            do { return try await session.data(for: request) }
+            catch { throw connectionError(error) }
         } catch {
-            throw SanctuaryAPIError.transport(message: "Sanctuary could not reach the API right now.")
+            throw connectionError(error)
         }
+    }
+
+    private func connectionError(_ error: Error) -> Error {
+        if error is CancellationError || (error as? URLError)?.code == .cancelled { return CancellationError() }
+        if (error as? URLError)?.code == .notConnectedToInternet {
+            return SanctuaryAPIError.transport(message: "You appear to be offline. Check your connection and try again.")
+        }
+        return SanctuaryAPIError.transport(message: "Sanctuary could not reach the API right now. Please try again.")
     }
 
     private func validate(response: URLResponse, data: Data) throws {

@@ -1,0 +1,7 @@
+{
+  "tool": "built-in image_gen",
+  "prompt": "Create a production app icon for Sanctuary, a Catholic prayer app, inspired by the attached chapel artwork. Use the reference only for palette, Gothic arch, warm light and glowing cross; do not crop the scene. Deliver a single square 1024x1024 opaque full-bleed icon with NO pre-rounded corners, NO text, NO lettering, NO border around the square, no mockup. Design: a bold luminous warm-gold Latin cross centered within one beautiful simplified Gothic stone arch, deep forest teal background #073C3B, muted antique gold arch edging, very restrained soft amber light behind the cross. The cross must have thick clear strokes and be the unmistakable focal point at 48 pixels. Show a little architectural stone character, but remove pews, tiny candles, leaves, furniture, windows and fussy detail. Sophisticated editorial painted texture matching the reference, premium and peaceful, not glossy, not 3D beveled, not a generic neon logo. Entire essential arch and cross silhouette contained in central 62% of canvas, surrounding deep-teal breathing room so both circular Android masks and iOS rounded square masks preserve the whole motif. Cross occupies about 38% of full canvas height, arch about 62%. Strong balanced symmetry, crisp silhouette, rich but quiet illustration.",
+  "source": "sanctuary-app-icon-source.png",
+  "generationScript": "scripts/generate-mobile-icons.py",
+  "reference": "apps/ios/Sanctuary/Assets.xcassets/HomeEditorialWelcome.imageset/welcome.png"
+}

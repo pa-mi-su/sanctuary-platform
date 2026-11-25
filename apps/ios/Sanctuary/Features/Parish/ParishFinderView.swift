@@ -77,7 +77,7 @@ struct ParishFinderView: View {
                     VStack(alignment: .leading, spacing: 14) {
                         Text(localization.t("parish.title"))
                             .font(AppTheme.rounded(36, weight: .bold))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(AppTheme.cardText)
 
                         Text(localization.t("parish.subtitle"))
                             .font(AppTheme.rounded(17, weight: .medium))
@@ -97,7 +97,7 @@ struct ParishFinderView: View {
                         if let errorKey = viewModel.errorMessageKey {
                             Text(localization.t(errorKey))
                                 .font(AppTheme.rounded(15, weight: .medium))
-                                .foregroundStyle(.white.opacity(0.92))
+                                .foregroundStyle(AppTheme.cardText.opacity(0.92))
                                 .padding(.vertical, 8)
                         }
 
@@ -122,12 +122,12 @@ struct ParishFinderView: View {
 #if os(iOS)
                 ToolbarItem(placement: .topBarLeading) {
                     Button(localization.t("common.close")) { dismiss() }
-                        .foregroundStyle(.white)
+                        .foregroundStyle(AppTheme.cardText)
                 }
 #else
                 ToolbarItem(placement: .navigation) {
                     Button(localization.t("common.close")) { dismiss() }
-                        .foregroundStyle(.white)
+                        .foregroundStyle(AppTheme.cardText)
                 }
 #endif
             }

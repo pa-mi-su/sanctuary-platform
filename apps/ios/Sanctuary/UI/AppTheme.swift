@@ -1,29 +1,43 @@
 import SwiftUI
 
 enum AppTheme {
-    static let gradientTop = Color(hex: "#081724")
-    static let gradientMid = Color(hex: "#0D3547")
-    static let gradientBottom = Color(hex: "#031018")
-    static let glowBlue = Color(hex: "#4CB6D8")
-    static let glowGold = Color(hex: "#E5C66A")
-    static let glowRose = Color(hex: "#C78BB8")
+    static let cardBackgroundElevated = Color(hex: "#D3E1D4")
+    static let heroBase = Color(hex: "#073C3B")
+    static let errorSurface = Color(hex: "#F0DDD7")
+    static let warningText = Color(hex: "#755019")
+    static let warningSurface = Color(hex: "#EADFC5")
+    static let successText = Color(hex: "#24634F")
+    static let qrCanvas = Color(hex: "#FFFFFF")
+    static let homeSurface = Color(hex: "#D8E3D9")
+    static let homeSurfaceRaised = Color(hex: "#C4D5C8")
+    static let homeInk = Color(hex: "#173D36")
+    static let errorText = Color(hex: "#9C2630")
+    static let onAccent = Color(hex: "#F4F2E7")
+    static let border = Color(hex: "#A9C2B2")
+    static let homeMuted = Color(hex: "#465B4D")
 
-    static let primaryButtonTop = Color(hex: "#3E9FC1")
-    static let primaryButtonBottom = Color(hex: "#195E78")
-    static let primaryButtonText = Color.white
-    static let purpleButton = Color(hex: "#2B728D")
-    static let purpleOutline = Color(hex: "#7CC7DE")
-    static let cardBackground = Color(hex: "#102738").opacity(0.84)
-    static let cardBackgroundSoft = Color.white.opacity(0.08)
-    static let cardText = Color.white
-    static let subtitleText = Color.white.opacity(0.74)
-    static let heroEyebrow = Color(hex: "#8BD7EC")
+    static let gradientTop = homeSurface
+    static let gradientMid = Color(hex: "#D2E0D4")
+    static let gradientBottom = homeSurface
+    static let glowBlue = Color(hex: "#24634F")
+    static let glowGold = Color(hex: "#75521D")
+    static let glowRose = Color(hex: "#88596E")
 
-    static let tabBackground = Color(hex: "#08131D").opacity(0.86)
-    static let tabBorder = Color(hex: "#2A5B70")
-    static let tabInactive = Color(hex: "#A5C4D0")
-    static let tabActive = Color(hex: "#8EE0F2")
+    static let primaryButtonTop = glowBlue
+    static let primaryButtonBottom = Color(hex: "#174B3D")
+    static let primaryButtonText = onAccent
+    static let purpleButton = glowBlue
+    static let purpleOutline = Color(hex: "#6F9380")
+    static let cardBackground = Color(hex: "#E3EBE2")
+    static let cardBackgroundSoft = homeSurfaceRaised
+    static let cardText = homeInk
+    static let subtitleText = homeMuted
+    static let heroEyebrow = glowBlue
 
+    static let tabBackground = homeSurface
+    static let tabBorder = border
+    static let tabInactive = homeMuted
+    static let tabActive = glowBlue
     static let advent = Color(hex: "#7858B9")
     static let christmas = Color(hex: "#DCB969")
     static let lent = Color(hex: "#9B5087")
@@ -51,55 +65,29 @@ enum AppTheme {
         .system(size: size, weight: weight, design: .rounded)
     }
 
-    // Single source of truth for liturgical season -> UI border color mapping.
-    // This is intentionally separate from decorative legend colors so seasonal
-    // borders can follow the required canonical mapping.
+    // Calendar markers and legend share the color contract season roles.
     static func liturgicalBorderColor(for season: LiturgicalSeason) -> Color {
         switch season {
         case .advent:
             return advent
         case .christmas:
-            return .white
+            return christmas
         case .lent:
             return lent
         case .easter:
-            return .white
+            return easter
         case .ordinary:
             return ordinary
         }
     }
 }
 
+/// A single quiet sage surface is shared by every non-editorial screen.
 struct AppBackdrop: View {
     var body: some View {
-        ZStack {
-            AppTheme.backgroundGradient
-
-            Circle()
-                .fill(AppTheme.glowBlue.opacity(0.24))
-                .frame(width: 340, height: 340)
-                .blur(radius: 18)
-                .offset(x: 110, y: -240)
-
-            Circle()
-                .fill(AppTheme.glowGold.opacity(0.16))
-                .frame(width: 280, height: 280)
-                .blur(radius: 22)
-                .offset(x: -130, y: -40)
-
-            Circle()
-                .fill(AppTheme.glowRose.opacity(0.14))
-                .frame(width: 260, height: 260)
-                .blur(radius: 26)
-                .offset(x: 120, y: 260)
-
-            LinearGradient(
-                colors: [Color.white.opacity(0.09), Color.clear, Color.black.opacity(0.18)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        }
-        .ignoresSafeArea()
+        AppTheme.homeSurface
+            .ignoresSafeArea()
+            .preferredColorScheme(.light)
     }
 }
 
@@ -117,9 +105,9 @@ struct AppGlassCardStyle: ViewModifier {
                     )
                     .overlay(
                         RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                            .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                            .stroke(AppTheme.border, lineWidth: 1)
                     )
-                    .shadow(color: Color.black.opacity(0.22), radius: 18, x: 0, y: 10)
+                    .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 4)
             )
     }
 }
@@ -158,16 +146,18 @@ extension Color {
 }
 
 struct PrimaryPillButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(AppTheme.rounded(16, weight: .semibold))
-            .foregroundStyle(AppTheme.primaryButtonText)
+            .foregroundStyle(isEnabled ? AppTheme.primaryButtonText : AppTheme.subtitleText)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 14)
-            .background(
-                Rectangle().fill(AppTheme.primaryButtonGradient)
+            .background {
+                Rectangle().fill(isEnabled ? AnyShapeStyle(AppTheme.primaryButtonGradient) : AnyShapeStyle(AppTheme.cardBackgroundSoft))
                     .opacity(configuration.isPressed ? 0.82 : 1.0)
-            )
+            }
             .overlay(
                 RoundedRectangle(cornerRadius: 20, style: .continuous)
                     .stroke(Color.white.opacity(0.16), lineWidth: 1)
@@ -182,7 +172,7 @@ struct SecondaryPillButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(AppTheme.rounded(16, weight: .semibold))
-            .foregroundStyle(.white)
+            .foregroundStyle(AppTheme.cardText)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 14)
             .background(
@@ -209,14 +199,14 @@ struct TopActionButton: View {
                 Image(systemName: icon)
                     .font(AppTheme.rounded(13, weight: .semibold))
                     .frame(width: 26, height: 26)
-                    .background(Color.white.opacity(0.08))
+                    .background(AppTheme.homeSurfaceRaised)
                     .clipShape(Circle())
                 Text(title)
                     .font(AppTheme.rounded(12, weight: .semibold))
                     .lineLimit(1)
                 Spacer(minLength: 0)
             }
-            .foregroundStyle(Color.white.opacity(0.9))
+            .foregroundStyle(AppTheme.cardText)
             .padding(.horizontal, 14)
             .padding(.vertical, 12)
             .background(
@@ -224,7 +214,7 @@ struct TopActionButton: View {
                     .fill(AppTheme.cardBackgroundSoft)
                     .overlay(
                         RoundedRectangle(cornerRadius: 18, style: .continuous)
-                            .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                            .stroke(AppTheme.border, lineWidth: 1)
                     )
             )
             .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
@@ -244,7 +234,7 @@ struct NavigationCardButton: View {
             HStack(spacing: 14) {
                 Image(systemName: icon).font(.system(size: 25)).foregroundStyle(AppTheme.tabActive)
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(title).font(AppTheme.rounded(18, weight: .semibold)).foregroundStyle(.white)
+                    Text(title).font(AppTheme.rounded(18, weight: .semibold)).foregroundStyle(AppTheme.cardText)
                     if let subtitle { Text(subtitle).font(AppTheme.rounded(15, weight: .medium)).foregroundStyle(AppTheme.subtitleText) }
                 }
                 Spacer(minLength: 8)

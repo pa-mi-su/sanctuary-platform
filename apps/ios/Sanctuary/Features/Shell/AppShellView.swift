@@ -1,11 +1,33 @@
 import SwiftUI
 
-enum AppTab: Hashable {
+enum AppTab: Hashable, CaseIterable {
     case home
     case novenas
     case liturgical
     case saints
     case me
+}
+
+private extension AppTab {
+    var labelKey: String {
+        switch self {
+        case .home: return "tab.home"
+        case .novenas: return "tab.novenas"
+        case .liturgical: return "tab.liturgical"
+        case .saints: return "tab.saints"
+        case .me: return "tab.me"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .home: return "house.fill"
+        case .novenas: return "book.closed"
+        case .liturgical: return "calendar"
+        case .saints: return "person.2"
+        case .me: return "person.crop.circle"
+        }
+    }
 }
 
 struct AppShellView: View {
@@ -39,7 +61,8 @@ struct AppShellView: View {
 
     var body: some View {
         TabView(selection: $selectedTab) {
-            HomeView(environment: environment)
+            HomeView(environment: environment, isObscured: showAnnouncement || sharedContentLink != nil || push.needsInvitation)
+                .toolbar(.hidden, for: .tabBar)
                 .tag(AppTab.home)
                 .tabItem {
                     Label(localization.t("tab.home"), systemImage: "house.fill")
@@ -48,22 +71,16 @@ struct AppShellView: View {
             LazyTabContent(activeTab: $selectedTab, tab: .novenas) {
                 NovenasCalendarView(environment: environment)
             }
+                .toolbar(.hidden, for: .tabBar)
                 .tag(AppTab.novenas)
                 .tabItem {
                     Label(localization.t("tab.novenas"), systemImage: "calendar.badge.clock")
                 }
 
-            LazyTabContent(activeTab: $selectedTab, tab: .liturgical) {
-                LiturgicalCalendarView(environment: environment)
-            }
-                .tag(AppTab.liturgical)
-                .tabItem {
-                    Label(localization.t("tab.liturgical"), systemImage: "calendar.badge.clock")
-                }
-
             LazyTabContent(activeTab: $selectedTab, tab: .saints) {
                 SaintsCalendarView(environment: environment)
             }
+                .toolbar(.hidden, for: .tabBar)
                 .tag(AppTab.saints)
                 .tabItem {
                     Label(localization.t("tab.saints"), systemImage: "calendar.badge.clock")
@@ -72,11 +89,16 @@ struct AppShellView: View {
             LazyTabContent(activeTab: $selectedTab, tab: .me) {
                 MeView(environment: environment)
             }
+                .toolbar(.hidden, for: .tabBar)
                 .tag(AppTab.me)
                 .tabItem {
                     Label(localization.t("tab.me"), systemImage: "person.circle.fill")
                 }
         }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            bottomNavigation
+        }
+        .preferredColorScheme(selectedTab == .home ? nil : .light)
         .tint(AppTheme.tabActive)
         .environmentObject(localization)
         .environmentObject(accountStore)
@@ -137,7 +159,7 @@ struct AppShellView: View {
                 if let problem = push.registrationProblem { Text(problem).font(.footnote) }
             }.padding(28).frame(maxWidth: .infinity)
             }.frame(maxWidth: .infinity, maxHeight: .infinity)
-                .foregroundStyle(.white).background(AppTheme.cardBackground)
+                .foregroundStyle(AppTheme.cardText).background(AppTheme.cardBackground)
                 .interactiveDismissDisabled().presentationDetents([.medium, .large])
         }
         .sheet(isPresented: $showAnnouncement, onDismiss: {
@@ -151,6 +173,40 @@ struct AppShellView: View {
                 .environmentObject(localization)
                 .environmentObject(accountStore)
                 .environmentObject(progressStore)
+        }
+    }
+
+    private var bottomNavigation: some View {
+        HStack(spacing: 0) {
+            ForEach(AppTab.allCases.filter { $0 != .liturgical }, id: \.self) { tab in
+                let isSelected = selectedTab == tab
+                Button {
+                    selectedTab = tab
+                } label: {
+                    VStack(spacing: 5) {
+                        Image(systemName: tab.icon)
+                            .font(.system(size: 23, weight: isSelected ? .semibold : .regular))
+                            .frame(height: 26)
+                        Text(localization.t(tab.labelKey))
+                            .font(.caption2.weight(isSelected ? .semibold : .medium))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.7)
+                    }
+                    .foregroundStyle(isSelected ? AppTheme.homeInk : AppTheme.homeMuted)
+                    .frame(maxWidth: .infinity, minHeight: 58)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(localization.t(tab.labelKey))
+                .accessibilityAddTraits(isSelected ? .isSelected : [])
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.top, 8)
+        .padding(.bottom, 2)
+        .background(AppTheme.homeSurface.ignoresSafeArea(edges: .bottom))
+        .overlay(alignment: .top) {
+            AppTheme.border.frame(height: 0.5)
         }
     }
 
@@ -265,7 +321,7 @@ private struct SharedContentDestinationView: View {
                     VStack(spacing: 12) {
                         Text("Unable to open this shared link.")
                             .font(AppTheme.rounded(20, weight: .bold))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(AppTheme.cardText)
                             .multilineTextAlignment(.center)
 
                         Text("Please try the link again in a moment.")

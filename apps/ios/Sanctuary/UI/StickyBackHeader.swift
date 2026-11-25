@@ -7,12 +7,12 @@ struct FloatingBackButton: View {
         Button(action: action) {
             Image(systemName: "arrow.left")
                 .font(.system(size: 20, weight: .bold))
-                .foregroundStyle(.white)
+                .foregroundStyle(AppTheme.cardText)
                 .frame(width: 52, height: 52)
                 .background(AppTheme.cardBackgroundSoft)
-                .overlay(Circle().stroke(Color.white.opacity(0.12), lineWidth: 1))
+                .overlay(Circle().stroke(AppTheme.cardText.opacity(0.12), lineWidth: 1))
                 .clipShape(Circle())
-                .shadow(color: .black.opacity(0.22), radius: 14, x: 0, y: 8)
+                .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 4)
         }
         .buttonStyle(.plain)
         .contentShape(Circle())

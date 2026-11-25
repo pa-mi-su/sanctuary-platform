@@ -87,10 +87,10 @@ import {
       font-size: 13px;
       font-weight: 650;
       margin-bottom: 8px;
-      color: var(--admin-label, #d9edf2);
+      color: var(--admin-label, var(--sanctuary-text));
     }
     label span {
-      color: #f0cd7b;
+      color: var(--sanctuary-text-muted);
     }
     .input-wrap {
       position: relative;
@@ -99,10 +99,10 @@ import {
       box-sizing: border-box;
       width: 100%;
       padding: 13px 88px 13px 14px;
-      border: 1px solid var(--admin-border, #416373);
+      border: 1px solid var(--admin-border, var(--sanctuary-border));
       border-radius: 10px;
-      background: var(--admin-input, #12384b);
-      color: var(--admin-text, #edf6f7);
+      background: var(--sanctuary-surface-card);
+      color: var(--admin-text, var(--sanctuary-text));
       font: inherit;
       min-height: 48px;
     }
@@ -111,7 +111,7 @@ import {
     }
     input:focus-visible,
     button:focus-visible {
-      outline: 2px solid #e7c575;
+      outline: 2px solid var(--sanctuary-primary);
       outline-offset: 3px;
     }
     .actions {
@@ -129,15 +129,15 @@ import {
       background: transparent;
       border: 0;
       border-radius: 7px;
-      color: var(--admin-muted, #b2cbd5);
+      color: var(--admin-muted, var(--sanctuary-text));
       padding: 7px;
       cursor: pointer;
       min-width: 32px;
       min-height: 32px;
     }
     button:hover {
-      background: #ffffff12;
-      color: #fff;
+      background: var(--sanctuary-surface-raised);
+      color: var(--sanctuary-text);
     }
     .clear {
       font-size: 23px;

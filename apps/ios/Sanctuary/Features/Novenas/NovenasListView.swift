@@ -16,7 +16,7 @@ struct NovenasListView: View {
                 List {
                     if let errorMessage = viewModel.errorMessage {
                         Text(errorMessage)
-                            .foregroundStyle(.red)
+                            .foregroundStyle(AppTheme.errorText)
                             .listRowBackground(Color.clear)
                     }
 
@@ -30,11 +30,11 @@ struct NovenasListView: View {
                                     .foregroundStyle(AppTheme.cardText)
                                 Text(viewModel.summary(for: novena))
                                     .font(AppTheme.rounded(15, weight: .medium))
-                                    .foregroundStyle(AppTheme.cardText.opacity(0.8))
+                                    .foregroundStyle(AppTheme.subtitleText)
                                     .lineLimit(2)
                                 Text(viewModel.dayText(for: novena))
                                     .font(AppTheme.rounded(12, weight: .semibold))
-                                    .foregroundStyle(.white.opacity(0.68))
+                                    .foregroundStyle(AppTheme.subtitleText)
                                     .padding(.horizontal, 10)
                                     .padding(.vertical, 6)
                                     .background(AppTheme.cardBackgroundSoft)

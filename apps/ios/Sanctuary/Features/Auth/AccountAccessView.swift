@@ -67,7 +67,7 @@ struct AccountAccessView: View {
 
             Text(heading)
                 .font(AppTheme.rounded(36, weight: .bold))
-                .foregroundStyle(.white)
+                .foregroundStyle(AppTheme.cardText)
 
             Text(supportingCopy)
                 .font(AppTheme.rounded(18, weight: .medium))
@@ -76,13 +76,13 @@ struct AccountAccessView: View {
             if let message = accountStore.message, !message.isEmpty {
                 Text(message)
                     .font(AppTheme.rounded(15, weight: .semibold))
-                    .foregroundStyle(accountStore.isErrorMessage ? Color(red: 1, green: 0.86, blue: 0.86) : AppTheme.tabActive)
+                    .foregroundStyle(accountStore.isErrorMessage ? AppTheme.errorText : AppTheme.tabActive)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 12)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(
                         RoundedRectangle(cornerRadius: 18, style: .continuous)
-                            .fill(accountStore.isErrorMessage ? Color.red.opacity(0.16) : AppTheme.cardBackgroundSoft)
+                            .fill(accountStore.isErrorMessage ? AppTheme.errorSurface : AppTheme.cardBackgroundSoft)
                     )
             }
 
@@ -530,7 +530,7 @@ struct AccountAccessView: View {
             HStack {
                 Text(copy("Password strength", "Seguridad de contraseña", "Siła hasła"))
                     .font(AppTheme.rounded(15, weight: .bold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(AppTheme.cardText)
                 Spacer()
                 Text(passwordStrengthLabel(for: rules))
                     .font(AppTheme.rounded(14, weight: .semibold))
@@ -545,7 +545,7 @@ struct AccountAccessView: View {
                             .foregroundStyle(rule.met ? AppTheme.tabActive : AppTheme.subtitleText)
                         Text(rule.label)
                             .font(AppTheme.rounded(14, weight: .medium))
-                            .foregroundStyle(rule.met ? .white : AppTheme.subtitleText)
+                            .foregroundStyle(rule.met ? AppTheme.cardText : AppTheme.subtitleText)
                     }
                 }
             }
@@ -564,7 +564,7 @@ struct AccountAccessView: View {
                 .fill(AppTheme.cardBackgroundSoft)
                 .overlay(
                     RoundedRectangle(cornerRadius: 22, style: .continuous)
-                        .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                        .stroke(AppTheme.cardText.opacity(0.12), lineWidth: 1)
                 )
         )
     }
@@ -582,7 +582,7 @@ struct AccountAccessView: View {
                     .foregroundStyle(AppTheme.tabActive)
                 Text(title)
                     .font(AppTheme.rounded(24, weight: .bold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(AppTheme.cardText)
                 Text(body)
                     .font(AppTheme.rounded(16, weight: .medium))
                     .foregroundStyle(AppTheme.subtitleText)
@@ -600,7 +600,7 @@ struct AccountAccessView: View {
             if isBusy {
                 ProgressView()
                     .progressViewStyle(.circular)
-                    .tint(.white)
+                    .tint(AppTheme.onAccent)
                     .scaleEffect(0.9)
             }
             Text(isBusy ? busyTitle : idleTitle)
@@ -739,7 +739,7 @@ struct AccountAccessView: View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title)
                 .font(AppTheme.rounded(15, weight: .bold))
-                .foregroundStyle(.white)
+                .foregroundStyle(AppTheme.cardText)
             HStack(spacing: 8) {
                 TextField("", text: text)
                     .textInputAutocapitalization(.never)
@@ -750,7 +750,7 @@ struct AccountAccessView: View {
                     .submitLabel(submitLabel)
                     .onSubmit(onSubmit)
                     .font(AppTheme.rounded(16, weight: .medium))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(AppTheme.cardText)
                 if !text.wrappedValue.isEmpty {
                     Button {
                         text.wrappedValue = ""
@@ -771,7 +771,7 @@ struct AccountAccessView: View {
                         .fill(AppTheme.cardBackgroundSoft)
                         .overlay(
                             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                                .stroke(AppTheme.cardText.opacity(0.12), lineWidth: 1)
                         )
                 )
         }
@@ -789,7 +789,7 @@ struct AccountAccessView: View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title)
                 .font(AppTheme.rounded(15, weight: .bold))
-                .foregroundStyle(.white)
+                .foregroundStyle(AppTheme.cardText)
             HStack(spacing: 8) {
                 Group {
                     if isRevealed.wrappedValue {
@@ -804,7 +804,7 @@ struct AccountAccessView: View {
                 .submitLabel(submitLabel)
                 .onSubmit(onSubmit)
                 .font(AppTheme.rounded(16, weight: .medium))
-                .foregroundStyle(.white)
+                .foregroundStyle(AppTheme.cardText)
 
                 if !text.wrappedValue.isEmpty {
                     Button {
@@ -844,7 +844,7 @@ struct AccountAccessView: View {
                     .fill(AppTheme.cardBackgroundSoft)
                     .overlay(
                         RoundedRectangle(cornerRadius: 18, style: .continuous)
-                            .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                            .stroke(AppTheme.cardText.opacity(0.12), lineWidth: 1)
                     )
             )
         }
@@ -959,7 +959,7 @@ private struct AccountRequiredModifier: ViewModifier {
                     } label: {
                         Image(systemName: "xmark.circle.fill")
                             .font(.system(size: 34, weight: .semibold))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(AppTheme.cardText)
                             .padding(16)
                     }
                     .accessibilityLabel(localization.t("common.close"))

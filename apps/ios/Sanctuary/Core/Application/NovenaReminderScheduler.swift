@@ -183,10 +183,10 @@ struct ContentReminderButton: View {
         } label: {
             Label(localization.t(record != nil ? "itemReminder.edit" : "itemReminder.add"), systemImage: compact ? "pencil" : (record != nil ? "bell.badge.fill" : "bell"))
                 .labelStyle(ReminderButtonLabelStyle(compact: compact))
-                .font(AppTheme.rounded(16, weight: .semibold)).foregroundStyle(.white)
+                .font(AppTheme.rounded(16, weight: .semibold)).foregroundStyle(AppTheme.cardText)
                 .padding(.horizontal, 18).padding(.vertical, 12)
                 .background(AppTheme.cardBackgroundSoft, in: Capsule())
-                .overlay(Capsule().stroke(Color.white.opacity(0.25), lineWidth: 1))
+                .overlay(Capsule().stroke(AppTheme.cardText.opacity(0.25), lineWidth: 1))
         }
         .buttonStyle(.plain)
         .accessibilityLabel(localization.t(record != nil ? "itemReminder.edit" : "itemReminder.add"))
@@ -207,8 +207,9 @@ struct ContentReminderButton: View {
                         Text(localization.t("itemReminder.body")).font(.footnote)
                         DatePicker(localization.t("itemReminder.time"), selection: $time, displayedComponents: .hourAndMinute)
                             .environment(\.timeZone, TimeZone(secondsFromGMT: 0)!)
-                        if let problem { Text(problem).foregroundStyle(.red) }
+                        if let problem { Text(problem).foregroundStyle(AppTheme.errorText) }
                     }
+                    .listRowBackground(AppTheme.cardBackground)
                     Section {
                         ReminderActionButton(title: localization.t("itemReminder.save"), symbol: "checkmark.circle.fill") { mutate {
                             var clock = Calendar(identifier: .gregorian); clock.timeZone = TimeZone(secondsFromGMT: 0)!
@@ -230,7 +231,7 @@ struct ContentReminderButton: View {
                 .navigationTitle(localization.t("itemReminder.title"))
                 .toolbar { ToolbarItem(placement: .cancellationAction) { Button(localization.t("common.cancel")) { showing = false } } }
             }
-            .preferredColorScheme(.dark).tint(.white).presentationBackground(AppTheme.gradientTop)
+            .preferredColorScheme(.light).tint(AppTheme.tabActive).presentationBackground(AppTheme.gradientTop)
             .presentationDetents([.medium, .large])
         }
     }
@@ -254,9 +255,9 @@ struct ReminderActionButton: View {
             Label(title, systemImage: symbol)
                 .font(AppTheme.rounded(16, weight: .bold))
                 .frame(maxWidth: .infinity, minHeight: 50)
-                .foregroundStyle(destructive ? Color(red: 1, green: 0.65, blue: 0.65) : .white)
-                .background(destructive ? Color.red.opacity(0.12) : Color(red: 0.13, green: 0.48, blue: 0.40), in: RoundedRectangle(cornerRadius: 14))
-                .overlay(RoundedRectangle(cornerRadius: 14).stroke(destructive ? Color.red.opacity(0.65) : Color.white.opacity(0.35), lineWidth: 1))
+                .foregroundStyle(destructive ? AppTheme.errorText : AppTheme.onAccent)
+                .background(destructive ? AppTheme.errorSurface : AppTheme.glowBlue, in: RoundedRectangle(cornerRadius: 14))
+                .overlay(RoundedRectangle(cornerRadius: 14).stroke(destructive ? AppTheme.errorText.opacity(0.65) : Color.white.opacity(0.35), lineWidth: 1))
         }
         .buttonStyle(.plain)
     }

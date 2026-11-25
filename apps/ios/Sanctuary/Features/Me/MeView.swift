@@ -48,7 +48,7 @@ struct MeView: View {
             Image(systemName: symbol).font(.system(size: 17, weight: .semibold))
                 .foregroundStyle(AppTheme.tabActive)
         }
-        .foregroundStyle(.white).padding(16).frame(maxWidth: .infinity, minHeight: 64, alignment: .leading)
+        .foregroundStyle(AppTheme.cardText).padding(16).frame(maxWidth: .infinity, minHeight: 64, alignment: .leading)
         .background(AppTheme.cardBackgroundSoft, in: RoundedRectangle(cornerRadius: 18))
         .overlay(RoundedRectangle(cornerRadius: 18).stroke(AppTheme.tabBorder, lineWidth: 1))
         .contentShape(RoundedRectangle(cornerRadius: 18))
@@ -65,7 +65,7 @@ struct MeView: View {
                 .background(AppTheme.cardBackground).clipShape(RoundedRectangle(cornerRadius: 18))
                 .overlay(RoundedRectangle(cornerRadius: 18).stroke(AppTheme.tabActive.opacity(0.7), lineWidth: 1.5))
                 .overlay(alignment: .topTrailing) {
-                    if unread { Circle().fill(.red).frame(width: 12, height: 12).overlay(Circle().stroke(AppTheme.cardBackground, lineWidth: 2)).offset(x: -5, y: 5) }
+                    if unread { Circle().fill(AppTheme.errorText).frame(width: 12, height: 12).overlay(Circle().stroke(AppTheme.cardBackground, lineWidth: 2)).offset(x: -5, y: 5) }
                 }
         }.buttonStyle(.plain).accessibilityLabel(title).accessibilityValue(unread ? "Unread announcements" : "")
     }
@@ -83,9 +83,9 @@ struct MeView: View {
                             if accountStore.isAuthenticated {
                                 HStack(spacing: 10) {
                                     SanctuaryHaloAvatar().frame(width: 44, height: 44)
-                                    Text(resolvedDisplayName).font(AppTheme.rounded(24, weight: .bold)).foregroundStyle(.white).fixedSize(horizontal: false, vertical: true)
+                                    Text(resolvedDisplayName).font(AppTheme.rounded(24, weight: .bold)).foregroundStyle(AppTheme.cardText).fixedSize(horizontal: false, vertical: true)
                                 }.padding(.horizontal, 10)
-                            } else { Text(localization.t("tab.me")).font(AppTheme.rounded(32, weight: .bold)).foregroundStyle(.white) }
+                            } else { Text(localization.t("tab.me")).font(AppTheme.rounded(32, weight: .bold)).foregroundStyle(AppTheme.cardText) }
                             Spacer()
                             headerAction(localization.t("settings.title"), icon: "gearshape.fill") { showSettings = true }
                         }
@@ -96,11 +96,11 @@ struct MeView: View {
                     if settingsMode {
                         Button { if settingsSection != nil { settingsSection = nil } else { dismiss() } } label: {
                             Image(systemName: "arrow.left").font(.system(size: 20, weight: .medium))
-                                .foregroundStyle(.white).frame(width: 42, height: 42)
+                                .foregroundStyle(AppTheme.cardText).frame(width: 42, height: 42)
                                 .background(AppTheme.cardBackground).clipShape(Circle())
                                 .overlay(Circle().stroke(AppTheme.tabBorder, lineWidth: 1))
                         }.accessibilityLabel(localization.t("common.close"))
-                        Text(localization.t(settingsSection ?? "settings.title")).font(AppTheme.rounded(32, weight: .bold)).foregroundStyle(.white)
+                        Text(localization.t(settingsSection ?? "settings.title")).font(AppTheme.rounded(32, weight: .bold)).foregroundStyle(AppTheme.cardText)
                         if let section = settingsSection {
                             switch section {
                             case "settings.account":
@@ -126,7 +126,7 @@ struct MeView: View {
                                     HStack(spacing: 14) {
                                         SanctuaryHaloAvatar().frame(width: 60, height: 60)
                                         VStack(alignment: .leading, spacing: 4) {
-                                            Text(resolvedDisplayName).font(AppTheme.rounded(22, weight: .bold)).foregroundStyle(.white)
+                                            Text(resolvedDisplayName).font(AppTheme.rounded(22, weight: .bold)).foregroundStyle(AppTheme.cardText)
                                             if let email = resolvedEmail { Text(email).font(AppTheme.rounded(14, weight: .medium)).foregroundStyle(AppTheme.subtitleText) }
                                         }
                                         Spacer(minLength: 0)
@@ -263,17 +263,17 @@ struct MeView: View {
                     .font(.system(size: 23, weight: .semibold))
                     .foregroundStyle(AppTheme.tabActive)
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(title).font(AppTheme.rounded(16, weight: .semibold)).foregroundStyle(.white)
+                    Text(title).font(AppTheme.rounded(16, weight: .semibold)).foregroundStyle(AppTheme.cardText)
                     Text(subtitle).font(AppTheme.rounded(13, weight: .medium)).foregroundStyle(AppTheme.subtitleText)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 0)
-                Image(systemName: trailingIcon).font(.system(size: 18, weight: .bold)).foregroundStyle(.white)
+                Image(systemName: trailingIcon).font(.system(size: 18, weight: .bold)).foregroundStyle(AppTheme.cardText)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(14)
             .background(AppTheme.cardBackgroundSoft, in: RoundedRectangle(cornerRadius: 18))
-            .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color.white.opacity(0.4), lineWidth: 1))
+            .overlay(RoundedRectangle(cornerRadius: 18).stroke(AppTheme.cardText.opacity(0.4), lineWidth: 1))
             .contentShape(RoundedRectangle(cornerRadius: 18))
         }
         .buttonStyle(.plain)
@@ -312,13 +312,13 @@ struct MeView: View {
 
                         Text(initials)
                             .font(AppTheme.rounded(22, weight: .bold))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(AppTheme.cardText)
                     }
 
                     VStack(alignment: .leading, spacing: 6) {
                         Text(resolvedDisplayName)
                             .font(AppTheme.rounded(30, weight: .bold))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(AppTheme.cardText)
                             .multilineTextAlignment(.leading)
 
                         if let email = resolvedEmail {
@@ -450,7 +450,7 @@ struct MeView: View {
                     HStack {
                         if isDeletingAccount {
                             ProgressView()
-                                .tint(.white)
+                                .tint(AppTheme.tabActive)
                         }
                         Text(localization.t(isDeletingAccount ? "me.deleteAccount.deleting" : "me.deleteAccount.action"))
                     }
@@ -468,25 +468,25 @@ struct MeView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(title)
                         .font(.system(size: 16, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(AppTheme.cardText)
                         .lineLimit(2)
                     if let subtitle, !subtitle.isEmpty {
                         Text(subtitle)
                             .font(AppTheme.rounded(13, weight: .medium))
-                            .foregroundStyle(.white.opacity(0.82))
+                            .foregroundStyle(AppTheme.subtitleText)
                     }
                 }
                 Spacer()
                 Image(systemName: "chevron.right")
                     .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.9))
+                    .foregroundStyle(AppTheme.cardText.opacity(0.9))
             }
             .padding(.vertical, 12)
             .padding(.horizontal, 14)
             .background(AppTheme.cardBackgroundSoft)
             .overlay(
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                    .stroke(AppTheme.cardText.opacity(0.12), lineWidth: 1)
             )
             .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         }
@@ -501,13 +501,13 @@ struct MeView: View {
                 HStack(alignment: .center, spacing: 8) {
                     Text(title)
                         .font(.system(size: 16, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(AppTheme.cardText)
 
                 }
 
                 Text(subtitle)
                     .font(AppTheme.rounded(13, weight: .medium))
-                    .foregroundStyle(active ? .white.opacity(0.88) : .white.opacity(0.78))
+                    .foregroundStyle(active ? AppTheme.cardText.opacity(0.88) : AppTheme.subtitleText)
                     .fixedSize(horizontal: false, vertical: true)
             }
 
@@ -841,7 +841,7 @@ private struct DestructivePillButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(AppTheme.rounded(16, weight: .bold))
-            .foregroundStyle(.white)
+            .foregroundStyle(AppTheme.onAccent)
             .padding(.vertical, 13)
             .padding(.horizontal, 16)
             .background(
@@ -850,7 +850,7 @@ private struct DestructivePillButtonStyle: ButtonStyle {
             )
             .overlay(
                 Capsule()
-                    .stroke(Color.white.opacity(0.18), lineWidth: 1)
+                    .stroke(AppTheme.cardText.opacity(0.18), lineWidth: 1)
             )
             .opacity(configuration.isPressed ? 0.86 : 1)
     }
@@ -896,7 +896,7 @@ private struct NotificationSwitchStyle: ToggleStyle {
         Button { configuration.isOn.toggle() } label: {
             ZStack(alignment: configuration.isOn ? .trailing : .leading) {
                 Capsule().fill(configuration.isOn ? Color(red: 0.16, green: 0.65, blue: 0.56) : Color(red: 0.31, green: 0.40, blue: 0.46))
-                Capsule().stroke(Color.white.opacity(0.5), lineWidth: 1)
+                Capsule().stroke(AppTheme.cardText.opacity(0.5), lineWidth: 1)
                 Circle().fill(.white).padding(4).shadow(color: .black.opacity(0.25), radius: 2, y: 1)
                     .frame(width: 32, height: 32)
             }
@@ -925,7 +925,7 @@ private struct ScheduledRemindersCard: View {
                     Text(localization.t("reminders.manage.legacy")).foregroundStyle(AppTheme.subtitleText)
                     Button(localization.t("common.close")) { reminders.dismissLegacyNotice() }
                 }
-                if let issue = problem ?? reminders.problem { Text(localization.t(issue)).foregroundStyle(.orange) }
+                if let issue = problem ?? reminders.problem { Text(localization.t(issue)).foregroundStyle(AppTheme.warningText) }
                 if reminders.items.isEmpty {
                     Label(localization.t("reminders.manage.empty"), systemImage: "bell.slash").foregroundStyle(AppTheme.subtitleText).padding(.vertical, 12)
                 }
@@ -937,14 +937,14 @@ private struct ScheduledRemindersCard: View {
                             }.frame(width: 56, height: 64).background(AppTheme.cardBackgroundSoft).clipShape(RoundedRectangle(cornerRadius: 12))
                         }.buttonStyle(.plain).accessibilityLabel(record.title)
                         VStack(alignment: .leading, spacing: 5) {
-                            Button { open(record) } label: { Text(record.title) }.buttonStyle(.plain).font(AppTheme.rounded(16, weight: .semibold)).foregroundStyle(.white)
+                            Button { open(record) } label: { Text(record.title) }.buttonStyle(.plain).font(AppTheme.rounded(16, weight: .semibold)).foregroundStyle(AppTheme.cardText)
                             Text(localization.t("reminders.manage.daily") + " · " + record.formattedTime)
                                 .font(AppTheme.rounded(13, weight: .medium)).foregroundStyle(AppTheme.subtitleText)
                         }
                         Spacer(minLength: 0)
                         ContentReminderButton(kind: record.kind, slug: record.slug, title: record.title, compact: true)
                         Button(role: .destructive) { mutate { try await reminders.remove(record, account: accountStore) } } label: {
-                            Image(systemName: "trash").frame(width: 44, height: 44).foregroundStyle(Color(red: 1, green: 0.65, blue: 0.65))
+                            Image(systemName: "trash").frame(width: 44, height: 44).foregroundStyle(AppTheme.errorText)
                         }.accessibilityLabel(localization.t("itemReminder.remove") + ": " + record.title)
                     }.padding(12).background(AppTheme.cardBackgroundSoft, in: RoundedRectangle(cornerRadius: 16))
                 }

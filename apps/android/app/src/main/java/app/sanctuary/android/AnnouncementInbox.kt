@@ -127,22 +127,22 @@ suspend fun announcementUnread(context:Context,authenticated:Boolean):Boolean {
  LaunchedEffect(authenticated){confirm=false;clearThrough=null;undo=null;load()}
  Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
  Column(Modifier.widthIn(max = 680.dp).fillMaxWidth().padding(horizontal = 18.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
-  Text(l10n.t("inbox.title"), modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center, color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold)
+  Text(l10n.t("inbox.title"), modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center, color = SanctuaryText, fontSize = 30.sp, fontWeight = FontWeight.Bold)
   Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
    InboxAction(l10n.t("inbox.refresh"), Modifier.weight(1f), !busy) { load() }
    InboxAction(l10n.t("inbox.clearAll"), Modifier.weight(1f), !busy && visibleAnnouncements(rows,state).isNotEmpty()) { clearThrough=rows.maxByOrNull { it.published_at };confirm=true }
   }
   if(busy)CircularProgressIndicator()
-  if(error.isNotEmpty())Text(error,color=Color(0xFFFFB4AB))
+  if(error.isNotEmpty())Text(error,color=SanctuaryError)
   undo?.let { id -> InboxAction(l10n.t("inbox.undo"), enabled = !busy) { change("restore",id) } }
-  if(!busy && displayed.isEmpty())Text(l10n.t("inbox.empty"),color=Color.White,modifier=Modifier.fillMaxWidth().padding(20.dp),textAlign=TextAlign.Center)
+  if(!busy && displayed.isEmpty())Text(l10n.t("inbox.empty"),color=SanctuaryText,modifier=Modifier.fillMaxWidth().padding(20.dp),textAlign=TextAlign.Center)
   displayed.forEach { row ->
-   Card(modifier=Modifier.fillMaxWidth(),colors=CardDefaults.cardColors(containerColor=SanctuaryCard),shape=RoundedCornerShape(24.dp),border=BorderStroke(1.dp,Color(0x997CC7DE))) {
+   Card(modifier=Modifier.fillMaxWidth(),colors=CardDefaults.cardColors(containerColor=SanctuaryCard),shape=RoundedCornerShape(24.dp),border=BorderStroke(1.dp,SanctuaryCardBorder)) {
     Column(Modifier.padding(20.dp),verticalArrangement=Arrangement.spacedBy(14.dp)) {
-     Text(row.title,color=Color.White,fontSize=20.sp,fontWeight=FontWeight.Bold)
-     Text(java.text.DateFormat.getDateInstance().format(java.util.Date(row.published_at.toLong())),color=Color(0xFFB8CCD6),fontSize=14.sp)
-     Text(row.body,color=Color.White,fontSize=17.sp,lineHeight=24.sp)
-     HorizontalDivider(color=Color(0x667CC7DE))
+     Text(row.title,color=SanctuaryText,fontSize=20.sp,fontWeight=FontWeight.Bold)
+     Text(java.text.DateFormat.getDateInstance().format(java.util.Date(row.published_at.toLong())),color=SanctuaryMuted,fontSize=14.sp)
+     Text(row.body,color=SanctuaryText,fontSize=17.sp,lineHeight=24.sp)
+     HorizontalDivider(color=SanctuaryCardBorder)
      Row(horizontalArrangement=Arrangement.spacedBy(12.dp)) {
       if(announcementHasContentLink(row.destination)) {
        InboxAction(l10n.t("inbox.open"),Modifier.weight(1f),!busy,primary=true) { onOpen(row.destination) }
@@ -167,7 +167,7 @@ internal fun announcementHasContentLink(value: String): Boolean = runCatching {
 
 @Composable
 private fun InboxAction(title: String, modifier: Modifier = Modifier, enabled: Boolean = true, primary: Boolean = false, action: () -> Unit) {
- OutlinedButton(onClick=action,enabled=enabled,modifier=modifier.fillMaxWidth().heightIn(min=48.dp).background(Brush.linearGradient(if(primary)listOf(Color(0xFF3E9FC1),Color(0xFF195E78)) else listOf(Color(0xFF2A4153),Color(0xFF2A4153))),RoundedCornerShape(20.dp)),shape=RoundedCornerShape(20.dp),border=BorderStroke(1.dp,Color(0x997CC7DE)),colors=ButtonDefaults.outlinedButtonColors(containerColor=Color.Transparent,contentColor=Color.White)) {
+ OutlinedButton(onClick=action,enabled=enabled,modifier=modifier.fillMaxWidth().heightIn(min=48.dp).background(Brush.linearGradient(if(primary)listOf(SanctuaryBlue,SanctuaryBlue) else listOf(SanctuaryCardSoft,SanctuaryCardSoft)),RoundedCornerShape(20.dp)),shape=RoundedCornerShape(20.dp),border=BorderStroke(1.dp,SanctuaryCardBorder),colors=ButtonDefaults.outlinedButtonColors(containerColor=Color.Transparent,contentColor=if(primary) SanctuaryOnAccent else SanctuaryText)) {
   Text(title,fontSize=16.sp,fontWeight=FontWeight.SemiBold)
  }
 }
