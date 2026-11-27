@@ -74,7 +74,7 @@ struct MeView: View {
         ZStack {
             AppBackdrop()
 
-            ScrollView(showsIndicators: false) {
+            KeyboardAwareScrollView {
                 VStack(alignment: .leading, spacing: 14) {
                     if !settingsMode {
                         HStack {
@@ -991,18 +991,18 @@ private struct SanctuaryHaloAvatar: View {
             let w = geometry.size.width
             let h = geometry.size.height
             ZStack(alignment: .topLeading) {
-                Circle().fill(Color(red: 36/255, green: 72/255, blue: 84/255)).frame(width: w * 0.96, height: w * 0.96).position(x: w * 0.5, y: h * 0.5)
-                Ellipse().stroke(Color(red: 230/255, green: 197/255, blue: 117/255), lineWidth: w * 0.035).frame(width: w * 0.42, height: h * 0.10).position(x: w * 0.5, y: h * 0.20)
-                Ellipse().fill(Color(red: 74/255, green: 159/255, blue: 174/255)).frame(width: w * 0.44, height: h * 0.39).position(x: w * 0.5, y: h * 0.485)
-                Circle().fill(Color(red: 1, green: 233/255, blue: 184/255)).frame(width: w * 0.27, height: w * 0.27).position(x: w * 0.5, y: h * 0.46)
+                Circle().fill(AppTheme.homeSurfaceRaised).frame(width: w * 0.96, height: w * 0.96).position(x: w * 0.5, y: h * 0.5)
+                Ellipse().stroke(AppTheme.glowGold, lineWidth: w * 0.035).frame(width: w * 0.42, height: h * 0.10).position(x: w * 0.5, y: h * 0.20)
+                Ellipse().fill(AppTheme.glowBlue).frame(width: w * 0.44, height: h * 0.39).position(x: w * 0.5, y: h * 0.485)
+                Circle().fill(AppTheme.onAccent).frame(width: w * 0.27, height: w * 0.27).position(x: w * 0.5, y: h * 0.46)
                 ForEach([0.455, 0.545], id: \.self) { x in
-                    Circle().fill(Color(red: 25/255, green: 59/255, blue: 71/255)).frame(width: w * 0.032, height: w * 0.032).position(x: w * x, y: h * 0.45)
+                    Circle().fill(AppTheme.homeInk).frame(width: w * 0.032, height: w * 0.032).position(x: w * x, y: h * 0.45)
                 }
-                Ellipse().fill(Color(red: 74/255, green: 159/255, blue: 174/255)).frame(width: w * 0.5, height: h * 0.23).position(x: w * 0.5, y: h * 0.755)
+                Ellipse().fill(AppTheme.glowBlue).frame(width: w * 0.5, height: h * 0.23).position(x: w * 0.5, y: h * 0.755)
                 Path { path in
                     path.move(to: CGPoint(x: w * 0.5, y: h * 0.68)); path.addLine(to: CGPoint(x: w * 0.5, y: h * 0.79))
                     path.move(to: CGPoint(x: w * 0.46, y: h * 0.72)); path.addLine(to: CGPoint(x: w * 0.54, y: h * 0.72))
-                }.stroke(Color(red: 230/255, green: 197/255, blue: 117/255), style: StrokeStyle(lineWidth: w * 0.025, lineCap: .round))
+                }.stroke(AppTheme.christmas, style: StrokeStyle(lineWidth: w * 0.025, lineCap: .round))
             }
         }.accessibilityHidden(true)
     }

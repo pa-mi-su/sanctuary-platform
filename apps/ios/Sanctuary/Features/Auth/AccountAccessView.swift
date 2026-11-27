@@ -10,7 +10,7 @@ private enum AccountAccessStep: Equatable {
     case resetPassword
 }
 
-private enum AccountAccessField: Hashable {
+private enum AccountAccessField: String, Hashable {
     case loginEmail
     case loginPassword
     case registerFirstName
@@ -48,6 +48,7 @@ struct AccountAccessView: View {
     @State private var isRegisterPasswordConfirmationVisible = false
     @State private var isResetPasswordVisible = false
     @State private var isResetPasswordConfirmationVisible = false
+    @State private var pendingPasswordFocus: AccountAccessField?
     @FocusState private var focusedField: AccountAccessField?
 
     init(startAtRegistration: Bool = false, startAtLogin: Bool = false) {
@@ -144,6 +145,7 @@ struct AccountAccessView: View {
             }
         }
         .onChange(of: step) { _ in
+            pendingPasswordFocus = nil
             clearSecrets(preserveRegistration: step == .confirm)
             focusedField = nil
         }
@@ -775,6 +777,8 @@ struct AccountAccessView: View {
                         )
                 )
         }
+        .id(focus.rawValue)
+        .preference(key: FocusedInputPreferenceKey.self, value: focusedField == focus ? focus.rawValue : nil)
     }
 
     private func authSecureField(
@@ -795,9 +799,11 @@ struct AccountAccessView: View {
                     if isRevealed.wrappedValue {
                         TextField("", text: text)
                             .textContentType(textContentType)
+                            .task { await restorePasswordFocus(focus) }
                     } else {
                         SecureField("", text: text)
                             .textContentType(textContentType)
+                            .task { await restorePasswordFocus(focus) }
                     }
                 }
                 .focused($focusedField, equals: focus)
@@ -809,6 +815,7 @@ struct AccountAccessView: View {
                 if !text.wrappedValue.isEmpty {
                     Button {
                         text.wrappedValue = ""
+                        if isRevealed.wrappedValue { pendingPasswordFocus = focus }
                         isRevealed.wrappedValue = false
                         focusedField = focus
                     } label: {
@@ -822,8 +829,8 @@ struct AccountAccessView: View {
                 }
 
                 Button {
+                    pendingPasswordFocus = focus
                     isRevealed.wrappedValue.toggle()
-                    focusedField = focus
                 } label: {
                     Image(systemName: isRevealed.wrappedValue ? "eye.slash.fill" : "eye.fill")
                         .font(.system(size: 18, weight: .semibold))
@@ -848,6 +855,16 @@ struct AccountAccessView: View {
                     )
             )
         }
+        .id(focus.rawValue)
+        .preference(key: FocusedInputPreferenceKey.self, value: focusedField == focus ? focus.rawValue : nil)
+    }
+
+    private func restorePasswordFocus(_ field: AccountAccessField) async {
+        guard pendingPasswordFocus == field else { return }
+        await Task.yield()
+        guard !Task.isCancelled, pendingPasswordFocus == field else { return }
+        focusedField = field
+        pendingPasswordFocus = nil
     }
 
     private func benefitLine(_ text: String) -> some View {
@@ -878,6 +895,7 @@ struct AccountAccessView: View {
     }
 
     private func clearForm() {
+        pendingPasswordFocus = nil
         clearSecrets()
         loginEmail = ""
         registerFirstName = ""
@@ -944,7 +962,7 @@ private struct AccountRequiredModifier: ViewModifier {
             .fullScreenCover(isPresented: $isShowingAccountAccess) {
                 ZStack(alignment: .topTrailing) {
                     AppBackdrop()
-                    ScrollView(showsIndicators: false) {
+                    KeyboardAwareScrollView {
                         AccountAccessView(
                             startAtRegistration: startAtRegistration,
                             startAtLogin: !startAtRegistration

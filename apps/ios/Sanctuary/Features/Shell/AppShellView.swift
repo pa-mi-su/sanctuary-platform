@@ -35,6 +35,7 @@ struct AppShellView: View {
     @Environment(\.scenePhase) private var scenePhase
     @ObservedObject private var push = PushNotifications.shared
     @State private var selectedTab: AppTab = .home
+    @State private var keyboardCoversBottom = false
     @State private var showAnnouncement = false
     @State private var announcementID: String?
     @State private var announcementDestination: URL?
@@ -96,8 +97,11 @@ struct AppShellView: View {
                 }
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            bottomNavigation
+            // The docked keyboard covers the device-bottom navigation. Do not
+            // turn it into a keyboard accessory or disable form keyboard avoidance.
+            if !keyboardCoversBottom { bottomNavigation }
         }
+        .background { KeyboardOcclusionObserver(coversBottom: $keyboardCoversBottom) }
         .preferredColorScheme(selectedTab == .home ? nil : .light)
         .tint(AppTheme.tabActive)
         .environmentObject(localization)
@@ -201,6 +205,8 @@ struct AppShellView: View {
                 .accessibilityAddTraits(isSelected ? .isSelected : [])
             }
         }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("sanctuary.bottom-navigation")
         .padding(.horizontal, 8)
         .padding(.top, 8)
         .padding(.bottom, 2)

@@ -61,6 +61,9 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -213,6 +216,7 @@ import app.sanctuary.android.ui.theme.SanctuaryError
 import app.sanctuary.android.ui.theme.SanctuaryErrorSurface
 import app.sanctuary.android.ui.theme.SanctuaryWarning
 import app.sanctuary.android.ui.theme.SanctuaryHeroBase
+import app.sanctuary.android.ui.theme.SanctuaryGlowGold
 import app.sanctuary.android.ui.theme.SanctuaryBlue
 import app.sanctuary.android.ui.theme.SanctuaryHomeSurface
 import app.sanctuary.android.ui.theme.SanctuaryHomeSurfaceRaised
@@ -648,7 +652,7 @@ private fun AccountAccessScreen(
         }
     } else {
         LazyColumn(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().imePadding(),
             contentPadding = PaddingValues(24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
@@ -1045,10 +1049,12 @@ private fun AuthenticatedShell(
         onTabSelected(AppTab.Me)
     }
 
+    val keyboardCoversBottom = WindowInsets.ime.getBottom(LocalDensity.current) > 0
     Scaffold(
         containerColor = Color.Transparent,
         bottomBar = {
-            if (!showSettings && !showInbox) Surface(
+            // Navigation belongs at the device bottom, underneath the IME.
+            if (!showSettings && !showInbox && !keyboardCoversBottom) Surface(
                 modifier = Modifier.fillMaxWidth(),
                 color = SanctuaryHomeSurface
             ) {
@@ -1100,6 +1106,8 @@ private fun AuthenticatedShell(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .consumeWindowInsets(padding)
+                .imePadding()
                 .background(if (selectedTab == AppTab.Home) SanctuaryHomeSurface else Color.Transparent),
             contentPadding = if (selectedTab == AppTab.Home) PaddingValues(bottom = 96.dp) else PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
@@ -1263,7 +1271,7 @@ private fun AuthenticatedShell(
         }
         SanctuarySlidePage(visible=showSettings, onBack={if (settingsSection != null) settingsSection=null else showSettings=false}) {
                 LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier.fillMaxSize().imePadding(),
                     contentPadding = PaddingValues(start = 18.dp, end = 18.dp, top = 76.dp, bottom = 96.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
@@ -1915,15 +1923,15 @@ private fun HomeCard(session: SessionUiState) {
 private fun SanctuaryHaloAvatar(modifier: Modifier = Modifier) {
     Canvas(modifier) {
         val w=size.width; val h=size.height
-        drawCircle(Color(0xFF244854), radius=w*.48f, center=Offset(w*.5f,h*.5f))
-        drawOval(Color(0xFFE6C575), topLeft=Offset(w*.29f,h*.15f), size=Size(w*.42f,h*.10f), style=Stroke(width=w*.035f))
-        drawOval(Color(0xFF4A9FAE), topLeft=Offset(w*.28f,h*.29f), size=Size(w*.44f,h*.39f))
-        drawCircle(Color(0xFFFFE9B8), radius=w*.135f, center=Offset(w*.5f,h*.46f))
-        drawCircle(Color(0xFF193B47), radius=w*.016f, center=Offset(w*.455f,h*.45f))
-        drawCircle(Color(0xFF193B47), radius=w*.016f, center=Offset(w*.545f,h*.45f))
-        drawOval(Color(0xFF4A9FAE), topLeft=Offset(w*.25f,h*.64f), size=Size(w*.5f,h*.23f))
-        drawLine(Color(0xFFE6C575),Offset(w*.5f,h*.68f),Offset(w*.5f,h*.79f),strokeWidth=w*.025f,cap=StrokeCap.Round)
-        drawLine(Color(0xFFE6C575),Offset(w*.46f,h*.72f),Offset(w*.54f,h*.72f),strokeWidth=w*.025f,cap=StrokeCap.Round)
+        drawCircle(SanctuaryHomeSurfaceRaised, radius=w*.48f, center=Offset(w*.5f,h*.5f))
+        drawOval(SanctuaryGlowGold, topLeft=Offset(w*.29f,h*.15f), size=Size(w*.42f,h*.10f), style=Stroke(width=w*.035f))
+        drawOval(SanctuaryBlue, topLeft=Offset(w*.28f,h*.29f), size=Size(w*.44f,h*.39f))
+        drawCircle(SanctuaryOnAccent, radius=w*.135f, center=Offset(w*.5f,h*.46f))
+        drawCircle(SanctuaryHomeInk, radius=w*.016f, center=Offset(w*.455f,h*.45f))
+        drawCircle(SanctuaryHomeInk, radius=w*.016f, center=Offset(w*.545f,h*.45f))
+        drawOval(SanctuaryBlue, topLeft=Offset(w*.25f,h*.64f), size=Size(w*.5f,h*.23f))
+        drawLine(SanctuaryChristmas,Offset(w*.5f,h*.68f),Offset(w*.5f,h*.79f),strokeWidth=w*.025f,cap=StrokeCap.Round)
+        drawLine(SanctuaryChristmas,Offset(w*.46f,h*.72f),Offset(w*.54f,h*.72f),strokeWidth=w*.025f,cap=StrokeCap.Round)
     }
 }
 
@@ -3128,6 +3136,7 @@ private fun SanctuaryModalSheet(
                 )
                 .statusBarsPadding()
                 .navigationBarsPadding()
+                .imePadding()
         ) {
             Column(
                 modifier = Modifier
