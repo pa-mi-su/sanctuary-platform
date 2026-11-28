@@ -41,15 +41,6 @@ type AppLanguage = 'en' | 'es' | 'pl';
         </button>
         <button
           class="tab"
-          [class.active]="currentTab() === 'liturgical'"
-          type="button"
-          (click)="navigate.emit('liturgical')"
-        >
-          <span class="tab-icon">▦</span>
-          <span>{{ t('Liturgical', 'Litúrgico', 'Liturgia') }}</span>
-        </button>
-        <button
-          class="tab"
           [class.active]="currentTab() === 'saints'"
           type="button"
           (click)="navigate.emit('saints')"

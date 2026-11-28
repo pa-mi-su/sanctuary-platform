@@ -398,3 +398,10 @@
     border-radius: 18px;
   }
 }
+
+/* Light sage content surfaces match the native Home body. */
+.nav-card { background: var(--sanctuary-surface-card); color: var(--sanctuary-text); border-color: var(--sanctuary-border-strong); }
+.nav-card::before, .nav-card::after { background: none; }
+.nav-text span { color: var(--sanctuary-text-muted); }
+.nav-icon { background: var(--sanctuary-surface-raised); color: var(--sanctuary-primary); }
+.nav-card .nav-icon { color: var(--sanctuary-primary); }

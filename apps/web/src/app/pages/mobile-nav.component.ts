@@ -16,10 +16,6 @@ type AppTab = 'home' | 'novenas' | 'intentions' | 'patronage' | 'liturgical' | '
         <span class="tab-icon">☰</span>
         <span>Novenas</span>
       </button>
-      <button class="tab" [class.active]="currentTab() === 'liturgical'" type="button" (click)="navigate.emit('liturgical')">
-        <span class="tab-icon">▦</span>
-        <span>Liturgical</span>
-      </button>
       <button class="tab" [class.active]="currentTab() === 'saints'" type="button" (click)="navigate.emit('saints')">
         <span class="tab-icon">♁</span>
         <span>Saints</span>

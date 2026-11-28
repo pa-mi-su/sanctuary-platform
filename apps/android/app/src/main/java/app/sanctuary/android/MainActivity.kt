@@ -227,6 +227,7 @@ import app.sanctuary.android.ui.theme.SanctuaryGradientBottom
 import app.sanctuary.android.ui.theme.SanctuaryGradientMid
 import app.sanctuary.android.ui.theme.SanctuaryGradientTop
 import app.sanctuary.android.ui.theme.SanctuaryCardElevated
+import app.sanctuary.android.ui.theme.SanctuaryToday
 import app.sanctuary.android.ui.theme.SanctuaryCardBorder
 import app.sanctuary.android.ui.theme.SanctuaryCardSoft
 import app.sanctuary.android.ui.theme.SanctuaryCard
@@ -4634,10 +4635,10 @@ private fun CalendarSurface(
                 FilterChipButton(entry.label(l10n), mode == entry) { onModeChange(entry) }
             }
         }
+        SeasonLegend()
         Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp), content = footer)
         Column(Modifier.fillMaxWidth().calendarDaySwipe(enabled = mode == CalendarMode.Day,
             onPrevious = onPrev, onNext = onNext), verticalArrangement = Arrangement.spacedBy(16.dp), content = content)
-        SeasonLegend()
     }
 }
 
@@ -4698,7 +4699,8 @@ private fun DayPreviewCard(
     onClick: () -> Unit
 ) {
     Card(onClick = onClick, enabled = enabled, modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = SanctuaryCard), shape = RoundedCornerShape(18.dp)) {
+        colors = CardDefaults.cardColors(containerColor = SanctuaryCard), shape = RoundedCornerShape(18.dp),
+        border = BorderStroke(2.dp, borderColor)) {
         Row(Modifier.fillMaxWidth().heightIn(min = 144.dp).padding(18.dp),
             horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
             if (showImage && !imageUrl.isNullOrBlank()) {
@@ -4813,10 +4815,10 @@ private fun CalendarEntryCell(
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
-    Surface(onClick = onClick, modifier = modifier.height(60.dp).semantics { contentDescription = "$day, $label" },
+    Surface(onClick = onClick, modifier = modifier.height(height).border(0.5.dp, SanctuaryCardBorder, RoundedCornerShape(12.dp)).semantics { contentDescription = "$day, $label" },
         color = if (selected) SanctuaryBlue else SanctuaryCard,
         shape = RoundedCornerShape(12.dp),
-        border = if (isToday && !selected) BorderStroke(1.dp, SanctuaryBlue) else null) {
+        border = BorderStroke(if (isToday) 3.dp else 2.dp, if (isToday) SanctuaryToday else borderColor)) {
         Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically),
             horizontalAlignment = Alignment.CenterHorizontally) {
             Text(day.toString(), color = if (selected) SanctuaryOnAccent else SanctuaryText,
@@ -4907,15 +4909,16 @@ private fun shortLiturgicalLabel(detail: app.sanctuary.android.data.LiturgicalDa
 private fun SeasonLegend() {
     val l10n = sanctuaryStrings()
     androidx.compose.foundation.layout.FlowRow(
-        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+        modifier = Modifier.fillMaxWidth().background(SanctuaryCard, RoundedCornerShape(16.dp))
+            .border(1.dp, SanctuaryCardBorder, RoundedCornerShape(16.dp)).padding(12.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        SeasonDot(l10n.t("season.advent"), SanctuaryAdvent, 11.sp, 7.dp, 8.dp)
-        SeasonDot(l10n.t("season.christmas"), SanctuaryChristmas, 11.sp, 7.dp, 8.dp)
-        SeasonDot(l10n.t("season.lent"), SanctuaryLent, 11.sp, 7.dp, 8.dp)
-        SeasonDot(l10n.t("season.easter"), SanctuaryEaster, 11.sp, 7.dp, 8.dp)
-        SeasonDot(l10n.t("season.ordinary"), SanctuaryOrdinary, 11.sp, 7.dp, 8.dp)
+        SeasonDot(l10n.t("season.advent"), SanctuaryAdvent, 12.sp, 9.dp, 8.dp)
+        SeasonDot(l10n.t("season.christmas"), SanctuaryChristmas, 12.sp, 9.dp, 8.dp)
+        SeasonDot(l10n.t("season.lent"), SanctuaryLent, 12.sp, 9.dp, 8.dp)
+        SeasonDot(l10n.t("season.easter"), SanctuaryEaster, 12.sp, 9.dp, 8.dp)
+        SeasonDot(l10n.t("season.ordinary"), SanctuaryOrdinary, 12.sp, 9.dp, 8.dp)
     }
 }
 
@@ -4928,17 +4931,17 @@ private fun SeasonDot(
     spacing: androidx.compose.ui.unit.Dp
 ) {
     Row(
-        modifier = Modifier.width(intrinsicSize = androidx.compose.foundation.layout.IntrinsicSize.Max),
+        modifier = Modifier,
         horizontalArrangement = Arrangement.spacedBy(spacing / 2),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(modifier = Modifier.size(dotSize).background(color, CircleShape))
+        Box(modifier = Modifier.size(dotSize).background(color, CircleShape).border(0.5.dp, SanctuaryMuted, CircleShape))
         Text(
             text = label,
             color = SanctuaryMuted,
             fontSize = fontSize,
-            maxLines = 1,
-            softWrap = false
+            maxLines = 2,
+            softWrap = true
         )
     }
 }

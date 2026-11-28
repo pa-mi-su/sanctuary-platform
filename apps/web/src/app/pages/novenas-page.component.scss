@@ -278,7 +278,7 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--sanctuary-surface-raised);
+  background: var(--season-color);
 }
 
 .calendar-headings {
@@ -305,8 +305,8 @@
   --season-color: transparent;
   min-height: 74px;
   border-radius: 12px;
-  border: 1px solid transparent;
-  background: var(--sanctuary-surface-card);
+  border: 1px solid var(--sanctuary-border-strong);
+  background: var(--sanctuary-surface-raised);
   padding: 8px 6px;
   display: flex;
   flex-direction: column;
@@ -675,6 +675,27 @@
   color: var(--sanctuary-on-accent);
 }
 
+.calendar-day:not([data-season])::after,
 .calendar-day.empty::after {
   display: none;
+}
+
+/* Shared calendar hierarchy: sage tiles, teal selection, separate season markers. */
+.calendar-day:hover:not(.selected):not(.empty) {
+  background: var(--sanctuary-surface-elevated);
+  border-color: var(--sanctuary-primary);
+}
+.calendar-day:focus-visible {
+  outline: 3px solid var(--sanctuary-primary);
+  outline-offset: 3px;
+}
+.calendar-day.today:not(.selected) { border: 2px solid var(--sanctuary-primary); }
+.calendar-day::after { width: 7px; height: 7px; left: calc(50% - 3.5px); border: 1px solid var(--sanctuary-border-strong); }
+.season-pill::before { border: 1px solid var(--sanctuary-border-strong); }
+.saint-highlight { color: var(--sanctuary-text); border-color: var(--sanctuary-border-strong); }
+.saint-highlight[data-season] { border-color: var(--sanctuary-border-strong); box-shadow: none; }
+@media (min-width: 641px) {
+  .calendar-day { min-height: 96px; padding: 12px 10px 20px; }
+  .calendar-day span { font-size: 0.78rem; line-height: 1.3; }
+  .week-grid .calendar-day { min-height: 128px; }
 }

@@ -781,6 +781,13 @@ private struct CalendarScaffold<Content: View>: View {
                             .pickerStyle(.segmented)
                             .onChange(of: mode) { _ in onModeChanged() }
                         }
+                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 110), alignment: .leading)], alignment: .leading, spacing: 10) {
+                            legendItems
+                        }
+                        .font(.caption).foregroundStyle(AppTheme.subtitleText)
+                        .padding(12)
+                        .background(AppTheme.cardBackground, in: RoundedRectangle(cornerRadius: 16))
+                        .overlay(RoundedRectangle(cornerRadius: 16).stroke(AppTheme.border, lineWidth: 1))
                         if let searchTitle {
                             CalendarSearchActionButton(title: searchTitle, systemImage: "magnifyingglass", tint: AppTheme.glowBlue, scale: 1) { onSearchTap?() }
                         }
@@ -788,13 +795,14 @@ private struct CalendarScaffold<Content: View>: View {
                             CalendarSearchActionButton(title: secondarySearchTitle, systemImage: "magnifyingglass", tint: AppTheme.glowGold, scale: 1) { onSecondarySearchTap?() }
                         }
                         content
-                        ViewThatFits(in: .horizontal) {
-                            HStack(spacing: 12) { legendItems }
-                            VStack(alignment: .leading, spacing: 8) { legendItems }
-                        }
-                        .font(.caption).foregroundStyle(AppTheme.subtitleText)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-
+                            .contentShape(Rectangle())
+                            .simultaneousGesture(
+                                DragGesture(minimumDistance: 24).onEnded { value in
+                                    guard abs(value.translation.width) > abs(value.translation.height) else { return }
+                                    if value.translation.width < -40 { onNext() }
+                                    else if value.translation.width > 40 { onPrev() }
+                                }
+                            )
                     }
                     .padding(.horizontal, 20).padding(.top, 12).padding(.bottom, 32)
                     .frame(maxWidth: 760)
@@ -930,6 +938,7 @@ private struct DayCard: View {
             .foregroundStyle(AppTheme.cardText)
             .padding(18).frame(maxWidth: .infinity, minHeight: 144, alignment: .leading)
             .background(AppTheme.cardBackground, in: RoundedRectangle(cornerRadius: 18))
+            .overlay(RoundedRectangle(cornerRadius: 18).stroke(borderColor ?? AppTheme.border, lineWidth: 2))
         }
         .buttonStyle(.plain).disabled(!showsAction)
     }
@@ -1114,7 +1123,8 @@ private struct CalendarDateCell: View {
             }
             .frame(maxWidth: .infinity).frame(height: 60)
             .background(selected ? AppTheme.glowBlue : AppTheme.cardBackground, in: RoundedRectangle(cornerRadius: 12))
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(isToday && !selected ? AppTheme.glowBlue : .clear, lineWidth: 1))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(isToday ? AppTheme.todayHighlight : season, lineWidth: isToday ? 3 : 2))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(AppTheme.border, lineWidth: 0.5))
         }.buttonStyle(.plain)
             .accessibilityLabel("\(day), \(label)")
             .accessibilityAddTraits(selected ? .isSelected : [])
