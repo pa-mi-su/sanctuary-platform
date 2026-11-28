@@ -10,3 +10,5 @@ Continue using the shared 27-role color contract in `design/tokens/colors.json`.
 - Web, iOS and Android have one theme implementation each, shared by DEV/UAT/production builds. Environment settings select service endpoints, identity and signing, not a palette. Existing deployments only receive these changes when released; this change does not deploy production.
 
 Validation: web production build and 69 tests passed; shared palette/contrast checks passed. Native files match their versions before this web update. Local browser inspection confirmed outlined month/week cells, colored legends, and absence of the Liturgical tab. Local preview API requests were unavailable, so those visual checks used empty/error states rather than confirming live calendar content.
+
+Follow-up: separately requested native calendar regression repairs are documented in `native-calendar-regression-audit.md`. They supersede the web-only scope above for the native legends, seasonal outlines, and iOS swipe restoration.
