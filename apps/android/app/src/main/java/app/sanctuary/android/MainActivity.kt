@@ -4635,10 +4635,10 @@ private fun CalendarSurface(
                 FilterChipButton(entry.label(l10n), mode == entry) { onModeChange(entry) }
             }
         }
-        SeasonLegend()
-        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp), content = footer)
         Column(Modifier.fillMaxWidth().calendarDaySwipe(enabled = mode == CalendarMode.Day,
             onPrevious = onPrev, onNext = onNext), verticalArrangement = Arrangement.spacedBy(16.dp), content = content)
+        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp), content = footer)
+        SeasonLegend()
     }
 }
 
@@ -4823,7 +4823,9 @@ private fun CalendarEntryCell(
             horizontalAlignment = Alignment.CenterHorizontally) {
             Text(day.toString(), color = if (selected) SanctuaryOnAccent else SanctuaryText,
                 fontSize = 16.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium)
-            Box(Modifier.size(5.dp).background(borderColor, CircleShape))
+            Text(label, color = if (selected) SanctuaryOnAccent else SanctuaryMuted,
+                fontSize = 10.sp, lineHeight = 12.sp, maxLines = 2,
+                overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
         }
     }
 }

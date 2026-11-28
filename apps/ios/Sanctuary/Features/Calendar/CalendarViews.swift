@@ -773,26 +773,17 @@ private struct CalendarScaffold<Content: View>: View {
                             Button(localization.t("calendar.today"), action: onToday)
                                 .font(.subheadline.weight(.semibold)).tint(AppTheme.glowBlue)
                                 .frame(minHeight: 44)
-                            Picker("", selection: $mode) {
-                                Text(localization.t("calendar.day")).tag(CalendarMode.day)
-                                Text(localization.t("calendar.week")).tag(CalendarMode.week)
-                                Text(localization.t("calendar.month")).tag(CalendarMode.month)
+                            ForEach([CalendarMode.day, .week, .month], id: \.self) { entry in
+                                Button(localization.t(entry == .day ? "calendar.day" : entry == .week ? "calendar.week" : "calendar.month")) {
+                                    onModeChanged()
+                                    mode = entry
+                                }
+                                .font(.system(size: 15, weight: .semibold))
+                                .lineLimit(1).minimumScaleFactor(0.7)
+                                .foregroundStyle(mode == entry ? AppTheme.onAccent : AppTheme.cardText)
+                                .padding(.horizontal, 8).frame(maxWidth: .infinity, minHeight: 44)
+                                .background(mode == entry ? AppTheme.glowBlue : AppTheme.cardBackgroundSoft, in: Capsule())
                             }
-                            .pickerStyle(.segmented)
-                            .onChange(of: mode) { _ in onModeChanged() }
-                        }
-                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 110), alignment: .leading)], alignment: .leading, spacing: 10) {
-                            legendItems
-                        }
-                        .font(.caption).foregroundStyle(AppTheme.subtitleText)
-                        .padding(12)
-                        .background(AppTheme.cardBackground, in: RoundedRectangle(cornerRadius: 16))
-                        .overlay(RoundedRectangle(cornerRadius: 16).stroke(AppTheme.border, lineWidth: 1))
-                        if let searchTitle {
-                            CalendarSearchActionButton(title: searchTitle, systemImage: "magnifyingglass", tint: AppTheme.glowBlue, scale: 1) { onSearchTap?() }
-                        }
-                        if let secondarySearchTitle {
-                            CalendarSearchActionButton(title: secondarySearchTitle, systemImage: "magnifyingglass", tint: AppTheme.glowGold, scale: 1) { onSecondarySearchTap?() }
                         }
                         content
                             .contentShape(Rectangle())
@@ -803,6 +794,19 @@ private struct CalendarScaffold<Content: View>: View {
                                     else if value.translation.width > 40 { onPrev() }
                                 }
                             )
+                        if let searchTitle {
+                            CalendarSearchActionButton(title: searchTitle, systemImage: "magnifyingglass", tint: AppTheme.glowBlue, scale: 1) { onSearchTap?() }
+                        }
+                        if let secondarySearchTitle {
+                            CalendarSearchActionButton(title: secondarySearchTitle, systemImage: "magnifyingglass", tint: AppTheme.glowGold, scale: 1) { onSecondarySearchTap?() }
+                        }
+                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 110), alignment: .leading)], alignment: .leading, spacing: 10) {
+                            legendItems
+                        }
+                        .font(.caption).foregroundStyle(AppTheme.subtitleText)
+                        .padding(12)
+                        .background(AppTheme.cardBackground, in: RoundedRectangle(cornerRadius: 16))
+                        .overlay(RoundedRectangle(cornerRadius: 16).stroke(AppTheme.border, lineWidth: 1))
                     }
                     .padding(.horizontal, 20).padding(.top, 12).padding(.bottom, 32)
                     .frame(maxWidth: 760)
@@ -1118,10 +1122,11 @@ private struct CalendarDateCell: View {
             VStack(spacing: 8) {
                 Text("\(day)").font(.body.weight(selected ? .bold : .medium))
                     .foregroundStyle(selected ? AppTheme.onAccent : AppTheme.cardText)
-                Circle().fill(season).overlay(Circle().stroke(AppTheme.homeInk.opacity(0.15), lineWidth: 0.5))
-                    .frame(width: 5, height: 5)
+                Text(label).font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(selected ? AppTheme.onAccent : AppTheme.subtitleText)
+                    .multilineTextAlignment(.center).lineLimit(2)
             }
-            .frame(maxWidth: .infinity).frame(height: 60)
+            .padding(6).frame(maxWidth: .infinity).frame(height: 72)
             .background(selected ? AppTheme.glowBlue : AppTheme.cardBackground, in: RoundedRectangle(cornerRadius: 12))
             .overlay(RoundedRectangle(cornerRadius: 12).stroke(isToday ? AppTheme.todayHighlight : season, lineWidth: isToday ? 3 : 2))
             .overlay(RoundedRectangle(cornerRadius: 12).stroke(AppTheme.border, lineWidth: 0.5))
