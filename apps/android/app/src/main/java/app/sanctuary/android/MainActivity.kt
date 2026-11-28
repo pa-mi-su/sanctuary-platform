@@ -227,7 +227,6 @@ import app.sanctuary.android.ui.theme.SanctuaryGradientBottom
 import app.sanctuary.android.ui.theme.SanctuaryGradientMid
 import app.sanctuary.android.ui.theme.SanctuaryGradientTop
 import app.sanctuary.android.ui.theme.SanctuaryCardElevated
-import app.sanctuary.android.ui.theme.SanctuaryBorderStrong
 import app.sanctuary.android.ui.theme.SanctuaryCardBorder
 import app.sanctuary.android.ui.theme.SanctuaryCardSoft
 import app.sanctuary.android.ui.theme.SanctuaryCard
@@ -4815,9 +4814,9 @@ private fun CalendarEntryCell(
     onClick: () -> Unit
 ) {
     Surface(onClick = onClick, modifier = modifier.height(60.dp).semantics { contentDescription = "$day, $label" },
-        color = if (selected) SanctuaryBlue else SanctuaryHomeSurfaceRaised,
+        color = if (selected) SanctuaryBlue else SanctuaryCard,
         shape = RoundedCornerShape(12.dp),
-        border = BorderStroke(1.dp, if (isToday && !selected) SanctuaryBlue else SanctuaryBorderStrong)) {
+        border = if (isToday && !selected) BorderStroke(1.dp, SanctuaryBlue) else null) {
         Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically),
             horizontalAlignment = Alignment.CenterHorizontally) {
             Text(day.toString(), color = if (selected) SanctuaryOnAccent else SanctuaryText,
