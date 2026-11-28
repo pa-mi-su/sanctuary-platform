@@ -1113,8 +1113,8 @@ private struct CalendarDateCell: View {
                     .frame(width: 5, height: 5)
             }
             .frame(maxWidth: .infinity).frame(height: 60)
-            .background(selected ? AppTheme.glowBlue : AppTheme.cardBackground, in: RoundedRectangle(cornerRadius: 12))
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(isToday && !selected ? AppTheme.glowBlue : .clear, lineWidth: 1))
+            .background(selected ? AppTheme.glowBlue : AppTheme.homeSurfaceRaised, in: RoundedRectangle(cornerRadius: 12))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(isToday && !selected ? AppTheme.glowBlue : AppTheme.purpleOutline, lineWidth: 1))
         }.buttonStyle(.plain)
             .accessibilityLabel("\(day), \(label)")
             .accessibilityAddTraits(selected ? .isSelected : [])

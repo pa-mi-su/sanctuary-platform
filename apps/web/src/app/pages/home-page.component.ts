@@ -20,7 +20,7 @@ type AppLanguage = 'en' | 'es' | 'pl';
           <h1>{{ t('Welcome to your sanctuary', 'Bienvenido a tu santuario', 'Witamy w twoim sanktuarium') }}</h1>
           <p class="hero-question">{{ t('Find daily readings, pray the Rosary, or search saints, novenas, prayers, and intentions from the paths below.', 'Encuentra las lecturas diarias, reza el Rosario o busca santos, novenas, oraciones e intenciones desde las opciones de abajo.', 'Znajdź czytania dnia, odmów Różaniec albo wyszukaj świętych, nowenny, modlitwy i intencje w opcjach poniżej.') }}</p>
           <p class="hero-copy-text">
-            {{ t('Use the tabs to explore the liturgical calendar, saint feast days, and novena schedule.', 'Usa las pestañas para explorar el calendario litúrgico, las fiestas de santos y el calendario de novenas.', 'Użyj kart, aby przeglądać kalendarz liturgiczny, dni wspomnień świętych i harmonogram nowenn.') }}
+            {{ t('Explore saint feast days and your novena schedule using the tabs.', 'Explora las fiestas de santos y el calendario de novenas usando las pestañas.', 'Użyj kart, aby przeglądać dni wspomnień świętych i harmonogram nowenn.') }}
           </p>
         </div>
       </section>
